@@ -1,0 +1,202 @@
+unit AF9_API;
+
+interface
+
+uses Windows, Messages, SysUtils;
+
+const
+
+{** @name Power enable/disable Map.
+ *
+ * Register offsets for the power enable/disable.
+ *}
+{
+#define PCA9555_CH0_LT3086_VDD_SD_EN    (1 << 0)
+#define PCA9555_CH0_LT3086_VAA_AUX_EN   (1 << 1)
+#define PCA9555_CH0_LTM8002_EN1         (1 << 2)
+#define PCA9555_CH0_LT3086_VCC_AUX_EN   (1 << 3)
+#define PCA9555_CH0_LTM8002_EN5        	(1 << 4)
+#define PCA9555_CH0_LT3086_VTERM_EN     (1 << 5)
+#define PCA9555_CH0_LT3086_AVDDH_EN     (1 << 6)
+#define PCA9555_CH0_LT3086_VDDEL_EN   	(1 << 7)
+#define PCA9555_CH0_LT3091_VEE_AUX_EN   (1 << 8)
+#define PCA9555_CH0_LT3091_VINI_EN   		(1 << 8)
+#define PCA9555_CH0_LTM8002_EN2   			(1 << 9)
+#define PCA9555_CH0_LTM8002_EN3   			(1 << 10)
+#define PCA9555_CH0_LTM4651_EN2   			(1 << 11)
+#define PCA9555_CH0_LT3091_VSSEL_EN   	(1 << 12)
+#define PCA9555_CH0_LTM8002_EN6   			(1 << 13)
+#define PCA9555_CH0_LT3086_VGH1_EN   		(1 << 14)
+
+#define PCA9555_CH1_LT3086_VGH2_EN      (1 << 0)
+#define PCA9555_CH1_LTM4651_EN3       	(1 << 1)
+#define PCA9555_CH1_LT3091_VGL1_EN   		(1 << 2)
+#define PCA9555_CH1_LTM8002_EN7       	(1 << 3)
+#define PCA9555_CH1_LT3086_LGD_AUX1_EN  (1 << 4)
+#define PCA9555_CH1_LT3086_LGD_AUX2_EN  (1 << 5)
+#define PCA9555_CH1_LT3091_VGL2_EN      (1 << 6)
+#define PCA9555_CH1_LTM4651_EN4 				(1 << 7)
+
+#define PCA9555_CH3_LT3086_VOBS1_EN			(1 << 0)
+#define PCA9555_CH3_LT3086_VOBS2_EN			(1 << 1)
+#define PCA9555_CH3_LT3091_VAR1_R_EN		(1 << 2)
+
+#define PCA9555_CH3_LT3091_VAR1_GB_EN		(1 << 3)
+#define PCA9555_CH3_LT3091_VAR2_EN			(1 << 4)
+}
+
+	PCA9555_CH0_LT3086_VDD_SD_EN    = $0001; //(1 << 0)
+	PCA9555_CH0_LT3086_VAA_AUX_EN   = $0002; //(1 << 1)
+	PCA9555_CH0_LTM8002_EN1         = $0004; //(1 << 2)
+	PCA9555_CH0_LT3086_VCC_AUX_EN   = $0008; //(1 << 3)
+	PCA9555_CH0_LTM8002_EN5        	= $0010; //(1 << 4)
+	PCA9555_CH0_LT3086_VTERM_EN     = $0020; //(1 << 5)
+	PCA9555_CH0_LT3086_AVDDH_EN     = $0040; //(1 << 6)
+	PCA9555_CH0_LT3086_VDDEL_EN   	= $0080; //(1 << 7)
+	PCA9555_CH0_LT3091_VEE_AUX_EN   = $0100; //(1 << 8) //TBD:ITOLED:8?
+	PCA9555_CH0_LT3091_VINI_EN   		= $0100; //(1 << 8) //TBD:ITOLED:8?
+	PCA9555_CH0_LTM8002_EN2   			= $0200; //(1 << 9)
+	PCA9555_CH0_LTM8002_EN3   			= $0400; //(1 << 10)
+	PCA9555_CH0_LTM4651_EN2   			= $0800; //(1 << 11)
+	PCA9555_CH0_LT3091_VSSEL_EN   	= $1000; //(1 << 12)
+	PCA9555_CH0_LTM8002_EN6   			= $2000; //(1 << 13)
+	PCA9555_CH0_LT3086_VGH1_EN   		= $4000; //(1 << 14)
+
+	PCA9555_CH1_LT3086_VGH2_EN      = $0001; //(1 << 0)
+	PCA9555_CH1_LTM4651_EN3       	= $0002; //(1 << 1)
+	PCA9555_CH1_LT3091_VGL1_EN   		= $0004; //(1 << 2)
+	PCA9555_CH1_LTM8002_EN7       	= $0008; //(1 << 3)
+	PCA9555_CH1_LT3086_LGD_AUX1_EN  = $0010; //(1 << 4)
+	PCA9555_CH1_LT3086_LGD_AUX2_EN  = $0020; //(1 << 5)
+	PCA9555_CH1_LT3091_VGL2_EN      = $0040; //(1 << 6)
+	PCA9555_CH1_LTM4651_EN4 				= $0080; //(1 << 7)
+
+	PCA9555_CH3_LT3086_VOBS1_EN			= $0001; //(1 << 0)
+	PCA9555_CH3_LT3086_VOBS2_EN			= $0002; //(1 << 1)
+	PCA9555_CH3_LT3091_VAR1_R_EN		= $0004; //(1 << 2)
+	PCA9555_CH3_LT3091_VAR1_GB_EN		= $0008; //(1 << 3)
+	PCA9555_CH3_LT3091_VAR2_EN			= $0010; //(1 << 4)
+
+
+{** @name General define.
+ *
+ * General define.
+ *}
+{
+#define ENABLE		(1)
+#define DISENABLE	(0)
+
+#define ON			(1)
+#define OFF			(0)
+
+#define EXTENDIO_1	(0)
+#define EXTENDIO_2	(1)
+#define EXTENDIO_3	(2)
+#define EXTENDIO_4	(3)
+
+#define PWR_PLUS	(1)
+#define PWR_MINUS	(2)
+}
+
+	AF9_ENABLE	= 1;
+	AF9_DISABLE	= 0;
+
+	AF9_ON	= 1;
+	AF9_OFF	= 0;
+
+	AF9_EXTENDIO_1 = 0;
+	AF9_EXTENDIO_2 = 1;
+	AF9_EXTENDIO_3 = 2;
+	AF9_EXTENDIO_4 = 3;
+
+	AF9_PWR_PLUS	= 1;
+	AF9_PWR_MINUS	= 2;
+
+type
+
+{** @name Power voltage enumerated type.
+ *
+ * Register offsets for the power voltage.
+ *}
+
+AF9_enumPOWER_CH1 = (
+	LTM8002_VDAC1 = 0,
+	LT3086_VAA_AUX_VDAC,
+	VCC_AUX_VDAC,
+	LT3091_VINI_VDAC,
+	LTM8002_OUT2_VDAC,
+	LT3086_VDD_SD_VDAC,
+	LT3086_VTERM_VDAC,
+	LTM8002_OUT3_VDAC,
+	LT3086_AVDDH_VDAC,
+	LTM8002_OUT5_VDAC,
+	LT3086_VDDEL_VDAC,
+	LTM8002_OUT6_VDAC,
+	LT3086_VGH1_VDAC,
+	LT3086_VGH2_VDAC,
+	LTM8002_OUT7_VDAC
+);
+
+AF9_enumPOWER_CH2 = (
+	LTM4651_OUT3_VDAC = 100,
+	LT3091_VGL1_VDAC,
+	LT3091_VGL2_VDAC,
+	LTM4651_OUT4_VDAC,
+	TPS61175_OUT2_VDAC,
+	LGD_AUX1_VDAC,
+	LGD_AUX2_VDAC,
+	LTM4651_OUT2_VDAC
+);
+
+AF9_enumPOWER_CH3 = (
+	LT3091_VSSEL_VDAC = 200,
+	DAC_VSSEL_OPAMP,
+	LT3086_VOBS1_VDAC,
+	DAC_VOBS1_OPAMP,
+	LT3086_VOBS2_VDAC,
+	DAC_VOBS2_OPAMP,
+	DAC_VINI_OPAMP,
+	LT3091_VAR1_VDAC,
+	DAC_VAR1_OPAMP,
+	LT3091_VAR2_VDAC,
+	DAC_VAR2_OPAMP,
+	LT3091_VAR1_R_VDAC,
+	LT3091_VAR2_R_VDAC,
+	LT3091_VAR1_GB_VDAC,
+	LT3091_VAR2_GB_VDAC
+);
+
+AF9_enumPOWER_DAC_TYPE = (
+	LTM8002_TYPE = 0,
+	LT3086_TYPE,
+	LTM4651_TYPE,
+	LT3091_TYPE,
+	TPS61175,
+	DAC_TYPE
+);
+
+{** @name Channel type.
+ *
+ * Channel type.
+ *}
+AF9_enumCHANNEL_TYPE = (
+	AF9CH_ALL = 0,
+	AF9CH_1,
+	AF9CH_2
+);
+
+{** @name Command list type
+ *
+ * LGD command list type.
+ *}
+
+AF9_PLGDCommand = ^AF9_TLGDCommand;
+AF9_TLGDCommand = record
+	Addr : DWORD; //unsigned long Addr
+	Data : Byte;  //unsigned char Data
+end;
+
+implementation
+
+end.
+
