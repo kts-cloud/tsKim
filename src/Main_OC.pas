@@ -4623,12 +4623,16 @@ var
 
   hwnd: THandle;
   DataStruct: CopyDataStruct;
-
+  sFileName: string;
 begin
-
-
-
   tmrDisplayTestForm.Enabled := False;
+
+  if not Common.PLCInfo.Use_Simulation then begin
+    //ActUTL Server 실행
+    sFileName:= ExtractFilePath(Application.ExeName) + 'ActUtilTCPServer.exe';
+    ShellExecute(Handle, 'open', PWideChar(sFileName), nil, nil, SW_SHOWNORMAL) ;
+  end;
+
   Self.WindowState := wsMaximized;
 //  if Common.SystemInfo.OcManualType then pnlSubTool.Height := 0;
   if Common.SystemInfo.UIType = DefCommon.UI_WIN10_NOR then begin
