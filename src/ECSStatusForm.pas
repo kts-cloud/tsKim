@@ -1308,22 +1308,45 @@ var
 begin
 
   //SetCellState(nCol, nRow, nDivisioin, nIndex, nBitLoc: Integer);
-  for i := 0 to 15 do begin
-    //EQP
-    SetCellState(1,  i+1, 0, 0,  i); //Status
-    SetCellState(2,  i+1, 0, 1,  i); //Special Equipment
-    //SetCellState(2,  i+1, 0, 10, i); //Glass Position
-    //SetCellState(4,  i+1, 0, 6,  i); //PCHK, EICR
-    SetCellState(4,  i+1, 0, 12, i); //Load 0
-    SetCellState(5,  i+1, 0, 13, i); //Unload 0
-    SetCellState(6,  i+1, 0, 14, i); //Load 1
-    SetCellState(7,  i+1, 0, 15, i); //Unload 1
-//    SetCellState(3,  i+1, 0, 8, i); //Unload 1
-  end;
+  if Common.SystemInfo.OCType = DefCommon.OCType then begin
+    for i := 0 to 15 do begin
+      //EQP
+      SetCellState(1,  i+1, 0, 0,  i); //Status
+      SetCellState(2,  i+1, 0, 1,  i); //Special Equipment
+      //SetCellState(2,  i+1, 0, 10, i); //Glass Position
+      //SetCellState(4,  i+1, 0, 6,  i); //PCHK, EICR
+      SetCellState(4,  i+1, 0, 12, i); //Load 0
+      SetCellState(5,  i+1, 0, 13, i); //Unload 0
+      SetCellState(6,  i+1, 0, 14, i); //Load 1
+      SetCellState(7,  i+1, 0, 15, i); //Unload 1
+  //    SetCellState(3,  i+1, 0, 8, i); //Unload 1
+    end;
 
-  for i := 0 to 7 do begin
-    //EQP - Position
-    SetCellState(3,  i+1, 0, 7, i); //Glass Position
+    for i := 0 to 7 do begin
+      //EQP - Position
+      SetCellState(3,  i+1, 0, 7, i); //Glass Position
+    end;
+  end
+  else begin
+    for i := 0 to 15 do begin
+      //EQP
+      SetCellState(1,  i+1, 0, 0,  i); //Status
+      SetCellState(2,  i+1, 0, 1,  i); //Special Equipment
+      //SetCellState(2,  i+1, 0, 10, i); //Glass Position
+      //SetCellState(4,  i+1, 0, 6,  i); //PCHK, EICR
+      SetCellState(4,  i+1, 0, 18, i); //Load 0
+      SetCellState(5,  i+1, 0, 19, i); //Unload 0
+      SetCellState(6,  i+1, 0, 20, i); //Load 1
+      SetCellState(7,  i+1, 0, 21, i); //Unload 1
+  //    SetCellState(3,  i+1, 0, 8, i); //Unload 1
+    end;
+
+    for i := 0 to 7 do begin
+      //EQP - Position
+      SetCellState(3,  i+1, 0, 12, i); //Glass Position
+    end;
+
+
   end;
 
 
@@ -1334,22 +1357,7 @@ begin
     SetCellState(10, i+1, 1, 2, i);
     SetCellState(11, i+1, 1, 3, i);
   end;
-//  if g_CommPLC.InlineGIB then begin
-//    SetCellState(12, 16, 1, 3, 15); //Last Product
-//  end
-//  else begin
-//    //((g_CommPLC.EQP_ID - 33) div 4) + 6; //시작 번호 33
-//    SetCellState(12, 16, 3, 0, ((g_CommPLC.EQP_ID - 33) div 4) + 6); //Last Product
-//  end;
 
-
-//  for i := 0 to 3 do begin
-//    //ECS - Inspection
-//    SetCellState(13,  i+1, 2, 0, 3+i); //BCR #1 Read Report Confirm
-//    SetCellState(13,  i+5, 2, 2, i); //Inspection Report Confirm
-//    SetCellState(13,  i+9, 2, 3, i); //Inspection Data Confirm Ack
-//  end;
-  //SetCellState(13, 16, 2, 1, 1); //User ID Report Confirm
   for I := 0 to 4 do
     SetCellState(12, i+1, 2, 3, i);  // ECS Status & Data (ECS → All)
     //Link Test Request
@@ -1359,14 +1367,6 @@ begin
     SetCellState(14, i+1, 2, 1, i); //Link Test Request
     SetCellState(15, i+1, 2, 2, i); //Link Test Request
   end;
-
-//  SetCellState(13, 1, 2, 0, 0); //Link Test Request
-//  SetCellState(13, 2, 2, 0, 1); //APD Report_ACK
-//  //SetCellState(13, 3, 2, 0, 2); //Take_Out_Report_ACK
-//  SetCellState(13, 5, 2, 1, 0); //User ID Report Confirm
-//  SetCellState(13, 7, 2, 2, 1); //Inspection Data Confirm #1
-//  SetCellState(13, 9, 2, 3, 0); //BCR #1 Read Report Confirm
-//  SetCellState(13, 16, 2, 0, 15); //AAB Mode
 
 end;
 

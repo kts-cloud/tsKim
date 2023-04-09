@@ -3,9 +3,6 @@
         <ProjectGuid>{E29B8813-193A-4D3D-98E8-94226C59C822}</ProjectGuid>
     </PropertyGroup>
     <ItemGroup>
-        <Projects Include="ControlEtc.dproj">
-            <Dependencies/>
-        </Projects>
         <Projects Include="ITOLED_OC_Simulator.dproj">
             <Dependencies/>
         </Projects>
@@ -13,9 +10,6 @@
             <Dependencies/>
         </Projects>
         <Projects Include="ITOLED_PreOC.dproj">
-            <Dependencies/>
-        </Projects>
-        <Projects Include="Test_Serial.dproj">
             <Dependencies/>
         </Projects>
     </ItemGroup>
@@ -26,15 +20,6 @@
             <Default.Personality/>
         </BorlandProject>
     </ProjectExtensions>
-    <Target Name="ControlEtc">
-        <MSBuild Projects="ControlEtc.dproj"/>
-    </Target>
-    <Target Name="ControlEtc:Clean">
-        <MSBuild Projects="ControlEtc.dproj" Targets="Clean"/>
-    </Target>
-    <Target Name="ControlEtc:Make">
-        <MSBuild Projects="ControlEtc.dproj" Targets="Make"/>
-    </Target>
     <Target Name="ITOLED_OC_Simulator">
         <MSBuild Projects="ITOLED_OC_Simulator.dproj"/>
     </Target>
@@ -62,23 +47,14 @@
     <Target Name="ITOLED_PreOC:Make">
         <MSBuild Projects="ITOLED_PreOC.dproj" Targets="Make"/>
     </Target>
-    <Target Name="Test_Serial">
-        <MSBuild Projects="Test_Serial.dproj"/>
-    </Target>
-    <Target Name="Test_Serial:Clean">
-        <MSBuild Projects="Test_Serial.dproj" Targets="Clean"/>
-    </Target>
-    <Target Name="Test_Serial:Make">
-        <MSBuild Projects="Test_Serial.dproj" Targets="Make"/>
-    </Target>
     <Target Name="Build">
-        <CallTarget Targets="ControlEtc;ITOLED_OC_Simulator;ITOLED_OC;ITOLED_PreOC;Test_Serial"/>
+        <CallTarget Targets="ITOLED_OC_Simulator;ITOLED_OC;ITOLED_PreOC"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="ControlEtc:Clean;ITOLED_OC_Simulator:Clean;ITOLED_OC:Clean;ITOLED_PreOC:Clean;Test_Serial:Clean"/>
+        <CallTarget Targets="ITOLED_OC_Simulator:Clean;ITOLED_OC:Clean;ITOLED_PreOC:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="ControlEtc:Make;ITOLED_OC_Simulator:Make;ITOLED_OC:Make;ITOLED_PreOC:Make;Test_Serial:Make"/>
+        <CallTarget Targets="ITOLED_OC_Simulator:Make;ITOLED_OC:Make;ITOLED_PreOC:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

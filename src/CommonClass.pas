@@ -133,6 +133,7 @@ type
     PG_TYPE             : Integer;  //AF9, DP860
     UseITOMode          : Boolean;
     SaveEnergy          : Integer;
+    CHReversal          : Boolean; // 라인 반전으로 1 2 CH 반전 되어 들어오는 경우 처리
     SignalInversion     : string; // Added by KTS 2023-01-17 오후 5:14:33 B접점 반전 해야되는 신호 목록
     PG_TconWriteLogDisplay    : Boolean; //2023-03-28 jhhwang (for T/T Test)
     PG_TconWriteCmdType       : Integer; //2023-03-28 jhhwang (for T/T Test) //0(all tcon.ocwrite), 1(all tcon.write), 2(defaul tcon.ocwrite + tcon.write only if SyncAddr)
@@ -3488,7 +3489,8 @@ begin
 
       SystemInfo.UseITOMode           := fSys.ReadBool   ('SYSTEMDATA', 'USE_ITOMODE', False);  // Added by KTS 2022-03-25 오후 1:09:57
       SystemInfo.PG_TYPE   := fSys.ReadInteger('SYSTEMDATA', 'PG_TYPE', DefPG.PG_TYPE_DP860);
-
+      SystemInfo.CHReversal :=        fSys.ReadBool   ('SYSTEMDATA', 'CHReversal', False);  // Added by KTS 2022-03-25 오후 1:09:57
+      SystemInfo.PG_TYPE   := fSys.ReadInteger('SYSTEMDATA', 'PG_TYPE', DefPG.PG_TYPE_DP860);
       SystemInfo.SaveEnergy           := fSys.ReadInteger('SYSTEMDATA',    'SAVE_ENERGY', 0);
       for i := DefCommon.CH1 to DefCommon.MAX_CH do begin
         SystemInfo.IPAddr[i]          := fSys.ReadString('SYSTEMDATA', 	'IP_ADDR'+IntToStr(i),Format('192.168.0.%d',[i+21]));
@@ -4047,6 +4049,7 @@ begin
         WriteString ('SYSTEMDATA', 'IP_ADDR'+IntToStr(i), SystemInfo.IPAddr[i]);
         WriteBool('SYSTEMDATA',Format('USE_CH_%d',[i+1]), SystemInfo.UseCh[i]);
       end;
+      WriteBool   ('SYSTEMDATA','CHReversal',             SystemInfo.CHReversal);
       WriteBool   ('SYSTEMDATA', 'USE_ITOMODE', 		 	 	  SystemInfo.UseITOMode);  // Added by KTS 2022-03-25 오후 1:08:29
 
       WriteInteger('SYSTEMDATA', 'EQPID_TYPE',  					SystemInfo.EQPId_Type);

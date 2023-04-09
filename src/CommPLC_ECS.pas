@@ -2027,23 +2027,9 @@ begin
   AddLog('ROBOT_Exchange_Request: ' + InttoStr(nCh));
 
   WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$4 + (nCh*$20), 3), 1); //Unload Normal Status
-  //WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$0 + (nCh*$20), 3), 0); //Unload Enable Off
-  //WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$6 + (nCh*$20), 3), 0); //Unload Complete Confrim Off
-
-  //WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$0 + (nCh*$20), 3), 0); //Load Enable Off
-  //WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$5 + (nCh*$20), 3), 0); //Load Request Off
-  //WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$6 + (nCh*$20), 3), 0); //Load Complte Confirm Off
   WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$12+$4 + (nCh*$20), 3), 1); //Load Normal Status - 상태 설정에서....
 
-   Sleep(50);
-
-  //Unload GlassData
-//  ConvertGlassDataToBlock(GlassData[(StageNo*4)+nCh*2], naGlassData[0]);
-//  WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$20+$0 + (nCh*$80) , 3), 64, naGlassData[0]); //Unload Glass Data #1
-//
-//  ConvertGlassDataToBlock(GlassData[(StageNo*4)+nCh*2+1], naGlassData[0]);
-//  WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$20+$0 + $40 + (nCh*$80), 3), 64, naGlassData[0]); //Unload Glass Data #2
-
+  Sleep(50);
 
   WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$1 + (nCh*$20), 3), 1); //Unload Glass Data Report
   WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$5 + (nCh*$20), 3), 1); //Unload Request
@@ -2283,26 +2269,51 @@ function TCommPLCThread.ROBOT_Unload_Request(nCh: Integer): Integer;
 var
   naGlassData: array [0..64]of Integer;
 begin
-
   if not Connected then Exit(1);
-
   //참조 Interlock 사양3.5.1
   //참조 Interlock 사양3.10.2 Type 10 Unload Only
   Result:= 0;
-
-  WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$4 + (nCh*$20), 3), 1); //UnLoad Normal Status
-  WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$4 + (nCh*$20), 3), 1); //Load Normal Status - 상태 설정에서....
+  if Common.SystemInfo.OCType = DefCommon.OCType then begin
+    WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$4 + (nCh*$20), 3), 1); //UnLoad Normal Status
+    WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$4 + (nCh*$20), 3), 1); //Load Normal Status - 상태 설정에서....
 //  Unload GlassData
-  ConvertGlassDataToBlock(GlassData[nCh*2], naGlassData[0]);
-  WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$10+$0 + (nCh*$80) , 3), 64, naGlassData[0]); //Unload Glass Data #1
-//
-  ConvertGlassDataToBlock(GlassData[nCh*2+1], naGlassData[0]);
-  WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$10+$0 + $40 + (nCh*$80), 3), 64, naGlassData[0]); //Unload Glass Data #2
-  WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$1 + (nCh*$20), 3), 1); //Glass Data Report
-  WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$5 + (nCh*$20), 3), 1); //Unload Request
-  Sleep(500);
-  WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$0 + (nCh*$20), 3), 1); //Unload Enable
-  RequestState_Unload[nCh]:= 1;
+    ConvertGlassDataToBlock(GlassData[nCh*2], naGlassData[0]);
+    WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*10+$0 + (nCh*$80) , 3), 64, naGlassData[0]); //Unload Glass Data #1
+
+    ConvertGlassDataToBlock(GlassData[nCh*2+1], naGlassData[0]);
+    WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$10+$0 + $40 + (nCh*$80), 3), 64, naGlassData[0]); //Unload Glass Data #2
+
+    WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$1 + (nCh*$20), 3), 1); //Glass Data Report
+    WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$5 + (nCh*$20), 3), 1); //Unload Request
+    Sleep(500);
+    WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$0 + (nCh*$20), 3), 1); //Unload Enable
+    RequestState_Unload[nCh]:= 1;
+
+  end
+  else begin
+    WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$4 + (nCh*$20), 3), 1); //UnLoad Normal Status
+    WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$12+$4 + (nCh*$20), 3), 1); //Load Normal Status - 상태 설정에서....
+//  Unload GlassData
+    if Common.SystemInfo.CHReversal then begin
+      ConvertGlassDataToBlock(GlassData[nCh*2 + 1], naGlassData[0]);
+      WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*20+$0 + (nCh*$80) , 3), 64, naGlassData[0]); //Unload Glass Data #1
+
+      ConvertGlassDataToBlock(GlassData[nCh*2], naGlassData[0]);
+      WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*20+$0 + $40 + (nCh*$80), 3), 64, naGlassData[0]); //Unload Glass Data #2
+    end
+    else begin
+      ConvertGlassDataToBlock(GlassData[nCh*2], naGlassData[0]);
+      WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*20+$0 + (nCh*$80) , 3), 64, naGlassData[0]); //Unload Glass Data #1
+
+      ConvertGlassDataToBlock(GlassData[nCh*2+1], naGlassData[0]);
+      WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*20+$0 + $40 + (nCh*$80), 3), 64, naGlassData[0]); //Unload Glass Data #2
+    end;
+    WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$1 + (nCh*$20), 3), 1); //Glass Data Report
+    WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$5 + (nCh*$20), 3), 1); //Unload Request
+    Sleep(500);
+    WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$0 + (nCh*$20), 3), 1); //Unload Enable
+    RequestState_Unload[nCh]:= 1;
+  end;
 end;
 
 
@@ -3141,7 +3152,7 @@ begin
 
   RequestState_Load[nCh]:= 2; //Request
 
-  AddLog('Process_ROBOT_GlassData_Report ' + IntToStr(nCh));                       \
+  AddLog('Process_ROBOT_GlassData_Report ' + IntToStr(nCh));
   if (nCh =1) and (StartAddr2_ROBOT_W <> 0) then
     ReadDeviceBlock('W' + IntToHex(StartAddr2_ROBOT_W+$10*$0+$0, 3), 64, naGlassData[0],nReturnCode) //Load #1 Glass Data
   else
