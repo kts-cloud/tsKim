@@ -2609,9 +2609,9 @@ begin
   PG[Self.FPgNo].SetCyclicTimer(False); //2023-03-28 jhhwang (for T/T Test)
 
   With AMachine do begin
-
-    if not CSharpDll.m_bIsDLLWork then begin
-      CSharpDll.m_bIsDLLWork := true;
+    wdRet := 3;
+    if not CSharpDll.m_bIsDLLWork[FPgNo] then begin
+      CSharpDll.m_bIsDLLWork[FPgNo] := true;
       case InputArgCount of
         2 : begin
 //        sPID := 'PPP';
@@ -2619,10 +2619,8 @@ begin
           sSerialNumber := GetInputArgAsstring(1);
           sPID := Copy(sSerialNumber,0,3);
           if Length(sSerialNumber) = 0 then sSerialNumber := 'TERST1234567';
-          sEquipment := DongaGmes.MesSystemNo;
+          sEquipment := Common.SystemInfo.EQPId
           if Length(sEquipment) = 0 then sEquipment :=  Format('Equipment:%d',[Self.FPgNo]);
-
-
           case FPgNo of
             0:         wdRet := CSharpDll.MainOC_Start_CH1(Self.FPgNo,sPID,sSerialNumber,'602462',sEquipment);
             1:         wdRet := CSharpDll.MainOC_Start_CH2(Self.FPgNo,sPID,sSerialNumber,'602462',sEquipment);
@@ -2633,7 +2631,7 @@ begin
         end;
 
       end;
-      CSharpDll.m_bIsDLLWork := False;
+      CSharpDll.m_bIsDLLWork[FPgNo] := False;
       PG[Self.FPgNo].SetCyclicTimer(True); //2023-03-28 jhhwang (for T/T Test)
     end
     else wdRet := 2;

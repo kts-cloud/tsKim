@@ -217,7 +217,7 @@ type
     procedure SendTestGuiDisplay(nCh,nGuiMode: Integer; sMsg: string; nParam: Integer);
     procedure SendMainGuiDisplay(nCh,nGuiMode: Integer; sMsg: string; nParam: Integer);
   public
-    m_bIsDLLWork : Boolean; // Added by KTS 2022-12-27 오전 9:00:40 현재 DLL 작업중 확ㅇ인
+    m_bIsDLLWork :array of Boolean; // Added by KTS 2022-12-27 오전 9:00:40 현재 DLL 작업중 확ㅇ인
     m_bIsProcessDone : array of Boolean;
     m_bIsProcessUnloadDone : array of Boolean;
     constructor Create(hMain,hTest: HWND;sDLLPath, sFileName: string);
@@ -422,12 +422,15 @@ var
 begin
   common.MLog(DefCommon.MAX_SYSTEM_LOG,'TCSharpDll.Create start');
   sDllFile := sDLLPath+sFileName;
-  m_bIsDLLWork := False;
   m_MainHandle := hMain;
   m_TestHandle := hTest;
   SetLength(m_bIsProcessDone,4);
   SetLength(m_bIsProcessUnloadDone,4);
-  for I := 0 to DefCommon.MAX_CH do   m_bIsProcessDone[i] := True;
+  SetLength(m_bIsDLLWork,4);
+  for I := 0 to DefCommon.MAX_CH do begin
+    m_bIsProcessDone[i] := True;
+    m_bIsDLLWork[i] := False;
+  end;
 
   FNgMsg := '';
   FNgMsg := '';
@@ -2007,10 +2010,10 @@ end;
 
 function TCSharpDll.MainOC_Stop_CH1(nCH : Integer): integer;
 begin
-   m_bIsDLLWork := True;
+   m_bIsDLLWork[nCH] := True;
    m_MainOC_STOP_CH1(nCH);
    Result := 0;
-   m_bIsDLLWork := False;
+   m_bIsDLLWork[nCH] := False;
 end;
 
 function TCSharpDll.MainOC_Flash_Read(nCH : Integer): integer;
@@ -2058,6 +2061,7 @@ begin
 
   SetLength(m_bIsProcessDone,0);
   SetLength(m_bIsProcessUnloadDone,0);
+  SetLength(m_bIsDLLWork,0);
   if tmrCycle <> nil then  begin
     tmrCycle.Free;
     tmrCycle := nil;

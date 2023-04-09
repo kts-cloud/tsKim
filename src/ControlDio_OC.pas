@@ -2029,12 +2029,6 @@ begin
   if Common.SystemInfo.OCType <> DefCommon.PreOCType  then Exit(2);
   nWaitingCount:= 50; //100ms * nWaitingCount
   // Return ==> 0 : OK. 1 ==> NG.
-  // for lock.
-
-//    if  (not ReadInSig(DefDio.IN_GIB_CH_1_CARRIER_SENSOR +nCh*8)) then begin  // 제품 미감지 시 NG 발생
-//    SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_GIB_CH_1_CARRIER_SENSOR + nCh*8, 1, '');
-//    Exit(1);
-//  end;
 
   SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Vaccum OFF  Start - CH = '+ IntToStr(nCh));
 
@@ -2052,23 +2046,15 @@ begin
 
   bRet := True;
 
-  if  (not ReadInSig(DefDio.IN_GIB_CH_1_PRESSURE_GUAGE +nCh*8)) then begin
+  WriteDioSig(DefDio.OUT_GIB_CH_1_VACCUM_SOL + nCh*8,true);
 
-
-  end
-  else begin
-
-    WriteDioSig(DefDio.OUT_GIB_CH_1_VACCUM_SOL + nCh*8,true);
-
-    for i := 0 to nWaitingCount do begin
-      Sleep(100);
-      if (not ReadInSig(DefDio.IN_GIB_CH_1_PRESSURE_GUAGE +nCh*8)) then Break;
-    end;
-    if  ( ReadInSig(DefDio.IN_GIB_CH_1_PRESSURE_GUAGE +nCh*8)) then begin
-      SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_GIB_CH_1_PRESSURE_GUAGE + nCh*8, 1, '');
-      Exit(1);
-    end;
-
+  for i := 0 to nWaitingCount do begin
+    Sleep(100);
+    if (not ReadInSig(DefDio.IN_GIB_CH_1_PRESSURE_GUAGE +nCh*8)) then Break;
+  end;
+  if  ( ReadInSig(DefDio.IN_GIB_CH_1_PRESSURE_GUAGE +nCh*8)) then begin
+    SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_GIB_CH_1_PRESSURE_GUAGE + nCh*8, 1, '');
+    Exit(1);
   end;
 
   SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Vaccum OFF Finish CH = '+ IntToStr(nCh));
@@ -2095,8 +2081,7 @@ begin
 
   bRet := True;
 
-  if  (not ReadInSig(DefDio.IN_GIB_CH_1_PRESSURE_GUAGE +nCh*8)) or
-      (not ReadInSig(DefDio.IN_GIB_CH_1_PINBLOCK_CLOSE_DN_SENSOR +nCh*8))  then     //Vaccum OFF 조건 확인
+  if  (not ReadInSig(DefDio.IN_GIB_CH_1_PRESSURE_GUAGE +nCh*8))  then     //Vaccum OFF 조건 확인
    bRet := False;
 
 
@@ -2105,36 +2090,17 @@ begin
     Exit(0);
   end;
 
-  // for lock.
   bRet := True;
 
-  if  ( ReadInSig(DefDio.IN_GIB_CH_1_PRESSURE_GUAGE +nCh*8)) then begin
+  WriteDioSig(DefDio.OUT_GIB_CH_1_VACCUM_SOL + nCh*8,False);
 
-    WriteDioSig(DefDio.OUT_GIB_CH_1_PINBLOCK_CLOSE_SOL + nCh*8,true);
-
-    for i := 0 to nWaitingCount do begin
-      Sleep(100);
-      if ( ReadInSig(DefDio.IN_GIB_CH_1_PINBLOCK_CLOSE_UP_SENSOR +nCh*8)) then Break;
-    end;
-    if  (not ReadInSig(DefDio.IN_GIB_CH_1_PINBLOCK_CLOSE_DN_SENSOR +nCh*8)) then begin
-      SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_GIB_CH_1_PINBLOCK_CLOSE_DN_SENSOR + nCh*8, 1, '');
-      Exit(1);
-    end;
-
-
-  end
-  else begin
-
-    WriteDioSig(DefDio.OUT_GIB_CH_1_VACCUM_SOL + nCh*8,False);
-
-    for i := 0 to nWaitingCount do begin
-      Sleep(100);
-      if ( ReadInSig(DefDio.IN_GIB_CH_1_PRESSURE_GUAGE +nCh*8)) then Break;
-    end;
-    if  ( ReadInSig(DefDio.IN_GIB_CH_1_PRESSURE_GUAGE +nCh*8)) then begin
-      SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_GIB_CH_1_PRESSURE_GUAGE + nCh*8, 1, '');
-      Exit(1);
-    end;
+  for i := 0 to nWaitingCount do begin
+    Sleep(100);
+    if ( ReadInSig(DefDio.IN_GIB_CH_1_PRESSURE_GUAGE +nCh*8)) then Break;
+  end;
+  if  (not ReadInSig(DefDio.IN_GIB_CH_1_PRESSURE_GUAGE +nCh*8)) then begin
+    SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_GIB_CH_1_PRESSURE_GUAGE + nCh*8, 1, '');
+    Exit(1);
   end;
 
   SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Vaccum ON Finish CH = '+ IntToStr(nCh));
