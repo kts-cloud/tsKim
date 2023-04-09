@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <BorlandProject>
-  <Default.Personality>
-    <Projects ActiveProject="D:\Dongaeltek\_Project\VHOLED\_Project\SW\src_ITOLED_OC_20230408_Arrangment_PreOC_Process\ITOLED_OC_Simulator.dproj"/>
-  </Default.Personality>
+	<Default.Personality>
+		<Projects ActiveProject="D:\Dongaeltek\_Project\VHOLED\_Project\SW\ITOLED_OC\src\ITOLED_PreOC.dproj"/>
+	</Default.Personality>
 </BorlandProject>
