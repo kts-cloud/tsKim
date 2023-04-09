@@ -5607,11 +5607,6 @@ begin
       if InputArgCount = 1 then begin
         nParam :=  GetInputArgAsInteger(0);
         wdRet := 2;
-        if g_CommPLC.IsGlassData_Robot(Self.FPgNo) then  begin
-          SendTestGuiDisplay(defCommon.MSG_MODE_WORKING,'Probe NG','',1);
-          exit;
-
-        end;
 
         if Self.FPgNo <= DefCommon.CH2  then  // Added by KTS 2022-11-29 오전 11:38:59 Pre OC MovingProbeㅅgroup 설정
         nGroup := CH_TOP
@@ -5645,9 +5640,8 @@ begin
         ReturnOutputArg( wdRet);
       end;
     except
-//    Pg[nCH].SetCyclicTimer(true{bEnable});
-    wdRet := 2;
-    ReturnOutputArg( wdRet);
+      wdRet := 2;
+      ReturnOutputArg( wdRet);
     end;
   end;
 
