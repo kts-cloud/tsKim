@@ -1216,7 +1216,7 @@ begin
 	if (not m_bCyclicTimer) then Exit;
 	if (not m_bPwrMeasure)  then Exit;
   {$IF Defined(INSPECTOR_OC) or Defined(INSPECTOR_PreOC)}
-  if CSharpDll.m_bIsDLLWork then Exit;
+//  if CSharpDll.m_bIsDLLWork then Exit;
   {$ENDIF}
 
 {$IFDEF PG_AF9}
@@ -2497,7 +2497,7 @@ begin
     if (not m_bCyclicTimer) then Exit;
     if m_bPwrMeasure and tmPwrMeasure.Enabled then Exit;
     {$IF Defined(INSPECTOR_OC) or Defined(INSPECTOR_PreOC)}
-    if CSharpDll.m_bIsDLLWork then Exit;
+//    if CSharpDll.m_bIsDLLWork then Exit;
     {$ENDIF}
 		//
     if m_bWaitEvent then Exit;
@@ -2818,7 +2818,7 @@ var
 begin
   if m_bWaitEvent or m_bWaitPwrEvent then Exit; // skip if command ack waiting
 {$IF Defined(INSPECTOR_OC) or Defined(INSPECTOR_PreOC)}
-  if CSharpDll.m_bIsDLLWork then Exit;
+//  if CSharpDll.m_bIsDLLWork then Exit;
 {$ENDIF}
   //
   nCmdId   := DefPG.PG_CMDID_CONNCHECK;
@@ -4307,7 +4307,6 @@ begin
 	end;
   sDebug := sFunc + ': FTP Connect';
   ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
-
 	// Change Local Dir
 	// Change Remote Dir
 	// Get
