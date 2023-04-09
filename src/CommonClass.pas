@@ -1888,6 +1888,7 @@ begin
   CheckDir(Path.DATA);
   CheckDir(Path.PG_FW);
   CheckDir(Path.PG_FPGA);
+  CheckDir(Path.FLASH);
   CheckDir(Path.Maint);
   CheckDir(Path.MLOG);
   CheckDir(Path.SumCsv);
