@@ -2619,7 +2619,7 @@ begin
           sSerialNumber := GetInputArgAsstring(1);
           sPID := Copy(sSerialNumber,0,3);
           if Length(sSerialNumber) = 0 then sSerialNumber := 'TERST1234567';
-          sEquipment := Common.SystemInfo.EQPId
+          sEquipment := Common.SystemInfo.EQPId;
           if Length(sEquipment) = 0 then sEquipment :=  Format('Equipment:%d',[Self.FPgNo]);
           case FPgNo of
             0:         wdRet := CSharpDll.MainOC_Start_CH1(Self.FPgNo,sPID,sSerialNumber,'602462',sEquipment);
