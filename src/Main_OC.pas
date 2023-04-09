@@ -10,7 +10,7 @@ uses
   CommLightNaratech, Vcl.AppEvnts, Vcl.StdCtrls, Vcl.ComCtrls, AdvListV,  DfsFtp, CommIonizer, JigControl, DefScript,
   {UdpServerClient,} Test4ChOC, SwitchBtn, ScriptClass, ModelSelect, {ModelDownload,} SystemSetup, RzStatus,
   DoorOpenAlarmMsg, CommPLC_ECS, ECSStatusForm, DBModule, NGRatioForm,ShellApi
-  , CA_SDK2, dllClass,CommPG,DefPG, Registry, Inifiles,DllMesCom,OtlTaskControl, OtlParallel
+  , CA_SDK2, dllClass,CommPG,DefPG, Registry, Inifiles,DllMesCom ,OtlTaskControl, OtlParallel
 
 ;
   {$I Common.inc}
@@ -4411,7 +4411,7 @@ end;
 procedure TfrmMain_OC.tmNgMsgTimer(Sender: TObject);
 begin
   tmNgMsg.Enabled := False;
-  ShowModelNgMsg(ControlDio.LastNgMsg);
+  //ShowModelNgMsg(ControlDio.LastNgMsg);
 end;
 
 procedure TfrmMain_OC.tmrWatchTimer(Sender: TObject);
