@@ -252,6 +252,7 @@ type
     edR2RLocalSubject: TRzEdit;
     edtStartAddress_Robot2: TRzEdit;
     edtStartAddress_Robot_W2: TRzEdit;
+    ChkCHReversal: TCheckBox;
 
     procedure FormCreate(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -767,6 +768,8 @@ begin
     DAELoadWizardPath := edFileName.Text;
     UseITOMode := chkITOBmpMode.Checked;
 
+    CHReversal := ChkCHReversal.Checked; // 라인 반전으로 1 2 CH 반전 되어 들어오는 경우 처리
+
     SaveEnergy      := StrToIntDef(edSaveEnergy.Text,0);
 
     Com_HandBCR[0]   := cboBCR.ItemIndex;
@@ -1223,7 +1226,7 @@ begin
     edSaveEnergy.Text := Format('%d',[SaveEnergy]);
     chkITOBmpMode.Checked          := UseITOMode; // Added by KTS 2022-03-25 오후 1:30:55
     edFileName.Text                := DAELoadWizardPath;
-
+    ChkCHReversal.Checked          := CHReversal;
     cboUIType.ItemIndex            := 	 UIType;
     cboOCType.ItemIndex            :=    OCType;
 //    cboLanguage.ItemIndex	         :=		 Language;

@@ -2289,27 +2289,20 @@ begin
   //참조 Interlock 사양3.5.1
   //참조 Interlock 사양3.10.2 Type 10 Unload Only
   Result:= 0;
-  AddLog('ROBOT_Unload_Request: ' + InttoStr(nCh));
 
   WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$4 + (nCh*$20), 3), 1); //UnLoad Normal Status
-  AddLog('ROBOT_Unload_Request 1: ' + InttoStr(nCh));
   WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$4 + (nCh*$20), 3), 1); //Load Normal Status - 상태 설정에서....
 //  Unload GlassData
-  ConvertGlassDataToBlock(GlassData[(StageNo*4)+nCh*2], naGlassData[0]);
+  ConvertGlassDataToBlock(GlassData[nCh*2], naGlassData[0]);
   WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$10+$0 + (nCh*$80) , 3), 64, naGlassData[0]); //Unload Glass Data #1
 //
-  ConvertGlassDataToBlock(GlassData[(StageNo*4)+nCh*2+1], naGlassData[0]);
+  ConvertGlassDataToBlock(GlassData[nCh*2+1], naGlassData[0]);
   WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$10+$0 + $40 + (nCh*$80), 3), 64, naGlassData[0]); //Unload Glass Data #2
-  AddLog('ROBOT_Unload_Request 2: ' + InttoStr(nCh));
   WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$1 + (nCh*$20), 3), 1); //Glass Data Report
-  AddLog('ROBOT_Unload_Request 3 : ' + InttoStr(nCh));
   WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$5 + (nCh*$20), 3), 1); //Unload Request
   Sleep(500);
-   AddLog('ROBOT_Unload_Request 4: ' + InttoStr(nCh));
   WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$0 + (nCh*$20), 3), 1); //Unload Enable
- AddLog('ROBOT_Unload_Request 5: ' + InttoStr(nCh));
   RequestState_Unload[nCh]:= 1;
- AddLog('ROBOT_Unload_Request 6: ' + InttoStr(nCh));
 end;
 
 
@@ -2433,14 +2426,7 @@ var
 begin
   AddLog('Read_ECS_GlassData ' + IntToStr(nCh));
 
-//    Synchronize(nil,
-//  procedure
-//  begin
-    ReadDeviceBlock('W' + IntToHex(StartAddr_ECS_W+$10*$0+$0, 3), 64, naGlassData[0],nReturnCode); //Load #1 Glass Data
-//  end
-//   );
-
-//  ReadDeviceBlock('W' + IntToHex(StartAddr_ECS_W+$10*$0+$0, 3), 64, naGlassData[0],nReturnCode); //Load #1 Glass Data
+  ReadDeviceBlock('W' + IntToHex(StartAddr_ECS_W+$10*$0+$0, 3), 64, naGlassData[0],nReturnCode); //Load #1 Glass Data
   ConvertBlockToGlassData(naGlassData[0], ECS_GlassData[nCh]);
 end;
 
@@ -3152,41 +3138,24 @@ var
   naGlassData: array [0..64]of Integer;
   nReturnCode : Integer;
 begin
-//  if RequestState_Load[nCh] < 1 then begin
-//    //요청이 없는데 들어오는 경우 방지
-//    AddLog('Process_ROBOT_GlassData_Report Error - Not Request Ch ' + IntToStr(nCh));
-//    //Alarm
-//    SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, nCh, COMMPLC_PARAM_INTERFACE_ERROR, 1, 'Process_ROBOT_GlassData_Report Error - Not Request Ch ' + IntToStr(nCh), nil);
-//    Exit;
-//  end;
 
   RequestState_Load[nCh]:= 2; //Request
 
-  AddLog('Process_ROBOT_GlassData_Report ' + IntToStr(nCh));
-  //GlassData 읽기 - Robot 데이터를 EQP 데이터 영역으로 복사
-//  Synchronize(nil,
-//  procedure
-//  begin
-//    ReadDeviceBlockPro('W' + IntToHex(StartAddr_ROBOT_W+$10*$0+$0, 3), 64, naGlassData[0],nReturnCode); //Load #1 Glass Data  // Added by KTS 2023-03-23 오후 6:14:32
-//  end
-//  );                           \
+  AddLog('Process_ROBOT_GlassData_Report ' + IntToStr(nCh));                       \
   if (nCh =1) and (StartAddr2_ROBOT_W <> 0) then
     ReadDeviceBlock('W' + IntToHex(StartAddr2_ROBOT_W+$10*$0+$0, 3), 64, naGlassData[0],nReturnCode) //Load #1 Glass Data
   else
     ReadDeviceBlock('W' + IntToHex(StartAddr_ROBOT_W+$10*$0+$0+(nCh *$80), 3), 64, naGlassData[0],nReturnCode); //Load #1 Glass Data
-  ConvertBlockToGlassData(naGlassData[0], GlassData[nCh*2]);                 // Added by KTS 2023-03-23 오후 6:14:43
-//  Synchronize(nil,
-//  procedure
-//  begin
-//    ReadDeviceBlockPro('W' + IntToHex(StartAddr_ROBOT_W+$10*$0+$40, 3), 64, naGlassData[0],nReturnCode); //Load #1 Glass Data  // Added by KTS 2023-03-23 오후 6:14:52
-//  end
-//  );
+  if Common.SystemInfo.CHReversal then
+    ConvertBlockToGlassData(naGlassData[0], GlassData[nCh*2 + 1])                 // Added by KTS 2023-03-23 오후 6:14:43
+  else ConvertBlockToGlassData(naGlassData[0], GlassData[nCh*2]);
   if (nCh =1) and (StartAddr2_ROBOT_W <> 0) then
     ReadDeviceBlock('W' + IntToHex(StartAddr2_ROBOT_W+$10*$0+$40, 3), 64, naGlassData[0],nReturnCode) //Load #1 Glass Data
   else
     ReadDeviceBlock('W' + IntToHex(StartAddr_ROBOT_W+$10*$0+$40+(nCh *$80), 3), 64, naGlassData[0],nReturnCode); //Load #1 Glass Data
-  ConvertBlockToGlassData(naGlassData[0], GlassData[nCh*2+1]);            // Added by KTS 2023-03-23 오후 6:15:00
-
+  if Common.SystemInfo.CHReversal then
+    ConvertBlockToGlassData(naGlassData[0], GlassData[nCh*2])                 // Added by KTS 2023-03-23 오후 6:14:43
+  else ConvertBlockToGlassData(naGlassData[0], GlassData[nCh*2+1]);
   AddLog('ROBOT_Load Request ' + IntToStr(nCh));
   if Common.SystemInfo.OCType = DefCommon.OCType then  begin
     WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$5 + (nCh*$20), 3), 1); //Load Request

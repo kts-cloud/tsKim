@@ -48,10 +48,6 @@ object frmSystemSetup: TfrmSystemSetup
       Font.Name = 'Tahoma'
       Font.Style = []
       ParentFont = False
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object grpSystem: TRzGroupBox
         Left = 10
         Top = 2
@@ -2446,10 +2442,6 @@ object frmSystemSetup: TfrmSystemSetup
     object tbEcsSheet: TRzTabSheet
       Color = clWindow
       Caption = 'ECS(MES) Configuration'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object grpPlcConfig: TRzGroupBox
         Left = 11
         Top = 19
@@ -2944,8 +2936,8 @@ object frmSystemSetup: TfrmSystemSetup
           TabOrder = 4
         end
         object chkInlineGIB: TCheckBox
-          Left = 254
-          Top = 276
+          Left = 195
+          Top = 294
           Width = 97
           Height = 17
           Caption = 'Inline GIB'
@@ -2990,6 +2982,14 @@ object frmSystemSetup: TfrmSystemSetup
           ParentCtl3D = False
           ParentFont = False
           TabOrder = 27
+        end
+        object ChkCHReversal: TCheckBox
+          Left = 195
+          Top = 277
+          Width = 193
+          Height = 17
+          Caption = 'CH Reversal(CH 1 <->2 )'
+          TabOrder = 28
         end
       end
       object grpGMES: TRzGroupBox
@@ -4152,10 +4152,6 @@ object frmSystemSetup: TfrmSystemSetup
     object tbDfsConfigration: TRzTabSheet
       Color = clWindow
       Caption = 'Dfs Configration'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object RzgrpDfsFtpFileUpload: TRzGroupBox
         Left = 17
         Top = 192
@@ -5603,10 +5599,6 @@ object frmSystemSetup: TfrmSystemSetup
     object TabSheet2: TRzTabSheet
       Color = clWindow
       Caption = 'GB Configuration'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object grpCa310Set: TRzGroupBox
         Left = 12
         Top = 3
