@@ -4725,10 +4725,10 @@ begin
     g_CommPLC.SetStartAddress( StrToInt('$' + Common.PLCInfo.Address_EQP),
                                StrToInt('$' + Common.PLCInfo.Address_ECS) + (Common.PLCInfo.EQP_ID div 19)* $10 , // Address_ECS EQP_ID Ekfk 가변
                                StrToInt('$' + Common.PLCInfo.Address_ROBOT),
+                               StrToInt('$' + Common.PLCInfo.Address_ROBOT2),
                                StrToInt('$' + Common.PLCInfo.Address_EQP_W),
                                StrToInt('$' + Common.PLCInfo.Address_ECS_W),
                                StrToInt('$' + Common.PLCInfo.Address_ROBOT_W),
-                               StrToInt('$' + Common.PLCInfo.Address_ROBOT2),
                                StrToInt('$' + Common.PLCInfo.Address_ROBOT_W2));
     g_CommPLC.PollingInterval:=  Common.PLCInfo.PollingInterval; // 500; //default
     g_CommPLC.ConnectionTimeout:= Common.PLCInfo.Timeout_Connection; //10000; //default
