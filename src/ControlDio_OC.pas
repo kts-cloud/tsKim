@@ -272,7 +272,7 @@ begin
     nAlarmNo:= DefDio.IN_GIB_CH_12_EMO_SWITCH;
     if  CheckDi(nAlarmNo) then begin
       nRet := nAlarmNo;
-      SendAlarm(MSG_MODE_SYSTEM_ALARAM, nAlarmNo, 1);
+      SendAlarm(MSG_MODE_SYSTEM_ALARAM, nAlarmNo, 2);
     end
     else begin
       SendAlarm(MSG_MODE_SYSTEM_ALARAM, nAlarmNo, 0);
@@ -281,7 +281,7 @@ begin
     nAlarmNo:= DefDio.IN_GIB_CH_34_EMO_SWITCH;
     if  CheckDi(nAlarmNo) then begin
       nRet := nAlarmNo;
-      SendAlarm(MSG_MODE_SYSTEM_ALARAM, nAlarmNo, 1);
+      SendAlarm(MSG_MODE_SYSTEM_ALARAM, nAlarmNo, 2);
     end
     else begin
       SendAlarm(MSG_MODE_SYSTEM_ALARAM, nAlarmNo, 0);

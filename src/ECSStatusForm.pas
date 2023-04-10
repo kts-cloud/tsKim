@@ -858,6 +858,7 @@ procedure TfrmECSStatus.Init_Grid;
 var
   i: Integer;
   nAddr: Integer;
+  sAddress : string;
 begin
   for i:= 0 to grdStatus.RowCount-1 do  begin
     grdStatus.Cells[0, i]:= IntToStr(i-1);
@@ -883,13 +884,14 @@ begin
   grdStatus.Cells[2, 0] := 'EQP';
   grdStatus.Cells[2, 1] := 'Lost Glass' + sLineBreak + 'Data Request';
 
-  grdStatus.Cells[2, 3] := 'Inspection' + sLineBreak + 'Data Report';
+//  grdStatus.Cells[2, 3] := 'Inspection' + sLineBreak + 'Data Report';
 
-  grdStatus.Cells[2, 5] := 'Material' + sLineBreak + 'Matching Report';
+//  grdStatus.Cells[2, 5] := 'Material' + sLineBreak + 'Matching Report';
+  if Common.SystemInfo.OCType = DefCommon.OCType  then
+    grdStatus.Cells[2, 6] := 'Take Out' + sLineBreak + 'Report'
+  else grdStatus.Cells[2, 8] := 'Take Out' + sLineBreak + 'Report';
 
-  grdStatus.Cells[2, 7] := 'Take Out' + sLineBreak + 'Report';
-
-  grdStatus.Cells[2, 9] := 'APD' + sLineBreak + 'Report';
+//  grdStatus.Cells[2, 9] := 'APD' + sLineBreak + 'Report';
 
 
 
@@ -929,7 +931,9 @@ begin
 //  grdStatus.Cells[4, 0] := 'EQP';
 
   nAddr:= StrToInt('$' + Common.PLCInfo.Address_EQP);
-  nAddr:= nAddr + $C0;
+  if Common.SystemInfo.OCType = DefCommon.OCType  then
+    nAddr:= nAddr + $C0
+  else nAddr:= nAddr + $12;
   grdStatus.Cells[4, 0] := 'EQP' + #10#13 + '(B' + IntToHex(nAddr, 4) + ')';
   grdStatus.Cells[4, 1] := 'Load' + sLineBreak + 'Enable';
   grdStatus.Cells[4, 2] := 'Glass Data Request';
@@ -987,7 +991,7 @@ begin
   //grdStatus.Cells[10, 16] := 'Last Product';
 
   //grdStatus.Cells[11, 0] := 'Robot';
-  if StrToInt(Common.PLCInfo.Address_ROBOT2) <> 0 then begin
+  if StrToInt('$' + Common.PLCInfo.Address_Robot2) <> 0 then begin
     nAddr:= StrToInt('$' + Common.PLCInfo.Address_Robot2);
     grdStatus.Cells[10, 0] := 'Robot' + #10#13 + 'B(' + IntToHex(nAddr, 4) + ')';
   end;
@@ -1062,7 +1066,7 @@ begin
 
   grdStatus.MergeCells(1, 0, 3, 1);
   grdStatus.MergeCells(4, 0, 4, 1);
-  if StrToInt(Common.PLCInfo.Address_ROBOT2) <> 0 then begin
+  if StrToInt('$' + Common.PLCInfo.Address_Robot2) <> 0 then begin
     grdStatus.MergeCells(8, 0, 2, 1);
     grdStatus.MergeCells(10, 0, 2, 1);
   end
@@ -1340,6 +1344,11 @@ begin
       SetCellState(7,  i+1, 0, 21, i); //Unload 1
   //    SetCellState(3,  i+1, 0, 8, i); //Unload 1
     end;
+
+    for I := 0 to 7 do
+      SetCellState(2,  i+1, 0, 1,  i); //Special Equipment
+    for I := 0 to 7 do
+      SetCellState(2,  i+8, 0, 6,  i); //Special Equipment
 
     for i := 0 to 7 do begin
       //EQP - Position

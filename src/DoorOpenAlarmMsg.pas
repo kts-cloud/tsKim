@@ -4,7 +4,7 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls, RzButton, defDio, CommonClass;
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls,DefCommon, RzButton, defDio, CommonClass;
 
 type
   TfrmDoorOpenAlarmMsg = class(TForm)
@@ -92,17 +92,28 @@ begin
   pnlDoor_LowerRight.Visible := not ControlDio.ReadInSig(DefDio.IN_CH_3_4_DOOR_RIGHT_OPEN);
 
   bOpened:= False;
-  if not ControlDio.ReadInSig(DefDio.IN_CH_1_2_DOOR_LEFT_OPEN) then begin
+  if Common.SystemInfo.OCType = DefCommon.OCType then begin
+    if not ControlDio.ReadInSig(DefDio.IN_CH_1_2_DOOR_LEFT_OPEN) then begin
+      bOpened:= True;
+    end;
+    if not ControlDio.ReadInSig(DefDio.IN_CH_1_2_DOOR_RIGHT_OPEN) then begin
+      bOpened:= True;
+    end;
+    if not ControlDio.ReadInSig(DefDio.IN_CH_3_4_DOOR_LEFT_OPEN) then begin
+      bOpened:= True;
+    end;
+    if not ControlDio.ReadInSig(DefDio.IN_CH_3_4_DOOR_RIGHT_OPEN) then begin
+      bOpened:= True;
+    end;
+  end
+  else begin
+    if ControlDio.ReadInSig(DefDio.IN_GIB_CH_12_EMO_SWITCH) then begin
     bOpened:= True;
   end;
-  if not ControlDio.ReadInSig(DefDio.IN_CH_1_2_DOOR_RIGHT_OPEN) then begin
-    bOpened:= True;
-  end;
-  if not ControlDio.ReadInSig(DefDio.IN_CH_3_4_DOOR_LEFT_OPEN) then begin
-    bOpened:= True;
-  end;
-  if not ControlDio.ReadInSig(DefDio.IN_CH_3_4_DOOR_RIGHT_OPEN) then begin
-    bOpened:= True;
+    if ControlDio.ReadInSig(DefDio.IN_GIB_CH_34_EMO_SWITCH) then begin
+      bOpened:= True;
+    end;
+
   end;
 
   CloseEnable(not bOpened);

@@ -1093,21 +1093,29 @@ begin
       WriteDevice('W' + IntToHex(StartAddr_EQP_W+$10*$0C+$0+(nCh), 3), GlassData[nCh].GlassCode); //Position Glass Code
     end
     else begin
-      WriteDevice('W' + IntToHex(StartAddr_EQP_W+$10*$07+$0+(nCh), 3), GlassData[nCh].GlassCode); //Position Glass Code
+      if Common.SystemInfo.OCType = DefCommon.OCType  then
+        WriteDevice('W' + IntToHex(StartAddr_EQP_W+$10*$07+$0+(nCh), 3), GlassData[nCh].GlassCode) //Position Glass Code
+      else  WriteDevice('W' + IntToHex(StartAddr_EQP_W+$10*$C+$0+(nCh), 3), GlassData[nCh].GlassCode);
     end;
 
     Sleep(1);
-    WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$07+(nCh), 3), 1); //Position Glass Exist
+    if Common.SystemInfo.OCType = DefCommon.OCType  then
+      WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$07+(nCh), 3), 1) //Position Glass Exist
+    else  WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+(nCh), 3), 1); //Position Glass Exist
   end
   else begin
     if InlineGIB then begin
       WriteDevice('W' + IntToHex(StartAddr_EQP_W+$10*$0C+$0+(nCh), 3), 0); //Position Glass Code
     end
     else begin
-      WriteDevice('W' + IntToHex(StartAddr_EQP_W+$10*$07+$0+(nCh), 3), 0); //Position Glass Code
+      if Common.SystemInfo.OCType = DefCommon.OCType  then
+        WriteDevice('W' + IntToHex(StartAddr_EQP_W+$10*$07+$0+(nCh), 3), 0) //Position Glass Code
+      else WriteDevice('W' + IntToHex(StartAddr_EQP_W+$10*$C+$0+(nCh), 3), 0);
     end;
      Sleep(1);
-    WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$07+(nCh), 3), 0); //Position Glass Exist
+    if Common.SystemInfo.OCType = DefCommon.OCType  then
+      WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$07+(nCh), 3), 0) //Position Glass Exist
+    else  WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+(nCh), 3), 0); //Position Glass Exist
   end;
 end;
 
@@ -1365,8 +1373,6 @@ begin
 
   AddLog(format('ECS_NormalOperation GlassID=%s', [sGlassID]));
   WriteString('W' + IntToHex(StartAddr_EQP_W+$10*$07+$0, 3), format('%-16s', [sGlassID]));
-
-
 end;
 
 function TCommPLCThread.ECS_Unit_Status(nMode: Integer; nValue: Integer): Integer;
@@ -1375,13 +1381,10 @@ begin
   if not Connected then Exit(1);
 
   Result:= 0;
-          // Added by KTS 2023-03-23 오후 4:56:17
   //참조 - MELSEC 사양 2.1 Operation Mode, 2.2  Equipment Status Data
   //차후에는 Word 단위로 한번에 쓰기 처리하는 방법 연구(Alarm 코드 개별)
   AddLog(format('ECS_Unit_Status Mode=%d, Value=%d', [nMode, nValue]));
   case nMode of
-
-
     0:begin
       WriteDevice('W' + IntToHex(StartAddr_EQP_W+$10*$00+$0, 3), nValue); //Online State
       PulseDeviceBit('B' + IntToHex(StartAddr_EQP+$10*$00+$2, 3), $2, 1000); //Online State
@@ -1394,7 +1397,6 @@ begin
       WriteDevice('W' + IntToHex(StartAddr_EQP_W+$10*$00+$3, 3), 1); //Run
       WriteDevice('W' + IntToHex(StartAddr_EQP_W+$10*$00+$4, 3), 0); //Down Alarm Code
       PulseDeviceBit('B' + IntToHex(StartAddr_EQP+$10*$00+$3, 3), $3, 1000); //EQP Status Change Report
-
     end;
     9: begin
       WriteDevice('W' + IntToHex(StartAddr_EQP_W+$10*$00+$3, 3), 2); //Idle
@@ -1825,7 +1827,12 @@ begin
 
   AddLog('EQP_Clear_ROBOT_Request' );
   FillChar(lpData, 32 * sizeof(Integer), 0);
-  Result:= WriteDeviceBlock('B' + IntToHex(StartAddr_EQP+$10*$0C+ nCH *$20+$0,3), 2, lpData[0]);
+  if Common.SystemInfo.OCType = DefCommon.OCType  then
+    Result:= WriteDeviceBlock('B' + IntToHex(StartAddr_EQP+$10*$0C+ nCH *$20+$0,3), 2, lpData[0])
+  else
+    Result:= WriteDeviceBlock('B' + IntToHex(StartAddr_EQP+$10*$12+ nCH *$20+$0,3), 2, lpData[0]);
+
+
 //   WriteDevice('B' + IntToHex(StartAddr_EQP++$10*$0C+ nCH *$20+$0,3),
 (*
   WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$0 + (nCh*$20), 3), 0); //Load Enable off
