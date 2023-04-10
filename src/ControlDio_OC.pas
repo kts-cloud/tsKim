@@ -456,11 +456,12 @@ i : Integer;
 begin
   Result := True;
   for I := nCH *2  to nCH * 2 +1 do  begin
-
-    if ( ReadInSig(DefDio.IN_GIB_CH_1_PINBLOCK_OPEN_SENSOR +i*8))  then begin    //Close Dn 조건 확인
-      Result := False;
-      SendMsgMain(COMMDIO_MSG_LOG, 0, 0, Format('CheckDIO_Start NG : %d',[i]));
-      exit;
+    if PasScr[i].m_bUse then begin
+      if ( ReadInSig(DefDio.IN_GIB_CH_1_PINBLOCK_OPEN_SENSOR +i*8))  then begin    //Close Dn 조건 확인
+        Result := False;
+        SendMsgMain(COMMDIO_MSG_LOG, 0, 0, Format('CheckDIO_Start NG : %d',[i]));
+        exit;
+      end;
     end;
 
   end;
@@ -1998,9 +1999,6 @@ begin
     SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Unlock PinBlock Finish CH = '+ IntToStr(nCh)+ ' - Already');
     Exit(0);
   end;
-
-
-  // for Unlock.
   bRet := True;
 
   WriteDioSig(DefDio.OUT_GIB_CH_1_PINBLOCK_UNLOCK_SOL + nCh*8,true);
@@ -2013,9 +2011,6 @@ begin
     SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_GIB_CH_1_PINBLOCK_UNLOCK_ON_SENSOR + nCh*8, 1, '');
     Exit(1);
   end;
-
-  Sleep(1000); // 웨이팅 Pin Block Open SENSOR
-
   SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Unlock PinBlock Finish CH = '+ IntToStr(nCh));
 
   Result := 0;
