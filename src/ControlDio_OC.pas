@@ -832,6 +832,7 @@ begin
     SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_GIB_CH_1_PINBLOCK_CLOSE_UP_SENSOR + nCh*8, 1, '');
     Exit(1);
   end;
+  Sleep(1000);
 
   SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'PIN BLOCK CLOSE Prevention UP Finish CH = '+ IntToStr(nCh));
 

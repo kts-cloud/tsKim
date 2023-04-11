@@ -2605,12 +2605,13 @@ var
   wdRet : integer;
   sPID,sSerialNumber,sEquipment : string;
 begin
-  PG[Self.FPgNo].DP860_SendOcOnOff(1{start},2000,0); //2023-03-28 jhhwang (for T/T Test)
-  PG[Self.FPgNo].SetCyclicTimer(False); //2023-03-28 jhhwang (for T/T Test)
-
   With AMachine do begin
     wdRet := 3;
     if not CSharpDll.m_bIsDLLWork[FPgNo] then begin
+		
+      PG[Self.FPgNo].DP860_SendOcOnOff(1{start},2000,0); //2023-03-28 jhhwang (for T/T Test)
+      PG[Self.FPgNo].SetCyclicTimer(False); //2023-03-28 jhhwang (for T/T Test)
+					
       CSharpDll.m_bIsDLLWork[FPgNo] := true;
       case InputArgCount of
         2 : begin
@@ -2629,29 +2630,32 @@ begin
           end;
 
         end;
-
       end;
-      CSharpDll.m_bIsDLLWork[FPgNo] := False;
-      PG[Self.FPgNo].SetCyclicTimer(True); //2023-03-28 jhhwang (for T/T Test)
+    //CSharpDll.m_bIsDLLWork[Self.FPgNo] := False;
+    //PG[Self.FPgNo].SetCyclicTimer(True); //2023-03-28 jhhwang (for T/T Test)
     end
     else wdRet := 2;
     ReturnOutputArg( Integer(wdRet));
   end;
-
 end;
 
 procedure TScrCls.OCFlowStop_Proc(AMachine: TatVirtualMachine);
 var
 wdRet : Integer;
 begin
-  PG[Self.FPgNo].DP860_SendOcOnOff(0{end},2000,0); //2023-03-28 jhhwang (for T/T Test)
   With AMachine do begin
+    PG[Self.FPgNo].DP860_SendOcOnOff(0{end},2000,0); //2023-03-28 jhhwang (for T/T Test)
+    PG[Self.FPgNo].SetCyclicTimer(False); //2023-03-28 jhhwang (for T/T Test)
+
     case FPgNo of
       0: wdRet := CSharpDll.MainOC_Stop_CH1(Self.FPgNo);
       1: wdRet := CSharpDll.MainOC_Stop_CH2(Self.FPgNo);
       2: wdRet := CSharpDll.MainOC_Stop_CH3(Self.FPgNo);
       3: wdRet := CSharpDll.MainOC_Stop_CH4(Self.FPgNo);
     end;
+
+    CSharpDll.m_bIsDLLWork[Self.FPgNo] := False;
+    PG[Self.FPgNo].SetCyclicTimer(True); //2023-03-28 jhhwang (for T/T Test)
 
     ReturnOutputArg( Integer(wdRet));
   end;
@@ -2690,7 +2694,6 @@ wdRet ,nStartAddr,nLength: Integer;
 sAnsiStr ,sSerialNo: string;
 SerialNoBuf : TIdBytes;
 begin
-  PG[Self.FPgNo].SetCyclicTimer(False); //2023-03-28 jhhwang (for T/T Test)
   With AMachine do begin
 //    wdRet := CSharpDll.MainOC_Flash_Read(Self.FPgNo);
     case InputArgCount of
@@ -2715,21 +2718,21 @@ begin
     end;
     ReturnOutputArg( Integer(wdRet));
   end;
-  PG[Self.FPgNo].SetCyclicTimer(True); //2023-03-28 jhhwang (for T/T Test)
-
 end;
 
 procedure TScrCls.OCVerifyStart_Proc(AMachine: TatVirtualMachine);
 var
 wdRet : Integer;
 begin
-  PG[Self.FPgNo].SetCyclicTimer(False); //2023-03-28 jhhwang (for T/T Test)
   With AMachine do begin
+    PG[Self.FPgNo].SetCyclicTimer(False); //2023-03-28 jhhwang (for T/T Test)
+
     wdRet := CSharpDll.m_MainOC_VerifyStart(Self.FPgNo);
     wdRet := 0;
+
+    PG[Self.FPgNo].SetCyclicTimer(True); //2023-03-28 jhhwang (for T/T Test)
     ReturnOutputArg( Integer(wdRet));
   end;
-  PG[Self.FPgNo].SetCyclicTimer(True); //2023-03-28 jhhwang (for T/T Test)
 end;
 
 

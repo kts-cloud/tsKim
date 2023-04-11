@@ -152,6 +152,7 @@
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <VerInfo_Locale>1033</VerInfo_Locale>
         <DCC_SymbolReferenceInfo>2</DCC_SymbolReferenceInfo>
+        <AppExecutionLevel>requireAdministrator</AppExecutionLevel>
     </PropertyGroup>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">

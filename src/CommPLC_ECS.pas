@@ -1604,8 +1604,15 @@ begin
     Exit(258);
   end;
 
-  PulseDeviceBit('B' + IntToHex(StartAddr_EQP+$10*$00+$2, 3), $2, 1000); //Online State
-  PulseDeviceBit('B' + IntToHex(StartAddr_EQP+$10*$00+$3, 3), $3, 1000); //EQP Status Change Report
+    WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$00+$2, 3), 1);
+    Sleep(1000);
+    WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$00+$2, 3), 0);
+    WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$00+$3, 3), 1);
+    Sleep(1000);
+    WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$00+$3, 3), 0);
+
+//  PulseDeviceBit('B' + IntToHex(StartAddr_EQP+$10*$00+$2, 3), $2, 1000); //Online State
+//  PulseDeviceBit('B' + IntToHex(StartAddr_EQP+$10*$00+$3, 3), $3, 1000); //EQP Status Change Report
 
   Result:= 0;
 end;

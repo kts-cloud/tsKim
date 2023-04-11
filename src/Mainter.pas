@@ -3357,7 +3357,8 @@ procedure TfrmMainter.btnPgSendCmdClick(Sender: TObject);
 var
   nCh, i : Integer;
 begin
-  nCh := DefCommon.CH1; //cboChannelPg.ItemIndex;
+//  nCh := DefCommon.CH1; //cboChannelPg.ItemIndex;         ]
+  nCh := cboChannelPg.ItemIndex;
   if nCh > DefCommon.MAX_CH then begin
     for i := 0 to DefCommon.MAX_CH do begin
       PgCmdThread(i);

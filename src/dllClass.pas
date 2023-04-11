@@ -2010,10 +2010,8 @@ end;
 
 function TCSharpDll.MainOC_Stop_CH1(nCH : Integer): integer;
 begin
-   m_bIsDLLWork[nCH] := True;
    m_MainOC_STOP_CH1(nCH);
    Result := 0;
-   m_bIsDLLWork[nCH] := False;
 end;
 
 function TCSharpDll.MainOC_Flash_Read(nCH : Integer): integer;

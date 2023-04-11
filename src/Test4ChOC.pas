@@ -2989,11 +2989,15 @@ begin
             end;
 
             CSharpDll.m_bIsProcessDone[nCH] := true;
+
             AddLog(format('DLL DONE : %d, NG Code=%d', [nCH +1, PasScr[nCh].m_nNgCode]), nCH, 0);
 
             case nCH of
               0,1 :
               begin
+                for I := 0 to DefCommon.ch2 do  begin
+                  if not PasScr[i].m_bUse then CSharpDll.m_bIsProcessDone[i] := true;
+                end;
                 if CSharpDll.m_bIsProcessDone[DefCommon.CH1] and CSharpDll.m_bIsProcessDone[DefCommon.CH2] then  begin
                   SendMessageMain(STAGE_MODE_UNLOAD,0, 2,0, 'OC Flow Process_Finish',nil);
                   CSharpDll.m_bIsProcessDone[DefCommon.CH1] := false;
@@ -3002,6 +3006,9 @@ begin
               end;
               2,3 :
               begin
+                for I := DefCommon.CH3 to DefCommon.CH4 do  begin
+                  if not PasScr[i].m_bUse then CSharpDll.m_bIsProcessDone[i] := true;
+                end;
                 if CSharpDll.m_bIsProcessDone[DefCommon.CH3] and CSharpDll.m_bIsProcessDone[DefCommon.CH4] then begin
                   SendMessageMain(STAGE_MODE_UNLOAD, 1, 2,0, 'OC Flow Process_Finish',nil);
                   CSharpDll.m_bIsProcessDone[DefCommon.CH3] := false;
