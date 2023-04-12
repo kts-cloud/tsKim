@@ -586,9 +586,19 @@ begin
 
   for i := (nCh*2) to (nCh*2 + 1) do begin
     if Common.StatusInfo.UseChannel[i] then begin
-      if not ControlDio.ReadInSig(IN_CH_1_CARRIER_SENSOR + (i*16)) then begin
-        Result:= False;
-        Exit;
+      if Common.SystemInfo.OCType = DefCommon.OCType then begin
+
+        if not ControlDio.ReadInSig(IN_CH_1_CARRIER_SENSOR + (i*16)) then begin
+          Result:= False;
+          Exit;
+        end;
+      end
+      else begin
+        if not ControlDio.ReadInSig(IN_GIB_CH_1_CARRIER_SENSOR + (i*8)) then begin
+          Result:= False;
+          Exit;
+        end;
+
       end;
     end;
   end;
@@ -1212,7 +1222,7 @@ begin
   ShowSysLog('[ Turn On Program ] - Version ' + Common.GetVersionDate);
     // 현재 설정 되어 있는 Local IP Display 하자.
   pnlStLocalIp.Caption := Common.GetLocalIpList;
-  Self.Caption := DefCommon.PROGRAM_NAME + ' Version ' + Common.GetVersionDate + ' - Station #' + IntToStr(Common.PLCInfo.EQP_ID-32);
+  Self.Caption := DefCommon.PROGRAM_NAME + ' Version ' + Common.GetVersionDate + ' - Station #' + IntToStr(Common.PLCInfo.EQP_ID-10);
   //Self.Caption := DefCommon.PROGRAM_NAME + ' Version ' + Common.ExeVersion + ' - Station #' + IntToStr(Common.PLCInfo.EQP_ID-32);
   //grpSystemInfo.Caption:= 'System Information. ' + Common.GetVerOnlyDate;
   MakeDioSig;
@@ -2479,8 +2489,14 @@ begin
             //일반 처리
             if not CheckDetect_Loaded( pGUIMsg.Channel) then begin
               //로드 이상 - Detect NG는  Pair로 처리
-              Set_AlarmData(IN_CH_1_CARRIER_SENSOR + pGUIMsg.Channel*32 , 1, 1);
-              Set_AlarmData(IN_CH_1_CARRIER_SENSOR + pGUIMsg.Channel*32 + 16 , 1, 1);
+              if Common.SystemInfo.OCType = DefCommon.OCType then begin
+                Set_AlarmData(IN_CH_1_CARRIER_SENSOR + pGUIMsg.Channel*32 , 1, 1);
+                Set_AlarmData(IN_CH_1_CARRIER_SENSOR + pGUIMsg.Channel*32 + 16 , 1, 1);
+              end
+              else begin
+                Set_AlarmData(IN_GIB_CH_1_CARRIER_SENSOR + pGUIMsg.Channel*16 , 1, 1);
+                Set_AlarmData(IN_GIB_CH_1_CARRIER_SENSOR + pGUIMsg.Channel*16 + 8 , 1, 1);
+              end;
               //sMsg:= format('!!!!! Detect NG Pair=%d', [pGUIMsg.Channel]);
               //ShowNgMessage(sMsg);
               //ShowSysLog(sMsg, 1);
@@ -3136,7 +3152,7 @@ try
       //사용 안할 경우
       SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Not Used Pair=1');
     end
-    else if CheckEmpty_Pair(nStage, COMMPLC_CH_34) then begin
+    else if not CheckEmpty_Pair(nStage, COMMPLC_CH_34) then begin
       //Last Product 갑자기 변경하는 현상에 대한 방어 - Start 여부 확인
       if CheckStage_Started(nStage) then begin
         SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Do not Request - Script is Running');

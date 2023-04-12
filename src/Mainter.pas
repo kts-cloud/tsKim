@@ -2677,7 +2677,12 @@ var
   nErr : Integer;
   sDebug : string;
 begin
-  nCh := cboScriptCh.ItemIndex;
+//  nCh := cboScriptCh.ItemIndex;
+  if rdoProbe1.Checked then nCH := 0
+  else if rdoProbe2.Checked then nCH := 1
+  else if rdoProbe3.Checked then nCH := 2
+  else if rdoProbe4.Checked then nCH := 3;
+  if nCH > DefCommon.MAX_CH  then Exit;
   nMemCh := 0;
   // Get Current Memory Channel
 {$IFDEF CA410_USE}

@@ -2283,9 +2283,6 @@ begin
 
   end;
 end;
-{
-
-}
 
 function TControlDio.MovingProbe(nGroup: Integer; bIsUp: Boolean): Integer;
 var
@@ -2299,91 +2296,57 @@ begin
   if nGroup = DefCommon.CH_TOP  then sCH := ' CH 1,2 '
                                 else sCH := 'CH 3,4 ';
 
-      if bIsUp then begin
-        SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Probe UP Start ' + sCH);
-        ClearOutDioSig(DefDio.OUT_GIB_CH_12_PROBE_DN_SOL + nGroup *4);
-        if not ReadInSig(DefDio.IN_GIB_CH_12_PROBE_UP_SENSOR + nGroup *4) then begin
-          SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format('Probe UP Finish %s - Already', [sCH]));
-          Exit(0);
-        end;
-        WriteDioSig(DefDio.OUT_GIB_CH_12_PROBE_UP_SOL + nGroup *4);
+  if bIsUp then begin
+    SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Probe UP Start ' + sCH);
+    ClearOutDioSig(DefDio.OUT_GIB_CH_12_PROBE_DN_SOL + nGroup *4);
+    if not ReadInSig(DefDio.IN_GIB_CH_12_PROBE_UP_SENSOR + nGroup *4) then begin
+      SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format('Probe UP Finish %s - Already', [sCH]));
+      Exit(0);
+    end;
+    WriteDioSig(DefDio.OUT_GIB_CH_12_PROBE_UP_SOL + nGroup *4);
 
-        // Turn 돌기전 Work Lamp Off.
-        for i := 0 to nWaitingCount do begin
-          Sleep(100);
-          if not ReadInSig(DefDio.IN_GIB_CH_12_PROBE_UP_SENSOR + nGroup *4) then begin
-            SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format(sCH + 'Probe UP OK. Step=%d', [i]));
-            break;
-          end;
-        end;
+    // Turn 돌기전 Work Lamp Off.
+    for i := 0 to nWaitingCount do begin
+      Sleep(100);
+      if not ReadInSig(DefDio.IN_GIB_CH_12_PROBE_UP_SENSOR + nGroup *4) then begin
+        SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format(sCH + 'Probe UP OK. Step=%d', [i]));
+        break;
+      end;
+    end;
 
-        //Retry
-        if ReadInSig(DefDio.IN_GIB_CH_12_PROBE_UP_SENSOR + nGroup *4) then begin
-          SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Wait Probe UP again');
-          ClearOutDioSig(DefDio.OUT_GIB_CH_12_PROBE_DN_SOL + nGroup *4);
-          Sleep(300);
-          WriteDioSig(DefDio.OUT_GIB_CH_12_PROBE_UP_SOL + nGroup *4);
+    if  ReadInSig(DefDio.IN_GIB_CH_12_PROBE_UP_SENSOR + nGroup *4) then begin
+      //SetAlarmMsg(DefDio.ERR_LIST_SHUTTER_UP_SENSOR);
+      SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_GIB_CH_12_PROBE_UP_SENSOR + nGroup *4, 1, '');
+      Exit(2);
+    end;
+    SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Probe UP Finish ' + sCH);
+  end
+  else begin
+    SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Probe DN Start ' + sCH);
+    ClearOutDioSig(DefDio.OUT_GIB_CH_12_PROBE_UP_SOL + nGroup *4);
+    if not ReadInSig(DefDio.IN_GIB_CH_12_PROBE_DN_SENSOR + nGroup *4) then begin
+      SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format('Probe DN Finish %s - Already', [sCH]));
+      Exit(0);
+    end;
+    WriteDioSig(DefDio.OUT_GIB_CH_12_PROBE_DN_SOL + nGroup *4);
 
-          for i := 0 to nWaitingCount do begin
-            Sleep(100);
-            if not ReadInSig(DefDio.IN_GIB_CH_12_PROBE_UP_SENSOR + nGroup *4) then begin
-              SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format('Probe UP OK. Step=%d', [i]));
-              break;
-            end;
-          end;
-        end;
-
-        if  ReadInSig(DefDio.IN_GIB_CH_12_PROBE_UP_SENSOR + nGroup *4) then begin
-          //SetAlarmMsg(DefDio.ERR_LIST_SHUTTER_UP_SENSOR);
-          SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_GIB_CH_12_PROBE_UP_SENSOR + nGroup *4, 1, '');
-          Exit(2);
-        end;
-        SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Probe UP Finish ' + sCH);
-      end
-      else begin
-        SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Probe DN Start ' + sCH);
-        ClearOutDioSig(DefDio.OUT_GIB_CH_12_PROBE_UP_SOL + nGroup *4);
-        if not ReadInSig(DefDio.IN_GIB_CH_12_PROBE_DN_SENSOR + nGroup *4) then begin
-          SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format('Probe DN Finish %s - Already', [sCH]));
-          Exit(0);
-        end;
-        WriteDioSig(DefDio.OUT_GIB_CH_12_PROBE_DN_SOL + nGroup *4);
-
-        for i := 0 to nWaitingCount do begin
-          Sleep(100);
-          if not ReadInSig(DefDio.IN_GIB_CH_12_PROBE_DN_SENSOR + nGroup *4) then begin
-            SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format('Probe DN OK. Step=%d', [i]));
-            break;
-          end;
-        end;
-
-        //Retry
-        if  ReadInSig(DefDio.IN_GIB_CH_12_PROBE_DN_SENSOR + nGroup *4) then begin
-          SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Wait Probe DN again');
-          ClearOutDioSig(DefDio.OUT_GIB_CH_12_PROBE_UP_SOL + nGroup *4);
-          Sleep(300);
-          WriteDioSig(DefDio.OUT_GIB_CH_12_PROBE_DN_SOL + nGroup *4);
-
-          for i := 0 to nWaitingCount do begin
-            Sleep(100);
-            if not ReadInSig(DefDio.IN_GIB_CH_12_PROBE_DN_SENSOR + nGroup *4) then begin
-              SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format('Probe DN OK. Step=%d', [i]));
-              break;
-            end;
-          end;
-        end;
+    for i := 0 to nWaitingCount do begin
+      Sleep(100);
+      if not ReadInSig(DefDio.IN_GIB_CH_12_PROBE_DN_SENSOR + nGroup *4) then begin
+        SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format('Probe DN OK. Step=%d', [i]));
+        break;
+      end;
+    end;
 
 //        ClearOutDioSig(OUT_GIB_CH_12_SHUTTER_DN_SOL);
 
-        if  ReadInSig(DefDio.IN_GIB_CH_12_PROBE_DN_SENSOR + nGroup *4) then begin
-          //SetAlarmMsg(DefDio.ERR_LIST_SHUTTER_DN_SENSOR);
-          SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_GIB_CH_12_PROBE_DN_SENSOR + nGroup *4, 1, '');
-          Exit(3);
-        end;
-        SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Probe DN Finish ' + sCH);
-      end;
-
-
+    if  ReadInSig(DefDio.IN_GIB_CH_12_PROBE_DN_SENSOR + nGroup *4) then begin
+      //SetAlarmMsg(DefDio.ERR_LIST_SHUTTER_DN_SENSOR);
+      SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_GIB_CH_12_PROBE_DN_SENSOR + nGroup *4, 1, '');
+      Exit(3);
+    end;
+    SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Probe DN Finish ' + sCH);
+  end;
 
   Result := 0;
 end;

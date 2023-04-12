@@ -1604,12 +1604,12 @@ begin
     Exit(258);
   end;
 
-    WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$00+$2, 3), 1);
-    Sleep(1000);
-    WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$00+$2, 3), 0);
-    WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$00+$3, 3), 1);
-    Sleep(1000);
-    WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$00+$3, 3), 0);
+  WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$00+$2, 3), 1);
+  Sleep(1000);
+  WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$00+$2, 3), 0);
+  WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$00+$3, 3), 1);
+  Sleep(1000);
+  WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$00+$3, 3), 0);
 
 //  PulseDeviceBit('B' + IntToHex(StartAddr_EQP+$10*$00+$2, 3), $2, 1000); //Online State
 //  PulseDeviceBit('B' + IntToHex(StartAddr_EQP+$10*$00+$3, 3), $3, 1000); //EQP Status Change Report
@@ -1984,22 +1984,38 @@ begin
   Result:= 0;
   nIndex := (EQP_ID + 13) mod 16;
   ConvertStrToPLC(sPanelID, 16, naGlassData[0]); //문자는 Word당 2글자
-  WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$3+$0 , 3), 8, naGlassData[0]); //Load #1-1 Glass Data
-  WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$01+$6, 3), 1); //Take Out Report
+  if Common.SystemInfo.OCType = DefCommon.OCType then begin
+    WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$3+$0 , 3), 8, naGlassData[0]); //Load #1-1 Glass Data
+    WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$01+$6, 3), 1); //Take Out Report
+  end
+  else begin
+    WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$9+$0 , 3), 8, naGlassData[0]); //Load #1-1 Glass Data
+    WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$06+$0, 3), 1); //Take Out Report
+  end;
   nRet:= WaitSignal('B'+IntToHex(StartAddr_ECS+ $200+nIndex, 3), 1, COMMPLC_ECS_TIMEOUT); //Take Out Report_Confirm
   if nRet <> 0 then  begin
-    WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$01+$6, 3), 0);  //Take Out Report
+    if Common.SystemInfo.OCType = DefCommon.OCType then
+      WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$01+$6, 3), 0)  //Take Out Report
+    else WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$06+$0, 3), 0);  //Take Out Report
     Sleep(1000);
+    if Common.SystemInfo.OCType = DefCommon.OCType then
+      WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$01+$6, 3), 1) //Take Out Report
+    else WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$06+$0, 3), 1);
+
     nRet:= WaitSignal('B'+IntToHex(StartAddr_ECS+ $200+nIndex, 3), 1, COMMPLC_ECS_TIMEOUT); //Take Out Report_Confirm
     if nRet <> 0 then  begin
-      WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$01+$6, 3), 0); //Take Out Report
+      if Common.SystemInfo.OCType = DefCommon.OCType then
+        WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$01+$6, 3), 0) //Take Out Report
+      else WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$06+$0, 3), 0);
       AddLog('ECS_TakeOutReport T3 TIME OUT ');
       sLog := 'ECS_TakeOutReport T3 TIME OUT ';
       SendMessageTest(COMMPLC_MODE_LOG_ECS, nCh, 0, 0, sLog);
       Exit;
     end;
   end;
-  WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$01+$6, 3), 0);  //Take Out Report
+  if Common.SystemInfo.OCType = DefCommon.OCType then
+    WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$01+$6, 3), 0) //Take Out Report
+  else WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$06+$0, 3), 0);
   nRet:= WaitSignal('B'+IntToHex(StartAddr_ECS+ $200+nIndex, 3), 0, COMMPLC_ECS_TIMEOUT); //Take Out Report_Confirm
 end;
 
@@ -2058,8 +2074,9 @@ begin
 
   //기다 렸으니 응답이 왔던 안왔던 OFF 처리
   //WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$1 + (nCh*$20), 3), 0); //Load Glass Data Request Off
-
-  WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$0 + (nCh*$20), 3), 1); //Unload Enable
+  if Common.SystemInfo.OCType = DefCommon.OCType then
+    WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$0 + (nCh*$20), 3), 1) //Unload Enable
+  else     WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$0 + (nCh*$20), 3), 1); //Unload Enable
   if nRet = 0 then begin
     //응답이 있을 경우
     UnloadOnly[nCh]:= False;

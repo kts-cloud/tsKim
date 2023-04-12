@@ -933,7 +933,7 @@ begin
   nAddr:= StrToInt('$' + Common.PLCInfo.Address_EQP);
   if Common.SystemInfo.OCType = DefCommon.OCType  then
     nAddr:= nAddr + $C0
-  else nAddr:= nAddr + $12;
+  else nAddr:= nAddr + $12*$10;
   grdStatus.Cells[4, 0] := 'EQP' + #10#13 + '(B' + IntToHex(nAddr, 4) + ')';
   grdStatus.Cells[4, 1] := 'Load' + sLineBreak + 'Enable';
   grdStatus.Cells[4, 2] := 'Glass Data Request';

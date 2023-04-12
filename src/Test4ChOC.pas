@@ -532,6 +532,7 @@ var
 begin
 //  nCH := (Sender as TRzButton).Tag;
   for I := 0 to 3 do begin
+//    if not PasScr[i].m_bUse then Continue;
     pnlSerials[i].Caption := DefCommon.MSG_SCAN_BCR;
     pnlSerials[i].Color := clBlue;
     pnlSerials[i].Font.Color := clYellow;
