@@ -2083,15 +2083,15 @@ begin
   RequestState_Unload[nCh]:= 1;
   RequestState_Load[nCh]:= 1;
   //Glass Data Report를 보고 대기
-  if (nCh = 1) and (StartAddr2_ROBOT <> 0) then  // Addr2 있는 경우
-    nRet:= WaitSignal('B' + IntToHex(StartAddr2_ROBOT+$10*$00+$1 , 3), 1, 500) //Glass Data Report를 보고 대기
-  else nRet:= WaitSignal('B' + IntToHex(StartAddr_ROBOT+$10*$00+$1 + (nCh*$20), 3), 1, 500); //Glass Data Report를 보고 대기
-
   //기다 렸으니 응답이 왔던 안왔던 OFF 처리
   //WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$1 + (nCh*$20), 3), 0); //Load Glass Data Request Off
   if Common.SystemInfo.OCType = DefCommon.OCType then
     WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$0 + (nCh*$20), 3), 1) //Unload Enable
   else     WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$0 + (nCh*$20), 3), 1); //Unload Enable
+  if (nCh = 1) and (StartAddr2_ROBOT <> 0) then  // Addr2 있는 경우
+    nRet:= WaitSignal('B' + IntToHex(StartAddr2_ROBOT+$10*$00+$1 , 3), 1, 2000) //Glass Data Report를 보고 대기
+  else nRet:= WaitSignal('B' + IntToHex(StartAddr_ROBOT+$10*$00+$1 + (nCh*$20), 3), 1, 2000); //Glass Data Report를 보고 대기
+
   if nRet = 0 then begin
     //응답이 있을 경우
     UnloadOnly[nCh]:= False;

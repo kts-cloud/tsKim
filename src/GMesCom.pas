@@ -260,6 +260,7 @@ type
     property MesSerialNo  : string read FMesSerialNo write FMesSerialNo;
     property MesLabelID   : string read FMesLabelID write FMesLabelID;
     property MesUserName  : string read FMesUserName write FMesUserName;
+    property MesPID       : string read FMesPid write FMesPid;
     property MesPg        : Integer read FMesPg write FMesPg;
     property MesApdrPg    : Integer read FMesApdrPg write FMesApdrPg;
     property MesSerialType : Integer read FMesSerialType write SetMesSerialType;
@@ -268,6 +269,7 @@ type
     property  FtpUser     : string read FFtpUser write FFtpUser;
     property  FtpPass     : string read FFtpPass write FFtpPass;
     property  FtpCombiPath  : string read FFtpCombiPath write FFtpCombiPath;
+
 
     property OnGmsEvent   : TGmesEvent read FOnGmsEvent write SetOnGmsEvent;
   end;

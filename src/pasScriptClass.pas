@@ -2619,8 +2619,10 @@ begin
         2 : begin
 //        sPID := 'PPP';
           sPID := GetInputArgAsstring(0);
+//          sPID := DongaGmes.MesPID;
+          if Length(sPID) = 0 then sPID := Copy(sSerialNumber,0,3);
           sSerialNumber := GetInputArgAsstring(1);
-          sPID := Copy(sSerialNumber,0,3);
+//          sPID := Copy(sSerialNumber,0,3);
           if Length(sSerialNumber) = 0 then sSerialNumber := 'TERST1234567';
           sEquipment := Common.SystemInfo.EQPId;
           sUSERID := Common.SystemInfo.AutoLoginID;
@@ -2635,7 +2637,7 @@ begin
         end;
       end;
     //CSharpDll.m_bIsDLLWork[Self.FPgNo] := False;
-    //PG[Self.FPgNo].SetCyclicTimer(True); //2023-03-28 jhhwang (for T/T Test)
+    PG[Self.FPgNo].SetCyclicTimer(True); //2023-03-28 jhhwang (for T/T Test)
 //    end
 //    else wdRet := 2;
     ReturnOutputArg( Integer(wdRet));
