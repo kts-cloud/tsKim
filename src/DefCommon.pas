@@ -230,6 +230,7 @@ Const
   MSG_MODE_FOR_RTY_MAKE_ALL_NG    = 53;
   MSG_MODE_PRODUCT_CNT            = 54;
   MSG_MODE_CA310_ERROR_MSG        = 55;
+  MSG_MODE_ANGING_TIME            = 57;
 
   MSG_MODE_PASS_RGB               = 60;
   MSG_MODE_GET_AVG_RGB            = 61;

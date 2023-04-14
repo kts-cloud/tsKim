@@ -48,7 +48,7 @@ object frmMainter: TfrmMainter
     Width = 1470
     Height = 920
     Hint = ''
-    ActivePage = TabSheet2
+    ActivePage = tabIoMap
     ActivePageDefault = TabSheet1
     Align = alClient
     Font.Charset = DEFAULT_CHARSET
@@ -58,7 +58,7 @@ object frmMainter: TfrmMainter
     Font.Style = []
     ParentFont = False
     SoftCorners = True
-    TabIndex = 3
+    TabIndex = 2
     TabOrder = 2
     FixedDimension = 25
     object TabSheet1: TRzTabSheet

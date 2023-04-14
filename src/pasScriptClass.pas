@@ -323,6 +323,7 @@ type
     procedure OCVerifyStart_Proc(AMachine:TatVirtualMachine);
     procedure OCThreadStateCheck_Proc(AMachine:TatVirtualMachine);
     procedure OCThreadFlash_READ_Proc(AMachine: TatVirtualMachine);
+    procedure SetAgingTm_Proc(AMachine: TatVirtualMachine);
     //OC CA410
     procedure ReadCA410_Proc(AMachine: TatVirtualMachine);
 
@@ -668,7 +669,7 @@ begin
   SetPaScript.DefineMethod('f_OC_VerifyStart',      0,tkInteger, nil,OCVerifyStart_Proc,False,0);
   SetPaScript.DefineMethod('f_ThreadStateCheck',      0,tkInteger, nil,OCThreadStateCheck_Proc,False,0);
   SetPaScript.DefineMethod('f_Flash_Read_Se_NO',      0,tkInteger, nil,OCThreadFlash_READ_Proc,False,0);
-
+  SetPaScript.DefineMethod('f_SetAgingTm', 2, tkNone, nil, SetAgingTm_Proc,False, 2);
 
 
   with SetPaScript.DefineMethod('f_ReadCa410', 3, tkInteger, nil,
@@ -828,6 +829,7 @@ begin
   SetPaScript.AddVariable('c_sCarrierId',m_sCarrierId);
   SetPaScript.AddVariable('c_sSerialNo',TestInfo.SerialNo);  //checkmate 20191031
   SetPaScript.AddVariable('c_sMesRtnSerialNo', m_sMesPchkRtnSerialNo);  //checkmate 201911115
+  SetPaScript.AddVariable('c_sEquipment', Common.SystemInfo.EQPId);  //checkmate 201911115
 
   SetPaScript.AddVariable('c_nNgCode',m_nNgCode);
   SetPaScript.AddVariable('c_sNgMsg',m_sNgMsg);
@@ -2603,16 +2605,16 @@ end;
 procedure TScrCls.OCFlowStart_Proc(AMachine: TatVirtualMachine);
 var
   wdRet : integer;
-  sPID,sSerialNumber,sEquipment : string;
+  sPID,sSerialNumber,sEquipment,sUSERID : string;
 begin
   With AMachine do begin
     wdRet := 3;
-    if not CSharpDll.m_bIsDLLWork[FPgNo] then begin
+//    if not CSharpDll.m_bIsDLLWork[FPgNo] then begin
 		
       PG[Self.FPgNo].DP860_SendOcOnOff(1{start},2000,0); //2023-03-28 jhhwang (for T/T Test)
       PG[Self.FPgNo].SetCyclicTimer(False); //2023-03-28 jhhwang (for T/T Test)
-					
-      CSharpDll.m_bIsDLLWork[FPgNo] := true;
+
+//      CSharpDll.m_bIsDLLWork[FPgNo] := true;
       case InputArgCount of
         2 : begin
 //        sPID := 'PPP';
@@ -2621,20 +2623,21 @@ begin
           sPID := Copy(sSerialNumber,0,3);
           if Length(sSerialNumber) = 0 then sSerialNumber := 'TERST1234567';
           sEquipment := Common.SystemInfo.EQPId;
+          sUSERID := Common.SystemInfo.AutoLoginID;
           if Length(sEquipment) = 0 then sEquipment :=  Format('Equipment:%d',[Self.FPgNo]);
           case FPgNo of
-            0:         wdRet := CSharpDll.MainOC_Start_CH1(Self.FPgNo,sPID,sSerialNumber,'602462',sEquipment);
-            1:         wdRet := CSharpDll.MainOC_Start_CH2(Self.FPgNo,sPID,sSerialNumber,'602462',sEquipment);
-            2:         wdRet := CSharpDll.MainOC_Start_CH3(Self.FPgNo,sPID,sSerialNumber,'602462',sEquipment);
-            3:         wdRet := CSharpDll.MainOC_Start_CH4(Self.FPgNo,sPID,sSerialNumber,'602462',sEquipment);
+            0:         wdRet := CSharpDll.MainOC_Start_CH1(Self.FPgNo,sPID,sSerialNumber,sUSERID,sEquipment);
+            1:         wdRet := CSharpDll.MainOC_Start_CH2(Self.FPgNo,sPID,sSerialNumber,sUSERID,sEquipment);
+            2:         wdRet := CSharpDll.MainOC_Start_CH3(Self.FPgNo,sPID,sSerialNumber,sUSERID,sEquipment);
+            3:         wdRet := CSharpDll.MainOC_Start_CH4(Self.FPgNo,sPID,sSerialNumber,sUSERID,sEquipment);
           end;
 
         end;
       end;
     //CSharpDll.m_bIsDLLWork[Self.FPgNo] := False;
     //PG[Self.FPgNo].SetCyclicTimer(True); //2023-03-28 jhhwang (for T/T Test)
-    end
-    else wdRet := 2;
+//    end
+//    else wdRet := 2;
     ReturnOutputArg( Integer(wdRet));
   end;
 end;
@@ -2707,13 +2710,13 @@ begin
         Common.MLog(self.FPgNo,format('OCThreadFlash_READ_Proc nStartAddr : %d nLength : %d ',[nStartAddr,nLength]));
 //      PG[FPgNo].SendFlashRead(nStartAddr,nLength);
 
-      SetLength(SerialNoBuf,nLength);
-      wdRet :=  Pg[FPgNo].SendFlashRead(nStartAddr,nLength, @SerialNoBuf[0]);
-      SetString(sAnsiStr, PAnsiChar(@SerialNoBuf[0]), nLength);
-      sAnsiStr := Copy(sAnsiStr,0,nLength);
-      sSerialNo := string(Trim(sAnsiStr));
-      TestInfo.SerialNo := sSerialNo;
-      Common.MLog(self.FPgNo,format('OCThreadFlash_READ_Proc SerialNo : %s ',[sSerialNo]));
+        SetLength(SerialNoBuf,nLength);
+        wdRet :=  Pg[FPgNo].SendFlashRead(nStartAddr,nLength, @SerialNoBuf[0]);
+        SetString(sAnsiStr, PAnsiChar(@SerialNoBuf[0]), nLength);
+        sAnsiStr := Copy(sAnsiStr,0,nLength);
+        sSerialNo := string(Trim(sAnsiStr));
+        TestInfo.SerialNo := sSerialNo;
+        Common.MLog(self.FPgNo,format('OCThreadFlash_READ_Proc SerialNo : %s ',[sSerialNo]));
       end;
     end;
     ReturnOutputArg( Integer(wdRet));
@@ -4033,14 +4036,14 @@ begin
       g_CommPLC.SetGlassData_JudgCode(g_CommPLC.GlassData[FPgNo], ord('G'));
     end
     else begin
-      if nNgCode <= 5 then begin
-        //Contact NG 등 카메라 측정에 진입 못한 경우 GlassData 설정
-        g_CommPLC.SetGlassData_JudgCode(g_CommPLC.GlassData[FPgNo], ord('S'));
-        g_CommPLC.SetGlassData_ContactNG(g_CommPLC.GlassData[FPgNo], 1);
-      end
-      else begin
-        g_CommPLC.SetGlassData_JudgCode(g_CommPLC.GlassData[FPgNo], ord('N'));
-      end;
+//      if nNgCode <= 5 then begin
+//        //Contact NG 등 카메라 측정에 진입 못한 경우 GlassData 설정
+//        g_CommPLC.SetGlassData_JudgCode(g_CommPLC.GlassData[FPgNo], ord('S'));
+//        g_CommPLC.SetGlassData_ContactNG(g_CommPLC.GlassData[FPgNo], 1);
+//      end
+//      else begin
+      g_CommPLC.SetGlassData_JudgCode(g_CommPLC.GlassData[FPgNo], ord('N'));
+//      end;
 
       if Common.SystemInfo.Use_GIB then begin //GIB구분- Auto이고 GIB 모드이면 Inline GIB
         nStation:= g_CommPLC.GetGlassData_Processing_Status(g_CommPLC.GlassData[FPgNo], nSeq, 3);
@@ -4643,6 +4646,32 @@ begin
 end;
 
 
+
+procedure TScrCls.SetAgingTm_Proc(AMachine: TatVirtualMachine);
+var
+  nTimerType, nTime: Integer;
+  nMM, nSS: Integer;
+  sMsg: string;
+begin
+  With AMachine do
+  begin
+    // nTimerType : 0 ==> Display Off. 1 ==> Counter, 2 ==> Timer.
+    nTimerType := GetInputArgAsInteger(0);
+    nTime := GetInputArgAsInteger(1);
+    sMsg := '';
+    case nTimerType of
+      1:
+        sMsg := format('%d', [nTime]);
+      2:
+        begin
+          nSS := nTime mod 60;
+          nMM := nTime div 60;
+          sMsg := format(' %0.2d : %0.2d', [nMM, nSS]);
+        end;
+    end;
+    SendTestGuiDisplay(DefCommon.MSG_MODE_ANGING_TIME, sMsg, '', nTimerType);
+  end;
+end;
 
 procedure TScrCls.SetBCRData;
 begin

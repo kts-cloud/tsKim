@@ -97,8 +97,6 @@ type
     grdGlassData: TAdvStringGrid;
     Label4: TLabel;
     btnHideGlassData: TButton;
-    Edit3: TEdit;
-    Button1: TButton;
     btnTakeOutReport: TButton;
     procedure FormCreate(Sender: TObject);
     procedure tmrRefreshTimer(Sender: TObject);
@@ -888,7 +886,7 @@ begin
 
 //  grdStatus.Cells[2, 5] := 'Material' + sLineBreak + 'Matching Report';
   if Common.SystemInfo.OCType = DefCommon.OCType  then
-    grdStatus.Cells[2, 6] := 'Take Out' + sLineBreak + 'Report'
+    grdStatus.Cells[2, 7] := 'Take Out' + sLineBreak + 'Report'
   else grdStatus.Cells[2, 8] := 'Take Out' + sLineBreak + 'Report';
 
 //  grdStatus.Cells[2, 9] := 'APD' + sLineBreak + 'Report';
@@ -1046,24 +1044,62 @@ begin
 //  grdStatus.Cells[13, 11] := ''; //'Inspection Data  Confirm #3';
 //  grdStatus.Cells[13, 12] := ''; //'Inspection Data  Confirm #4';
 //  grdStatus.Cells[13, 16] := ''; //'User ID Report Confirm';
-
-  nAddr:= StrToInt('$' + Common.PLCInfo.Address_ECS)+ ((Common.PLCInfo.EQP_ID -3) div 16)*$10;
-  grdStatus.Cells[13, 0] := 'ECS' + #10#13 + '(B' + IntToHex(nAddr, 4) + ')';
-  grdStatus.Cells[13, ((Common.PLCInfo.EQP_ID + 13 )mod 16)+1] :=
-  Format('OC #%d Link',[Common.PLCInfo.EQP_ID - 10])  + sLineBreak + 'Test Request';
-
-
-  grdStatus.Cells[14, 0] := 'ECS' + #10#13 + '(B' + IntToHex(nAddr + $100, 4) + ')';
-  grdStatus.Cells[14, ((Common.PLCInfo.EQP_ID +13 )mod 16)+1] :=
-  Format('OC #%d Lost',[Common.PLCInfo.EQP_ID - 10]) + sLineBreak + 'Panel Data Report';
+  if Common.SystemInfo.OCType = DefCommon.OCType then begin
+    if Common.PLCInfo.InlineGIB then  begin
+      nAddr:= StrToInt('$' + Common.PLCInfo.Address_ECS)+ ((Common.PLCInfo.EQP_ID -6) div 16)*$10;
+      grdStatus.Cells[13, 0] := 'ECS' + #10#13 + '(B' + IntToHex(nAddr, 4) + ')';
+      grdStatus.Cells[13, ((Common.PLCInfo.EQP_ID + 10 )mod 16)+1] :=
+      Format('OC #%d Link',[Common.PLCInfo.EQP_ID - 6])  + sLineBreak + 'Test Request';
 
 
-  grdStatus.Cells[15, 0] := 'ECS' + #10#13 + '(B' + IntToHex(nAddr + $200, 4) + ')';
-  grdStatus.Cells[15, ((Common.PLCInfo.EQP_ID + 13 )mod 16)+1] :=
-  Format('OC #%d Take',[Common.PLCInfo.EQP_ID - 10]) + sLineBreak + 'Out Report_Confirm';
+      grdStatus.Cells[14, 0] := 'ECS' + #10#13 + '(B' + IntToHex(nAddr + $100, 4) + ')';
+      grdStatus.Cells[14, ((Common.PLCInfo.EQP_ID +10 )mod 16)+1] :=
+      Format('OC #%d Lost',[Common.PLCInfo.EQP_ID - 6]) + sLineBreak + 'Panel Data Report';
 
 
+      grdStatus.Cells[15, 0] := 'ECS' + #10#13 + '(B' + IntToHex(nAddr + $200, 4) + ')';
+      grdStatus.Cells[15, ((Common.PLCInfo.EQP_ID + 10 )mod 16)+1] :=
+      Format('OC #%d Take',[Common.PLCInfo.EQP_ID - 6]) + sLineBreak + 'Out Report_Confirm';
+    end
+    else begin
+      nAddr:= StrToInt('$' + Common.PLCInfo.Address_ECS)+ ((Common.PLCInfo.EQP_ID -3) div 16)*$10;
+      grdStatus.Cells[13, 0] := 'ECS' + #10#13 + '(B' + IntToHex(nAddr, 4) + ')';
+      grdStatus.Cells[13, ((Common.PLCInfo.EQP_ID + 13 )mod 16)+1] :=
+      Format('OC #%d Link',[Common.PLCInfo.EQP_ID - 10])  + sLineBreak + 'Test Request';
 
+
+      grdStatus.Cells[14, 0] := 'ECS' + #10#13 + '(B' + IntToHex(nAddr + $100, 4) + ')';
+      grdStatus.Cells[14, ((Common.PLCInfo.EQP_ID +13 )mod 16)+1] :=
+      Format('OC #%d Lost',[Common.PLCInfo.EQP_ID - 10]) + sLineBreak + 'Panel Data Report';
+
+
+      grdStatus.Cells[15, 0] := 'ECS' + #10#13 + '(B' + IntToHex(nAddr + $200, 4) + ')';
+      grdStatus.Cells[15, ((Common.PLCInfo.EQP_ID + 13 )mod 16)+1] :=
+      Format('OC #%d Take',[Common.PLCInfo.EQP_ID - 10]) + sLineBreak + 'Out Report_Confirm';
+    end;
+
+  end
+  else begin
+    if Common.PLCInfo.InlineGIB then
+      nAddr:= StrToInt('$' + Common.PLCInfo.Address_ECS)+ ((Common.PLCInfo.EQP_ID -6) div 16)*$10
+    else
+      nAddr:= StrToInt('$' + Common.PLCInfo.Address_ECS)+ ((Common.PLCInfo.EQP_ID -3) div 16)*$10;
+
+    grdStatus.Cells[13, 0] := 'ECS' + #10#13 + '(B' + IntToHex(nAddr, 4) + ')';
+    grdStatus.Cells[13, ((Common.PLCInfo.EQP_ID + 13 )mod 16)+1] :=
+    Format('OC #%d Link',[Common.PLCInfo.EQP_ID - 10])  + sLineBreak + 'Test Request';
+
+
+    grdStatus.Cells[14, 0] := 'ECS' + #10#13 + '(B' + IntToHex(nAddr + $100, 4) + ')';
+    grdStatus.Cells[14, ((Common.PLCInfo.EQP_ID +13 )mod 16)+1] :=
+    Format('OC #%d Lost',[Common.PLCInfo.EQP_ID - 10]) + sLineBreak + 'Panel Data Report';
+
+
+    grdStatus.Cells[15, 0] := 'ECS' + #10#13 + '(B' + IntToHex(nAddr + $200, 4) + ')';
+    grdStatus.Cells[15, ((Common.PLCInfo.EQP_ID + 13 )mod 16)+1] :=
+    Format('OC #%d Take',[Common.PLCInfo.EQP_ID - 10]) + sLineBreak + 'Out Report_Confirm';
+
+  end;
   grdStatus.MergeCells(1, 0, 3, 1);
   grdStatus.MergeCells(4, 0, 4, 1);
   if StrToInt('$' + Common.PLCInfo.Address_Robot2) <> 0 then begin

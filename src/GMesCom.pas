@@ -1732,9 +1732,17 @@ begin
         end;
       end;
       *)
-      sSerialNo := Trim(Copy(sSerialNo,0,239));
-      sSendMsg := sSendMsg  + ' PID=';
-      sSendMsg := sSendMsg  + ' SERIAL_NO='+sSerialNo;
+      if Common.SystemInfo.OCType = DefCommon.OCType then begin
+        sSerialNo := Trim(Copy(sSerialNo,0,239));
+        sSendMsg := sSendMsg  + ' PID=';
+        sSendMsg := sSendMsg  + ' SERIAL_NO='+sSerialNo;
+      end
+      else begin
+        sSerialNo := Trim(Copy(sSerialNo,0,30));
+        sSendMsg := sSendMsg  + ' PID=';
+        sSendMsg := sSendMsg  + ' PCB_ID='+sSerialNo;
+//        sSendMsg := sSendMsg  + ' SERIAL_NO=';
+      end;
       //sSendMsg := sSendMsg  + ' SERIAL_NO=';
       sSendMsg := sSendMsg  + ' COVER_GLASS_ID=';
       sSendMsg := sSendMsg  + ' LCM_ID=';
@@ -1905,7 +1913,13 @@ begin
       *
       }
       //sSendMsg := sSendMsg  + ' SERIAL_NO=';
-      sSendMsg := sSendMsg  + ' SERIAL_NO='+sSerialNo;
+      if Common.SystemInfo.OCType = DefCommon.OCType then begin
+        sSendMsg := sSendMsg  + ' SERIAL_NO='+sSerialNo;
+      end
+      else begin
+        sSendMsg := sSendMsg  + ' PID=';
+        sSendMsg := sSendMsg  + ' PCB_ID='+sSerialNo;
+      end;
       sSendMsg := sSendMsg  + ' CGID=';
 
       sSendMsg := sSendMsg  + ' BLID=[]';

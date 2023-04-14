@@ -28,7 +28,7 @@ object frmSystemSetup: TfrmSystemSetup
     Width = 853
     Height = 672
     Hint = ''
-    ActivePage = TabSheet1
+    ActivePage = tbEcsSheet
     Align = alClient
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
@@ -36,7 +36,7 @@ object frmSystemSetup: TfrmSystemSetup
     Font.Name = 'Tahoma'
     Font.Style = [fsBold]
     ParentFont = False
-    TabIndex = 0
+    TabIndex = 1
     TabOrder = 0
     FixedDimension = 22
     object TabSheet1: TRzTabSheet
@@ -397,7 +397,6 @@ object frmSystemSetup: TfrmSystemSetup
           ParentCtl3D = False
           ParentFont = False
           TabOrder = 1
-          Text = 'None'
           Items.Strings = (
             'None'
             'COM1'
@@ -414,8 +413,12 @@ object frmSystemSetup: TfrmSystemSetup
             'COM12'
             'COM13'
             'COM14'
-            'COM15')
-          ItemIndex = 0
+            'COM15'
+            'COM16'
+            'COM17'
+            'COM18'
+            'COM19'
+            'COM20')
         end
         object pnlCamLight: TRzPanel
           Left = 4
@@ -5991,7 +5994,7 @@ object frmSystemSetup: TfrmSystemSetup
     OnClick = btnCloseClick
   end
   object btnSave: TRzBitBtn
-    Left = 536
+    Left = 535
     Top = 629
     Width = 135
     Height = 35

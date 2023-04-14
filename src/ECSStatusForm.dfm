@@ -666,7 +666,7 @@ object frmECSStatus: TfrmECSStatus
           OnClick = btnTactTimeClick
         end
         object btnTakeOutReport: TButton
-          Left = 408
+          Left = 409
           Top = 73
           Width = 75
           Height = 25
@@ -1106,23 +1106,6 @@ object frmECSStatus: TfrmECSStatus
       TabOrder = 1
       OnClick = btnHideGlassDataClick
     end
-  end
-  object Edit3: TEdit
-    Left = 1321
-    Top = 736
-    Width = 121
-    Height = 21
-    TabOrder = 8
-    Text = 'Edit3'
-  end
-  object Button1: TButton
-    Left = 1100
-    Top = 749
-    Width = 75
-    Height = 25
-    Caption = 'Button1'
-    TabOrder = 9
-    OnClick = Button1Click
   end
   object tmrRefresh: TTimer
     Enabled = False

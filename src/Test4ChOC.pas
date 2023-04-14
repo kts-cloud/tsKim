@@ -120,7 +120,8 @@ type
 
     btnVirtualBcr  :  TRzBitBtn;
 
-
+    tmAgingTimer   :  array [DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of  TTimer;
+    m_nDiscounter  :  array [DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of  Integer;
     btnStartTest   :  array [DefCommon.CH1..DefCommon.MAX_JIG_CNT] of  TRzBitBtn;
     btnStopTest    :  array [DefCommon.CH1..DefCommon.MAX_JIG_CNT] of  TRzBitBtn;
     btnVirtualKey  :  array [DefCommon.CH1..DefCommon.MAX_JIG_CNT] of  TRzBitBtn;
@@ -152,6 +153,7 @@ type
     pnlSerials     : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TPanel;
     pnlSerials2    : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TRzPanel;
     pnlMESResults  : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TPanel;
+    pnlAging       : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TPanel;
     pnlPGStatuses  : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TPanel;
     pnlTimeNResult : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TRzPanel;
     btnTakeOutReport : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TRzBitBtn;
@@ -208,6 +210,7 @@ type
     procedure SendMessageMain(nMsgMode, nCh, nParam, nParam2: Integer;
       sMsg: String; pData: Pointer);
     function GetNGCode_ByErroCode(sErrorCode: string): Integer;
+    procedure OnAgingTimer(Sender: TObject);
   public
     { Public declarations }
     /// <summary> Main 폼 Handle - WM_COPYDATA</summary>
@@ -466,21 +469,21 @@ end;
 procedure TfrmTest4ChOC.btnTakeOutReportClick(Sender: TObject);
 var
 nCH,nRes : integer;
+sGlassID : string;
 begin
   nCH := (Sender as TRzButton).Tag;
-  if length(PasScr[nCH].TestInfo.SerialNo) > 0  then begin
-    if MessageDlg( format('Panel ID [%s] Would you like to report?',[PasScr[nCH].TestInfo.SerialNo]), mtConfirmation, [mbYes, mbNo], 0) = mrYes then begin
-      AddLog('Take Out Report: ' + PasScr[nCH].TestInfo.SerialNo,nCH);
+  sGlassID := g_CommPLC.ECS_GlassData[nCH].GlassID;
+  if length(sGlassID) > 0  then begin
+    if MessageDlg( format('Panel ID [%s] Would you like to report?',[sGlassID]), mtConfirmation, [mbYes, mbNo], 0) = mrYes then begin
+      AddLog('Take Out Report: ' + sGlassID,nCH);
 
-      nRes:= g_CommPLC.ECS_TakeOutReport(nCH,PasScr[nCH].TestInfo.SerialNo);
+      nRes:= g_CommPLC.ECS_TakeOutReport(nCH,sGlassID);
       if nRes <> 0 then begin
         AddLog('Take Out Report NG ' + IntToStr(nRes),nCH);
       end
       else begin
         AddLog('Take Out Report OK',nCH);
       end;
-
-
     end;
   end;
 end;
@@ -1046,6 +1049,22 @@ begin
     pnlMESResults[i].ParentBackground := False;
     pnlMESResults[i].StyleElements := [];
 
+    pnlAging[i] := TPanel.Create(Self);
+    pnlAging[i].Parent := pnlChGrp[i];
+    pnlAging[i].Align := alTop;
+    pnlAging[i].Top := 275;
+    pnlAging[i].Height := 60;
+    pnlAging[i].Visible := False;
+    pnlAging[i].StyleElements   := [];
+    pnlAging[i].ParentBackground:= False;
+    pnlAging[i].Color           := clBlue;
+    pnlAging[i].Font.Color      := clWhite;
+    pnlAging[i].Font.Name       := 'Verdana';
+    pnlAging[i].Font.Size       := 24;
+    pnlAging[i].Font.Style      := [fsBold];
+    pnlAging[i].Caption         := '';
+    pnlAging[i].Visible         := False;
+
     pnlPGStatuses[i] := TPanel.Create(Self);
     pnlPGStatuses[i].Parent := pnlChGrp[i];
 //    pnlPGStatuses[i].Top := pnlMESResults[i].Top + pnlMESResults[i].Height;
@@ -1508,11 +1527,42 @@ begin
 
   end;
 
+  for i := DefCommon.CH1 to DefCommon.MAX_JIG_CH do begin
+
+    //-------------------------------------------- Timer (Aging)
+    tmAgingTimer[i] := TTimer.Create(Self);
+    tmAgingTimer[i].Interval := 1000;
+    tmAgingTimer[i].OnTimer := OnAgingTimer;
+    tmAgingTimer[i].Name := Format('AGING_TIME_%d',[i]);
+    tmAgingTimer[i].Enabled := False;
+    m_nDiscounter[i] := 0;
+  end;
+
 
   pnlSwitch.Parent := self;   // 화면 뒤에 있지 않도록 Parent를 변경.
 
   pnlSwitch.Visible := False;
   pnlTestMain.Visible := True;
+end;
+
+
+procedure TfrmTest4ChOC.OnAgingTimer(Sender: TObject);
+var
+  nCh : Integer;
+  sTimer : string;
+begin
+  for nCh := DefCommon.CH1 to DefCommon.MAX_JIG_CH do begin
+    sTimer := Format('AGING_TIME_%d',[nCh]);
+    if TTimer(Sender).Name = sTimer then begin
+      Dec(m_nDiscounter[nCh]);
+      pnlAging[nCh].Caption := Format('%d Sec',[m_nDiscounter[nCh]]);
+      if m_nDiscounter[nCh] < 1 then begin
+        tmAgingTimer[nCh].Enabled := False;
+        pnlAging[nCh].Visible := False;
+      end;
+      Break;
+    end;
+  end;
 end;
 
 
@@ -2985,7 +3035,7 @@ begin
             end
             else if Pos('[OCException]',sMsg) > 0 then begin
               if PasScr[nCh].m_nNgCode = 0 then begin
-                PasScr[nCh].m_nNgCode:= 37; //Other
+                PasScr[nCh].m_nNgCode:= 60; //Other
               end;
             end;
 
@@ -3036,6 +3086,22 @@ begin
         DefCommon.MSG_MODE_CH_CLEAR : begin
           ClearChData(nCh);
         end;
+
+        DefCommon.MSG_MODE_ANGING_TIME : begin
+          sMsg := Trim(PGuiScript(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
+          nTemp := PGuiScript(PCopyDataStruct(Msg.LParam)^.lpData)^.nParam;
+          pnlAging[nCh].Caption := sMsg;
+          if nTemp = 0 then begin
+            pnlAging[nCh].Visible := False;
+            tmAgingTimer[nCh].Enabled := False;
+          end
+          else              pnlAging[nCh].Visible := True;
+          if nTemp = 3 then begin
+            m_nDiscounter[nCh] := PGuiScript(PCopyDataStruct(Msg.LParam)^.lpData)^.nParam2 div 1000;
+            tmAgingTimer[nCh].Enabled := True;
+          end;
+        end;
+
 
         DefCommon.MSG_MODE_BARCODE_READY : begin
 

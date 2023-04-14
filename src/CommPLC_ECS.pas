@@ -1198,11 +1198,12 @@ var
   AGlassData: TECSGlassData;
   nReturnCode : integer;
   sLog : string;
+  bResult : Boolean;
 begin
   if not Connected then Exit(1);
 
   //참조 - MESEC 사양 6.6 Lost Glass Data Request
-  Result:= 0;
+  Result:= 1;
   nIndex := (EQP_ID + 13) mod 16;
 
   AddLog(format('ECS_Lost_Glass_Request  sGlassID=%s, nGlassCode=%d, nRequestOption=%d', [sGlassID, nGlassCode, nRequestOption]));
@@ -1212,13 +1213,20 @@ begin
 //
 //  WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$14+$0, 3), 64, naGlassData[0]); ///Glass Data
 //  ///
-  WriteString('W' + IntToHex(StartAddr_EQP_W+$10*$02+$0, 3), format('%-16s', [sGlassID]));
-  WriteDevice('W' + IntToHex(StartAddr_EQP_W+$10*$02+$F, 3), nGlassCode);
-  WriteDevice('W' + IntToHex(StartAddr_EQP_W+$10*$02+$E, 3), nRequestOption);
+  if Common.SystemInfo.OCType = DefCommon.OCType then  begin
+    WriteString('W' + IntToHex(StartAddr_EQP_W+$10*$02+$0, 3), format('%-16s', [sGlassID]));
+    WriteDevice('W' + IntToHex(StartAddr_EQP_W+$10*$02+$F, 3), nGlassCode);
+    WriteDevice('W' + IntToHex(StartAddr_EQP_W+$10*$02+$E, 3), nRequestOption);
+    WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$01+$0, 3), 1); //Lost Glass Data Request
+  end
+  else begin
+    WriteString('W' + IntToHex(StartAddr_EQP_W+$10*$08+$0, 3), format('%-16s', [sGlassID]));
+    WriteDevice('W' + IntToHex(StartAddr_EQP_W+$10*$08+$F, 3), nGlassCode);
+    WriteDevice('W' + IntToHex(StartAddr_EQP_W+$10*$08+$E, 3), nRequestOption);
+    WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$01+$0, 3), 1); //Lost Glass Data Request
 
-
-  WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$01+$0, 3), 1); //Lost Glass Data Request
-//  nRet:= WaitSignal('B' + IntToHex(StartAddr_ECS+$10*$26+$0, 3), 1, 3000); //Lost Glass Data report
+  end;
+  //  nRet:= WaitSignal('B' + IntToHex(StartAddr_ECS+$10*$26+$0, 3), 1, 3000); //Lost Glass Data report
 
   AddLog(format('ECS_Lost_Glass_Request Ok  CarrierID=%s', [AGlassData.CarrierID]));
 
@@ -1235,11 +1243,9 @@ begin
     end;
 
   end;
+  ReadDeviceBlock('W' + IntToHex(StartAddr_ECS_W+$10*$C+$0 , 3), 64, naGlassData[0],nReturnCode); //Glass Data  else ReadDeviceBlock('W' + IntToHex(StartAddr_ECS_W+$10*$C+$0 , 3), 64, naGlassData[0],nReturnCode); //Glass Data
 
-  ReadDeviceBlock('W' + IntToHex(StartAddr_ECS_W+$10*$C+$0 , 3), 64, naGlassData[0],nReturnCode); //Glass Data
-
-  AddLog(format('ECS_Lost_Glass_Request Ok  CarrierID=%s', [AGlassData.CarrierID]));
-
+  ConvertBlockToGlassData(naGlassData[0], GlassData[5]);
   //Glass Data를 어디에 사용하나?
 //   end
 //   );
@@ -1247,37 +1253,32 @@ begin
 
   WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$01+$0, 3), 0); //Lost Glass Data Request off
 
-
-
-
 //  ReadDevice('W' + IntToHex(StartAddr_ECS_W+$10*$17+$01, 3), lpData);  //Lost Glass Data
-//  ReadDevice('B' + IntToHex(StartAddr_ECS+$10*$02+$00, 3), lpData); //Lost Glass Data Ack
-//  ReadDevice('B' + IntToHex(StartAddr_ECS+$10*$02+$01, 3), lpData2); //Lost Glass Data Ack
+  ReadDevice('B' + IntToHex($00+$03, 3), lpData); //Lost Glass Data Ack
+  ReadDevice('B' + IntToHex($00+$04, 3), lpData2); //Lost Glass Data Ack
 
   if lpData = 1 then  begin
     //Ok
-  end
-  else begin
+    bResult := true;
+    Result := 0;
+  end;
+  if lpData2 = 1 then  begin
     //NG
+    bResult := false;
+    sLog := format('Lost Glass Data Ack NG Panel ID : %s',[sGlassID]);
+    SendMessageMain(COMMPLC_MODE_EVENT_ECS, 0, 2, 0, sLog);
+    Result := 1;
   end;
 
-//    Synchronize(nil,
-//  procedure
-//  begin
-//  ReadDeviceBlock('W' + IntToHex(StartAddr_ECS_W+$10*$C+$0 , 3), 64, naGlassData[0],nReturnCode); //Glass Data
-//  //Glass Data를 어디에 사용하나?
-////   end
-////   );
-//  ConvertBlockToGlassData(naGlassData[0],AGlassData);
 
-  AddLog(format('ECS_Lost_Glass_Request Ok  CarrierID=%s', [AGlassData.CarrierID]));
+  AddLog(format('ECS_Lost_Glass_Request Ok  MateriID=%s', [AGlassData.GlassID]));
 
   //Test로 Change glass 호출
-  AGlassData.CarrierID:= 'POCBPOCB';
-  nRet:= ECS_Change_Glass_Report(AGlassData);
-  if nRet <> 0  then begin
-    AddLog('ECS_Change_Glass_Report Fail');
-  end;
+//  AGlassData.CarrierID:= 'POCBPOCB';
+//  nRet:= ECS_Change_Glass_Report(AGlassData);
+//  if nRet <> 0  then begin
+//    AddLog('ECS_Change_Glass_Report Fail');
+//  end;
 
 //  Result:= 0;
 //  nIndex := (EQP_ID + 13) mod 16;
@@ -2009,7 +2010,7 @@ begin
       else WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$06+$0, 3), 0);
       AddLog('ECS_TakeOutReport T3 TIME OUT ');
       sLog := 'ECS_TakeOutReport T3 TIME OUT ';
-      SendMessageTest(COMMPLC_MODE_LOG_ECS, nCh, 0, 0, sLog);
+      SendMessageMain(COMMPLC_MODE_EVENT_ECS, nCh, 2, 0, sLog);
       Exit;
     end;
   end;
@@ -2060,6 +2061,20 @@ begin
   WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$12+$4 + (nCh*$20), 3), 1); //Load Normal Status - 상태 설정에서....
 
   Sleep(50);
+  if Common.SystemInfo.CHReversal then begin
+    ConvertGlassDataToBlock(GlassData[nCh*2 + 1], naGlassData[0]);
+    WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$20+$0 + (nCh*$80) , 3), 64, naGlassData[0]); //Unload Glass Data #1
+
+    ConvertGlassDataToBlock(GlassData[nCh*2], naGlassData[0]);
+    WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$20+$0 + $40 + (nCh*$80), 3), 64, naGlassData[0]); //Unload Glass Data #2
+  end
+  else begin
+    ConvertGlassDataToBlock(GlassData[nCh*2], naGlassData[0]);
+    WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$20+$0 + (nCh*$80) , 3), 64, naGlassData[0]); //Unload Glass Data #1
+
+    ConvertGlassDataToBlock(GlassData[nCh*2+1], naGlassData[0]);
+    WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$20+$0 + $40 + (nCh*$80), 3), 64, naGlassData[0]); //Unload Glass Data #2
+  end;
 
   WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$1 + (nCh*$20), 3), 1); //Unload Glass Data Report
   WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$5 + (nCh*$20), 3), 1); //Unload Request
@@ -2776,6 +2791,7 @@ begin
 //    ReadDeviceBlock('B' + IntToHex(StartAddr_EQP+$10*$00+$0, 3), COMMPLC_EQP_DATASIZE, PollingEQP[0],m_ResultEQP);
 //  end
 //  );
+
   m_ResultEQP :=  ReadDeviceBlock('B' + IntToHex(StartAddr_EQP+$10*$00+$0, 3), COMMPLC_EQP_DATASIZE, PollingEQP[0],m_ResultEQP);
 
   nRet := m_ResultEQP;
@@ -3076,9 +3092,25 @@ begin
         else begin
           AddLog(format('<< ChangedDevice ECS %s: %d', ['B' + IntToHex(StartAddr_ECS+nIndex, 3), nValue]), True);
         end;
-        if nIndex = (EQP_ID + 13) mod 16 then  begin
-             WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$00+$1, 3), nValue); //Link Test
-             m_nLinkTestTick:= GetTickCount;
+        if Common.SystemInfo.OCType = DefCommon.OCType then begin
+          if Common.PLCInfo.InlineGIB then begin
+            if nIndex = (EQP_ID + 10) mod 16 then  begin
+                 WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$00+$1, 3), nValue); //Link Test
+                 m_nLinkTestTick:= GetTickCount;
+            end;
+          end
+          else begin
+            if nIndex = (EQP_ID + 13) mod 16 then  begin
+                 WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$00+$1, 3), nValue); //Link Test
+                 m_nLinkTestTick:= GetTickCount;
+            end;
+          end;
+        end
+        else begin
+          if nIndex = (EQP_ID + 13) mod 16 then  begin
+               WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$00+$1, 3), nValue); //Link Test
+               m_nLinkTestTick:= GetTickCount;
+          end;
         end;
 
 
@@ -3341,7 +3373,6 @@ begin
 
   if not IsBusy_Robot(nCh) then begin
     if Common.SystemInfo.OCType = DefCommon.OCType then begin
-
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$0 + (nCh*$20), 3), 0); //Load Enable off
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$0 + (nCh*$20), 3), 0); //Unload Enable Off
     end
@@ -3353,7 +3384,12 @@ begin
 
   RequestState_Load[nCh]:= 0;
   AddLog('SendMessageMain COMMPLC_PARAM_LOADBUSY SendMessageMain ' + IntToStr(nCh), True);
-  SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, nCh, COMMPLC_PARAM_LOADBUSY, 0, 'Process_ROBOT_LoadBusy_Off ' + IntToStr(nCh), nil);
+  if not g_CommPLC.UnloadOnly[nCh] then begin
+    SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, nCh, COMMPLC_PARAM_LOADBUSY, 0, 'Process_ROBOT_LoadBusy_Off ' + IntToStr(nCh), nil);
+  end
+  else begin
+    AddLog('Process_ROBOT_LoadBusy_Off UnloadOnly ON' + IntToStr(nCh), True);
+  end;
   AddLog('SendMessageMain COMMPLC_PARAM_LOADBUSY SendMessageMain Done ' + IntToStr(nCh), True);
 
 end;
@@ -3364,7 +3400,6 @@ begin
 
   Sleep(300);
   if Common.SystemInfo.OCType = DefCommon.OCType then begin
-
     WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$6 + (nCh*$20), 3), 1); //Unload Complete Confrim
     WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$5 + (nCh*$20), 3), 0); //Unload Request Off
     WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$1 + (nCh*$20), 3), 0); //Glass Data Request Off
@@ -4198,8 +4233,10 @@ begin
   //$E0: begin  //EQP Load Enable 1
   //$E1: begin  //EQP Glass Data Req 1
   //$E4: begin  //EQP Normal Status 1
-
-  nIndex:= $C0;
+  if Common.SystemInfo.OCType = DefCommon.OCType then
+    nIndex:= $C0
+  else nIndex:= $120;
+//  nIndex:= $C0;
   nDiv:= nIndex div 16;
   nBitLoc:= nIndex mod 16;
 
@@ -4221,8 +4258,10 @@ begin
   //$F0: begin  //EQP UnLoad Enable 1
   //$F1: begin  //EQP Glass Data Report 1
   //$F4: begin  //EQP Normal Status 1
+  if Common.SystemInfo.OCType = DefCommon.OCType then
+    nIndex:= $D0
+  else nIndex:= $130;
 
-  nIndex:= $D0;
   nDiv:= nIndex div 16;
   nBitLoc:= nIndex mod 16;
 

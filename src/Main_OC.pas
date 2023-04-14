@@ -983,8 +983,8 @@ begin
     bExist2:= ControlDio.ReadInSig( 16 + IN_CH_1_CARRIER_SENSOR + nPair*32);
   end
   else begin
-    bExist1:= ControlDio.ReadInSig(nPair + 0 + IN_GIB_CH_1_CARRIER_SENSOR + nPair*16);
-    bExist2:= ControlDio.ReadInSig(nPair * 8 + IN_GIB_CH_1_CARRIER_SENSOR + nPair*16);
+    bExist1:= ControlDio.ReadInSig( IN_GIB_CH_1_CARRIER_SENSOR + nPair*16);
+    bExist2:= ControlDio.ReadInSig( 8 + IN_GIB_CH_1_CARRIER_SENSOR + nPair*16);
   end;
 
   ShowSysLog(format('UpdateECS_Glass_Position_Pair Station=%d, Pair=%d : Exists=%d, %d', [nStage, nPair, Ord(bExist1), Ord(bExist2)]));
@@ -2410,6 +2410,9 @@ begin
         1: begin  //시간 동기화
           ShowSysLog('ECS_READTIMEDATA ' + pGUIMsg.Msg);
         end;
+        2 : begin
+          ShowNgMessage(pGUIMsg.Msg);
+        end;
 
         COMMPLC_PARAM_AAB_MODE: begin  //AAB Mode 변경
           Common.StatusInfo.AABMode:= pGUIMsg.Param2 <> 0;
@@ -2487,7 +2490,7 @@ begin
             ShowSysLog(format('CheckDetect_Loaded CH=%d', [pGUIMsg.Channel]));
 
             //일반 처리
-            if not CheckDetect_Loaded( pGUIMsg.Channel) then begin
+            if not CheckDetect_Loaded(pGUIMsg.Channel) then begin
               //로드 이상 - Detect NG는  Pair로 처리
               if Common.SystemInfo.OCType = DefCommon.OCType then begin
                 Set_AlarmData(IN_CH_1_CARRIER_SENSOR + pGUIMsg.Channel*32 , 1, 1);
@@ -2520,10 +2523,10 @@ begin
 
             //자동 시작 확인
             if CheckReadyToAutoStart(pGUIMsg.Channel) then begin
-//              ShowSysLog('Auto Start - Full Load');
+              ShowSysLog('Auto Start - Full Load');
 
               Execute_AutoStart(pGUIMsg.Channel); // Added by KTS 2023-03-28 오후 3:28:34
-//              ShowSysLog('Auto Start - End');
+              ShowSysLog('Auto Start - End');
 
             end
             else begin
@@ -3598,14 +3601,6 @@ try
         end;
         if not CheckProbe(COMMPLC_CH_34) then begin
           SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'CheckProbe - NG');
-//          ThreadTask(procedure begin
-//            ControlDio.ProbeBackward(2);
-//            ControlDio.UnlockCarrier(2,true);
-//            ControlDio.ProbeBackward(3);
-//            ControlDio.UnlockCarrier(3,true);
-//
-//
-//          end);
           nRet := 0;
           nRet := ControlDio.ProbeBackward(2);
           if nRet > 0 then begin
@@ -3644,15 +3639,7 @@ try
           Exit;
         end;
         if not CheckProbe(COMMPLC_CH_34) then begin
-//          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'CheckProbe - NG');
-//          ThreadTask(procedure begin
-//            ControlDio.ProbeBackward(2);
-//            ControlDio.UnlockCarrier(2,true);
-//            ControlDio.ProbeBackward(3);
-//            ControlDio.UnlockCarrier(3,true);
-//
-//
-//          END);
+
           nRet := 0;
           nRet := ControlDio.ProbeBackward(2);
           if nRet > 0 then begin
@@ -3718,8 +3705,12 @@ var
   nPos, nJigNo: Integer;
   btData : Byte;
 begin
-  if Common.StatusInfo.AutoMode then Exit; //Auto일 경우 키 입력 무 - 실수로 인한 동작 방지
-
+  if Common.SystemInfo.OCType = DefCommon.OCType then begin
+    if Common.StatusInfo.AutoMode then begin
+      ShowSysLog('AutoMode Runing!!!');
+     Exit; //Auto일 경우 키 입력 무 - 실수로 인한 동작 방지
+    end;
+  end;
   if Length(sGetData) < 4 then Exit;
   nPos := Pos('3',sGetData);
 
@@ -4327,9 +4318,17 @@ begin
           ShowSysLog('StartAutoProcess Carrier Detected. Request Exchange A');
           g_CommPLC.ECS_Unit_Status(COMMPLC_UNIT_STATE_RUN, 0);
           Common.StatusInfo.StageStep[JIG_A]:= STAGE_STEP_LOADING;
-          Robot_Request_LoadUnLoad(CH_TOP);
-          Common.Delay(100);
-          Robot_Request_LoadUnLoad(CH_BOTTOM);
+          if Common.SystemInfo.OCType = DefCommon.OCType then begin
+            Robot_Request_LoadUnLoad(CH_TOP);
+            Common.Delay(100);
+            Robot_Request_LoadUnLoad(CH_BOTTOM);
+          end
+          else begin
+            Robot_Request_Exchange(CH_TOP);
+            Common.Delay(100);
+            Robot_Request_Exchange(CH_BOTTOM);
+          end;
+
         end
         else begin
           ShowSysLog('StartAutoProcess Carrier Detected. User Cancel');
