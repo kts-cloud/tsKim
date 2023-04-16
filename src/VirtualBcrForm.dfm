@@ -3,7 +3,7 @@ object VirtualBcr: TVirtualBcr
   Top = 0
   Caption = 'VirtualBcr'
   ClientHeight = 163
-  ClientWidth = 895
+  ClientWidth = 670
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText

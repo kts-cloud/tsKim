@@ -1163,8 +1163,8 @@ object frmTest4ChOC: TfrmTest4ChOC
     end
   end
   object pnlSwitch2: TAdvPanel
-    Left = 204
-    Top = 291
+    Left = 460
+    Top = 299
     Width = 190
     Height = 206
     Color = clActiveCaption

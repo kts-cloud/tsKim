@@ -48,7 +48,8 @@ uses
   JigControl in 'JigControl.pas',
   LogicVh in 'LogicVh.pas',
   VirtualBcrForm in 'VirtualBcrForm.pas' {VirtualBcr},
-  CommTCP_PLC in 'CommTCP_PLC.pas';
+  CommTCP_PLC in 'CommTCP_PLC.pas',
+  ECSRequestForm in 'ECSRequestForm.pas' {ECSTestForm};
 
 {$R *.res}
 

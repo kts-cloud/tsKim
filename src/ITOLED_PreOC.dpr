@@ -52,7 +52,7 @@ uses
 var
   runOnceMutex: THandle;
   wnd: THandle;
-begin
+  begin
   runOnceMutex:= CreateMutex( nil, TRUE, 'ISPD_A_POCB Should be Run Only One Time!');
 
     if (GetLastError = ERROR_ALREADY_EXISTS) then begin

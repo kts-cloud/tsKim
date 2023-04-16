@@ -26,6 +26,17 @@ type
     nParam2 : Integer;
   end;
 
+  TGUIMessage = packed record
+    MsgType : Integer;
+    Channel : Integer;
+    Mode    : Integer;
+    Param  : Integer;
+    Param2 : Integer;
+    Msg     : string;
+    pData   : PBYTE; //Pointer; //Length = Param2
+  end;
+  PGUIMessage = ^TGUIMessage;
+
   TJig = class(TObject)
 
     private
@@ -41,6 +52,7 @@ type
 //      procedure SetCamConnection;
 //      procedure SendMainGuiDisplay(nGuiMode: Integer; nP1: Integer = 0);
       procedure SendTestGuiDisplay(nGuiMode: Integer; nP1: Integer = 0; nP2: Integer = 0; nP3: Integer = 0);
+      procedure SendMainGuiDisplay(nMsgMode, nCh, nParam, nParam2: Integer; sMsg: String; pData:Pointer=nil);
 //      procedure MakeUserEvent(nCh, nIdxErr : Integer);
 //      procedure MakeUserEvent1(nCh, nIdxErr : Integer);
       function CheckPgConnect(nGroup : integer) : Boolean; // 한개라도 연결 안되면 False Return.
@@ -253,6 +265,25 @@ end;
 
 //end;
 
+procedure TJig.SendMainGuiDisplay(nMsgMode, nCh: Integer; nParam, nParam2: Integer; sMsg: String; pData:Pointer);
+var
+  ccd         : TCopyDataStruct;
+  SendData    : TGUIMessage;
+begin
+  SendData.MsgType := DefCommon.MSG_TYPE_JIG;
+  SendData.Channel := m_nCurJig;
+  SendData.Mode    := nMsgMode;
+  SendData.Param  := nParam;
+  SendData.Param2 := nParam2;
+  SendData.Msg     := sMsg;
+  SendData.pData   := pData;
+
+  ccd.dwData      := 0;
+  ccd.cbData      := SizeOf(SendData);
+  ccd.lpData      := @SendData;
+  SendMessage(m_hMain,WM_COPYDATA,0, LongInt(@ccd));
+end;
+
 procedure TJig.SendTestGuiDisplay(nGuiMode, nP1, nP2, nP3: Integer);
 var
   ccd         : TCopyDataStruct;
@@ -309,6 +340,7 @@ end;
 function TJig.StartIspd_TOP(nSeq : Integer) : Boolean;
 var
   nCh, i : Integer;
+  sLog : string;
 begin
 {$IFNDEF SIMENV_NO_PG}
   if not CheckPgConnect(0) then Exit(False); // 하나라도 Connection 되지 않으면 시작 하지 말자.
@@ -320,7 +352,9 @@ begin
     //if ... then
     if nSeq = DefScript.SEQ_KEY_9 then  begin
       if not ControlDio.CheckDIO_Start(0) then begin
-        Application.MessageBox('You must close Pinblock to Start', 'Error', MB_OK+MB_ICONEXCLAMATION);
+        sLog := 'You must close Pinblock to Start CH 1,2';
+        SendMainGuiDisplay(DefCommon.MSG_TYPE_CTL_DIO, 0, 2, 0, sLog);
+//        Application.MessageBox('You must close Pinblock to Start', 'Error', MB_OK+MB_ICONEXCLAMATION);
         Exit(False);
       end;
     end;
@@ -352,6 +386,7 @@ end;
 function TJig.StartIspd_BOTTOM(nSeq : Integer) : Boolean;
 var
   nCh, i : Integer;
+  sLog : string;
 begin
 {$IFNDEF SIMENV_NO_PG}
   if not CheckPgConnect(1) then Exit(False); // 하나라도 Connection 되지 않으면 시작 하지 말자.
@@ -361,7 +396,9 @@ begin
   if Common.SystemInfo.OCType = DefCommon.PreOCType then  begin
     if nSeq = DefScript.SEQ_KEY_9 then  begin
       if not ControlDio.CheckDIO_Start(1) then begin
-        Application.MessageBox('You must close Pinblock to Start', 'Error', MB_OK+MB_ICONEXCLAMATION);
+        sLog := 'You must close Pinblock to Start CH 3,4';
+        SendMainGuiDisplay(DefCommon.MSG_TYPE_CTL_DIO, 0, 2, 0, sLog);
+//        Application.MessageBox('You must close Pinblock to Start', 'Error', MB_OK+MB_ICONEXCLAMATION);
         Exit;
       end;
     end;

@@ -1230,15 +1230,18 @@ begin
 
   AddLog(format('ECS_Lost_Glass_Request Ok  CarrierID=%s', [AGlassData.CarrierID]));
 
-  nRet:= WaitSignal('B'+IntToHex(StartAddr_ECS+ $100+nIndex, 3), 1, 5000); //Take Out Report_Confirm
+  nRet:= WaitSignal('B'+IntToHex(StartAddr_ECS+ $100+nIndex, 3), 1, 3000); //Take Out Report_Confirm
   if nRet <> 0 then begin
     //오류
     WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$01+$0, 3), 0); //Lost Glass Data Request off
     sleep(1000);
     WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$01+$0, 3), 1); //Lost Glass Data Request
-    nRet := WaitSignal('B'+IntToHex(StartAddr_ECS+ $100+nIndex, 3), 1, 5000);
+    nRet := WaitSignal('B'+IntToHex(StartAddr_ECS+ $100+nIndex, 3), 1, 3000);
     if nRet <> 0 then begin
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$01+$0, 3), 0);
+      AddLog('ECS_Lost_Glass_Request T3 TIME OUT ');
+      sLog := 'ECS_Lost_Glass_Request T3 TIME OUT ';
+      SendMessageMain(COMMPLC_MODE_EVENT_ECS, 0, 2, 0, sLog);
       Exit(258);
     end;
 
@@ -2086,11 +2089,11 @@ begin
   //기다 렸으니 응답이 왔던 안왔던 OFF 처리
   //WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$1 + (nCh*$20), 3), 0); //Load Glass Data Request Off
   if Common.SystemInfo.OCType = DefCommon.OCType then
-    WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$0 + (nCh*$20), 3), 1) //Unload Enable
-  else     WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$0 + (nCh*$20), 3), 1); //Unload Enable
+        WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$0 + (nCh*$20), 3), 1) //Unload Enable
+  else  WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$0 + (nCh*$20), 3), 1); //Unload Enable
   if (nCh = 1) and (StartAddr2_ROBOT <> 0) then  // Addr2 있는 경우
-    nRet:= WaitSignal('B' + IntToHex(StartAddr2_ROBOT+$10*$00+$1 , 3), 1, 2000) //Glass Data Report를 보고 대기
-  else nRet:= WaitSignal('B' + IntToHex(StartAddr_ROBOT+$10*$00+$1 + (nCh*$20), 3), 1, 2000); //Glass Data Report를 보고 대기
+        nRet:= WaitSignal('B' + IntToHex(StartAddr2_ROBOT+$10*$00+$1 , 3), 1, 2000) //Glass Data Report를 보고 대기
+  else  nRet:= WaitSignal('B' + IntToHex(StartAddr_ROBOT+$10*$00+$1 + (nCh*$20), 3), 1, 2000); //Glass Data Report를 보고 대기
 
   if nRet = 0 then begin
     //응답이 있을 경우
@@ -2110,7 +2113,7 @@ begin
   WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$0, 3), 1); //Load Enable
   //일정 시간안에 Robot Busy가 설정되지 않으면 Alarm
   if (nCh = 1) and (StartAddr2_ROBOT <> 0) then  // Addr2 있는 경우
-    nRet:= WaitSignal('B' + IntToHex(StartAddr2_ROBOT+$10*$01+$2, 3), 1, 3000) //Robot Busy
+        nRet:= WaitSignal('B' + IntToHex(StartAddr2_ROBOT+$10*$01+$2, 3), 1, 3000) //Robot Busy
   else  nRet:= WaitSignal('B' + IntToHex(StartAddr_ROBOT+$10*$01+$2 + (nCh*$20), 3), 1, 3000); //Robot Busy
 
   if nRet <> 0 then begin

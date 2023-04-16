@@ -488,8 +488,7 @@ type
     m_bIsScriptWork       : Boolean;
     m_bTotalTact      : Boolean;
     m_bUnitiTact      : Boolean;
-    m_bTotalTact2      : Boolean;
-    m_bUnitiTact2      : Boolean;
+
     m_bMaintWindowOn  : Boolean;  //2018-07-31 JHHWANG
     m_nGibOpticNo     : Integer;  //2018-08-06 JHHWANG
     m_lstPrevRet      : TList<Integer>;
@@ -2619,7 +2618,9 @@ begin
         2 : begin
 //        sPID := 'PPP';
           sPID := GetInputArgAsstring(0);
-//          sPID := DongaGmes.MesPID;
+          if DongaGmes = nil then
+            sPID := 'PPP'
+          else sPID := DongaGmes.MesPID;
           if Length(sPID) = 0 then sPID := Copy(sSerialNumber,0,3);
           sSerialNumber := GetInputArgAsstring(1);
 //          sPID := Copy(sSerialNumber,0,3);
@@ -5079,7 +5080,7 @@ begin
 //        //SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'Ng code : '+ IntToStr(nResult),'',10 );
 //        //SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'Ng Message : '+ Common.GmesInfo[nResult].sErrMsg,'',10 );
 //        SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,Format('NG Code:%d, ErrCode:%s, MES Code:%s, Message:%s',[nResult, TestInfo.ERR_Code, Common.GmesInfo[nResult].MES_Code, TestInfo.ERR_Message]),'', 10 );
-//        Inc(TestInfo.NGCount);
+      Inc(TestInfo.NGCount);
 //      end;
 
     end
@@ -5090,7 +5091,7 @@ begin
       TestInfo.MES_Code := '';
 
 //      if nSkipResult = 0 then begin
-//        Inc(TestInfo.OKCount);
+      Inc(TestInfo.OKCount);
 //      end;
 
     end;
@@ -5224,27 +5225,14 @@ begin
               //TestInfo.EdUnitTact:= Now;
             end;
         end;
-        if (Self.FPgNo = 0) or (Self.FPgNo =1) then begin
-
-        case nParam of
-          1 : m_bTotalTact   := True;
-          2 : m_bTotalTact   := False;
-          3 : m_bUnitiTact   := True;
-          4 : m_bUnitiTact   := False;
-        end;
-        end
-        else begin
+        if (Self.FPgNo = 0)then begin
           case nParam of
-          1 : m_bTotalTact2   := True;
-          2 : m_bTotalTact2   := False;
-          3 : m_bUnitiTact2   := True;
-          4 : m_bUnitiTact2   := False;
+            1 : m_bTotalTact   := True;
+            2 : m_bTotalTact   := False;
+            3 : m_bUnitiTact   := True;
+            4 : m_bUnitiTact   := False;
+          end;
         end;
-
-        end;
-
-
-
 
         case nParam of
           1 : SendTestGuiDisplay(DefCommon.MSG_MODE_TACT_START);

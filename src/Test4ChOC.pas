@@ -9,7 +9,7 @@ uses
   {UdpServerClient,} CommonClass, ScriptClass, DefScript, DefPG, DefCommon, ControlDio_OC, //PlcTcpPocb, defPlc,
   CodeSiteLogging, Vcl.ComCtrls, AdvListV, DongaPattern, RzGrids, AdvUtil, RzLine,
   HandBCR, GMesCom, pasScriptClass, AdvGlassButton, DefGmes, CommCameraRadiant, TILed, DefDio, CommPLC_ECS,DBModule
-  ,CA_SDK2,dllClass,CommPG,LogicVh,VirtualBcrForm;
+  ,CA_SDK2,dllClass,CommPG,LogicVh,VirtualBcrForm,ECSRequestForm;
 const
   //Stage 메시지 Mode
   STAGE_MODE_NONE                = 100;
@@ -109,16 +109,14 @@ type
 
     m_nCurStatus   : Integer;
     m_nOkCnt, m_nNgCnt,m_LLCnt : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of integer;
-    m_nTotalTact, m_nUnitTact   :  Integer;
-    m_nTotalTact2, m_nUnitTact2   :  Integer;
-    tmTotalTactTime  :  TTimer;
-    tmUnitTactTime   :  TTimer;
-    tmTotalTact2Time  :  TTimer;
-    tmUnitTact2Time   :  TTimer;
+    m_nTotalTact, m_nUnitTact   :array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of   Integer;
+    tmTotalTactTime  : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of  TTimer;
+    tmUnitTactTime   : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of  TTimer;
     m_bAutoPlcProbeBack : Boolean;
 //    pnlJigInform   :  TRzPanel;
 
     btnVirtualBcr  :  TRzBitBtn;
+    btnECSRequest  :  TRzBitBtn;
 
     tmAgingTimer   :  array [DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of  TTimer;
     m_nDiscounter  :  array [DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of  Integer;
@@ -127,13 +125,19 @@ type
     btnVirtualKey  :  array [DefCommon.CH1..DefCommon.MAX_JIG_CNT] of  TRzBitBtn;
     btnLampOnOff   :  array [DefCommon.CH1..DefCommon.MAX_JIG_CNT] of  TRzBitBtn;
     // tact time.
-    pnlTackTimes   :  array [DefCommon.CH1..DefCommon.MAX_JIG_CNT] of  TRzPanel;
-    pnlNowValues   :  array [DefCommon.CH1..DefCommon.MAX_JIG_CNT] of  TPanel;
-    pnlUnitTact    :  array [DefCommon.CH1..DefCommon.MAX_JIG_CNT] of  TRzPanel;
+    pnlTackTimes   :  array [DefCommon.CH1..DefCommon.MAX_CH] of  TRzPanel;
+    pnlNowValues   :  array [DefCommon.CH1..DefCommon.MAX_CH] of  TPanel;     // CH 별 개별 표시
+    pnlUnitTact    :  array [DefCommon.CH1..DefCommon.MAX_CH] of  TRzPanel;
     pnlJigTact     :  array [DefCommon.CH1..DefCommon.MAX_JIG_CNT] of  TRzPanel;
     pnlJigTactVal  :  TPanel;
-    pnlUnitTactVal :  array [DefCommon.CH1..DefCommon.MAX_JIG_CNT] of  TPanel;
+    pnlUnitTactVal :  array [DefCommon.CH1..DefCommon.MAX_CH] of  TPanel;    // CH 별 개별 표시
+    pnlTackTimes2   :  array [DefCommon.CH1..DefCommon.MAX_CH] of  TRzPanel;
+    pnlNowValues2   :  array [DefCommon.CH1..DefCommon.MAX_CH] of  TPanel;     // CH 별 개별 표시
+    pnlUnitTact2    :  array [DefCommon.CH1..DefCommon.MAX_CH] of  TRzPanel;
+    pnlUnitTactVal2 :  array [DefCommon.CH1..DefCommon.MAX_CH] of  TPanel;    // CH 별 개별 표시
 
+
+    pnlTackTimesGroup : array [DefCommon.CH1..DefCommon.MAX_CH] of TPanel;
     m_PlcStatus    : plcStatus;
     pnlLogGrp       : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TRzPanel;
     mmChannelLog   : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of  TRichEdit;//  TMemo;
@@ -176,6 +180,10 @@ type
     procedure OnUnitTimer(Sender : TObject);
     procedure OnTotal2Timer(Sender : TObject);
     procedure OnUnit2Timer(Sender : TObject);
+    procedure OnTotal3Timer(Sender : TObject);
+    procedure OnUnit3Timer(Sender : TObject);
+    procedure OnTotal4Timer(Sender : TObject);
+    procedure OnUnit4Timer(Sender : TObject);
     procedure BtnStartTestClick(Sender: TObject);
     procedure BtnStopTestClick(Sender: TObject);
     procedure btnVirtualKeyClick(Sender : TObject);
@@ -188,6 +196,8 @@ type
 
 
     procedure btnVirtualBcrClick(Sender: TObject);
+    procedure btnECSRequestClick(Sender: TObject);
+
 //    procedure DisplaySeq;
 
     procedure UpdatePtList;
@@ -336,6 +346,15 @@ begin
 
 end;
 
+procedure TfrmTest4ChOC.btnECSRequestClick(Sender: TObject);
+begin
+  ECSTestForm := TECSTestForm.Create(Self);
+  if ECSTestForm <> nil then   begin
+    ECSTestForm.ShowModal;
+  end;
+
+end;
+
 procedure TfrmTest4ChOC.btnErrorDisplayClick(Sender: TObject);
 begin
   pnlErrAlram.Visible := False;
@@ -460,11 +479,10 @@ var
 nCH : integer;
 begin
   nCH := (Sender as TRzButton).Tag;
-
-
   if nCH = 0 then JigLogic[Self.Tag].StartIspd_TOP(DefScript.SEQ_KEY_9)
   else            JigLogic[Self.Tag].StartIspd_BOTTOM(DefScript.SEQ_KEY_9);
 end;
+
 
 procedure TfrmTest4ChOC.btnTakeOutReportClick(Sender: TObject);
 var
@@ -686,14 +704,12 @@ begin
 
   mmChannelLog[nCh].Clear;
 
-  pnlUnitTactVal[nCh div 2].Caption := '000 : 00';
-  pnlNowValues[nCh div 2].Caption := '000 : 00';
-
-  m_nUnitTact := 0;
-  m_nUnitTact2 := 0;
-  m_nJigTact := 0;
-  m_nTotalTact := 0;
-  m_nTotalTact2 := 0;
+  pnlUnitTactVal[nCh].Caption := '000 : 00';
+  pnlNowValues[nCh].Caption := '000 : 00';
+  for I := 0 to 3 do  begin
+    m_nUnitTact[i] := 0;
+    m_nTotalTact[i] := 0;
+  end;
 end;
 
 procedure TfrmTest4ChOC.ClearPreviousResult;
@@ -720,31 +736,42 @@ begin
 
 
   //  // tact time을 위한 timer.
-  m_nTotalTact:= 0;
-  tmTotalTactTime := TTimer.Create(Self);
-  tmTotalTactTime.Interval := 1000;
-  tmTotalTactTime.OnTimer := OnTotalTimer;
-  tmTotalTactTime.Enabled := False;
 
-  m_nUnitTact := 0;
-  m_nJigTact  := 0;
-  tmUnitTactTime := TTimer.Create(Self);
-  tmUnitTactTime.Interval := 1000;
-  tmUnitTactTime.OnTimer := OnUnitTimer;
-  tmUnitTactTime.Enabled := False;
+  for I := 0 to DefCommon.MAX_CH do begin
+    m_nTotalTact[i]:= 0;
+    tmTotalTactTime[i] := TTimer.Create(Self);
+    tmTotalTactTime[i].Interval := 1000;
+    tmTotalTactTime[i].OnTimer := OnTotalTimer;
+    tmTotalTactTime[i].Enabled := False;
 
-  m_nTotalTact2:= 0;
-  tmTotalTact2Time := TTimer.Create(Self);
-  tmTotalTact2Time.Interval := 1000;
-  tmTotalTact2Time.OnTimer := OnTotal2Timer;
-  tmTotalTact2Time.Enabled := False;
-
-  m_nUnitTact2 := 0;
-
-  tmUnitTact2Time := TTimer.Create(Self);
-  tmUnitTact2Time.Interval := 1000;
-  tmUnitTact2Time.OnTimer := OnUnit2Timer;
-  tmUnitTact2Time.Enabled := False;
+    m_nUnitTact[i] := 0;
+    tmUnitTactTime[i] := TTimer.Create(Self);
+    tmUnitTactTime[i].Interval := 1000;
+    tmUnitTactTime[i].OnTimer := OnUnitTimer;
+    tmUnitTactTime[i].Enabled := False;
+    case i of
+    DefCommon.CH1 :
+      begin
+        tmTotalTactTime[i].OnTimer := OnTotalTimer;
+        tmUnitTactTime[i].OnTimer := OnUnitTimer;
+      end;
+    DefCommon.CH2 :
+      begin
+        tmTotalTactTime[i].OnTimer := OnTotal2Timer;
+        tmUnitTactTime[i].OnTimer := OnUnit2Timer;
+      end;
+    DefCommon.CH3 :
+      begin
+        tmTotalTactTime[i].OnTimer := OnTotal3Timer;
+        tmUnitTactTime[i].OnTimer := OnUnit3Timer;
+      end;
+    DefCommon.CH4 :
+      begin
+        tmTotalTactTime[i].OnTimer := OnTotal4Timer;
+        tmUnitTactTime[i].OnTimer := OnUnit4Timer;
+      end;
+    end;
+  end;
 
   pnlTestMain.Visible := False;
 
@@ -805,57 +832,59 @@ begin
     btnStopTest[i].Cursor := crHandPoint;
 
     // for Jig Information.
-    pnlTackTimes[i] := TRzPanel.Create(self);
-    pnlTackTimes[i].Parent := pnlJigInform;
-    pnlTackTimes[i].Top := btnStopTest[i].Top + btnStopTest[i].Height + 1;// btnStartTest.Top + btnStartTest.Height + 1;//pnlPGStatuses[nJig].Top + pnlPGStatuses[nJig].Height;
-    pnlTackTimes[i].Left := 2;
-    pnlTackTimes[i].Height := nItemHeight - 10;
-    pnlTackTimes[i].Width := pnlJigInform.Width -3 ;// 90;//66;
-    pnlTackTimes[i].Caption := 'Total Tact';
-    pnlTackTimes[i].BorderOuter := TframeStyleEx(fsFlat);
-    pnlTackTimes[i].Font.Size := 12;
-
-    pnlNowValues[i] := TPanel.Create(self);
-    pnlNowValues[i].Parent := pnlJigInform;
-    pnlNowValues[i].Top := pnlTackTimes[i].Top + pnlTackTimes[i].Height + 1;// pnlTackTimes.Top;
-    pnlNowValues[i].Left := 2;//pnlTackTimes.Left + pnlTackTimes.Width + 1;
-    pnlNowValues[i].Height := nItemHeight*2 - 10;
-    pnlNowValues[i].Width := pnlJigInform.Width -3;// 90;
-    pnlNowValues[i].Caption := '000: 00';
-    pnlNowValues[i].Color := clBlack;
-    pnlNowValues[i].Font.Color := clLime;
-    pnlNowValues[i].Font.Size := 20;
-    pnlNowValues[i].StyleElements := [];
-
-    pnlUnitTact[i] := TRzPanel.Create(self);
-    pnlUnitTact[i].Parent := pnlJigInform;
-    pnlUnitTact[i].Top := pnlNowValues[i].Top + pnlNowValues[i].Height + 1;// //pnlTackTimes.Top + pnlTackTimes.Height + 1;
-    pnlUnitTact[i].Left := 2;//pnlNowValues.Left + pnlNowValues.Width+ 1;
-    pnlUnitTact[i].Height := nItemHeight - 10;
-    pnlUnitTact[i].Width := pnlJigInform.Width -3 ;//90;//66;
-    pnlUnitTact[i].Caption := 'CB Tact';
-    pnlUnitTact[i].Font.Size := 8;
-    pnlUnitTact[i].BorderOuter := TframeStyleEx(fsFlat);
-    pnlUnitTact[i].Font.Size := 12;
-
-    pnlUnitTactVal[i] := TPanel.Create(self);
-    pnlUnitTactVal[i].Parent := pnlJigInform;
-    pnlUnitTactVal[i].Top := pnlUnitTact[i].Top + pnlUnitTact[i].Height + 1;
-    pnlUnitTactVal[i].Left := 2;//pnlUnitTact.Left + pnlUnitTact.Width+ 1;
-    pnlUnitTactVal[i].Height := nItemHeight*2 - 10;
-    pnlUnitTactVal[i].Width := pnlJigInform.Width -3 ;//90;
-    pnlUnitTactVal[i].Caption := '000: 00';
-    pnlUnitTactVal[i].Color := clBlack;
-    pnlUnitTactVal[i].Font.Color := clYellow;
-    pnlUnitTactVal[i].Font.Size := 20;
-    pnlUnitTactVal[i].StyleElements := [];
+//    pnlTackTimes[i] := TRzPanel.Create(self);
+//    pnlTackTimes[i].Parent := pnlJigInform;
+//    pnlTackTimes[i].Top := btnStopTest[i].Top + btnStopTest[i].Height + 1;// btnStartTest.Top + btnStartTest.Height + 1;//pnlPGStatuses[nJig].Top + pnlPGStatuses[nJig].Height;
+//    pnlTackTimes[i].Left := 2;
+//    pnlTackTimes[i].Height := nItemHeight - 10;
+//    pnlTackTimes[i].Width := pnlJigInform.Width -3 ;// 90;//66;
+//    pnlTackTimes[i].Caption := 'Total Tact';
+//    pnlTackTimes[i].BorderOuter := TframeStyleEx(fsFlat);
+//    pnlTackTimes[i].Font.Size := 12;
+//
+//    for j := i * 2 to i * 2 + 1 do begin
+//      pnlNowValues[j] := TPanel.Create(self);
+//      pnlNowValues[j].Parent := pnlJigInform;
+//      pnlNowValues[j].Height := nItemHeight*2 - 40;
+//      pnlNowValues[j].Top := pnlTackTimes[i].Top + pnlTackTimes[i].Height + 1 + j* pnlNowValues[j].Height;// pnlTackTimes.Top;
+//      pnlNowValues[j].Left := 2;//pnlTackTimes.Left + pnlTackTimes.Width + 1;
+//      pnlNowValues[j].Width := pnlJigInform.Width -3;// 90;
+//      pnlNowValues[j].Caption := '000: 00';
+//      pnlNowValues[j].Color := clBlack;
+//      pnlNowValues[j].Font.Color := clLime;
+//      pnlNowValues[j].Font.Size := 12;
+//      pnlNowValues[j].StyleElements := [];
+//    end;
+//
+//    pnlUnitTact[i] := TRzPanel.Create(self);
+//    pnlUnitTact[i].Parent := pnlJigInform;
+//    pnlUnitTact[i].Top := pnlNowValues[i+1].Top + pnlNowValues[i].Height + 1;// //pnlTackTimes.Top + pnlTackTimes.Height + 1;
+//    pnlUnitTact[i].Left := 2;//pnlNowValues.Left + pnlNowValues.Width+ 1;
+//    pnlUnitTact[i].Height := nItemHeight - 10;
+//    pnlUnitTact[i].Width := pnlJigInform.Width -3 ;//90;//66;
+//    pnlUnitTact[i].Caption := 'CB Tact';
+//    pnlUnitTact[i].Font.Size := 8;
+//    pnlUnitTact[i].BorderOuter := TframeStyleEx(fsFlat);
+//    pnlUnitTact[i].Font.Size := 12;
+//
+//    pnlUnitTactVal[i] := TPanel.Create(self);
+//    pnlUnitTactVal[i].Parent := pnlJigInform;
+//    pnlUnitTactVal[i].Top := pnlUnitTact[i].Top + pnlUnitTact[i].Height + 1;
+//    pnlUnitTactVal[i].Left := 2;//pnlUnitTact.Left + pnlUnitTact.Width+ 1;
+//    pnlUnitTactVal[i].Height := nItemHeight*2 - 20;
+//    pnlUnitTactVal[i].Width := pnlJigInform.Width -3 ;//90;
+//    pnlUnitTactVal[i].Caption := '000: 00';
+//    pnlUnitTactVal[i].Color := clBlack;
+//    pnlUnitTactVal[i].Font.Color := clYellow;
+//    pnlUnitTactVal[i].Font.Size := 12;
+//    pnlUnitTactVal[i].StyleElements := [];
 
       // button for start testing.
     btnVirtualKey[i] := TRzBitBtn.Create(self);
     btnVirtualKey[i].Parent := pnlJigInform;
     btnVirtualKey[i].Tag  := i;
     //btnVirtualK[i]ey.Top := pnlJigTactVal.Top + pnlJigTactVal.Height + 3;//2;
-    btnVirtualKey[i].Top := pnlUnitTactVal[i].Top + pnlUnitTactVal[i].Height + 3;//2;
+    btnVirtualKey[i].Top := btnStopTest[i].Top + btnStopTest[i].Height + 1;//2;
     btnVirtualKey[i].Left := 2;//200;
 
     btnVirtualKey[i].Height := 50;
@@ -869,7 +898,7 @@ begin
     btnLampOnOff[i] := TRzBitBtn.Create(self);
     btnLampOnOff[i].Parent := pnlJigInform;
     btnLampOnOff[i].Tag  := i;
-    btnLampOnOff[i].Top := btnVirtualKey[i].Top + btnVirtualKey[i].Height + 3;//2;
+    btnLampOnOff[i].Top := btnVirtualKey[i].Top + btnVirtualKey[i].Height + 1;//2;
     btnLampOnOff[i].Left := 2;//200;
     btnLampOnOff[i].Height := 50;
     btnLampOnOff[i].Width := pnlJigInform.Width - 2;//;180;// pnlJig[nJig].Width div nMaxCh;
@@ -885,13 +914,25 @@ begin
   btnVirtualBcr.Parent := pnlJigInform;
   btnVirtualBcr.Align := alBottom;
 
-  btnVirtualBcr.Height := 30;
+  btnVirtualBcr.Height := 50;
   btnVirtualBcr.Width := pnlJigInform.Width -3;
   btnVirtualBcr.Font.Size := 12;
   btnVirtualBcr.Caption := 'Virtual BCR';
   btnVirtualBcr.OnClick := btnVirtualBcrClick;
   btnVirtualBcr.Cursor := crHandPoint;
   btnVirtualBcr.HotTrack := True;
+
+  btnECSRequest := TRzBitBtn.Create(self);
+  btnECSRequest.Parent := pnlJigInform;
+  btnECSRequest.Align := alBottom;
+
+  btnECSRequest.Height := 50;
+  btnECSRequest.Width := pnlJigInform.Width -3;
+  btnECSRequest.Font.Size := 12;
+  btnECSRequest.Caption := 'ECS Request';
+  btnECSRequest.OnClick := btnECSRequestClick;
+  btnECSRequest.Cursor := crHandPoint;
+  btnECSRequest.HotTrack := True;
 //  if Common.SystemInfo.OCType = DefCommon.OCType then
 //    btnVirtualBcr.Visible := false
 //  else btnVirtualBcr.Visible := True;
@@ -1523,8 +1564,60 @@ begin
       gridPWRPGs[i].Font.Color := clBlack;
     end;
 
+    pnlTackTimesGroup[i] := TPanel.Create(self);
+    pnlTackTimesGroup[i].Parent := pnlChGrp[i];
+    pnlTackTimesGroup[i].Top := pnlChGrp[i].Height;
+    pnlTackTimesGroup[i].Height := 30;
+    pnlTackTimesGroup[i].Align := alTop;
+
+        // for Jig Information.
+    pnlTackTimes[i] := TRzPanel.Create(self);
+    pnlTackTimes[i].Parent := pnlTackTimesGroup[i];
+    pnlTackTimes[i].Top := 1;
+    pnlTackTimes[i].Left := 1;
+    pnlTackTimes[i].Width := pnlTackTimesGroup[i].Width div 4 ;// 90;//66;
+    pnlTackTimes[i].Caption := 'Total Tact';
+    pnlTackTimes[i].BorderOuter := TframeStyleEx(fsFlat);
+    pnlTackTimes[i].Font.Size := 12;
+    pnlTackTimes[i].Align := alLeft;
+
+    pnlNowValues[i] := TPanel.Create(self);
+    pnlNowValues[i].Parent := pnlTackTimesGroup[i];
+    pnlNowValues[i].Top := 1;
+    pnlNowValues[i].Left := 20;
+    pnlNowValues[i].Height := 40;
+    pnlNowValues[i].Width := pnlTackTimesGroup[i].Width div 4 ;// 90;//66;
+    pnlNowValues[i].Caption := '000: 00';
+    pnlNowValues[i].Color := clBlack;
+    pnlNowValues[i].Font.Color := clLime;
+    pnlNowValues[i].Font.Size := 12;
+    pnlNowValues[i].StyleElements := [];
+    pnlNowValues[i].Align := alLeft;
 
 
+    pnlUnitTact[i] := TRzPanel.Create(self);
+    pnlUnitTact[i].Parent := pnlTackTimesGroup[i];
+    pnlUnitTact[i].Top := pnlTackTimesGroup[i].Height;
+    pnlUnitTact[i].Left := 40;
+    pnlUnitTact[i].Height := 30;
+    pnlUnitTact[i].Width := pnlTackTimesGroup[i].Width div 4 ;// 90;//66;
+    pnlUnitTact[i].Caption := 'CB Tact';
+    pnlUnitTact[i].BorderOuter := TframeStyleEx(fsFlat);
+    pnlUnitTact[i].Font.Size := 12;
+    pnlUnitTact[i].Align := alLeft;
+
+    pnlUnitTactVal[i] := TPanel.Create(self);
+    pnlUnitTactVal[i].Parent := pnlTackTimesGroup[i];
+    pnlUnitTactVal[i].Top := pnlTackTimesGroup[i].Height;
+    pnlUnitTactVal[i].Left := 50;
+    pnlUnitTactVal[i].Height := 30;
+    pnlUnitTactVal[i].Width := pnlTackTimesGroup[i].Width div 4 ;// 90;//66;
+    pnlUnitTactVal[i].Caption := '000: 00';
+    pnlUnitTactVal[i].Color := clBlack;
+    pnlUnitTactVal[i].Font.Color := clYellow;
+    pnlUnitTactVal[i].Font.Size := 12;
+    pnlUnitTactVal[i].StyleElements := [];
+    pnlUnitTactVal[i].Align := alLeft;
   end;
 
   for i := DefCommon.CH1 to DefCommon.MAX_JIG_CH do begin
@@ -2105,21 +2198,24 @@ procedure TfrmTest4ChOC.FormDestroy(Sender: TObject);
 var
   i : Integer;
 begin
-  if tmTotalTactTime <> nil then begin
-    tmTotalTactTime.Enabled := False;
-    tmTotalTactTime.Free;
-    tmTotalTactTime := nil;
+  for I := 0 to DefCommon.MAX_CH do begin
+    if tmTotalTactTime[i] <> nil then begin
+      tmTotalTactTime[i].Enabled := False;
+      tmTotalTactTime[i].Free;
+      tmTotalTactTime[i] := nil;
+    end;
+    if tmUnitTactTime[i] <> nil then begin
+      tmUnitTactTime[i].Enabled := False;
+      tmUnitTactTime[i].Free;
+      tmUnitTactTime[i] := nil;
+    end;
   end;
 
 //  VirtualBcr.Free;
 //  VirtualBcr := nil;
 
 
-  if tmUnitTactTime <> nil then begin
-    tmUnitTactTime.Enabled := False;
-    tmUnitTactTime.Free;
-    tmUnitTactTime := nil;
-  end;
+
   for i := DefCommon.CH1 to DefCommon.MAX_JIG_CH do begin
 
 //    if gridPWRPGs[i] <> nil then begin
@@ -2395,9 +2491,9 @@ var
   nSec, nMin : Integer;
 begin
 
-  Inc(m_nTotalTact);
-  nSec := m_nTotalTact mod 60;
-  nMin := (m_nTotalTact div 60);
+  Inc(m_nTotalTact[DefCommon.CH1]);
+  nSec := m_nTotalTact[DefCommon.CH1] mod 60;
+  nMin := (m_nTotalTact[DefCommon.CH1] div 60);
 //  nMin := m_nTotalTact;
   pnlNowValues[DefCommon.CH1].Caption := Format('%0.3d : %0.2d',[nMin, nSec]);
 end;
@@ -2406,15 +2502,12 @@ procedure TfrmTest4ChOC.OnUnitTimer(Sender: TObject);
 var
   nSec, nMin : Integer;
 begin
-  Inc(m_nUnitTact);
-  Inc(m_nJigTact);
-  nSec := m_nUnitTact mod 60;
-  nMin := (m_nUnitTact div 60);
-//  nMin := m_nTotalTact;
+  Inc(m_nUnitTact[DefCommon.CH1]);
+  nSec := m_nUnitTact[DefCommon.CH1] mod 60;
+  nMin := (m_nUnitTact[DefCommon.CH1] div 60);
+  //  nMin := m_nTotalTact;
   pnlUnitTactVal[DefCommon.CH1].Caption := Format('%0.3d : %0.2d',[nMin, nSec]);
-  nSec := m_nJigTact mod 60;
-  nMin := (m_nJigTact div 60) mod 60;
-  //pnlJigTactVal.Caption := Format('%0.2d : %0.2d',[nMin, nSec]);
+
 end;
 
 
@@ -2422,23 +2515,66 @@ procedure TfrmTest4ChOC.OnTotal2Timer(Sender: TObject);
 var
   nSec, nMin : Integer;
 begin
+  Inc(m_nTotalTact[DefCommon.CH2]);
+  nSec := m_nTotalTact[DefCommon.CH2] mod 60;
+  nMin := (m_nTotalTact[DefCommon.CH2] div 60);
+//  nMin := m_nTotalTact;
+  pnlNowValues[DefCommon.CH2].Caption := Format('%0.3d : %0.2d',[nMin, nSec]);
+end;
 
-  Inc(m_nTotalTact2);
-  nSec := m_nTotalTact2 mod 60;
-  nMin := (m_nTotalTact2 div 60) mod 60;
-  pnlNowValues[DefCommon.CH2].Caption := Format('%0.2d : %0.2d',[nMin, nSec]);
+procedure TfrmTest4ChOC.OnTotal3Timer(Sender: TObject);
+var
+  nSec, nMin : Integer;
+begin
+  Inc(m_nTotalTact[DefCommon.CH3]);
+  nSec := m_nTotalTact[DefCommon.CH3] mod 60;
+  nMin := (m_nTotalTact[DefCommon.CH3] div 60);
+//  nMin := m_nTotalTact;
+  pnlNowValues[DefCommon.CH3].Caption := Format('%0.3d : %0.2d',[nMin, nSec]);
+end;
+
+procedure TfrmTest4ChOC.OnTotal4Timer(Sender: TObject);
+var
+  nSec, nMin : Integer;
+begin
+  Inc(m_nTotalTact[DefCommon.CH4]);
+  nSec := m_nTotalTact[DefCommon.CH4] mod 60;
+  nMin := (m_nTotalTact[DefCommon.CH4] div 60);
+//  nMin := m_nTotalTact;
+  pnlNowValues[DefCommon.CH4].Caption := Format('%0.3d : %0.2d',[nMin, nSec]);
 end;
 
 procedure TfrmTest4ChOC.OnUnit2Timer(Sender: TObject);
 var
   nSec, nMin : Integer;
 begin
-  Inc(m_nUnitTact2);
+  Inc(m_nUnitTact[DefCommon.CH2]);
 
-  nSec := m_nUnitTact2 mod 60;
-  nMin := (m_nUnitTact2 div 60) mod 60;
+  nSec := m_nUnitTact[DefCommon.CH2] mod 60;
+  nMin := (m_nUnitTact[DefCommon.CH2] div 60) mod 60;
   pnlUnitTactVal[DefCommon.CH2].Caption := Format('%0.2d : %0.2d',[nMin, nSec]);
-  //pnlJigTactVal.Caption := Format('%0.2d : %0.2d',[nMin, nSec]);
+end;
+
+procedure TfrmTest4ChOC.OnUnit3Timer(Sender: TObject);
+var
+  nSec, nMin : Integer;
+begin
+  Inc(m_nUnitTact[DefCommon.CH3]);
+
+  nSec := m_nUnitTact[DefCommon.CH3] mod 60;
+  nMin := (m_nUnitTact[DefCommon.CH3] div 60) mod 60;
+  pnlUnitTactVal[DefCommon.CH3].Caption := Format('%0.2d : %0.2d',[nMin, nSec]);
+end;
+
+procedure TfrmTest4ChOC.OnUnit4Timer(Sender: TObject);
+var
+  nSec, nMin : Integer;
+begin
+  Inc(m_nUnitTact[DefCommon.CH4]);
+
+  nSec := m_nUnitTact[DefCommon.CH4] mod 60;
+  nMin := (m_nUnitTact[DefCommon.CH4] div 60) mod 60;
+  pnlUnitTactVal[DefCommon.CH4].Caption := Format('%0.2d : %0.2d',[nMin, nSec]);
 end;
 
 procedure TfrmTest4ChOC.AutoLogicStart(nCH : integer);
@@ -2766,13 +2902,12 @@ var
   bRet : boolean;
 begin
   bRet := True;
-  for i := DefCommon.CH1 + 2* nJigCh to DefCommon.CH2 + nJigCh * 2 do begin
+//  for i := DefCommon.CH1 + 2* nJigCh to DefCommon.CH2 + nJigCh * 2 do begin
     case nTimerType of
-      1 : if not PasScr[Self.Tag*4 + i].m_bTotalTact then Continue;
-      2 : if not PasScr[Self.Tag*4 + i].m_bUnitiTact then Continue;
+      1 : if  PasScr[nJigCh].m_bTotalTact then     bRet := False;
+      2 : if  PasScr[nJigCh].m_bUnitiTact then     bRet := False;
     end;
-    bRet := False;
-  end;
+//  end;
   if bRet then begin
     (Sender as TTimer).Enabled := False;
 //    tmTotalTactTime.Enabled := False;
@@ -3148,46 +3283,18 @@ begin
 
         end;
         DefCommon.MSG_MODE_TACT_START : begin
-          if nCh div 2 = 0 then begin
-            m_nTotalTact := 0;
-            tmTotalTactTime.Enabled := True;
-          end
-          else begin
-            m_nTotalTact2 := 0;
-            tmTotalTact2Time.Enabled := True;
-          end;
-
-
+          m_nTotalTact[nCh] := 0;
+          tmTotalTactTime[nCh].Enabled := True;
         end;
         DefCommon.MSG_MODE_TACT_END : begin
-          if nCh div 2 = 0 then begin
-            StopTotalTimer(tmTotalTactTime,nCh div 2,1);
-          end
-          else begin
-            StopTotalTimer(tmTotalTact2Time,nCh div 2,1);
-          end;
-
-
+          StopTotalTimer(tmTotalTactTime[nCh],nCh,1);
         end;
         DefCommon.MSG_MODE_UNIT_TT_START : begin
-          if nCh div 2 = 0 then begin
-            m_nUnitTact := 0;
-            tmUnitTactTime.Enabled := True;
-          end
-          else begin
-            m_nUnitTact2 := 0;
-            tmUnitTact2Time.Enabled := True;
-          end;
-
+            m_nUnitTact[nCh] := 0;
+            tmUnitTactTime[nCh].Enabled := True;
         end;
         DefCommon.MSG_MODE_UNIT_TT_END : begin
-          if nCh div 2 = 0 then begin
-            StopTotalTimer(tmUnitTactTime,nCh div 2,2);
-          end
-          else begin
-            StopTotalTimer(tmUnitTact2Time,nCh div 2,2);
-          end;
-
+            StopTotalTimer(tmUnitTactTime[nCh],nCh,2);
         end;
         DefCommon.MSG_MODE_POWER_ON : begin
 //          tmTotalTactTime.Enabled := False;
@@ -3303,7 +3410,7 @@ begin
           end;
           pnlPGStatuses[nCh].EnableAlign;
 
-//          modDB.UpdateNGTypeCount(PGuiScript(PCopyDataStruct(Msg.LParam)^.lpData)^.Channel+1, nTemp); //DB에 NG Ratio 갱신
+          modDB.UpdateNGTypeCount(PGuiScript(PCopyDataStruct(Msg.LParam)^.lpData)^.Channel+1, nTemp); //DB에 NG Ratio 갱신
         end;
 
         DefCommon.MSG_MODE_SYNC_WORK : begin

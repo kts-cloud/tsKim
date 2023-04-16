@@ -1510,18 +1510,18 @@ begin
     Exit;
   end;
 
-  ShowSysLog('InitGmes');
+//  ShowSysLog('InitGmes');
 
   DongaGmes := TGmes.Create(Self, Self.Handle);
-    ShowSysLog('Create');
+//    ShowSysLog('Create');
   DongaGmes.OnGmsEvent  := DongaGmesEvent;  // Added by KTS 2023-03-27 오전 9:58:58
-      ShowSysLog('OnGmsEvent');
+//      ShowSysLog('OnGmsEvent');
 
   if frmTest4ChOC[DefCommon.JIG_A] <> nil then begin
     DongaGmes.hTestHandle1 := frmTest4ChOC[DefCommon.JIG_A].Handle;
     CommTibRv.m_TestHandle := frmTest4ChOC[DefCommon.JIG_A].Handle;
   end;
-    ShowSysLog('OnGmsEvent');
+//    ShowSysLog('OnGmsEvent');
 
 //  InitMainTool(False);
   sService    := Common.SystemInfo.ServicePort;
@@ -1533,22 +1533,18 @@ begin
   DongaGmes.MesUserId := Common.SystemInfo.AutoLoginID; // '602462';
   Common.m_sUserId := 'PM';
   Common.m_sUserId  := DongaGmes.MesUserId;
-    ShowSysLog('1');
 //  pnlUserId.Caption := Common.m_sUserId;
 //  pnlUserName.Caption := '';
   DongaGmes.MesSystemNo   := Common.SystemInfo.EQPId;
   DongaGmes.MesSystemNo_MGIB := Common.SystemInfo.EQPId_MGIB;
   DongaGmes.MesSystemNo_PGIB := Common.SystemInfo.EQPId_PGIB;
   DongaGmes.MesModelInfo  := Common.SystemInfo.MesModelInfo;
-    ShowSysLog('2');
   if ((Trim(sService) = '') or (Trim(sDeamon) = '') or (sRemote = '')) then begin
     ShowSysLog('MES Info is Empty');
     Exit;
   end;
-    ShowSysLog('3');
   bRtn := DongaGmes.HOST_Initial(sService, sNetWork, sDeamon,sLocal,sRemote ,sHostPath);
 
-    ShowSysLog('4');
      ledGmes.Value := bRtn;
   if bRtn then begin
     pnlHost.Caption := 'Connected';
@@ -5014,6 +5010,14 @@ begin
     DefCommon.MSG_TYPE_SCRIPT : begin
       ProcessMsg_SCRIPT(pGUIMsg);
     end; //DefCommon.MSG_TYPE_SCRIPT : begin
+
+    DefCommon.MSG_TYPE_JIG : begin
+      case pGUIMsg.Param of
+        2 : begin
+          ShowNgMessage(pGUIMsg.Msg);
+        end;
+      end;
+    end;
 
 
     DefCommon.MSG_TYPE_NONE : begin  //공용 메시지 - 지정되지 않음
