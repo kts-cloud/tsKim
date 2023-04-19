@@ -4,7 +4,7 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils,  System.Classes, VaComm, Vcl.Controls, Vcl.Dialogs,
-  CommDIO_DAE, DefDio, DefCommon, CommonClass, Vcl.ExtCtrls, CommIonizer, DoorOpenAlarmMsg;
+  CommDIO_DAE, DefDio, DefCommon, CommonClass,CommPLC_ECS, Vcl.ExtCtrls, CommIonizer, DoorOpenAlarmMsg;
 
 
 const
@@ -801,7 +801,7 @@ begin
   // Return ==> 0 : OK. 1 ==> NG.
   SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'PIN BLOCK CLOSE Prevention Up Start - CH = '+ IntToStr(nCh));
 
-  for i := 0 to nWaitingCount do begin
+  for i := 0 to 20 do begin
     Sleep(100);
     if  (not ReadInSig(DefDio.IN_GIB_CH_1_PINBLOCK_OPEN_SENSOR +nCh*8)) then begin  // 제품 미감지 시 NG 발생
 
@@ -2291,10 +2291,16 @@ var
   sCH : string;
 begin
   if Common.SystemInfo.OCType <> DefCommon.PreOCType  then Exit(2);
-  //if ErrorCheck > 0 then Exit(1);
-  nWaitingCount:= 100; //100ms * nWaitingCount
   if nGroup = DefCommon.CH_TOP  then sCH := ' CH 1,2 '
                                 else sCH := 'CH 3,4 ';
+  if g_CommPLC.IsBusy_Robot(nGroup) then begin
+    SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Do not MovingProbe - Robot Busy ' + sCH);
+    Exit(3);
+  end;
+
+  //if ErrorCheck > 0 then Exit(1);
+  nWaitingCount:= 100; //100ms * nWaitingCount
+
 
   if bIsUp then begin
     SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Probe UP Start ' + sCH);
@@ -2357,10 +2363,16 @@ var
   nWaitingCount: Integer;
   sCH : string;
 begin
-  //if ErrorCheck > 0 then Exit(1);
-  nWaitingCount:= 100; //100ms * nWaitingCount
+  if Common.SystemInfo.OCType <> DefCommon.PreOCType  then Exit(2);
   if nGroup = DefCommon.CH_TOP then sCH := 'CH 1,2'
   else                              sCH := 'CH 3,4';
+  if g_CommPLC.IsBusy_Robot(nGroup) then begin
+    SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Do not MovingProbe - Robot Busy ' + sCH);
+    Exit(3);
+  end;
+  //if ErrorCheck > 0 then Exit(1);
+  nWaitingCount:= 100; //100ms * nWaitingCount
+
 
   case nGroup of
     DefCommon.CH_TOP : begin

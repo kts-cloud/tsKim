@@ -5,7 +5,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, System.ImageList, Vcl.ImgList, RzButton,
-  Vcl.ExtCtrls;
+  Vcl.ExtCtrls,CommonClass,DefCommon;
 
 type
   TfrmSelectDetect = class(TForm)
@@ -30,6 +30,10 @@ implementation
 
 procedure TfrmSelectDetect.FormCreate(Sender: TObject);
 begin
+  if Common.SystemInfo.OCType = DefCommon.OCType then
+    btnNo.Caption := 'UnLoad'
+  else btnNo.Caption := 'Exchange';
+
   pnlCaption.StyleElements:= [];
   btnOk.StyleElements:= [];
   btnNo.StyleElements:= [];

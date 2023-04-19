@@ -122,7 +122,7 @@ type
     Test_Repeat         : Boolean; //테스트용 자동 회전
     UseNoExchange       : Boolean; //캐리어 감지 시 Exchange 사용 여부
     UseNoPogo           : Boolean; //Contact 시 POGO 사용 안함 여부
-    Ca410MemCh          : Integer;
+//    Ca410MemCh          : Integer;
     {$IFDEF CA410_USE}
     Com_Ca310           : array[DefCommon.CH1 .. Defcommon.MAX_CH] of Integer;
     Com_Ca310_DevieId   : array[DefCommon.CH1 .. Defcommon.MAX_CH] of Integer;
@@ -546,6 +546,7 @@ type
     PatGrpName   : string;
     ModelType : Integer;
     ModelTypeName : string;
+    Ca410MemCh : Integer;
 
     UseIonOnOff     : Boolean;  // Added by KTS 2022-03-18 오전 11:10:37 Ionizer On/Off
 {$IFDEF FEATURE_EDID}
@@ -661,6 +662,7 @@ type
     procedure LoadPLCInfo;
     procedure ReadSystemInfo;
     procedure ReadOpticInfo;
+    function ReadLGDDLLSummaryLog(sSn : string) : string;
     function SignalInversion(nSignal : Integer): Boolean;
     function LoadPatGroup(SelPatGroupName : string) : TPatterGroup;
     procedure SavePatGroup(sPatGroup : string; SavePatGrp : TPatterGroup);
@@ -1792,8 +1794,7 @@ var
   timeDate : TDateTime;
 begin
   FileAge(Application.ExeName,timeDate);
-  Result := ExeVersion + ' ( '
-            + FormatDateTime('yyyy.mm.dd  hh:nn', timeDate) + ' )';
+  Result := ExeVersion + ' ( '+ ExtractFileName(ParamStr(0)) +  ')';
 end;
 
 procedure TCommon.GetZ_AxisData;
@@ -2668,6 +2669,7 @@ begin
           UseDutDetect   := ReadBool   (sSection, 'UseDutDetect', False); //2023-02-02
           SerialNoFlashInfo.nAddr := Readinteger (sSection, 'SERIALNO_ADDR',0);
           SerialNoFlashInfo.nLength := Readinteger (sSection, 'SERIALNO_LENGTH',0);
+          Ca410MemCh :=           Readinteger(sSection, 'Ca410MemCh',0);
           //
         end;
         {$ENDIF}
@@ -3458,6 +3460,53 @@ begin
   FreeMem(pmc);
 end;
 
+function TCommon.ReadLGDDLLSummaryLog(sSn : string) : string;
+var
+  asSummaryHeader,asSummaryData: TArray<String>;
+  sComputerName: String;
+  sFileName: String;
+  sLine,sDate,sResult: String;
+  txtFile: TEXTFILE;
+  i: Integer;
+  const
+    GroupName = 'AFM_VRR_OPTIMUM:';
+
+begin
+  sDate := FormatDateTime('yyyy_mm_dd', Now);
+
+  sFileName:= Common.Path.MODEL_CUR +format('Oclog\SummaryLog\%s_Summary_Log_',[Common.SystemInfo.EQPId]) + sDate +'.csv';
+  if FileExists(sFileName) = false then begin
+    //File not Found
+    Exit;
+  end;
+
+  sComputerName:= GetComputerName;
+  AssignFile(txtFile, sFileName);
+
+  try
+
+    Reset(txtFile);
+
+    while not Eof(txtFile) do begin
+      ReadLn(txtFile, sLine);
+      asSummaryData:= sLine.Split([',']);
+      if asSummaryData[0] = 'BIN_VER' then begin
+        asSummaryHeader:= sLine.Split([',']);   //SummaryLog Header 저장
+        Continue;
+      end;
+      if sSn = asSummaryData[5] then Break;
+
+
+    end; //while eof(txtFile) do begin
+    for I := 0 to Length(asSummaryData) do
+      sResult :=sResult + GroupName + asSummaryHeader[i] + ':' + asSummaryData[i]+ ',';
+    Result := sResult;
+  finally
+    CloseFile(txtFile);
+  end;
+end;
+
+
 procedure TCommon.ReadOpticInfo;
 var
   fSys        : TIniFile;
@@ -3601,7 +3650,7 @@ begin
       SystemInfo.CAM_ResultType       := fSys.ReadInteger('SYSTEMDATA', 		'CAM_ResultType',  0);
 
       {$IFDEF CA410_USE}
-      SystemInfo.Ca410MemCh := fsys.ReadInteger('SYSTEMDATA', 'CA410_CH', 3);
+//      SystemInfo.Ca410MemCh := fsys.ReadInteger('SYSTEMDATA', 'CA410_CH', 3);
       for i := DefCommon.CH1 to DefCommon.MAX_CH do begin
         SystemInfo.Com_Ca310[i]      := fSys.ReadInteger('SYSTEMDATA', Format('COM_CA310%d',[i]),0);
         SystemInfo.Com_Ca310_SERIAL[i]  := fSys.ReadString('SYSTEMDATA', Format('COM_CA310%d_SERIAL',[i]),'');
@@ -3874,6 +3923,7 @@ begin
           WriteBool   (sSection, 'UseDutDetect',       UseDutDetect); //2023-02-02
           WriteInteger(sSection, 'SERIALNO_ADDR',SerialNoFlashInfo.nAddr);
           WriteInteger(sSection, 'SERIALNO_LENGTH',SerialNoFlashInfo.nLength);
+          WriteInteger(sSection, 'Ca410MemCh',     Ca410MemCh);
         end;
 
 //        SetResolution(TempModelInfo.H_Active,TempModelInfo.V_Active);
@@ -4092,7 +4142,7 @@ begin
 
       WriteInteger('SYSTEMDATA', 'COM_CAM_LIGHT',  			  SystemInfo.Com_CamLight);
 
-      WriteInteger('SYSTEMDATA','CA410_CH',SystemInfo.Ca410MemCh);
+//      WriteInteger('SYSTEMDATA','CA410_CH',SystemInfo.Ca410MemCh);
       //WriteInteger('SYSTEMDATA', 'IONIZER_CNT',  				   	SystemInfo.IonizerCnt );
 
       for i := 0 to Pred(DefCommon.MAX_IONIZER_CNT) do begin

@@ -526,7 +526,7 @@ var
 
 implementation
 
-uses PlcSimluateForm; //, CommonClass;
+uses PlcSimluateForm,ControlDio_OC; //, CommonClass;
 
 const
   COMMPLC_ECS_TIMEOUT = 3000;
@@ -3387,11 +3387,11 @@ begin
 
   RequestState_Load[nCh]:= 0;
   AddLog('SendMessageMain COMMPLC_PARAM_LOADBUSY SendMessageMain ' + IntToStr(nCh), True);
-  if not g_CommPLC.UnloadOnly[nCh] then begin
-    SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, nCh, COMMPLC_PARAM_LOADBUSY, 0, 'Process_ROBOT_LoadBusy_Off ' + IntToStr(nCh), nil);
-  end
+  if Common.SystemInfo.OCType = DefCommon.OCType then
+    SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, nCh, COMMPLC_PARAM_LOADBUSY, 0, 'Process_ROBOT_LoadBusy_Off ' + IntToStr(nCh), nil)
   else begin
-    AddLog('Process_ROBOT_LoadBusy_Off UnloadOnly ON' + IntToStr(nCh), True);
+    if ControlDio.IsDetected(nCh) then
+      SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, nCh, COMMPLC_PARAM_LOADBUSY, 0, 'Process_ROBOT_LoadBusy_Off ' + IntToStr(nCh), nil);
   end;
   AddLog('SendMessageMain COMMPLC_PARAM_LOADBUSY SendMessageMain Done ' + IntToStr(nCh), True);
 
@@ -3466,7 +3466,12 @@ begin
   RequestState_Unload[nCh]:= 0;
 
   AddLog('SendMessageMain COMMPLC_PARAM_UNLOADBUSY ' + IntToStr(nCh), True);
-  SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, nCh, COMMPLC_PARAM_UNLOADBUSY, 0, 'Process_ROBOT_UnloadBusy_Off ' + IntToStr(nCh), nil);
+  if Common.SystemInfo.OCType = DefCommon.OCType then
+    SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, nCh, COMMPLC_PARAM_UNLOADBUSY, 0, 'Process_ROBOT_UnloadBusy_Off ' + IntToStr(nCh), nil)
+  else begin
+   if not ControlDio.IsDetected(nCh) then
+    SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, nCh, COMMPLC_PARAM_UNLOADBUSY, 0, 'Process_ROBOT_UnloadBusy_Off ' + IntToStr(nCh), nil)
+  end;
   AddLog('SendMessageMain COMMPLC_PARAM_UNLOADBUSY Done ' + IntToStr(nCh), True);
   end;
 

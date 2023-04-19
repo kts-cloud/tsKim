@@ -239,7 +239,6 @@ object frmNGRatio: TfrmNGRatio
         Font.Style = []
         ParentFont = False
         TabOrder = 0
-        ExplicitHeight = 37
       end
       object pnl1: TPanel
         Left = 188
@@ -265,7 +264,6 @@ object frmNGRatio: TfrmNGRatio
         Font.Style = []
         ParentFont = False
         TabOrder = 1
-        ExplicitHeight = 37
       end
       object cboChannel: TRzComboBox
         Left = 945

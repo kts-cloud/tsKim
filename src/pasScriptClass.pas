@@ -474,6 +474,7 @@ type
     m_sFileCsv        : string;
     m_sApdrCsv        : string;
     m_nScriptPgNo   : Integer;      // FPgNo
+    m_First_Process_DONE  : Boolean; // First_Process 체크
     m_sCarrierId          : String; // EEPROM Carrier Id (set by Script)
     m_sMesPchkRtnCode     : String; // PCHK_R.RTN_CD (set by PAS)
     m_sMesPchkRtnPID      : String; // PCHK_R.RTN_PID (set by PAS)
@@ -839,6 +840,8 @@ begin
   SetPaScript.AddVariable('c_sRootDir',Common.Path.RootSW);
 
   SetPaScript.AddObject('c_TestInfo', TestInfo);
+  SetPaScript.AddVariable('c_First_Process_DONE', m_First_Process_DONE);
+
 
 
 
@@ -1810,7 +1813,7 @@ end;
 
 procedure TScrCls.I2CWrite_Proc(AMachine: TatVirtualMachine);
 var
-  nSlaveType, nDevAddr, nRegAddr : Integer;
+  nSlaveType, nDevAddr, nRegAddr,nWriteData : Integer;
   sWriteData : string;
   bDataLog : Boolean;
   nWaitSec, nRetry : Integer;
@@ -1824,43 +1827,24 @@ begin
   With AMachine do begin
     wdRet := WAIT_FAILED;
     // Get Param ---------------------------------------------------------------
-    if InputArgCount < 3 then begin
+    if InputArgCount < 2 then begin
       ReturnOutputArg(wdRet);
       Exit;
     end;
-    nDevAddr   := GetInputArgAsInteger(0);      // arg[0:M] nDevAddr: Integer
-    nRegAddr   := GetInputArgAsInteger(1);      // arg[1:M] nRegAddr: Integer
-    sWriteData := Trim(GetInputArgAsString(2)); // arg[2:M] sWriteData: String (e.g, '0x01 0x02 0x03 0x04')
-    if InputArgCount >= 4 then bDataLog := GetInputArgAsBoolean(3)  // arg[3:O] bDataLog: Boolean (default: False)
-    else                       bDataLog := False;
-    if InputArgCount >= 5 then nWaitSec := GetInputArgAsInteger(4)  // arg[4:O] nWaitSec: Integer
-    else                       nWaitSec := 3;   //TBD?
-    if InputArgCount >= 6 then nRetry   := GetInputArgAsInteger(5)  // arg[5:O] nRetry: Integer (default:1:NoRetry)
-    else                       nRetry   := 1;
-    if nRetry = 0 then nRetry   := 1;
+    nRegAddr   := GetInputArgAsInteger(0);      // arg[0:M] nRegAddr: Integer
+    nWriteData   := GetInputArgAsInteger(1);      // arg[1:M] sWriteData: Integer
 
-    //
-    lstTemp := TStringList.Create;
-    sDebug  := '';
-    sTxData := '';
-    try
-      ExtractStrings([' '], [], PWideChar(sWriteData), lstTemp);
-      nDataCnt :=  lstTemp.Count;
-      SetLength(arrData, nDataCnt);
-      for i := 0 to Pred(nDataCnt) do begin
-        arrData[i] := StrToIntDef(lstTemp[i],0); //TBD?
-        sTxData := sTxData  + Format(' 0x%0.2x',[arrData[i]]);
-      end;
-    finally
-      lstTemp.Free;
-    end;
-    sDebug := Format('I2C WRITE: DevAddr(0x%0.2x) RegAddr(0x%0.4x) DataCnt(%d), WaitSec(%d) Retry(%d) Data(%s)',
-                     [nDevAddr,nRegAddr,nDataCnt, nWaitSec,nRetry, sWriteData]);
+    nWaitSec := 200; //2023-04-08 (3000->100->200)
+    nRetry  := 0;   //2023-04-08 (0->3->0)
+    nDataCnt := 1;
+    SetLength(arRData,nDataCnt);
+    arrData[0] := nWriteData;
+    bDataLog := True;
+    sDebug := Format('I2C WRITE: RegAddr(0x%0.4x) DataCnt(%d), Data(0x%0.4x) WaitMS(%d) Retry(%d) ',[nRegAddr,nDataCnt,nWriteData, nWaitSec,nRetry]);
     if bDataLog then SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,sDebug,'',DefCommon.LOG_TYPE_INFO)
     else             Common.MLog(FPgNo,sDebug);
-    //
 //{$IFNDEF SIMULATOR_PANEL}
-    wdRet := Pg[Self.FPgNo].SendI2CWrite(nDevAddr,nRegAddr,nDataCnt, arrData, nWaitSec,nRetry);
+    wdRet := Pg[Self.FPgNo].SendI2CWrite(TCON_REG_DEVICE,nRegAddr,nDataCnt,arrData, nWaitSec,nRetry);
 //{$ELSE}
 //  wdRet := WAIT_OBJECT_0;
 //{$ENDIF}
@@ -2618,11 +2602,15 @@ begin
         2 : begin
 //        sPID := 'PPP';
           sPID := GetInputArgAsstring(0);
-          if DongaGmes = nil then
-            sPID := 'PPP'
-          else sPID := DongaGmes.MesPID;
+//          if DongaGmes = nil then
+            sPID := 'PPP';
+//          else sPID := copy(DongaGmes.MesPID,0,239);
           if Length(sPID) = 0 then sPID := Copy(sSerialNumber,0,3);
           sSerialNumber := GetInputArgAsstring(1);
+          sSerialNumber := Trim(sSerialNumber);
+          {$IFDEF SIMULATOR}
+            sSerialNumber := 'TEST1234567890';
+          {$ENDIF}
 //          sPID := Copy(sSerialNumber,0,3);
           if Length(sSerialNumber) = 0 then sSerialNumber := 'TERST1234567';
           sEquipment := Common.SystemInfo.EQPId;
@@ -3616,13 +3604,16 @@ procedure TScrCls.SendApdr_EAS_Proc(AMachine: TatVirtualMachine);
 var
   wdRet : Integer;
   sHeader, sData : string;
+  sSN : string;
 begin
   With AMachine do begin
     wdRet := 1;
 		Case InputArgCount of
       1 : begin
+      sSN := GetInputArgAsString(0);
         //if TestInfo.CanSendApdr then begin
-          TestInfo.ApdrData := ExecExtraFunction('MakeApdrData_EAS');;
+//          TestInfo.ApdrData := ExecExtraFunction('MakeApdrData_EAS');
+          TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog(sSN);
 
           if not Common.StatusInfo.LogIn then begin
             Common.MLog(self.FPgNo, 'APDR_EAS SKIP - OFF');
@@ -5225,13 +5216,12 @@ begin
               //TestInfo.EdUnitTact:= Now;
             end;
         end;
-        if (Self.FPgNo = 0)then begin
-          case nParam of
-            1 : m_bTotalTact   := True;
-            2 : m_bTotalTact   := False;
-            3 : m_bUnitiTact   := True;
-            4 : m_bUnitiTact   := False;
-          end;
+
+        case nParam of
+          1 : m_bTotalTact   := True;
+          2 : m_bTotalTact   := False;
+          3 : m_bUnitiTact   := True;
+          4 : m_bUnitiTact   := False;
         end;
 
         case nParam of

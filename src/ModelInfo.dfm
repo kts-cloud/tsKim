@@ -1895,7 +1895,7 @@ object frmModelInfo: TfrmModelInfo
         Left = 381
         Top = 167
         Width = 260
-        Height = 65
+        Height = 99
         Caption = 'Model Seting'
         CaptionFont.Charset = DEFAULT_CHARSET
         CaptionFont.Color = clWindowText
@@ -1956,6 +1956,63 @@ object frmModelInfo: TfrmModelInfo
             ''
             ''
             '')
+        end
+        object cboCa310Channel: TRzComboBox
+          Left = 97
+          Top = 56
+          Width = 152
+          Height = 22
+          Style = csDropDownList
+          Color = clWhite
+          Ctl3D = False
+          DropDownCount = 20
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -12
+          Font.Name = 'Verdana'
+          Font.Style = [fsBold]
+          FlatButtons = True
+          FrameHotTrack = True
+          FrameVisible = True
+          ImeName = 'Microsoft Office IME 2007'
+          ParentCtl3D = False
+          ParentFont = False
+          TabOrder = 2
+          Text = 'None'
+          Items.Strings = (
+            'None'
+            'COM1'
+            'COM2'
+            'COM3'
+            'COM4'
+            'COM5'
+            'COM6'
+            'COM7'
+            'COM8'
+            'COM9'
+            'COM10')
+          ItemIndex = 0
+        end
+        object RzPanel7: TRzPanel
+          Left = 4
+          Top = 56
+          Width = 87
+          Height = 33
+          BorderOuter = fsFlat
+          BorderHighlight = clWhite
+          BorderShadow = 6080734
+          Caption = 'Model Memory CH'
+          Color = 11921137
+          FlatColorAdjustment = 0
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Verdana'
+          Font.Style = []
+          GradientColorStyle = gcsCustom
+          GradientColorStop = clLime
+          ParentFont = False
+          TabOrder = 3
         end
       end
     end
@@ -5903,7 +5960,7 @@ object frmModelInfo: TfrmModelInfo
           Font.Name = 'Tahoma'
           Font.Style = []
           ParentFont = False
-          TabOrder = 0
+          TabOrder = 2
           Transparent = True
           object btn1: TRzBitBtn
             Left = 1226

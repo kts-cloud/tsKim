@@ -6,7 +6,7 @@ uses
 
 
   Winapi.Windows, Winapi.Messages, System.Classes, System.SysUtils, DefCommon, {CodeSiteLogging,}
-  CommonClass, GMesCom, LogicVh, pasScriptClass, DefScript,Forms, {UdpServerClient,}CommPG,DefPG,  DefDio
+  CommonClass, GMesCom, LogicVh, pasScriptClass, DefScript,Forms,CommPLC_ECS, {UdpServerClient,}CommPG,DefPG,  DefDio
 {$IFDEF CA310_USE}
   , Ca310
 {$ENDIF}
@@ -341,6 +341,7 @@ function TJig.StartIspd_TOP(nSeq : Integer) : Boolean;
 var
   nCh, i : Integer;
   sLog : string;
+  bFirst_Process : Boolean;
 begin
 {$IFNDEF SIMENV_NO_PG}
   if not CheckPgConnect(0) then Exit(False); // 하나라도 Connection 되지 않으면 시작 하지 말자.
@@ -350,13 +351,23 @@ begin
   if Common.SystemInfo.OCType = DefCommon.PreOCType then  begin
     //두번째인지 확인 필요
     //if ... then
+    bFirst_Process := false;
     if nSeq = DefScript.SEQ_KEY_9 then  begin
-      if not ControlDio.CheckDIO_Start(0) then begin
-        sLog := 'You must close Pinblock to Start CH 1,2';
-        SendMainGuiDisplay(DefCommon.MSG_TYPE_CTL_DIO, 0, 2, 0, sLog);
-//        Application.MessageBox('You must close Pinblock to Start', 'Error', MB_OK+MB_ICONEXCLAMATION);
-        Exit(False);
+      for I := DefCommon.CH1 to DefCommon.CH2 do begin
+        if not PasScr[i].m_First_Process_DONE then  begin
+          bFirst_Process := False;
+          Break;
+        end;
       end;
+      if bFirst_Process then begin
+        if not ControlDio.CheckDIO_Start(0) then begin
+          sLog := 'You must close Pinblock to Start CH 1,2';
+          SendMainGuiDisplay(DefCommon.MSG_TYPE_CTL_DIO, 0, 2, 0, sLog);
+  //        Application.MessageBox('You must close Pinblock to Start', 'Error', MB_OK+MB_ICONEXCLAMATION);
+          Exit(False);
+        end;
+      end;
+      g_CommPLC.EQP_Clear_ROBOT_Request(0);
     end;
   end;
   for i := DefCommon.CH1 to DefCommon.CH2 do begin
@@ -387,6 +398,7 @@ function TJig.StartIspd_BOTTOM(nSeq : Integer) : Boolean;
 var
   nCh, i : Integer;
   sLog : string;
+  bFirst_Process : Boolean;
 begin
 {$IFNDEF SIMENV_NO_PG}
   if not CheckPgConnect(1) then Exit(False); // 하나라도 Connection 되지 않으면 시작 하지 말자.
@@ -394,13 +406,25 @@ begin
   // Script가 돌고 있으면 시작 하지 말자.
   if CheckScript(1,nSeq) then Exit(False);
   if Common.SystemInfo.OCType = DefCommon.PreOCType then  begin
+    //두번째인지 확인 필요
+    //if ... then                                                 '
+    bFirst_Process := false;
     if nSeq = DefScript.SEQ_KEY_9 then  begin
-      if not ControlDio.CheckDIO_Start(1) then begin
-        sLog := 'You must close Pinblock to Start CH 3,4';
-        SendMainGuiDisplay(DefCommon.MSG_TYPE_CTL_DIO, 0, 2, 0, sLog);
-//        Application.MessageBox('You must close Pinblock to Start', 'Error', MB_OK+MB_ICONEXCLAMATION);
-        Exit;
+      for I := DefCommon.CH3 to DefCommon.CH4 do begin
+        if not PasScr[i].m_First_Process_DONE then  begin
+          bFirst_Process := False;
+          Break;
+        end;
       end;
+      if bFirst_Process then begin
+        if not ControlDio.CheckDIO_Start(1) then begin
+          sLog := 'You must close Pinblock to Start CH 3,4';
+          SendMainGuiDisplay(DefCommon.MSG_TYPE_CTL_DIO, 0, 2, 0, sLog);
+  //        Application.MessageBox('You must close Pinblock to Start', 'Error', MB_OK+MB_ICONEXCLAMATION);
+          Exit(False);
+        end;
+      end;
+      g_CommPLC.EQP_Clear_ROBOT_Request(1);
     end;
   end;
   for i := DefCommon.CH3 to DefCommon.Ch4 do begin

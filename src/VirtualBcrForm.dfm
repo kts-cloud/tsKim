@@ -14,8 +14,8 @@ object VirtualBcr: TVirtualBcr
   PixelsPerInch = 96
   TextHeight = 13
   object Label1: TLabel
-    Left = 40
-    Top = 24
+    Left = 8
+    Top = 22
     Width = 38
     Height = 25
     Caption = 'CH1'
@@ -27,8 +27,8 @@ object VirtualBcr: TVirtualBcr
     ParentFont = False
   end
   object Label2: TLabel
-    Left = 40
-    Top = 55
+    Left = 8
+    Top = 53
     Width = 38
     Height = 25
     Caption = 'CH2'
@@ -40,8 +40,8 @@ object VirtualBcr: TVirtualBcr
     ParentFont = False
   end
   object Label3: TLabel
-    Left = 40
-    Top = 86
+    Left = 8
+    Top = 84
     Width = 38
     Height = 25
     Caption = 'CH3'
@@ -53,8 +53,8 @@ object VirtualBcr: TVirtualBcr
     ParentFont = False
   end
   object Label4: TLabel
-    Left = 40
-    Top = 117
+    Left = 8
+    Top = 115
     Width = 38
     Height = 25
     Caption = 'CH4'
@@ -243,5 +243,41 @@ object VirtualBcr: TVirtualBcr
     Width = 38
     Height = 21
     TabOrder = 20
+  end
+  object Button13: TButton
+    Left = 65
+    Top = 22
+    Width = 41
+    Height = 25
+    Caption = 'Ready'
+    TabOrder = 21
+    OnClick = Button13Click
+  end
+  object Button14: TButton
+    Left = 65
+    Top = 51
+    Width = 41
+    Height = 25
+    Caption = 'Ready'
+    TabOrder = 22
+    OnClick = Button14Click
+  end
+  object Button15: TButton
+    Left = 65
+    Top = 82
+    Width = 41
+    Height = 25
+    Caption = 'Ready'
+    TabOrder = 23
+    OnClick = Button15Click
+  end
+  object Button16: TButton
+    Left = 65
+    Top = 113
+    Width = 41
+    Height = 25
+    Caption = 'Ready'
+    TabOrder = 24
+    OnClick = Button16Click
   end
 end

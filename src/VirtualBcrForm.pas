@@ -34,6 +34,10 @@ type
     Edit2: TEdit;
     Edit3: TEdit;
     Edit4: TEdit;
+    Button13: TButton;
+    Button14: TButton;
+    Button15: TButton;
+    Button16: TButton;
     procedure btnVirtualBcrClick(Sender: TObject);
     procedure Button1Click(Sender: TObject);
     procedure Button2Click(Sender: TObject);
@@ -47,6 +51,10 @@ type
     procedure Button7Click(Sender: TObject);
     procedure Button9Click(Sender: TObject);
     procedure Button11Click(Sender: TObject);
+    procedure Button13Click(Sender: TObject);
+    procedure Button14Click(Sender: TObject);
+    procedure Button15Click(Sender: TObject);
+    procedure Button16Click(Sender: TObject);
   private
     { Private declarations }
 
@@ -138,6 +146,29 @@ begin
             SendMainGuiDisplay(3,DefGmes.MES_EICR,1);
             SendTestGuiDisplay(3,DefGmes.MES_EICR, '','', 0);
   end,5000,1);
+end;
+
+procedure TVirtualBcr.Button13Click(Sender: TObject);
+begin
+
+//    if not PasScr[i].m_bUse then Continue;
+    SendTestGuiDisplay(0,DefCommon.MSG_MODE_BARCODE_READY,'','',1);
+
+end;
+
+procedure TVirtualBcr.Button14Click(Sender: TObject);
+begin
+    SendTestGuiDisplay(1,DefCommon.MSG_MODE_BARCODE_READY,'','',1);
+end;
+
+procedure TVirtualBcr.Button15Click(Sender: TObject);
+begin
+    SendTestGuiDisplay(2,DefCommon.MSG_MODE_BARCODE_READY,'','',1);
+end;
+
+procedure TVirtualBcr.Button16Click(Sender: TObject);
+begin
+    SendTestGuiDisplay(3,DefCommon.MSG_MODE_BARCODE_READY,'','',1);
 end;
 
 procedure TVirtualBcr.Button1Click(Sender: TObject);

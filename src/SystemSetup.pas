@@ -219,8 +219,6 @@ type
     RzPanel42: TRzPanel;
     cboCa310_4: TRzComboBox;
     pnlProbeTitle4: TRzPanel;
-    cboCa310Channel: TRzComboBox;
-    pnlCaSdkTitle: TRzPanel;
     cboIonizer2: TRzComboBox;
     RzPanel34: TRzPanel;
     pnlOCType: TRzPanel;
@@ -880,7 +878,6 @@ begin
     Com_Ionizer[1] := cboIonizer2.ItemIndex;
     Model_Ionizer[1] := cboIonizerModel.ItemIndex;
     {$IFDEF CA410_USE}
-    Ca410MemCh := cboCa310Channel.ItemIndex;
 
     for i := DefCommon.CH1 to DefCommon.MAX_CH do begin
       case i of
@@ -1264,6 +1261,8 @@ begin
     chkCh3.Checked      := UseCh[2];
     chkCh4.Checked      := UseCh[3];
 
+    edtLoginID.Text := AutoLoginID;
+
 (*
     edRobotARev.Text  := RobotRevA;
     edRobotBRev.Text  := RobotRevB;
@@ -1297,7 +1296,7 @@ begin
 
 //    edIonizerCnt.Text               := Format('%d',[IonizerCnt]);
 
-    cboCa310Channel.Items.Clear;
+//    cboCa310Channel.Items.Clear;
     cboCa310_1.Items.Clear;
     cboCa310_2.Items.Clear;
     cboCa310_3.Items.Clear;
@@ -1321,11 +1320,7 @@ begin
       edProbeDevice[i].Text := Format('%d',[Com_Ca310_DevieId[i]]);
     end;
 
-    for i := 1 to 99 do begin
-      sTemp := Format('%d',[i]);
-      cboCa310Channel.Items.Add(sTemp);
-    end;
-    cboCa310Channel.ItemIndex := Ca410MemCh;
+
 
 
       cboIonizer.ItemIndex := Com_Ionizer[0];

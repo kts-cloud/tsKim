@@ -178,6 +178,43 @@ begin
   cboChannel.ItemIndex:= 0;
 
   IntiGrid;
+  if Common.SystemInfo.UIType = DefCommon.UI_WIN10_BLACK then begin
+    Btn_View.Color      := clBlack;
+    Btn_View.Font.Color := clWhite;
+    btnPrev.Color      := clBlack;
+    btnPrev.Font.Color := clWhite;
+    Btn_Today.Color      := clBlack;
+    Btn_Today.Font.Color := clWhite;
+    btnTest.Color      := clBlack;
+    btnTest.Font.Color := clWhite;
+    Btn_Delete.Color      := clBlack;
+    Btn_Delete.Font.Color := clWhite;
+    Btn_Export.Color      := clBlack;
+    Btn_Export.Font.Color := clWhite;
+    btnNext.Color      := clBlack;
+    btnNext.Font.Color := clWhite;
+    Btn_Close.Color      := clBlack;
+    Btn_Close.Font.Color := clWhite;
+  end
+  else begin
+    Btn_View.Color      := clBtnFace;
+    Btn_View.Font.Color := clYellow;
+    btnPrev.Color       := clBtnFace;
+    btnPrev.Font.Color  := clYellow;
+    Btn_Today.Color      := clBtnFace;
+    Btn_Today.Font.Color := clYellow;
+    btnTest.Color      := clBtnFace;
+    btnTest.Font.Color := clYellow;
+    Btn_Delete.Color      := clBtnFace;
+    Btn_Delete.Font.Color := clYellow;
+    Btn_Export.Color      := clBtnFace;
+    Btn_Export.Font.Color := clYellow;
+    btnNext.Color      := clBtnFace;
+    btnNext.Font.Color := clYellow;
+    Btn_Close.Color      := clBtnFace;
+    Btn_Close.Font.Color := clYellow;
+  end;
+
 end;
 
 procedure TfrmNGRatio.FormShow(Sender: TObject);

@@ -277,6 +277,8 @@ var
   DongaGmes : TGmes;
 
 implementation
+uses
+pasScriptClass;
 
 function TGmes.HOST_Initial(sServicePort, sNetwork, sDemonPort, sLocal, sRemote, sPath: string): Boolean;
 var
@@ -2071,6 +2073,8 @@ begin
       sSendMsg := sSendMsg  + ' MODE=AUTO';
       sSendMsg := sSendMsg  + ' CLIENT_DATE='+FormatDateTime('yyyymmddhhnnss', Now);
       sSendMsg := sSendMsg  + ' COMMENT=[]';
+      sSendMsg := sSendMsg  + ' START_TIME='+FormatDateTime('yyyymmddhhnnss', PasScr[nPg].TestInfo.StartTime);
+      sSendMsg := sSendMsg  + ' END_TIME='+FormatDateTime('yyyymmddhhnnss', PasScr[nPg].TestInfo.EndTime);
       bIsChMsg := True;
 //      Common.MLog(nPg,'SEND_MESG2HOST2 : Send Msg :  ' + sSendMsg);
     end;

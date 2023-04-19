@@ -823,6 +823,7 @@ begin
     m_aMESItemValue[i].EventHandle:= CreateEvent(nil, False, False, PWideChar(sEventName));
   end;
   Init_Grid;
+  grdStatus.Font.Color := clBlack;
 
   btnShowSimulator.Enabled:= g_CommPLC.UseSimulator;
 end;

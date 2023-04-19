@@ -28,7 +28,7 @@ object frmSystemSetup: TfrmSystemSetup
     Width = 853
     Height = 672
     Hint = ''
-    ActivePage = tbEcsSheet
+    ActivePage = TabSheet1
     Align = alClient
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
@@ -36,7 +36,7 @@ object frmSystemSetup: TfrmSystemSetup
     Font.Name = 'Tahoma'
     Font.Style = [fsBold]
     ParentFont = False
-    TabIndex = 1
+    TabIndex = 0
     TabOrder = 0
     FixedDimension = 22
     object TabSheet1: TRzTabSheet
@@ -146,57 +146,6 @@ object frmSystemSetup: TfrmSystemSetup
             'Ti'#7871'ng Vi'#7879't')
           ItemIndex = 0
         end
-        object cboCa310Channel: TRzComboBox
-          Left = 110
-          Top = 78
-          Width = 94
-          Height = 22
-          Style = csDropDownList
-          Color = clWhite
-          Ctl3D = False
-          DropDownCount = 20
-          Font.Charset = ANSI_CHARSET
-          Font.Color = clWindowText
-          Font.Height = -12
-          Font.Name = 'Verdana'
-          Font.Style = [fsBold]
-          FlatButtons = True
-          FrameHotTrack = True
-          FrameVisible = True
-          ImeName = 'Microsoft Office IME 2007'
-          ParentCtl3D = False
-          ParentFont = False
-          TabOrder = 4
-          Text = 'None'
-          Items.Strings = (
-            'None'
-            'COM1'
-            'COM2'
-            'COM3'
-            'COM4'
-            'COM5'
-            'COM6'
-            'COM7'
-            'COM8'
-            'COM9'
-            'COM10')
-          ItemIndex = 0
-        end
-        object pnlCaSdkTitle: TRzPanel
-          Left = 3
-          Top = 78
-          Width = 106
-          Height = 21
-          BorderOuter = fsFlatRounded
-          Caption = 'CA410 Channel'
-          Font.Charset = ANSI_CHARSET
-          Font.Color = clWindowText
-          Font.Height = -11
-          Font.Name = 'Verdana'
-          Font.Style = []
-          ParentFont = False
-          TabOrder = 5
-        end
         object pnlOCType: TRzPanel
           Left = 6
           Top = 106
@@ -210,7 +159,7 @@ object frmSystemSetup: TfrmSystemSetup
           Font.Name = 'Verdana'
           Font.Style = []
           ParentFont = False
-          TabOrder = 6
+          TabOrder = 4
         end
         object cboOCType: TRzComboBox
           Left = 111
@@ -230,7 +179,7 @@ object frmSystemSetup: TfrmSystemSetup
           ImeName = 'Microsoft IME 2010'
           ParentCtl3D = False
           ParentFont = False
-          TabOrder = 7
+          TabOrder = 5
           Items.Strings = (
             'OC'
             'Pre OC')
@@ -239,8 +188,8 @@ object frmSystemSetup: TfrmSystemSetup
             '')
         end
         object RzPanel2: TRzPanel
-          Left = 206
-          Top = 78
+          Left = 6
+          Top = 77
           Width = 116
           Height = 22
           BorderOuter = fsFlatRounded
@@ -251,12 +200,12 @@ object frmSystemSetup: TfrmSystemSetup
           Font.Name = 'Verdana'
           Font.Style = []
           ParentFont = False
-          TabOrder = 8
+          TabOrder = 6
         end
         object edSaveEnergy: TRzEdit
-          Left = 323
-          Top = 78
-          Width = 73
+          Left = 128
+          Top = 77
+          Width = 261
           Height = 22
           Text = '0'
           Alignment = taRightJustify
@@ -273,7 +222,7 @@ object frmSystemSetup: TfrmSystemSetup
           MaxLength = 1
           ParentCtl3D = False
           ParentFont = False
-          TabOrder = 9
+          TabOrder = 7
         end
       end
       object grpSerialSetting: TRzGroupBox

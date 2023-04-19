@@ -396,6 +396,8 @@ type
     RzGroupBox1: TRzGroupBox;
     RzPanel6: TRzPanel;
     cboModelType: TRzComboBox;
+    cboCa310Channel: TRzComboBox;
+    RzPanel7: TRzPanel;
     procedure mmProgramAllDragOver(Sender, Source: TObject; X, Y: Integer; State: TDragState; var Accept: Boolean);
     procedure FormCreate(Sender: TObject);
     procedure btnCompileScriptClick(Sender: TObject);
@@ -1851,6 +1853,7 @@ begin
 
     edSerialNoAddr.Text := format('0x%0.4x',[SerialNoFlashInfo.nAddr]);
     edSerialNoLength.Text := format('%d',[SerialNoFlashInfo.nLength]);
+    cboCa310Channel.ItemIndex := Ca410MemCh;
     //
 
   end;
@@ -2069,7 +2072,7 @@ procedure TfrmModelInfo.FormCreate(Sender: TObject);
 var
   i : Integer;
   sl: TStringList;
-  sErrMsg, sApp : string;
+  sErrMsg, sApp,sTemp : string;
 begin
   // model Information.
   g_bNewPatGr := False;
@@ -2078,6 +2081,11 @@ begin
   g_bNewModel := False;
   g_bCopyModel:= False;
   g_bRenModel := False;
+  cboCa310Channel.Items.Clear;
+  for i := 1 to 99 do begin
+    sTemp := Format('%d',[i]);
+    cboCa310Channel.Items.Add(sTemp);
+  end;
 
 //  cboCa310Channel.Items.Clear;
 //  for i := 0 to 99 do cboCa310Channel.Items.Add(Format('%d',[i]));
@@ -2773,6 +2781,7 @@ begin
     UseDutDetect  := cbFlowOptUseDutDetect.Checked;
     SerialNoFlashInfo.nAddr := StrToIntDef(edSerialNoAddr.Text,0);
     SerialNoFlashInfo.nLength := StrToIntDef(edSerialNoLength.text,0);
+    Ca410MemCh := cboCa310Channel.ItemIndex;
   end;
 
 

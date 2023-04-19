@@ -393,8 +393,8 @@ var
 begin
   nCH := (Sender as TRzButton).Tag;
   if Common.StatusInfo.AutoMode then begin
-//    Application.MessageBox('Can not Excute On Auto Mode', 'Confirm', MB_OK+MB_ICONSTOP);
-//    Exit;
+    Application.MessageBox('Can not Excute On Auto Mode', 'Confirm', MB_OK+MB_ICONSTOP);
+    Exit;
   end;
 
 
@@ -552,12 +552,12 @@ var
   i,nCH : integer;
 begin
 //  nCH := (Sender as TRzButton).Tag;
-  for I := 0 to 3 do begin
-//    if not PasScr[i].m_bUse then Continue;
-    pnlSerials[i].Caption := DefCommon.MSG_SCAN_BCR;
-    pnlSerials[i].Color := clBlue;
-    pnlSerials[i].Font.Color := clYellow;
-  end;
+//  for I := 0 to 3 do begin
+////    if not PasScr[i].m_bUse then Continue;
+//    pnlSerials[i].Caption := DefCommon.MSG_SCAN_BCR;
+//    pnlSerials[i].Color := clBlue;
+//    pnlSerials[i].Font.Color := clYellow;
+//  end;
   VirtualBcr := TVirtualBcr.Create(Self);
   if VirtualBcr <> nil then   begin
     VirtualBcr.m_MainHandle := MessageHandle;
@@ -706,10 +706,10 @@ begin
 
   pnlUnitTactVal[nCh].Caption := '000 : 00';
   pnlNowValues[nCh].Caption := '000 : 00';
-  for I := 0 to 3 do  begin
-    m_nUnitTact[i] := 0;
-    m_nTotalTact[i] := 0;
-  end;
+
+    m_nUnitTact[nCh] := 0;
+    m_nTotalTact[nCh] := 0;
+
 end;
 
 procedure TfrmTest4ChOC.ClearPreviousResult;
@@ -962,32 +962,28 @@ begin
 
   // detailed items for each channel.
   for i := DefCommon.CH1 to DefCommon.MAX_CH do begin
-
-
-      pnlChGrp[i] := TRzPanel.Create(self);
-      pnlChGrp[i].Parent := pnlTestMain;
-      pnlChGrp[i].Font.Size := 8;
-      if Common.SystemInfo.OCType = DefCommon.OCType  then begin
-        pnlChGrp[i].Height := pnlTestMain.Height div 2;
-        pnlChGrp[i].Width := nItemWidth;
-        if i div 2 = 0 then
-              pnlChGrp[i].Top := 2 + pnlChGrp[i].Height
-        else  pnlChGrp[i].Top := 2;
-        pnlChGrp[i].Left := nItemWidth * (i mod 2) + pnlJigInform.Width;
-      end
-      else begin
-        pnlChGrp[i].Height := pnlTestMain.Height;
-        pnlChGrp[i].Width := nItemWidth div 2;
-        pnlChGrp[i].Top := 2;
-        pnlChGrp[i].Left := pnlChGrp[i].Width *i + pnlJigInform.Width;
-
-
-      end;
-      pnlChGrp[i].Align := alNone;
-      pnlChGrp[i].Font.Color  := clBlack;
-      pnlChGrp[i].Alignment := taRightJustify;
+    pnlChGrp[i] := TRzPanel.Create(self);
+    pnlChGrp[i].Parent := pnlTestMain;
+    pnlChGrp[i].Font.Size := 8;
+    if Common.SystemInfo.OCType = DefCommon.OCType  then begin
+      pnlChGrp[i].Height := pnlTestMain.Height div 2;
+      pnlChGrp[i].Width := nItemWidth;
+      if i div 2 = 0 then
+            pnlChGrp[i].Top := 2 + pnlChGrp[i].Height
+      else  pnlChGrp[i].Top := 2;
+      pnlChGrp[i].Left := nItemWidth * (i mod 2) + pnlJigInform.Width;
+    end
+    else begin
+      pnlChGrp[i].Height := pnlTestMain.Height;
+      pnlChGrp[i].Width := nItemWidth div 2;
+      pnlChGrp[i].Top := 2;
+      pnlChGrp[i].Left := pnlChGrp[i].Width *i + pnlJigInform.Width;
+    end;
+    pnlChGrp[i].Align := alNone;
+    pnlChGrp[i].Font.Color  := clBlack;
+    pnlChGrp[i].Alignment := taRightJustify;
 //      pnlChGrp[i].Caption := Format('Ch Grp %d',[i+1]);// '';
-      pnlChGrp[i].BorderOuter := TframeStyleEx(fsFlat);
+    pnlChGrp[i].BorderOuter := TframeStyleEx(fsFlat);
 //    pnlChGrp[i].Visible := False;
 
 
@@ -2271,7 +2267,7 @@ begin
     //if not chkChannelUse[nJigCh].Checked then Continue;  //체크박스 검사
 
     nPgCh  := nJig *4 + nJigCh;
-    if not PasScr[nPgCh].m_bPlcDetect then Continue;  //감지 센서확인
+//    if not PasScr[nPgCh].m_bPlcDetect then Continue;  //감지 센서확인
 
 
     PasScr[nPgCh].TestInfo.SerialNo  := sRemoveCr;
@@ -2293,14 +2289,14 @@ begin
   end;
 
   bIsDone := True;
-  for nJigCh := DefCommon.CH1 to DefCommon.MAX_JIG_CH do begin
-    if pnlSerials[nJigCh].Caption <> '' then Continue;
+  for i := (nJigCh div 2)*2 to (nJigCh div 2)*2 + 1 do begin
+    if (pnlSerials[i].Caption = '') or (pnlSerials[i].Caption = DefCommon.MSG_SCAN_BCR)  then begin
     //if not chkChannelUse[nJigCh].Checked then Continue;  //체크박스 검사
-    nPgCh  := nJig *4 + nJigCh;
-    if not PasScr[nPgCh].m_bPlcDetect then Continue;  //감지 센서확인
+//    if not PasScr[nPgCh].m_bPlcDetect then Continue;  //감지 센서확인
 
-    bIsDone := False;
-    Break;
+      bIsDone := False;
+      Break;
+    end;
   end;
   if (UpperCase(Common.m_sUserId) = 'PM') then begin
     bIsDone := True;
@@ -2308,9 +2304,9 @@ begin
 
   // input Barcode for all channels in a jig.
   if bIsDone then begin
-    for nJigCh := DefCommon.CH1 to DefCommon.MAX_JIG_CH do begin
-      nPgCh  := nJig *4 + nJigCh;
-      PasScr[nPgCh].g_bIsBcrReady := True;
+    for i := (nJigCh div 2)*2 to (nJigCh div 2)*2 + 1 do begin
+      PasScr[i].m_First_Process_DONE := True;
+      PasScr[i].g_bIsBcrReady := True;
     end;
   end;
 
@@ -2861,7 +2857,7 @@ begin
 
 
   common.MLog(DefCommon.MAX_SYSTEM_LOG,'TCA_SDK2.Create start');
-  CaSdk2 := TCA_SDK2.Create(hMain,Self.Handle, Common.SystemInfo.Ca410MemCh+1,True);
+  CaSdk2 := TCA_SDK2.Create(hMain,Self.Handle, Common.TestModelInfoFLOW.Ca410MemCh+1,True);
   common.MLog(DefCommon.MAX_SYSTEM_LOG,'TCA_SDK2.Create End');
   for i := DefCommon.CH1 to DefCommon.MAX_CH do begin
     CaSetupInfo.SelectIdx     := Common.SystemInfo.Com_Ca310[i];// CaSetupInfo;
@@ -3175,7 +3171,7 @@ begin
             end;
 
             CSharpDll.m_bIsProcessDone[nCH] := true;
-
+            PasScr[nCH].m_First_Process_DONE := false;
             AddLog(format('DLL DONE : %d, NG Code=%d', [nCH +1, PasScr[nCh].m_nNgCode]), nCH, 0);
 
             case nCH of

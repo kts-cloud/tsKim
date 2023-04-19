@@ -420,8 +420,8 @@ var
   i : Integer;
 
 begin
-  common.MLog(DefCommon.MAX_SYSTEM_LOG,'TCSharpDll.Create start');
   sDllFile := sDLLPath+sFileName;
+  Common.MLog(DefCommon.MAX_SYSTEM_LOG,Format('TCSharpDll.Create sDllFile : $s',[sDllFile]));
   m_MainHandle := hMain;
   m_TestHandle := hTest;
   SetLength(m_bIsProcessDone,4);
