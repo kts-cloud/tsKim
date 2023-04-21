@@ -28,7 +28,7 @@ object frmSystemSetup: TfrmSystemSetup
     Width = 853
     Height = 672
     Hint = ''
-    ActivePage = TabSheet1
+    ActivePage = tbEcsSheet
     Align = alClient
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
@@ -36,7 +36,7 @@ object frmSystemSetup: TfrmSystemSetup
     Font.Name = 'Tahoma'
     Font.Style = [fsBold]
     ParentFont = False
-    TabIndex = 0
+    TabIndex = 1
     TabOrder = 0
     FixedDimension = 22
     object TabSheet1: TRzTabSheet

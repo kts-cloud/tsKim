@@ -613,22 +613,35 @@ var
   i: Integer;
 begin
   Result:= True;
-
-  for i := (nPair*2) to (nPair*2 + 1) do begin
-    if Common.SystemInfo.OCType = DefCommon.OCType  then  begin
-      if not ControlDio.ReadInSig(IN_CH_1_CARRIER_SENSOR + (i*16)) then begin
+  if Common.PLCInfo.InlineGIB then begin
+      if Common.SystemInfo.OCType = DefCommon.OCType  then  begin
+      if not ControlDio.ReadInSig(IN_CH_1_CARRIER_SENSOR + (nPair*16)) then begin
         Result:= False;
         Exit;
       end;
     end
     else begin
-      if not ControlDio.ReadInSig(IN_GIB_CH_1_CARRIER_SENSOR + (i*8)) then begin
+      if not ControlDio.ReadInSig(IN_GIB_CH_1_CARRIER_SENSOR + (nPair*8)) then begin
         Result:= False;
         Exit;
       end;
-
     end;
-    //end;
+  end
+  else begin
+    for i := (nPair*2) to (nPair*2 + 1) do begin
+      if Common.SystemInfo.OCType = DefCommon.OCType  then  begin
+        if not ControlDio.ReadInSig(IN_CH_1_CARRIER_SENSOR + (i*16)) then begin
+          Result:= False;
+          Exit;
+        end;
+      end
+      else begin
+        if not ControlDio.ReadInSig(IN_GIB_CH_1_CARRIER_SENSOR + (i*8)) then begin
+          Result:= False;
+          Exit;
+        end;
+      end;
+    end;
   end;
 end;
 
@@ -637,10 +650,18 @@ var
   i: Integer;
 begin
   Result:= False;
-  for i := (nPair*2) to (nPair*2 + 1) do begin
-    if PasScr[i].m_bIsScriptWork then begin
+  if Common.PLCInfo.InlineGIB then begin
+    if PasScr[nPair].m_bIsScriptWork then begin
       Result:= True;
       Exit;
+    end;
+  end
+  else begin
+    for i := (nPair*2) to (nPair*2 + 1) do begin
+      if PasScr[i].m_bIsScriptWork then begin
+        Result:= True;
+        Exit;
+      end;
     end;
   end;
 end;
@@ -696,9 +717,16 @@ var
 begin
   //채널 사용 여부에 따른 Load 요청 여부 - Pair 중에 하나라도 사용 안할 경우 로드 안함
   Result:= True;
-  for i := (nPair*2) to (nPair*2 + 1) do begin
-    if not Common.StatusInfo.UseChannel[i + nStage*4] then begin
+  if Common.PLCInfo.InlineGIB then begin
+    if not Common.StatusInfo.UseChannel[nPair] then begin
       Result:= False;
+    end;
+  end
+  else begin
+    for i := (nPair*2) to (nPair*2 + 1) do begin
+      if not Common.StatusInfo.UseChannel[i + nStage*4] then begin
+        Result:= False;
+      end;
     end;
   end;
 end;
@@ -764,33 +792,49 @@ var
 i : Integer;
 begin
   Result := True;
-  if Common.SystemInfo.OCType = DefCommon.OCType  then  begin
-    for i := (nCH*2) to (nCH*2 + 1) do begin
-
-      if  ( ControlDio.ReadInSig(DefDio.IN_CH_1_PROBE_BACKWARD_SENSOR +i*16)) or
-           ( ControlDio.ReadInSig(DefDio.IN_CH_1_PROBE_UP_SENSOR +i*16)) then begin
+  if Common.PLCInfo.InlineGIB then begin
+    if Common.SystemInfo.OCType = DefCommon.OCType  then  begin
+      if  ( ControlDio.ReadInSig(DefDio.IN_CH_1_PROBE_BACKWARD_SENSOR +nCH*16)) or
+           ( ControlDio.ReadInSig(DefDio.IN_CH_1_PROBE_UP_SENSOR +nCH*16)) then begin
         Result := False;
         Exit;
       end;
-      if  (not ControlDio.ReadInSig(DefDio.IN_CH_1_CARRIER_UNLOCK_SENSOR_1 +i*16)) or
-           (not ControlDio.ReadInSig(DefDio.IN_CH_1_CARRIER_UNLOCK_SENSOR_2 +i*16)) or
-           (not ControlDio.ReadInSig(DefDio.IN_CH_1_CARRIER_UNLOCK_SENSOR_3 +i*16)) or
-           (not ControlDio.ReadInSig(DefDio.IN_CH_1_CARRIER_UNLOCK_SENSOR_4 +i*16))  then begin
+      if  (not ControlDio.ReadInSig(DefDio.IN_CH_1_CARRIER_UNLOCK_SENSOR_1 +nCH*16)) or
+           (not ControlDio.ReadInSig(DefDio.IN_CH_1_CARRIER_UNLOCK_SENSOR_2 +nCH*16)) or
+           (not ControlDio.ReadInSig(DefDio.IN_CH_1_CARRIER_UNLOCK_SENSOR_3 +nCH*16)) or
+           (not ControlDio.ReadInSig(DefDio.IN_CH_1_CARRIER_UNLOCK_SENSOR_4 +nCH*16))  then begin
         Result := False;
         Exit;
       end;
-
-    end;
-
+    end
   end
   else begin
-    if  (ControlDio.ReadInSig(DefDio.IN_GIB_CH_12_PROBE_UP_SENSOR +nCH*4)) or
-        (not ControlDio.ReadInSig(DefDio.IN_GIB_CH_12_PROBE_DN_SENSOR +nCH*4)) or
-        (ControlDio.ReadInSig(DefDio.IN_GIB_CH_12_SHUTTER_UP_SENSOR +nCH*4)) or
-        (not ControlDio.ReadInSig(DefDio.IN_GIB_CH_12_SHUTTER_DN_SENSOR +nCH*4))
-    then begin
-      Result := False;
-      Exit;
+    if Common.SystemInfo.OCType = DefCommon.OCType  then  begin
+      for i := (nCH*2) to (nCH*2 + 1) do begin
+        if  ( ControlDio.ReadInSig(DefDio.IN_CH_1_PROBE_BACKWARD_SENSOR +i*16)) or
+             ( ControlDio.ReadInSig(DefDio.IN_CH_1_PROBE_UP_SENSOR +i*16)) then begin
+          Result := False;
+          Exit;
+        end;
+        if  (not ControlDio.ReadInSig(DefDio.IN_CH_1_CARRIER_UNLOCK_SENSOR_1 +i*16)) or
+             (not ControlDio.ReadInSig(DefDio.IN_CH_1_CARRIER_UNLOCK_SENSOR_2 +i*16)) or
+             (not ControlDio.ReadInSig(DefDio.IN_CH_1_CARRIER_UNLOCK_SENSOR_3 +i*16)) or
+             (not ControlDio.ReadInSig(DefDio.IN_CH_1_CARRIER_UNLOCK_SENSOR_4 +i*16))  then begin
+          Result := False;
+          Exit;
+        end;
+      end;
+
+    end
+    else begin
+      if  (ControlDio.ReadInSig(DefDio.IN_GIB_CH_12_PROBE_UP_SENSOR +nCH*4)) or
+          (not ControlDio.ReadInSig(DefDio.IN_GIB_CH_12_PROBE_DN_SENSOR +nCH*4)) or
+          (ControlDio.ReadInSig(DefDio.IN_GIB_CH_12_SHUTTER_UP_SENSOR +nCH*4)) or
+          (not ControlDio.ReadInSig(DefDio.IN_GIB_CH_12_SHUTTER_DN_SENSOR +nCH*4))
+      then begin
+        Result := False;
+        Exit;
+      end;
     end;
   end;
 
@@ -3389,306 +3433,374 @@ begin
 
   ThreadTask(procedure begin
 try
+    if not Common.PLCInfo.InlineGIB then begin
 
-{$REGION 'Last Product'}
-    if Common.StatusInfo.LastProduct then begin
-      //잔여 처리
-      if not CheckLoad_Used(nStage, COMMPLC_CH_12) then begin
-        //사용 안할 경우
-        SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Last Product Process: Not Used Pair=0');
-      end
-      else if not CheckEmpty_Pair(nStage, COMMPLC_CH_12) then begin
-        //Last Product 갑자기 변경하는 현상에 대한 방어 - Start 여부 확인
-        if CheckStage_Started(nStage) then begin
-          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Last Product Process: Do not Request - Script is Running');
-          Exit;
+  {$REGION 'Last Product'}
+      if Common.StatusInfo.LastProduct then begin
+        //잔여 처리
+        if not CheckLoad_Used(nStage, COMMPLC_CH_12) then begin
+          //사용 안할 경우
+          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Last Product Process: Not Used Pair=0');
+        end
+        else if not CheckEmpty_Pair(nStage, COMMPLC_CH_12) then begin
+          //Last Product 갑자기 변경하는 현상에 대한 방어 - Start 여부 확인
+          if CheckStage_Started(nStage) then begin
+            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Last Product Process: Do not Request - Script is Running');
+            Exit;
+          end;
+
+          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Last Product Process: Empty');
+          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, format('Request Load %s 0', [chr(ord('A') + nStage)]));
+
+          frmTest4ChOC[nStage].ClearChData(0);
+          frmTest4ChOC[nStage].ClearChData(1);
+          frmTest4ChOC[nStage].DisplayResult(0, -3, 0, 'Request Load');
+          frmTest4ChOC[nStage].DisplayResult(1, -3, 0, 'Request Load');
+
+          Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_LOADING;
+          g_CommPLC.ROBOT_Load_Request(COMMPLC_CH_12);
+        end
+        else begin
+          //Last Product 갑자기 변경하는 현상에 대한 방어 - Start 여부 확인
+          if CheckStage_Started(nStage) then begin
+            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Last Product Process: Do not Request - Script is Running');
+            Exit;
+          end;
+
+          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Last Product Process: not Empty');
+          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, format('Request Exchange %s 0', [chr(ord('A') + nStage)]));
+
+          frmTest4ChOC[nStage].ClearChData(0);
+          frmTest4ChOC[nStage].ClearChData(1);
+          frmTest4ChOC[nStage].DisplayResult(0, -3, 0, 'Request Exchange');
+          frmTest4ChOC[nStage].DisplayResult(1, -3, 0, 'Request Exchange');
+          sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[0 + nStage*4]);
+          //Common.MLog(0 + nStage*4, sMsg);
+          //frmTest4ChOC[nStage].AddLog(sMsg, 0);
+          SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 0, sMsg);
+          sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[1 + nStage*4]);
+          //Common.MLog(1 + nStage*4, sMsg);
+          //frmTest4ChOC[nStage].AddLog(sMsg, 1);
+          SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 1, sMsg);
+
+          Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_EXCHANGE;
+          g_CommPLC.ROBOT_Exchange_Request(COMMPLC_CH_12);
         end;
 
-        SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Last Product Process: Empty');
-        SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, format('Request Load %s 0', [chr(ord('A') + nStage)]));
+        Sleep(10);
 
-        frmTest4ChOC[nStage].ClearChData(0);
-        frmTest4ChOC[nStage].ClearChData(1);
-        frmTest4ChOC[nStage].DisplayResult(0, -3, 0, 'Request Load');
-        frmTest4ChOC[nStage].DisplayResult(1, -3, 0, 'Request Load');
+        if not CheckLoad_Used(nStage, COMMPLC_CH_34) then begin
+          //사용 안할 경우
+          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Last Product Process: Not Used Pair=1');
+        end
+        else if CheckEmpty_Pair(nStage, COMMPLC_CH_34) then begin
+          //Last Product 갑자기 변경하는 현상에 대한 방어 - Start 여부 확인
+          if CheckStage_Started(nStage) then begin
+            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Last Product Process: Do not Request - Script is Running');
+            Exit;
+          end;
 
-        Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_LOADING;
-        g_CommPLC.ROBOT_Load_Request(COMMPLC_CH_12);
-      end
-      else begin
-        //Last Product 갑자기 변경하는 현상에 대한 방어 - Start 여부 확인
-        if CheckStage_Started(nStage) then begin
-          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Last Product Process: Do not Request - Script is Running');
-          Exit;
+          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Last Product Process: Empty');
+          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, format('Request Load %s 1', [chr(ord('A') + nStage)]));
+          frmTest4ChOC[nStage].ClearChData(2);
+          frmTest4ChOC[nStage].ClearChData(3);
+          frmTest4ChOC[nStage].DisplayResult(2, -1, 0, 'Request Load');
+          frmTest4ChOC[nStage].DisplayResult(3, -1, 0, 'Request Load');
+
+          Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_LOADING;
+          g_CommPLC.ROBOT_Load_Request(COMMPLC_CH_34);
+        end
+        else begin
+          //Last Product 갑자기 변경하는 현상에 대한 방어 - Start 여부 확인
+          if CheckStage_Started(COMMPLC_CH_34) then begin
+            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Last Product Process: Do not Request - Script is Running');
+            Exit;
+          end;
+
+          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Last Product Process: not Empty');
+          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, format('Request Exchange %s 1', [chr(ord('A') + nStage)]));
+
+          frmTest4ChOC[nStage].ClearChData(2);
+          frmTest4ChOC[nStage].ClearChData(3);
+          frmTest4ChOC[nStage].DisplayResult(2, -3, 0, 'Request Exchange');
+          frmTest4ChOC[nStage].DisplayResult(3, -3, 0, 'Request Exchange');
+
+          sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[2 + nStage*4]);
+          //Common.MLog(2 + nStage*4, sMsg);
+          //frmTest4ChOC[nStage].AddLog(sMsg, 2);
+          SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 2, sMsg);
+          sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[3 + nStage*4]);
+          //Common.MLog(3 + nStage*4, sMsg);
+          //frmTest4ChOC[nStage].AddLog(sMsg, 3);
+          SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 3, sMsg);
+
+          Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_EXCHANGE;
+          g_CommPLC.ROBOT_Exchange_Request(COMMPLC_CH_34);
         end;
 
-        SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Last Product Process: not Empty');
-        SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, format('Request Exchange %s 0', [chr(ord('A') + nStage)]));
+        exit;
+      end; // if Common.StatusInfo.LastProduct then begin
+  {$ENDREGION}
+      if nCh = CH_TOP then begin
 
-        frmTest4ChOC[nStage].ClearChData(0);
-        frmTest4ChOC[nStage].ClearChData(1);
-        frmTest4ChOC[nStage].DisplayResult(0, -3, 0, 'Request Exchange');
-        frmTest4ChOC[nStage].DisplayResult(1, -3, 0, 'Request Exchange');
-        sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[0 + nStage*4]);
-        //Common.MLog(0 + nStage*4, sMsg);
-        //frmTest4ChOC[nStage].AddLog(sMsg, 0);
-        SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 0, sMsg);
-        sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[1 + nStage*4]);
-        //Common.MLog(1 + nStage*4, sMsg);
-        //frmTest4ChOC[nStage].AddLog(sMsg, 1);
-        SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 1, sMsg);
+        if not CheckLoad_Used(nStage, COMMPLC_CH_12) then begin
+          //사용 안할 경우
+          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Not Used Pair=0');
+        end
+        else if not CheckEmpty_Pair(nStage, COMMPLC_CH_12) then begin
+          //Last Product 갑자기 변경하는 현상에 대한 방어 - Start 여부 확인
+          if not CheckProbe(COMMPLC_CH_12) then begin
+            nRet := 0;
+            nRet := ControlDio.ProbeBackward(0);
+            if nRet > 0 then begin
+              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'ProbeBackward 1- NG');
+              Exit;
+            end;
+            nRet := ControlDio.UnlockCarrier(0,true);
+            if nRet > 0 then begin
+              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockCarrier 1 - NG');
+              Exit;
+            end;
+            nRet := ControlDio.ProbeBackward(1);
+            if nRet > 0 then begin
+              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'ProbeBackward 2 - NG');
+              Exit;
+            end;
+            nRet := ControlDio.UnlockCarrier(1,true);
+            if nRet > 0 then begin
+              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockCarrier  2- NG');
+              Exit;
+            end;
+          end;
 
-        Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_EXCHANGE;
-        g_CommPLC.ROBOT_Exchange_Request(COMMPLC_CH_12);
+          if CheckStage_Started(COMMPLC_CH_12) then begin
+            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Do not Request - Script is Running');
+            Exit;
+          end;
+
+          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, format('Request Load %s 0', [chr(ord('A') + nStage)]));
+          frmTest4ChOC[nStage].ClearChData(0);
+          frmTest4ChOC[nStage].ClearChData(1);
+          frmTest4ChOC[nStage].DisplayResult(0, -3, 0, 'Request Load');
+          frmTest4ChOC[nStage].DisplayResult(1, -3, 0, 'Request Load');
+          Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_LOADING;
+          g_CommPLC.ROBOT_Load_Request(COMMPLC_CH_12);
+        end
+        else begin
+          //Last Product 갑자기 변경하는 현상에 대한 방어 - Start 여부 확인
+          if CheckStage_Started(COMMPLC_CH_12) then begin
+            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Do not Request - Script is Running');
+            Exit;
+          end;
+          if not CheckProbe(COMMPLC_CH_12) then begin
+            nRet := 0;
+            nRet := ControlDio.ProbeBackward(0);
+            if nRet > 0 then begin
+              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'ProbeBackward 1- NG');
+              Exit;
+            end;
+            nRet := ControlDio.UnlockCarrier(0,true);
+            if nRet > 0 then begin
+              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockCarrier 1 - NG');
+              Exit;
+            end;
+            nRet := ControlDio.ProbeBackward(1);
+            if nRet > 0 then begin
+              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'ProbeBackward 2 - NG');
+              Exit;
+            end;
+            nRet := ControlDio.UnlockCarrier(1,true);
+            if nRet > 0 then begin
+              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockCarrier  2- NG');
+              Exit;
+            end;
+          end;
+
+          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, format('Request UnLoad %s 0', [chr(ord('A') + nStage)]));
+
+          frmTest4ChOC[nStage].ClearChData(0);
+          frmTest4ChOC[nStage].ClearChData(1);
+          frmTest4ChOC[nStage].DisplayResult(0, -3, 0, 'Request UnLoad');
+          frmTest4ChOC[nStage].DisplayResult(1, -3, 0, 'Request UnLoad');
+
+          sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[0 + nStage*4]);
+          Common.MLog(0 + nStage*4, sMsg);
+          frmTest4ChOC[nStage].AddLog(sMsg, 0);
+          SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 0, sMsg);
+          sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[1 + nStage*4]);
+          Common.MLog(1 + nStage*4, sMsg);
+          frmTest4ChOC[nStage].AddLog(sMsg, 1);
+          SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 1, sMsg);
+
+          Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_UNLOADING;
+          g_CommPLC.ROBOT_Unload_Request(COMMPLC_CH_12);
+        end;
+
       end;
 
-      Sleep(10);
 
-      if not CheckLoad_Used(nStage, COMMPLC_CH_34) then begin
-        //사용 안할 경우
-        SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Last Product Process: Not Used Pair=1');
-      end
-      else if CheckEmpty_Pair(nStage, COMMPLC_CH_34) then begin
-        //Last Product 갑자기 변경하는 현상에 대한 방어 - Start 여부 확인
-        if CheckStage_Started(nStage) then begin
-          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Last Product Process: Do not Request - Script is Running');
-          Exit;
+      if nCh = CH_BOTTOM then begin
+        if not CheckLoad_Used(nStage, COMMPLC_CH_34) then begin
+          //사용 안할 경우
+          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Not Used Pair=1');
+        end
+        else if not CheckEmpty_Pair(nStage, COMMPLC_CH_34) then begin
+          //Last Product 갑자기 변경하는 현상에 대한 방어 - Start 여부 확인
+          if CheckStage_Started(COMMPLC_CH_34) then begin
+            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Do not Request - Script is Running');
+            Exit;
+          end;
+          if not CheckProbe(COMMPLC_CH_34) then begin
+            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'CheckProbe - NG');
+            nRet := 0;
+            nRet := ControlDio.ProbeBackward(2);
+            if nRet > 0 then begin
+              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'ProbeBackward 3- NG');
+              Exit;
+            end;
+            nRet := ControlDio.UnlockCarrier(2,true);
+            if nRet > 0 then begin
+              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockCarrier 3 - NG');
+              Exit;
+            end;
+            nRet := ControlDio.ProbeBackward(3);
+            if nRet > 0 then begin
+              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'ProbeBackward 4 - NG');
+              Exit;
+            end;
+            nRet := ControlDio.UnlockCarrier(3,true);
+            if nRet > 0 then begin
+              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockCarrier 4 - NG');
+              Exit;
+            end;
+          end;
+
+          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, format('Request Load %s 1', [chr(ord('A') + nStage)]));
+          frmTest4ChOC[nStage].ClearChData(2);
+          frmTest4ChOC[nStage].ClearChData(3);
+          frmTest4ChOC[nStage].DisplayResult(2, -3, 0, 'Request Load');
+          frmTest4ChOC[nStage].DisplayResult(3, -3, 0, 'Request Load');
+          Common.StatusInfo.StageStep[JIG_A]:= STAGE_STEP_LOADING;
+          g_CommPLC.ROBOT_Load_Request(COMMPLC_CH_34);
+        end
+        else begin
+          //Last Product 갑자기 변경하는 현상에 대한 방어 - Start 여부 확인
+          if CheckStage_Started(COMMPLC_CH_34) then begin
+            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Do not Request - Script is Running');
+            Exit;
+          end;
+          if not CheckProbe(COMMPLC_CH_34) then begin
+
+            nRet := 0;
+            nRet := ControlDio.ProbeBackward(2);
+            if nRet > 0 then begin
+              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'ProbeBackward 3- NG');
+              Exit;
+            end;
+            nRet := ControlDio.UnlockCarrier(2,true);
+            if nRet > 0 then begin
+              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockCarrier 3 - NG');
+              Exit;
+            end;
+            nRet := ControlDio.ProbeBackward(3);
+            if nRet > 0 then begin
+              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'ProbeBackward 4 - NG');
+              Exit;
+            end;
+            nRet := ControlDio.UnlockCarrier(3,true);
+            if nRet > 0 then begin
+              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockCarrier 4 - NG');
+              Exit;
+            end;
+          end;
+
+          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, format('Request UnLoad %s 1', [chr(ord('A') + nStage)]));
+
+          frmTest4ChOC[nStage].ClearChData(2);
+          frmTest4ChOC[nStage].ClearChData(3);
+          frmTest4ChOC[nStage].DisplayResult(2, -3, 0, 'Request UnLoad');
+          frmTest4ChOC[nStage].DisplayResult(3, -3, 0, 'Request UnLoad');
+
+          sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[2 + nStage*4]);
+          //Common.MLog(2 + nStage*4, sMsg);
+          //frmTest4ChOC[nStage].AddLog(sMsg, 2);
+          SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 2, sMsg);
+          sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[3 + nStage*4]);
+          //Common.MLog(3 + nStage*4, sMsg);
+          //frmTest4ChOC[nStage].AddLog(sMsg, 3);
+          SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 3, sMsg);
+
+          Common.StatusInfo.StageStep[JIG_A]:= STAGE_STEP_UNLOADING;
+          g_CommPLC.ROBOT_Unload_Request(COMMPLC_CH_34);
         end;
 
-        SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Last Product Process: Empty');
-        SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, format('Request Load %s 1', [chr(ord('A') + nStage)]));
-        frmTest4ChOC[nStage].ClearChData(2);
-        frmTest4ChOC[nStage].ClearChData(3);
-        frmTest4ChOC[nStage].DisplayResult(2, -1, 0, 'Request Load');
-        frmTest4ChOC[nStage].DisplayResult(3, -1, 0, 'Request Load');
-
-        Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_LOADING;
-        g_CommPLC.ROBOT_Load_Request(COMMPLC_CH_34);
-      end
-      else begin
-        //Last Product 갑자기 변경하는 현상에 대한 방어 - Start 여부 확인
-        if CheckStage_Started(COMMPLC_CH_34) then begin
-          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Last Product Process: Do not Request - Script is Running');
-          Exit;
-        end;
-
-        SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Last Product Process: not Empty');
-        SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, format('Request Exchange %s 1', [chr(ord('A') + nStage)]));
-
-        frmTest4ChOC[nStage].ClearChData(2);
-        frmTest4ChOC[nStage].ClearChData(3);
-        frmTest4ChOC[nStage].DisplayResult(2, -3, 0, 'Request Exchange');
-        frmTest4ChOC[nStage].DisplayResult(3, -3, 0, 'Request Exchange');
-
-        sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[2 + nStage*4]);
-        //Common.MLog(2 + nStage*4, sMsg);
-        //frmTest4ChOC[nStage].AddLog(sMsg, 2);
-        SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 2, sMsg);
-        sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[3 + nStage*4]);
-        //Common.MLog(3 + nStage*4, sMsg);
-        //frmTest4ChOC[nStage].AddLog(sMsg, 3);
-        SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 3, sMsg);
-
-        Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_EXCHANGE;
-        g_CommPLC.ROBOT_Exchange_Request(COMMPLC_CH_34);
       end;
-
-      exit;
-    end; // if Common.StatusInfo.LastProduct then begin
-{$ENDREGION}
-    if nCh = CH_TOP then begin
-
-      if not CheckLoad_Used(nStage, COMMPLC_CH_12) then begin
+    end
+    else begin
+      if not CheckLoad_Used(0, nCh) then begin
         //사용 안할 경우
         SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Not Used Pair=0');
       end
-      else if not CheckEmpty_Pair(nStage, COMMPLC_CH_12) then begin
+      else if not CheckEmpty_Pair(0, nCh) then begin
         //Last Product 갑자기 변경하는 현상에 대한 방어 - Start 여부 확인
-        if not CheckProbe(COMMPLC_CH_12) then begin
+        if not CheckProbe(nCh) then begin
           nRet := 0;
-          nRet := ControlDio.ProbeBackward(0);
+          nRet := ControlDio.ProbeBackward(nCh);
           if nRet > 0 then begin
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'ProbeBackward 1- NG');
+            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, format('ProbeBackward CH %d- NG',[nCH]));
             Exit;
           end;
-          nRet := ControlDio.UnlockCarrier(0,true);
+          nRet := ControlDio.UnlockCarrier(nCh,true);
           if nRet > 0 then begin
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockCarrier 1 - NG');
-            Exit;
-          end;
-          nRet := ControlDio.ProbeBackward(1);
-          if nRet > 0 then begin
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'ProbeBackward 2 - NG');
-            Exit;
-          end;
-          nRet := ControlDio.UnlockCarrier(1,true);
-          if nRet > 0 then begin
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockCarrier  2- NG');
+            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, format('UnlockCarrier CH %d- NG',[nCH]));
             Exit;
           end;
         end;
 
-        if CheckStage_Started(COMMPLC_CH_12) then begin
+        if CheckStage_Started(nCH) then begin
           SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Do not Request - Script is Running');
           Exit;
         end;
 
-        SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, format('Request Load %s 0', [chr(ord('A') + nStage)]));
-        frmTest4ChOC[nStage].ClearChData(0);
-        frmTest4ChOC[nStage].ClearChData(1);
-        frmTest4ChOC[nStage].DisplayResult(0, -3, 0, 'Request Load');
-        frmTest4ChOC[nStage].DisplayResult(1, -3, 0, 'Request Load');
+        SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, format('Request Load  CH : %d ',[nCH]));
+        frmTest4ChOC[nStage].ClearChData(nCH);
+        frmTest4ChOC[nStage].DisplayResult(nCH, -3, 0, 'Request Load');
         Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_LOADING;
-        g_CommPLC.ROBOT_Load_Request(COMMPLC_CH_12);
+        g_CommPLC.ROBOT_Load_Request(nCH);
       end
       else begin
         //Last Product 갑자기 변경하는 현상에 대한 방어 - Start 여부 확인
-        if CheckStage_Started(COMMPLC_CH_12) then begin
+        if CheckStage_Started(nCH) then begin
           SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Do not Request - Script is Running');
           Exit;
         end;
-        if not CheckProbe(COMMPLC_CH_12) then begin
+        if not CheckProbe(nCH) then begin
           nRet := 0;
-          nRet := ControlDio.ProbeBackward(0);
+          nRet := ControlDio.ProbeBackward(nCH);
           if nRet > 0 then begin
             SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'ProbeBackward 1- NG');
             Exit;
           end;
-          nRet := ControlDio.UnlockCarrier(0,true);
+          nRet := ControlDio.UnlockCarrier(nCH,true);
           if nRet > 0 then begin
             SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockCarrier 1 - NG');
-            Exit;
-          end;
-          nRet := ControlDio.ProbeBackward(1);
-          if nRet > 0 then begin
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'ProbeBackward 2 - NG');
-            Exit;
-          end;
-          nRet := ControlDio.UnlockCarrier(1,true);
-          if nRet > 0 then begin
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockCarrier  2- NG');
             Exit;
           end;
         end;
 
         SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, format('Request UnLoad %s 0', [chr(ord('A') + nStage)]));
 
-        frmTest4ChOC[nStage].ClearChData(0);
-        frmTest4ChOC[nStage].ClearChData(1);
-        frmTest4ChOC[nStage].DisplayResult(0, -3, 0, 'Request UnLoad');
-        frmTest4ChOC[nStage].DisplayResult(1, -3, 0, 'Request UnLoad');
+        frmTest4ChOC[nStage].ClearChData(nCH);
+        frmTest4ChOC[nStage].DisplayResult(nCH, -3, 0, 'Request UnLoad');
 
-        sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[0 + nStage*4]);
-        Common.MLog(0 + nStage*4, sMsg);
+        sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[nCH]);
+        Common.MLog(nCH, sMsg);
         frmTest4ChOC[nStage].AddLog(sMsg, 0);
         SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 0, sMsg);
-        sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[1 + nStage*4]);
-        Common.MLog(1 + nStage*4, sMsg);
-        frmTest4ChOC[nStage].AddLog(sMsg, 1);
-        SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 1, sMsg);
 
         Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_UNLOADING;
-        g_CommPLC.ROBOT_Unload_Request(COMMPLC_CH_12);
+        g_CommPLC.ROBOT_Unload_Request(nCH);
       end;
-
-    end;
-
-
-    if nCh = CH_BOTTOM then begin
-      if not CheckLoad_Used(nStage, COMMPLC_CH_34) then begin
-        //사용 안할 경우
-        SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Not Used Pair=1');
-      end
-      else if not CheckEmpty_Pair(nStage, COMMPLC_CH_34) then begin
-        //Last Product 갑자기 변경하는 현상에 대한 방어 - Start 여부 확인
-        if CheckStage_Started(COMMPLC_CH_34) then begin
-          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Do not Request - Script is Running');
-          Exit;
-        end;
-        if not CheckProbe(COMMPLC_CH_34) then begin
-          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'CheckProbe - NG');
-          nRet := 0;
-          nRet := ControlDio.ProbeBackward(2);
-          if nRet > 0 then begin
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'ProbeBackward 3- NG');
-            Exit;
-          end;
-          nRet := ControlDio.UnlockCarrier(2,true);
-          if nRet > 0 then begin
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockCarrier 3 - NG');
-            Exit;
-          end;
-          nRet := ControlDio.ProbeBackward(3);
-          if nRet > 0 then begin
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'ProbeBackward 4 - NG');
-            Exit;
-          end;
-          nRet := ControlDio.UnlockCarrier(3,true);
-          if nRet > 0 then begin
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockCarrier 4 - NG');
-            Exit;
-          end;
-        end;
-
-        SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, format('Request Load %s 1', [chr(ord('A') + nStage)]));
-        frmTest4ChOC[nStage].ClearChData(2);
-        frmTest4ChOC[nStage].ClearChData(3);
-        frmTest4ChOC[nStage].DisplayResult(2, -3, 0, 'Request Load');
-        frmTest4ChOC[nStage].DisplayResult(3, -3, 0, 'Request Load');
-        Common.StatusInfo.StageStep[JIG_A]:= STAGE_STEP_LOADING;
-        g_CommPLC.ROBOT_Load_Request(COMMPLC_CH_34);
-      end
-      else begin
-        //Last Product 갑자기 변경하는 현상에 대한 방어 - Start 여부 확인
-        if CheckStage_Started(COMMPLC_CH_34) then begin
-          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Do not Request - Script is Running');
-          Exit;
-        end;
-        if not CheckProbe(COMMPLC_CH_34) then begin
-
-          nRet := 0;
-          nRet := ControlDio.ProbeBackward(2);
-          if nRet > 0 then begin
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'ProbeBackward 3- NG');
-            Exit;
-          end;
-          nRet := ControlDio.UnlockCarrier(2,true);
-          if nRet > 0 then begin
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockCarrier 3 - NG');
-            Exit;
-          end;
-          nRet := ControlDio.ProbeBackward(3);
-          if nRet > 0 then begin
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'ProbeBackward 4 - NG');
-            Exit;
-          end;
-          nRet := ControlDio.UnlockCarrier(3,true);
-          if nRet > 0 then begin
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockCarrier 4 - NG');
-            Exit;
-          end;
-        end;
-
-        SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, format('Request UnLoad %s 1', [chr(ord('A') + nStage)]));
-
-        frmTest4ChOC[nStage].ClearChData(2);
-        frmTest4ChOC[nStage].ClearChData(3);
-        frmTest4ChOC[nStage].DisplayResult(2, -3, 0, 'Request UnLoad');
-        frmTest4ChOC[nStage].DisplayResult(3, -3, 0, 'Request UnLoad');
-
-        sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[2 + nStage*4]);
-        //Common.MLog(2 + nStage*4, sMsg);
-        //frmTest4ChOC[nStage].AddLog(sMsg, 2);
-        SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 2, sMsg);
-        sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[3 + nStage*4]);
-        //Common.MLog(3 + nStage*4, sMsg);
-        //frmTest4ChOC[nStage].AddLog(sMsg, 3);
-        SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 3, sMsg);
-
-        Common.StatusInfo.StageStep[JIG_A]:= STAGE_STEP_UNLOADING;
-        g_CommPLC.ROBOT_Unload_Request(COMMPLC_CH_34);
-      end;
-
     end;
 
     //둘다 사용하지 않을 경우
@@ -4985,7 +5097,7 @@ begin
 
     else
 
-      SystemParametersInfo(SPI_SETSCREENSAVEACTIVE, ord(FALSE), nil, SPIF_SENDCHANGE); // 화면보호기 OFF
+    SystemParametersInfo(SPI_SETSCREENSAVEACTIVE, ord(FALSE), nil, SPIF_SENDCHANGE); // 화면보호기 OFF
 
 
     Msg.Result := Integer(True);

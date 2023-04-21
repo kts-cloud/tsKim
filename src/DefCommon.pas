@@ -49,6 +49,10 @@ Const
   CH_TOPGroup             = 10;
   CH_BOTTOMGroup          = 11;
   CH_ALLGroup             = 12;
+  CH1_GIB                 = 0;
+  CH2_GIB                 = 1;
+  CH3_GIB                 = 2;
+  CH4_GIB                 = 3;
 
   MAX_CH                  = 3;
   MAX_JIG_CH              = 3;
