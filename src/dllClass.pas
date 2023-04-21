@@ -428,7 +428,7 @@ begin
   SetLength(m_bIsProcessUnloadDone,4);
   SetLength(m_bIsDLLWork,4);
   for I := 0 to DefCommon.MAX_CH do begin
-    m_bIsProcessDone[i] := True;
+    m_bIsProcessDone[i] := False;
     m_bIsDLLWork[i] := False;
   end;
 
@@ -1865,11 +1865,7 @@ begin
 //
 //
 //       end;
-//     end;
-
-
-
-
+//     endcr
   finally
      tmrCycle.Enabled := true;
   end;
@@ -2053,6 +2049,7 @@ var
 i : integer;
 hWnd : THandle;
 begin
+  m_UnInit;
   hWnd := FindWindow(nil,'Form_Hidden');    // Added by KTS 2023-01-17 ¿ÀÈÄ 3:05:15 LGD DLL Form ´Ý±â
   if hWnd > 0 then
     PostMessage(hWnd, WM_CLOSE, 0, 0);
@@ -2066,18 +2063,8 @@ begin
 
   end;
 
-
-
-//  for I := DefCommon.CH1 to DefCommon.MAX_CH do begin
-//    if PGAF9Fpga[i] <> nil then begin
-//      PGAF9Fpga[i].Free;
-//      PGAF9Fpga[i] := nil;
-//    end;
-//  end;
-
-  m_UnInit;
-
   FreeLibrary(m_hDll);
+  m_hDll := 0;
   inherited;
 end;
 

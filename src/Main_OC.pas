@@ -132,6 +132,7 @@ type
     Button1: TButton;
     RzPanel11: TRzPanel;
     pnlLGDDLLName: TRzPanel;
+    Edit1: TEdit;
     procedure FormCreate(Sender: TObject);
     procedure MyExceptionHandler(Sender : TObject; E : Exception );
     procedure btnInitClick(Sender: TObject);
@@ -447,6 +448,7 @@ begin
 
     // Fusing model Data.
     Common.LoadModelInfo(Common.SystemInfo.TestModel);
+    Common.SaveModelInfoDLL(Trim(Common.SystemInfo.TestModel));
 //    frmModelDownload := TfrmModelDownload.Create(Self);
 //    try
 //      nRet:= frmModelDownload.ShowModal;
@@ -979,7 +981,6 @@ begin
   if g_CommPLC = nil then Exit;
   //Dectect Flag에 따른 보고
   if Common.SystemInfo.OCType = DefCommon.OCType then begin
-
     bExist1:= ControlDio.ReadInSig(IN_CH_1_CARRIER_SENSOR + nPair*32);
     bExist2:= ControlDio.ReadInSig( 16 + IN_CH_1_CARRIER_SENSOR + nPair*32);
   end
@@ -1000,8 +1001,16 @@ begin
   for i := 0 to MAX_CH do begin
     if Common.StatusInfo.UseChannel[i] then begin
       Inc(nUseCount); //전체 사용 채널 개수
-      if ControlDio.ReadInSig(i*16 + IN_CH_1_CARRIER_SENSOR) then begin
-        Inc(nExistsCount); //캐리어 있는 채널 개수
+      if Common.SystemInfo.OCType = DefCommon.OCType then begin
+        if ControlDio.ReadInSig(i*16 + IN_CH_1_CARRIER_SENSOR) then begin
+          Inc(nExistsCount); //캐리어 있는 채널 개수
+        end;
+      end
+      else begin
+        if ControlDio.ReadInSig(i*8 + IN_GIB_CH_1_CARRIER_SENSOR) then begin
+          Inc(nExistsCount); //캐리어 있는 채널 개수
+        end;
+
       end;
     end;
   end;
@@ -3379,24 +3388,8 @@ begin
   Common.StatusInfo.Loading:= True; //로딩 중 Interlock
 
   ThreadTask(procedure begin
-    //ContactDown 때문에 쓰레드 필요
 try
-    //Pogo 사용여부에 따른 처리
-//    if Common.SystemInfo.UseNoPogo then begin
-//      nRet:= ControlDio.ClampUp(DefCommon.CH_STAGE_A + nStage);
-//    end
-//    else begin
-//      nRet:= ControlDio.ContactDown(DefCommon.CH_STAGE_A + nStage);
-//    end;
 
-//    nRet:= ControlDio.UnlockCarrier(DefCommon.CH_ALL,False);
-
-//
-//    if nRet <> 0 then begin
-//      //ShowSysLog(format('ContactDown NG %s Ret=%d', [chr(ord('A') + nStage), nRet]));
-//      //알람 처리 필요.
-//      Exit;
-//    end;
 {$REGION 'Last Product'}
     if Common.StatusInfo.LastProduct then begin
       //잔여 처리
@@ -3505,7 +3498,6 @@ try
 {$ENDREGION}
     if nCh = CH_TOP then begin
 
-      Sleep(500);
       if not CheckLoad_Used(nStage, COMMPLC_CH_12) then begin
         //사용 안할 경우
         SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Not Used Pair=0');
@@ -3517,7 +3509,6 @@ try
           nRet := ControlDio.ProbeBackward(0);
           if nRet > 0 then begin
             SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'ProbeBackward 1- NG');
-
             Exit;
           end;
           nRet := ControlDio.UnlockCarrier(0,true);
@@ -3604,7 +3595,6 @@ try
 
 
     if nCh = CH_BOTTOM then begin
-      Sleep(500);
       if not CheckLoad_Used(nStage, COMMPLC_CH_34) then begin
         //사용 안할 경우
         SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Not Used Pair=1');
@@ -3745,6 +3735,10 @@ begin
     end;
   end
   else begin
+    if not Common.StatusInfo.AutoMode then begin
+      ShowSysLog('Manual Mode Runing!!!! ');
+     Exit; //Auto일 경우 키 입력 무 - 실수로 인한 동작 방지
+    end;
     if btData <> $4E then begin
       Exit; //Auto일 경우 키 입력 무 - 실수로 인한 동작 방지
     end;
@@ -3906,7 +3900,7 @@ end;
 
 procedure TfrmMain_OC.Button1Click(Sender: TObject);
 begin
-  Common.ReadLGDDLLSummaryLog('TEST1234567890');
+  Common.ReadLGDDLLSummaryLog(Edit1.Text);
 end;
 
 procedure TfrmMain_OC.SaveCsvSummaryLog(nCh: Integer);
@@ -4009,17 +4003,16 @@ begin
     //Heavy Alarm
     if nValue <> 0 then begin
       ShowSysLog('[ALARM ON] ' + Common.StatusInfo.AlarmMsg[nIndex], 1);
-//      Set_AutoMode(False); //매뉴얼 모드로 전환
+      Set_AutoMode(False); //매뉴얼 모드로 전환
 
       g_CommPLC.ECS_Alarm_Add(1, nIndex, 1); //알람 보고    // Added by KTS 2022-08-04 오후 4:30:33
+      Sleep(200);
       g_CommPLC.ECS_Unit_Status(COMMPLC_UNIT_STATE_DOWN, nIndex); //
       ControlDio.MelodyOn:= True;
       ControlDio.Set_TowerLampState(LAMP_STATE_ERROR);
 
       //Door Opend
       if nValue = 2 then begin
-
-
         if frmDoorOpenAlarmMsg = nil then begin
           frmDoorOpenAlarmMsg:= TfrmDoorOpenAlarmMsg.Create(self);
         end;
@@ -4076,7 +4069,7 @@ end;
 
 procedure TfrmMain_OC.Set_AutoMode(bAuto: Boolean);
 var
-  nStage: Integer;
+  nStage,i: Integer;
 begin
   if g_CommPLC <> nil then begin
     if not g_CommPLC.Connected then begin
@@ -4097,6 +4090,11 @@ begin
       if not CheckState_DIO then begin
         ShowSysLog('DIO CheckState NG', 1);
         Exit;
+      end;
+
+      for I := 0 to 1 do begin
+        if DaeIonizer[i] <> nil then
+          DaeIonizer[i].SendRun;
       end;
 
 //      if not CheckVersionInterlock then begin
@@ -4144,6 +4142,10 @@ begin
     else begin
       if not Common.StatusInfo.AutoMode then Exit;
       //tolGroupMain.Enabled:= True; //툴바 사용 가능
+      for I := 0 to 1 do begin
+        if DaeIonizer[i] <> nil then
+          DaeIonizer[i].SendStop;
+      end;
       Common.StatusInfo.Loading:= False;
       g_CommPLC.IgnoreConnect:= True;
       g_CommPLC.EQP_Clear_ROBOT_Request(0);

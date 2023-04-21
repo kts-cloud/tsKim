@@ -309,6 +309,7 @@ procedure TfrmPlcSimulate.FormDestroy(Sender: TObject);
 begin
   SetActive(0);
   Tag:= 103;
+  m_bStopMonitoring:= True;
   tmrCycle.Enabled:= false;
   if m_csWrite <> nil then begin
     m_csWrite.Free;

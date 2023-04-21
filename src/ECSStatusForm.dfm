@@ -3,7 +3,7 @@ object frmECSStatus: TfrmECSStatus
   Top = 0
   BorderStyle = bsDialog
   Caption = 'ECS Status'
-  ClientHeight = 861
+  ClientHeight = 869
   ClientWidth = 1594
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -196,7 +196,7 @@ object frmECSStatus: TfrmECSStatus
       Left = 11
       Top = 3
       Width = 495
-      Height = 286
+      Height = 294
       Caption = 'ECS'
       TabOrder = 0
       object Label7: TLabel
@@ -482,10 +482,10 @@ object frmECSStatus: TfrmECSStatus
         OnClick = btnECS_ZSETClick
       end
       object gbETC: TGroupBox
-        Left = 5
-        Top = 174
+        Left = 6
+        Top = 172
         Width = 486
-        Height = 104
+        Height = 125
         Caption = 'ETC'
         TabOrder = 12
         object Label17: TLabel
@@ -676,6 +676,18 @@ object frmECSStatus: TfrmECSStatus
           ShowHint = True
           TabOrder = 14
           OnClick = btnTakeOutReportClick
+        end
+        object btnGlassDataReport: TButton
+          Left = 166
+          Top = 102
+          Width = 75
+          Height = 25
+          Hint = 'Ch=P1, Exist=P2, Code=P3'
+          Caption = 'GlassData_Report'
+          ParentShowHint = False
+          ShowHint = True
+          TabOrder = 15
+          OnClick = btnGlassDataReportClick
         end
       end
     end

@@ -281,7 +281,7 @@ type
 //    m_bIsSyncSeq   : Boolean;
     m_hSyncEvnet   : HWND;
 
-    ScrSource : TScrMemo;
+
     atPasScrpt: TatPascalScripter;
     atScrDebug: TatScriptDebugger;
     atPasScrptMaint : TatPascalScripter;
@@ -584,7 +584,6 @@ begin
   m_bTheadIsTerminated := False;
   m_bCallTerminate:= True;
 
-  ScrSource := TScrMemo.Create(nil);     //nil
   atPasScrpt:= TatPascalScripter.Create(nil);
   atScrDebug := TatScriptDebugger.Create(nil);
   atPasScrpt.LibOptions.UseScriptFiles := False;
@@ -908,11 +907,6 @@ begin
     atPasScrpt.Clear;
     atPasScrpt.Free;
     atPasScrpt := nil;
-  end;
-
-  if ScrSource <> nil then begin
-    ScrSource.Free;
-    ScrSource := nil;
   end;
 
   if TestInfo <> nil then begin
@@ -2593,7 +2587,7 @@ begin
   With AMachine do begin
     wdRet := 3;
 //    if not CSharpDll.m_bIsDLLWork[FPgNo] then begin
-		
+
       PG[Self.FPgNo].DP860_SendOcOnOff(1{start},2000,0); //2023-03-28 jhhwang (for T/T Test)
       PG[Self.FPgNo].SetCyclicTimer(False); //2023-03-28 jhhwang (for T/T Test)
 
@@ -2609,7 +2603,7 @@ begin
           sSerialNumber := GetInputArgAsstring(1);
           sSerialNumber := Trim(sSerialNumber);
           {$IFDEF SIMULATOR}
-            sSerialNumber := 'TEST1234567890';
+            sSerialNumber := format('TEST1234567890_%d',[Self.FPgNo]);
           {$ENDIF}
 //          sPID := Copy(sSerialNumber,0,3);
           if Length(sSerialNumber) = 0 then sSerialNumber := 'TERST1234567';
@@ -3610,32 +3604,37 @@ begin
     wdRet := 1;
 		Case InputArgCount of
       1 : begin
-      sSN := GetInputArgAsString(0);
+        sSN := GetInputArgAsString(0);
+        if Length(sSN) = 0 then begin
+          ReturnOutputArg(0);
+          Exit;
+        end;
+
         //if TestInfo.CanSendApdr then begin
 //          TestInfo.ApdrData := ExecExtraFunction('MakeApdrData_EAS');
-          TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog(sSN);
+        TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog(sSN);
 
-          if not Common.StatusInfo.LogIn then begin
-            Common.MLog(self.FPgNo, 'APDR_EAS SKIP - OFF');
-            ReturnOutputArg(0);
-            Exit;
-          end;
-          //Common.MLog(Self.FPgNo,TestInfo.ApdrData);
-          if DongaGmes <> nil then begin
-            //EAS ADPR은 응답을 기다리지 않는다.
+        if not Common.StatusInfo.LogIn then begin
+          Common.MLog(self.FPgNo, 'APDR_EAS SKIP - OFF');
+          ReturnOutputArg(0);
+          Exit;
+        end;
+        //Common.MLog(Self.FPgNo,TestInfo.ApdrData);
+        if DongaGmes <> nil then begin
+          //EAS ADPR은 응답을 기다리지 않는다.
+          SendMainGuiDisplay(DefGmes.EAS_APDR);
+          SendTestGuiDisplay(DefGmes.EAS_APDR, '','', 0);
+          wdRet := WAIT_OBJECT_0;
+          (*
+          wdRet := CheckSyncCmdAck(procedure begin
             SendMainGuiDisplay(DefGmes.EAS_APDR);
             SendTestGuiDisplay(DefGmes.EAS_APDR, '','', 0);
-            wdRet := WAIT_OBJECT_0;
-            (*
-            wdRet := CheckSyncCmdAck(procedure begin
-              SendMainGuiDisplay(DefGmes.EAS_APDR);
-              SendTestGuiDisplay(DefGmes.EAS_APDR, '','', 0);
-            end,5000,1);
-            *)
-          end
-          else begin
-            wdRet := WAIT_OBJECT_0;
-          end;
+          end,5000,1);
+          *)
+        end
+        else begin
+          wdRet := WAIT_OBJECT_0;
+        end;
        // end
        // else begin
        //   wdRet := WAIT_OBJECT_0;

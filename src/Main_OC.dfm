@@ -1505,7 +1505,17 @@ object frmMain_OC: TfrmMain_OC
     Height = 25
     Caption = 'Button1'
     TabOrder = 5
+    Visible = False
     OnClick = Button1Click
+  end
+  object Edit1: TEdit
+    Left = 79
+    Top = 592
+    Width = 121
+    Height = 21
+    TabOrder = 6
+    Text = 'Edit1'
+    Visible = False
   end
   object ilIMGMain: TImageList
     ColorDepth = cd32Bit

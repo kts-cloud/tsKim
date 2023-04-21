@@ -5960,7 +5960,7 @@ object frmModelInfo: TfrmModelInfo
           Font.Name = 'Tahoma'
           Font.Style = []
           ParentFont = False
-          TabOrder = 2
+          TabOrder = 0
           Transparent = True
           object btn1: TRzBitBtn
             Left = 1226

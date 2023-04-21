@@ -1552,6 +1552,7 @@ object frmSystemSetup: TfrmSystemSetup
         GroupStyle = gsBanner
         ParentFont = False
         TabOrder = 5
+        Visible = False
         object Label1: TLabel
           Left = 366
           Top = 109
@@ -2146,7 +2147,7 @@ object frmSystemSetup: TfrmSystemSetup
         end
       end
       object RzGrpOptions: TRzGroupBox
-        Left = -1
+        Left = 10
         Top = 463
         Width = 400
         Height = 49
@@ -2172,7 +2173,7 @@ object frmSystemSetup: TfrmSystemSetup
         end
       end
       object grpDebugLogLevel: TRzGroupBox
-        Left = 416
+        Left = 419
         Top = 450
         Width = 400
         Height = 63

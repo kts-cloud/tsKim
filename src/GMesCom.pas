@@ -2045,7 +2045,9 @@ begin
       sSendMsg := 'APDR';
       sSendMsg := sSendMsg  + ' ADDR=' + m_sLocal + ',' + m_sLocal;
       sSendMsg := sSendMsg  + ' EQP=' + FSystemNo;
-      sSendMsg := sSendMsg  + ' SERIAL_NO='+ sSerialNo;
+      if Common.SystemInfo.OCType = DefCommon.OCType then
+        sSendMsg := sSendMsg  + ' SERIAL_NO='+ sSerialNo
+      else sSendMsg := sSendMsg  + ' PCB_ID='+ sSerialNo;
       //sSendMsg := sSendMsg  + ' FOG_ID='+sSerialNo;
       sSendMsg := sSendMsg  + format(' INSPCHANEL_A=%d',[nPg]);
       sSendMsg := sSendMsg  + ' MODEL='+MesData[FMesApdrPg].Model;
@@ -2063,7 +2065,9 @@ begin
       sSendMsg := 'APDR';
       sSendMsg := sSendMsg  + ' ADDR=' + m_sEasLocal + ',' + m_sEasLocal;
       sSendMsg := sSendMsg  + ' EQP=' + FSystemNo;
-      sSendMsg := sSendMsg  + ' SERIAL_NO='+ sSerialNo;
+      if Common.SystemInfo.OCType = DefCommon.OCType then
+        sSendMsg := sSendMsg  + ' SERIAL_NO='+ sSerialNo
+      else sSendMsg := sSendMsg  + ' PCB_ID='+ sSerialNo;
       //sSendMsg := sSendMsg  + ' FOG_ID='+sSerialNo;
       sSendMsg := sSendMsg  + format(' INSPCHANEL_A=%d',[nPg]);
       //sSendMsg := sSendMsg  + ' MODEL='+MesData[FMesApdrPg].Model; //' MODEL=LH542WF1-EDA1-VM1-S';

@@ -1240,7 +1240,7 @@ begin
     gridPWRPGs[i].ColumnHeaders.Add('');
     gridPWRPGs[i].ColumnHeaders.Add('Voltage'{'Voltage'});
     gridPWRPGs[i].ColumnHeaders.Add('mA'{'Current'});
-
+    gridPWRPGs[i].ScrollBars := TScrollStyle.ssNone;
     gridPWRPGs[i].AutoSizeColumns(true);
 
 
@@ -2837,28 +2837,15 @@ begin
   sCh := '';
 
 //  CsharpDll := TCSharpDll.Create(hMain,Self.Handle,ExtractFilePath(Application.ExeName),'OC_Converter.dll');
-  CsharpDll := TCSharpDll.Create(hMain,Self.Handle,Common.Path.MODEL_CUR,'OC_Converter.dll');
-  common.MLog(DefCommon.MAX_SYSTEM_LOG,'CsharpDll End');
-  common.MLog(DefCommon.MAX_SYSTEM_LOG,'Create_Test Start');
+  CsharpDll := TCSharpDll.Create(hMain,Self.Handle,Common.Path.LGDDLL,'OC_Converter.dll');
   CsharpDll.Create_Test;
-  common.MLog(DefCommon.MAX_SYSTEM_LOG,'Create_Test end');
   for i := DefCommon.CH1 to DefCommon.MAX_CH do begin
     PG[i].m_hTest := Self.Handle
   end;
 
-//  VirtualBcr := TVirtualBcr.Create(hMain,Self.Handle);
+  CsharpDll.Initialize(Common.TestModelInfoFLOW.ModelTypeName); // Added by KTS 2022-11-23 오후 1:34:17  DLL 설정
 
-//  aTask := TThread.CreateAnonymousThread(
-//  procedure begin
-    CsharpDll.Initialize(Common.TestModelInfoFLOW.ModelTypeName); // Added by KTS 2022-11-23 오후 1:34:17  DLL 설정
-//  end);
-//  aTask.FreeOnTerminate := True;
-//  aTask.Start;
-
-
-  common.MLog(DefCommon.MAX_SYSTEM_LOG,'TCA_SDK2.Create start');
   CaSdk2 := TCA_SDK2.Create(hMain,Self.Handle, Common.TestModelInfoFLOW.Ca410MemCh+1,True);
-  common.MLog(DefCommon.MAX_SYSTEM_LOG,'TCA_SDK2.Create End');
   for i := DefCommon.CH1 to DefCommon.MAX_CH do begin
     CaSetupInfo.SelectIdx     := Common.SystemInfo.Com_Ca310[i];// CaSetupInfo;
     CaSetupInfo.DeviceId      := Common.SystemInfo.Com_Ca310_DevieId[i];
@@ -3177,7 +3164,7 @@ begin
             case nCH of
               0,1 :
               begin
-                for I := 0 to DefCommon.ch2 do  begin
+                for I := DefCommon.CH1 to DefCommon.CH2 do  begin
                   if not PasScr[i].m_bUse then CSharpDll.m_bIsProcessDone[i] := true;
                 end;
                 if CSharpDll.m_bIsProcessDone[DefCommon.CH1] and CSharpDll.m_bIsProcessDone[DefCommon.CH2] then  begin
@@ -3460,8 +3447,8 @@ begin
 
                     end;
                     if  PasScr[nCh].TestInfo.NgCode = 0 then begin
-                    {$IFDEF SIMULATOR_DIO}
-                       PasScr[nCh].TestInfo.SerialNo := Format('TEST_$d',[nCh]);
+                    {$IFDEF SIMULATOR}
+                       PasScr[nCh].TestInfo.SerialNo := Format('TEST1234567890_%d',[nCh]);
                     {$ENDIF}
                     end;
                   end;

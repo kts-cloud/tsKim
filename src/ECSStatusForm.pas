@@ -98,6 +98,7 @@ type
     Label4: TLabel;
     btnHideGlassData: TButton;
     btnTakeOutReport: TButton;
+    btnGlassDataReport: TButton;
     procedure FormCreate(Sender: TObject);
     procedure tmrRefreshTimer(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -132,7 +133,7 @@ type
     procedure btnTactTimeClick(Sender: TObject);
     procedure btnHideGlassDataClick(Sender: TObject);
     procedure btnShowGlassDataClick(Sender: TObject);
-    procedure Button1Click(Sender: TObject);
+    procedure btnGlassDataReportClick(Sender: TObject);
     procedure btnTakeOutReportClick(Sender: TObject);
   private
     { Private declarations }
@@ -355,7 +356,7 @@ end;
 procedure TfrmECSStatus.btnGlassDataClick(Sender: TObject);
 var
   GlassData: TECSGlassData;
-  nRes: Integer;
+  nRes,i: Integer;
 begin
   GlassData.CarrierID:= '1234567890ABCDEF';
   GlassData.ProcessingCode:= '87654321';
@@ -399,7 +400,8 @@ begin
 //  GlassData.GlassRoutingData[2]:= $3535;
 
   AddLog('ECS_GlassData');
-  nRes:= g_CommPLC.ECS_GlassData_Report(GlassData);
+  for I := 0 to 1 do
+    nRes:= g_CommPLC.ECS_GlassData_Report(i,GlassData);
   if nRes <> 0 then begin
     AddLog('ECS_GlassData_Report NG ' + IntToStr(nRes));
   end
@@ -786,14 +788,14 @@ begin
 
 end;
 
-procedure TfrmECSStatus.Button1Click(Sender: TObject);
+procedure TfrmECSStatus.btnGlassDataReportClick(Sender: TObject);
 var
 nRes : integer;
 begin
-  nRes := g_CommPLC.ECS_ECSRestart_Test;
-    if nRes <> 0 then begin
-    AddLog('ECS_ECSRestart_Test Failed: ');
-  end;
+//  nRes := g_CommPLC.ECS_ECSRestart_Test;
+//    if nRes <> 0 then begin
+//    AddLog('ECS_ECSRestart_Test Failed: ');
+//  end;
 end;
 
 procedure TfrmECSStatus.FormClose(Sender: TObject; var Action: TCloseAction);

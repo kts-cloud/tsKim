@@ -1,4 +1,4 @@
-unit ModelInfo;
+ï»¿unit ModelInfo;
 
 interface
 {$I Common.inc}
@@ -50,7 +50,7 @@ type
 // Define Class.
   DefScr  = class(TatScripterLibrary) //class public
     const
-    // ProtocolÀ» À§ÇÑ ±âº» SID
+    // Protocolì„ ìœ„í•œ ê¸°ë³¸ SID
     SIG_CONNECTION_ACK      = $0001;
     SIG_CONNECT_REQUEST     = $0004;
     SIG_OPMODEL_PWR_SEQ     = $0010;
@@ -602,9 +602,9 @@ begin
   try
     SetLength(anOriNum,SizeOf(Integer) * mmProgramAll.Lines.Count);
     nOriCnt := 0;
-    // sltData¿¡ ÁÖ¼®À» Á¦¿ÜÇÑ µ¥ÀÌÅÍ ÀÔ·Â ÇÏÀÚ.
+    // sltDataì— ì£¼ì„ì„ ì œì™¸í•œ ë°ì´í„° ì…ë ¥ í•˜ì.
     for i := 0 to Pred(mmProgramAll.Lines.Count) do begin
-      nCmt := Pos('//',mmProgramAll.Lines[i]); // ÁÖ¼®ÀÇ ½ÃÀÛ À§Ä¡ Ã£±â.
+      nCmt := Pos('//',mmProgramAll.Lines[i]); // ì£¼ì„ì˜ ì‹œì‘ ìœ„ì¹˜ ì°¾ê¸°.
       mmProgramAll.BreakPoint[i] := False;
       if nCmt <> 0 then begin
         sData := Trim(Copy(mmProgramAll.Lines.Strings[i],1,nCmt-1));
@@ -617,7 +617,7 @@ begin
       anOriNum[nOriCnt] := i;
       Inc(nOriCnt);
     end;
-    // ±¸¹® Ã¼Å©.
+    // êµ¬ë¬¸ ì²´í¬.
     if CheckSyntex(sltData,anOriNum) = DefScript.ERR_ST_NONE then begin
       Script.AnalizeScriptForCode(Trim(edModelName.Text),sltData);
     end;
@@ -754,7 +754,7 @@ begin
 	end;
 
   SetPatGrp := Common.LoadPatGroup(Common.EdModelInfoFLOW.PatGrpName);
-  // ÇØ´ç pattern FileÀÌ ÀÖ´ÂÁö È®ÀÎ.
+  // í•´ë‹¹ pattern Fileì´ ìˆëŠ”ì§€ í™•ì¸.
   for i := 0 to Pred(SetPatGrp.PatCount) do begin
     case SetPatGrp.PatType[i] of
       DefCommon.PTYPE_NORMAL : begin
@@ -1122,11 +1122,11 @@ begin
 
 
 
-    if g_bCopyModel then begin   // »õ·Î¿î ModelÀÏ °æ¿ì List¿¡ Ãß°¡ÇÑ´Ù.
-    // COPY MODELÀÏ °æ¿ì prg ÆÄÀÏµµ °°?? º¯°æÇÏµµ·Ï ¿ä±¸ÇÔ (BOE)
+    if g_bCopyModel then begin   // ìƒˆë¡œìš´ Modelì¼ ê²½ìš° Listì— ì¶”ê°€í•œë‹¤.
+    // COPY MODELì¼ ê²½ìš° prg íŒŒì¼ë„ ê°™?? ë³€ê²½í•˜ë„ë¡ ìš”êµ¬í•¨ (BOE)
       sOldName := lstModelList.Items.Strings[lstModelList.ItemIndex];
       sNewName := Trim(edModelName.Text);
-      // ¸®½ºÆ®¿¡ µ¿ÀÏÇÑ ³»¿ëÀÌ ÀÖÀ¸¸é ÀúÀå ÇÏÁö ¸»ÀÚ.
+      // ë¦¬ìŠ¤íŠ¸ì— ë™ì¼í•œ ë‚´ìš©ì´ ìˆìœ¼ë©´ ì €ì¥ í•˜ì§€ ë§ì.
       if MessageDlg(#13#10 + format('Do you want to copy model [%s] to model [%s]?',[sOldName,sNewName]), mtConfirmation, [mbYes, mbNo], 0) = mrYes then begin
         for i := 0 to Pred(lstModelList.Items.Count) do begin
           if lstModelList.Items.Strings[i] = sNewName then begin
@@ -1165,14 +1165,14 @@ begin
       Exit;
     end;
 *)
-    // Æú´õ ÀÌ¸§ º¯°æÀÌ ½±Áö ¾Ê¾Æ¼­. CopyÇÏ°í ÀÌÀü µ¥ÀÌÅÍ »èÁ¦ÇÏ±â.
+    // í´ë” ì´ë¦„ ë³€ê²½ì´ ì‰½ì§€ ì•Šì•„ì„œ. Copyí•˜ê³  ì´ì „ ë°ì´í„° ì‚­ì œí•˜ê¸°.
     CheckAndCopyModelData(sOldName,sNewName);
     CheckAndDeleteModelData(sOldName);
 
   end;
   //-----------------------------------------------------------------------------------
 
-  if g_bNewModel or g_bCopyModel then begin   // »õ·Î¿î ModelÀÏ °æ¿ì List¿¡ Ãß°¡ÇÑ´Ù.
+  if g_bNewModel or g_bCopyModel then begin   // ìƒˆë¡œìš´ Modelì¼ ê²½ìš° Listì— ì¶”ê°€í•œë‹¤.
 //		AddAndFindItemToListbox(LBox_Model, Edit_ModelName.Text, True, True);
     AddAndFindItemToListbox(lstModelList, edModelName.text, True, True);
   end;
@@ -1253,7 +1253,7 @@ begin
 
   Rslt := FindFirst(sFindFile, faAnyFile, SearchRec);
   cboPName.DisableAlign;
-  while Rslt = 0 do  begin   // Pattern Folder¿¡¼­ Pattern NameÀ» °Ë»öÇÏ¿© ComboBox ¿¡ »ğÀÔ
+  while Rslt = 0 do  begin   // Pattern Folderì—ì„œ Pattern Nameì„ ê²€ìƒ‰í•˜ì—¬ ComboBox ì— ì‚½ì…
     if Length(SearchRec.Name) > 4 then begin
       if cboResolution.Visible then begin
         if cboPType.ItemIndex = 0 then    sPatName := Copy(SearchRec.Name, 1, Length(SearchRec.Name) - 4)
@@ -1262,7 +1262,7 @@ begin
       else begin
          sPatName := SearchRec.Name;
       end;
-      cboPName.Items.Add(sPatName);      // ComboBox¿¡ Pattern Name Ãß°¡
+      cboPName.Items.Add(sPatName);      // ComboBoxì— Pattern Name ì¶”ê°€
     end;
     Rslt := FindNext(Searchrec);
   end;
@@ -1310,14 +1310,14 @@ end;
 //begin
 //  Result := False;
 //
-//  // ¼Ò½º Æú´õ°¡ Á¸ÀçÇÏ´ÂÁö È®ÀÎ
+//  // ì†ŒìŠ¤ í´ë”ê°€ ì¡´ì¬í•˜ëŠ”ì§€ í™•ì¸
 //  if not TDirectory.Exists(SourcePath) then
 //    Exit;
 //
-//  // ´ë»ó Æú´õ »ı¼º
+//  // ëŒ€ìƒ í´ë” ìƒì„±
 //  TDirectory.CreateDirectory(DestinationPath);
 //
-//  // Æú´õ ³» ÆÄÀÏµéÀ» º¹»ç
+//  // í´ë” ë‚´ íŒŒì¼ë“¤ì„ ë³µì‚¬
 //  Files := TDirectory.GetFiles(SourcePath);
 //  for FileName in Files do
 //  begin
@@ -1326,7 +1326,7 @@ end;
 //    TFile.Copy(SourceFile, DestFile);
 //  end;
 //
-//  // Æú´õ ³» ÇÏÀ§ Æú´õµéÀ» Àç±ÍÀûÀ¸·Î º¹»ç
+//  // í´ë” ë‚´ í•˜ìœ„ í´ë”ë“¤ì„ ì¬ê·€ì ìœ¼ë¡œ ë³µì‚¬
 //  Files := TDirectory.GetDirectories(SourcePath);
 //  for FileName in Files do
 //  begin
@@ -1455,39 +1455,198 @@ var
   nTemp : Integer;
 begin
   bRet := False;
-  {$IFDEF DP860_TBD_XXXX} //TBD:DP860?
-  if Common.TestModelInfoPG.PWR_VOL[DefCommon.PWR_VDD1] > 25000 then begin
-    ShowMessage(Format('VDD1 Power Range is 0 ~ 25 V : Input (%s)',[edVDD1.Text]));
-    edVDD1.SetFocus;
-    Exit(bRet);
-  end;
-  if Common.TestModelInfoPG.PWR_VOL_HL[DefCommon.PWR_VDD1] > 25000 then begin
-    edVolVDD1_H(Format('VDD1 High limit Range is 0 ~ 25 V : Input (%s)',[edVolVDD1_H.Text]));
-    edVcc_High.SetFocus;
+  Common.EdModelInfoPG.PgModelConf.link_rate     := StrToIntDef(Trim(edModelConfig_link_rate.Text), 0);
+
+  if (Common.EdModelInfoPG.PgModelConf.link_rate > 8100) or
+     (Common.EdModelInfoPG.PgModelConf.link_rate < 0)  then begin
+    ShowMessage(Format('Link Rate range is 0 ~ 8100 Gbps : Input (%s)',[edModelConfig_link_rate.Text]));
+    edModelConfig_link_rate.SetFocus;
     Exit(bRet);
   end;
 
-  if Common.TestModelInfoPG.PWR_VOL_LL[DefCommon.PWR_VDD] > 25000 then begin
-    ShowMessage(Format('VDD1 low limit Range is 0 ~ 25 V : Input (%s)',[edVolVDD1_L.Text]));
-    edVolVDD1_L.SetFocus;
-    Exit(bRet);
-  end;
-  if Common.TestModelInfoPG.PWR_CUR_HL[DefCommon.PWR_VDD1] > 25000 then begin
-    edVolVDD1_H(Format('IVDD1 High limit Range is 0 ~ 25xxx A : Input (%s)',[edCurVDD1_H.Text]));
-    edCurVDD1_H.SetFocus;
+  if (Common.EdModelInfoPG.PgModelConf.Vsync > 999) or
+     (Common.EdModelInfoPG.PgModelConf.Vsync < 0)  then begin
+    ShowMessage(Format('VSync Range is 0 ~ 999 Hz : Input (%s)',[edModelConfig_Vsync.Text]));
+    edModelConfig_Vsync.SetFocus;
     Exit(bRet);
   end;
 
-  if Common.TestModelInfoPG.PWR_CUR__LL[DefCommon.PWR_VDD] > 25000 then begin
-    ShowMessage(Format('IVDD1 low limit Range is 0 ~ 25xxx A : Input (%s)',[edCurVDD1_L.Text]));
-    edCurVDD1_L.SetFocus;
+  if (Common.EdModelInfoPG.PgPwrData.PWR_SLOPE > 2000) or
+     ((Common.EdModelInfoPG.PgPwrData.PWR_SLOPE < 500) and (Common.EdModelInfoPG.PgPwrData.PWR_SLOPE <> 0))  then begin
+    ShowMessage(Format('VSync Range is 500 ~ 2000 us : Input (%s)',[edVolSet_SlopeSet.Text]));
+    edVolSet_SlopeSet.SetFocus;
     Exit(bRet);
   end;
-  {$ENDIF}
+
+  // Voltage checking.
+  if (Common.EdModelInfoPG.PgPwrData.PWR_VOL[DefPG.PWR_VDD1] > 4900) or
+     (Common.EdModelInfoPG.PgPwrData.PWR_VOL[DefPG.PWR_VDD1] < 0)  then begin
+    ShowMessage(Format('VCC Range is 0 ~ 4.9 V : Input (%s)',[edVolSet_VDD1.Text]));
+    edVolSet_VDD1.SetFocus;
+    Exit(bRet);
+  end;
+
+  if (Common.EdModelInfoPG.PgPwrData.PWR_VOL[DefPG.PWR_VDD2] > 6500) or
+     (Common.EdModelInfoPG.PgPwrData.PWR_VOL[DefPG.PWR_VDD2] < 0)  then begin
+    ShowMessage(Format('VIN Range is 0 ~ 6.5 V : Input (%s)',[edVolSet_VDD2.Text]));
+    edVolSet_VDD2.SetFocus;
+    Exit(bRet);
+  end;
+  if (Common.EdModelInfoPG.PgPwrData.PWR_VOL[DefPG.PWR_VDD3] > 1800) or
+     (Common.EdModelInfoPG.PgPwrData.PWR_VOL[DefPG.PWR_VDD3] < 0)  then begin
+    ShowMessage(Format('VDD3 Range is 0 ~ 1.8 V : Input (%s)',[edVolSet_VDD3.Text]));
+    edVolSet_VDD3.SetFocus;
+    Exit(bRet);
+  end;
+  if (Common.EdModelInfoPG.PgPwrData.PWR_VOL[DefPG.PWR_VDD4] > 9900) or
+     (Common.EdModelInfoPG.PgPwrData.PWR_VOL[DefPG.PWR_VDD4] < 0)  then begin
+    ShowMessage(Format('VDD4 Range is 0 ~ 9.9 V : Input (%s)',[edVolSet_VDD4.Text]));
+    edVolSet_VDD4.SetFocus;
+    Exit(bRet);
+  end;
+
+  if (Common.EdModelInfoPG.PgPwrData.PWR_VOL[DefPG.PWR_VDD5] > 9900) or
+     (Common.EdModelInfoPG.PgPwrData.PWR_VOL[DefPG.PWR_VDD5] < 0)  then begin
+    ShowMessage(Format('VDD5 Range is 0 ~ 9.9 V : Input (%s)',[edVolSet_VDD5.Text]));
+    edVolSet_VDD5.SetFocus;
+    Exit(bRet);
+  end;
+
+
+  // Voltage Low limit checking.
+  if (Common.EdModelInfoPG.PgPwrData.PWR_VOL_LL[DefPG.PWR_VDD1] > 4900)  then begin
+    ShowMessage(Format('VCC low limit Range is 0 ~ 4.9 V : Input (%s)',[edPwrLimit_VDD1_L.Text]));
+    edPwrLimit_VDD1_L.SetFocus;
+    Exit(bRet);
+  end;
+
+  if (Common.EdModelInfoPG.PgPwrData.PWR_VOL_LL[DefPG.PWR_VDD2] > 6500)  then begin
+    ShowMessage(Format('VIN low limit Range is 0 ~ 6.5 V : Input (%s)',[edPwrLimit_VDD2_L.Text]));
+    edPwrLimit_VDD2_L.SetFocus;
+    Exit(bRet);
+  end;
+  if (Common.EdModelInfoPG.PgPwrData.PWR_VOL_LL[DefPG.PWR_VDD3] > 1800)  then begin
+    ShowMessage(Format('VDD3 low limit Range is 0 ~ 1.8 V : Input (%s)',[edPwrLimit_VDD3_L.Text]));
+    edPwrLimit_VDD3_L.SetFocus;
+    Exit(bRet);
+  end;
+  if (Common.EdModelInfoPG.PgPwrData.PWR_VOL_LL[DefPG.PWR_VDD4] > 9900)  then begin
+    ShowMessage(Format('VDD4 low limit Range is 0 ~ 9.9 V : Input (%s)',[edPwrLimit_VDD4_L.Text]));
+    edPwrLimit_VDD4_L.SetFocus;
+    Exit(bRet);
+  end;
+
+  if (Common.EdModelInfoPG.PgPwrData.PWR_VOL_LL[DefPG.PWR_VDD5] > 9900)   then begin
+    ShowMessage(Format('VDD5 low limit Range is 0 ~ 9.9 V : Input (%s)',[edPwrLimit_VDD5_L.Text]));
+    edPwrLimit_VDD5_L.SetFocus;
+    Exit(bRet);
+  end;
+
+  // Voltage High limit checking.
+  if (Common.EdModelInfoPG.PgPwrData.PWR_VOL_HL[DefPG.PWR_VDD1] > 4900) or
+     (Common.EdModelInfoPG.PgPwrData.PWR_VOL_HL[DefPG.PWR_VDD1] < Common.EdModelInfoPG.PgPwrData.PWR_VOL_LL[DefPG.PWR_VDD1])  then begin
+    ShowMessage(Format('VCC high limit Range is %s ~ 4.9 V : Input (%s)',[edPwrLimit_VDD1_L.Text,edPwrLimit_VDD1_H.Text]));
+    edPwrLimit_VDD1_H.SetFocus;
+    Exit(bRet);
+  end;
+
+  if (Common.EdModelInfoPG.PgPwrData.PWR_VOL_HL[DefPG.PWR_VDD2] > 6500) or
+     (Common.EdModelInfoPG.PgPwrData.PWR_VOL_HL[DefPG.PWR_VDD2] < Common.EdModelInfoPG.PgPwrData.PWR_VOL_LL[DefPG.PWR_VDD2])  then begin
+    ShowMessage(Format('VIN high limit Range is %s ~ 6.5 V : Input (%s)',[edPwrLimit_VDD2_L.Text,edPwrLimit_VDD2_H.Text]));
+    edPwrLimit_VDD2_H.SetFocus;
+    Exit(bRet);
+  end;
+  if (Common.EdModelInfoPG.PgPwrData.PWR_VOL_HL[DefPG.PWR_VDD3] > 1800) or
+     (Common.EdModelInfoPG.PgPwrData.PWR_VOL_HL[DefPG.PWR_VDD3] < Common.EdModelInfoPG.PgPwrData.PWR_VOL_LL[DefPG.PWR_VDD3])  then begin
+    ShowMessage(Format('VDD3 high limit Range is %s ~ 1.8 V : Input (%s)',[edPwrLimit_VDD3_L.Text,edPwrLimit_VDD3_H.Text]));
+    edPwrLimit_VDD3_H.SetFocus;
+    Exit(bRet);
+  end;
+  if (Common.EdModelInfoPG.PgPwrData.PWR_VOL_HL[DefPG.PWR_VDD4] > 9900) or
+     (Common.EdModelInfoPG.PgPwrData.PWR_VOL_HL[DefPG.PWR_VDD4] < Common.EdModelInfoPG.PgPwrData.PWR_VOL_LL[DefPG.PWR_VDD4])  then begin
+    ShowMessage(Format('VDD4 high limit Range is %s ~ 9.9 V : Input (%s)',[edPwrLimit_VDD4_L.Text,edPwrLimit_VDD4_H.Text]));
+    edPwrLimit_VDD4_H.SetFocus;
+    Exit(bRet);
+  end;
+
+  if (Common.EdModelInfoPG.PgPwrData.PWR_VOL_HL[DefPG.PWR_VDD5] > 9900) or
+     (Common.EdModelInfoPG.PgPwrData.PWR_VOL_HL[DefPG.PWR_VDD5] < Common.EdModelInfoPG.PgPwrData.PWR_VOL_LL[DefPG.PWR_VDD5])  then begin
+    ShowMessage(Format('VDD5 high limit Range is %s ~ 9.9 V : Input (%s)',[edPwrLimit_VDD5_L.Text,edPwrLimit_VDD5_H.Text]));
+    edPwrLimit_VDD5_H.SetFocus;
+    Exit(bRet);
+  end;
+
+  // Current Low limit checking.
+  if (Common.EdModelInfoPG.PgPwrData.PWR_CUR_LL[DefPG.PWR_VDD1] > 4000)  then begin
+    ShowMessage(Format('IVCC low limit Range is %s ~ 4000 mA : Input (%s)',[edPwrLimit_IVDD1_L.Text]));
+    edPwrLimit_IVDD1_L.SetFocus;
+    Exit(bRet);
+  end;
+  if (Common.EdModelInfoPG.PgPwrData.PWR_CUR_LL[DefPG.PWR_VDD2] > 6000)  then begin
+    ShowMessage(Format('IVIN low limit Range is %s ~ 6000 mA : Input (%s)',[edPwrLimit_IVDD2_L.Text]));
+    edPwrLimit_IVDD2_L.SetFocus;
+    Exit(bRet);
+  end;
+
+
+  // Current High limit checking.
+  if (Common.EdModelInfoPG.PgPwrData.PWR_CUR_HL[DefPG.PWR_VDD1] > 4000) or
+     (Common.EdModelInfoPG.PgPwrData.PWR_CUR_HL[DefPG.PWR_VDD1] < Common.EdModelInfoPG.PgPwrData.PWR_CUR_LL[DefPG.PWR_VDD1])  then begin
+    ShowMessage(Format('IVCC high limit Range is %s ~ 4000 mA : Input (%s)',[edPwrLimit_IVDD1_L.Text, edPwrLimit_IVDD1_H.Text]));
+    edPwrLimit_IVDD1_H.SetFocus;
+    Exit(bRet);
+  end;
+  if (Common.EdModelInfoPG.PgPwrData.PWR_CUR_HL[DefPG.PWR_VDD2] > 6000) or
+     (Common.EdModelInfoPG.PgPwrData.PWR_CUR_HL[DefPG.PWR_VDD2] < Common.EdModelInfoPG.PgPwrData.PWR_CUR_LL[DefPG.PWR_VDD2])  then begin
+    ShowMessage(Format('IVIN high limit Range is %s ~ 6000 mA : Input (%s)',[edPwrLimit_IVDD1_L.Text, edPwrLimit_IVDD2_H.Text]));
+    edPwrLimit_IVDD2_H.SetFocus;
+    Exit(bRet);
+  end;
 
   bRet := True;
   Result := bRet;
 end;
+
+
+//function TfrmModelInfo.CheckInputVal: Boolean;
+//var
+//  bRet : Boolean;
+//  nTemp : Integer;
+//begin
+//  bRet := False;
+//  {$IFDEF DP860_TBD_XXXX} //TBD:DP860?
+//  if Common.TestModelInfoPG.PWR_VOL[DefCommon.PWR_VDD1] > 25000 then begin
+//    ShowMessage(Format('VDD1 Power Range is 0 ~ 25 V : Input (%s)',[edVDD1.Text]));
+//    edVDD1.SetFocus;
+//    Exit(bRet);
+//  end;
+//  if Common.TestModelInfoPG.PWR_VOL_HL[DefCommon.PWR_VDD1] > 25000 then begin
+//    edVolVDD1_H(Format('VDD1 High limit Range is 0 ~ 25 V : Input (%s)',[edVolVDD1_H.Text]));
+//    edVcc_High.SetFocus;
+//    Exit(bRet);
+//  end;
+//
+//  if Common.TestModelInfoPG.PWR_VOL_LL[DefCommon.PWR_VDD] > 25000 then begin
+//    ShowMessage(Format('VDD1 low limit Range is 0 ~ 25 V : Input (%s)',[edVolVDD1_L.Text]));
+//    edVolVDD1_L.SetFocus;
+//    Exit(bRet);
+//  end;
+//  if Common.TestModelInfoPG.PWR_CUR_HL[DefCommon.PWR_VDD1] > 25000 then begin
+//    edVolVDD1_H(Format('IVDD1 High limit Range is 0 ~ 25xxx A : Input (%s)',[edCurVDD1_H.Text]));
+//    edCurVDD1_H.SetFocus;
+//    Exit(bRet);
+//  end;
+//
+//  if Common.TestModelInfoPG.PWR_CUR__LL[DefCommon.PWR_VDD] > 25000 then begin
+//    ShowMessage(Format('IVDD1 low limit Range is 0 ~ 25xxx A : Input (%s)',[edCurVDD1_L.Text]));
+//    edCurVDD1_L.SetFocus;
+//    Exit(bRet);
+//  end;
+//  {$ENDIF}
+//
+//  bRet := True;
+//  Result := bRet;
+//end;
 
 //function TfrmModelInfo.CheckMouseOnLine(X, Y: Integer): Boolean;
 //var
@@ -1523,13 +1682,13 @@ var
 begin
   lstGrpCompile.ClearGroups;
 
-  // function ³»¿¡ µé¾î °¡Áö ¾ÊÀ¸¸é ¿ì¼± 0À¸·Î Set.
+  // function ë‚´ì— ë“¤ì–´ ê°€ì§€ ì•Šìœ¼ë©´ ìš°ì„  0ìœ¼ë¡œ Set.
   nStartSeq := 0;
   lstGrpCompile.AddGroup('function Checking.');
 
   bGroupNg := False;
   nFinalRet :=  DefScript.ERR_ST_NONE;
-  // ¶óÀÎº°·Î Àß¸øµÈ ºÎºĞÀÌ ÀÖ´ÂÁö È®ÀÎ.
+  // ë¼ì¸ë³„ë¡œ ì˜ëª»ëœ ë¶€ë¶„ì´ ìˆëŠ”ì§€ í™•ì¸.
   for i := 0 to Pred(lstResource.Count) do begin
     sData := Trim(lstResource.Strings[i]);
     if sData = '' then Continue;
@@ -1537,7 +1696,7 @@ begin
     nRet := DefScript.ERR_ST_NONE;
     // Default Start Seq ID : function Checking.
     if nStartSeq = 0 then begin
-      // nStart Seq º¯°æÀ» À§ÇÑ ½ÃÀÛ ´Ü°è.
+      // nStart Seq ë³€ê²½ì„ ìœ„í•œ ì‹œì‘ ë‹¨ê³„.
       if Pos(DefScript.FUNC_CALL_START,sData) <> 0 then begin
         sGrpName := StringReplace(sData,DefScript.FUNC_CALL_START,'',[rfReplaceAll]);
         sGrpName := Trim(StringReplace(sGrpName,'()','',[rfReplaceAll]));
@@ -1549,7 +1708,7 @@ begin
     end
     else begin
         if Pos(DefScript.end_func,sData) <> 0 then begin
-          nStartSeq := 0; // Function Á¾·á.
+          nStartSeq := 0; // Function ì¢…ë£Œ.
           if not bGroupNg then lstGrpCompile.Groups[lstGrpCompile.GroupCount-1].Expanded := False;
           bGroupNg := False;
         end
@@ -1703,7 +1862,7 @@ begin
 
     end;
     if nRet <> DefScript.ERR_ST_NONE then begin
-      // Script NG ¹ß»ı½Ã ¿À·ù Ã³¸®.
+      // Script NG ë°œìƒì‹œ ì˜¤ë¥˜ ì²˜ë¦¬.
       mmProgramAll.TopLine      := nOriNumbers[i];
       mmProgramAll.BreakPoint[nOriNumbers[i]] := True;
       bGroupNg := True;
@@ -2105,7 +2264,7 @@ begin
 
 
    // pattern infomation
-  // Form Ç×»ó Áß¾Ó À§Ä¡
+  // Form í•­ìƒ ì¤‘ì•™ ìœ„ì¹˜
   Self.Left := (Screen.Width - Self.Width) div 2;
   Self.Top := (Screen.Height - Self.Height) div 2;
 
@@ -2345,7 +2504,7 @@ begin
   while Rslt = 0 do
   begin
     sPatGrName := Copy(sr.Name, 1, Length(sr.Name) - 4);
-    lstPGrplist.Items.Add(sPatGrName);        // ListBox¿¡ Pattern Group Name Ãß°¡
+    lstPGrplist.Items.Add(sPatGrName);        // ListBoxì— Pattern Group Name ì¶”ê°€
     Rslt := FindNext(sr);
   end;
   FindClose(sr);
@@ -2534,11 +2693,11 @@ begin
       edPGrpName.SetFocus;
       Exit;
     end;
-    if g_bCopyPatGr then begin   // »õ·Î¿î PatGrpÀÏ °æ¿ì List¿¡ Ãß°¡ÇÑ´Ù.
-    // COPY MODELÀÏ °æ¿ì prg ÆÄÀÏµµ °°ÀÌ º¯°æÇÏµµ·Ï ¿ä±¸ÇÔ (BOE)
+    if g_bCopyPatGr then begin   // ìƒˆë¡œìš´ PatGrpì¼ ê²½ìš° Listì— ì¶”ê°€í•œë‹¤.
+    // COPY MODELì¼ ê²½ìš° prg íŒŒì¼ë„ ê°™ì´ ë³€ê²½í•˜ë„ë¡ ìš”êµ¬í•¨ (BOE)
       sOldName := lstPGrplist.Items.Strings[lstPGrplist.ItemIndex];
       sNewName := Trim(edPGrpName.Text);
-      // ¸®½ºÆ®¿¡ µ¿ÀÏÇÑ ³»¿ëÀÌ ÀÖÀ¸¸é ÀúÀå ÇÏÁö ¸»ÀÚ.
+      // ë¦¬ìŠ¤íŠ¸ì— ë™ì¼í•œ ë‚´ìš©ì´ ìˆìœ¼ë©´ ì €ì¥ í•˜ì§€ ë§ì.
       for i := 0 to Pred(lstPGrplist.Items.Count) do begin
         if lstPGrplist.Items.Strings[i] = sNewName then begin
           MessageDlg(#13#10 + 'Input Error! Model Name [' + Trim(edPGrpName.Text) + '] is already Exist!', mtError, [mbOk], 0);
@@ -2579,7 +2738,7 @@ begin
     end;
   end;
 
-  if g_bNewPatGr or g_bCopyPatGr then begin     // »õ·Î¿î Pattern Group ÀÏ °æ¿ì List ¹× ComboBox¿¡ Ãß°¡ÇÑ´Ù.
+  if g_bNewPatGr or g_bCopyPatGr then begin     // ìƒˆë¡œìš´ Pattern Group ì¼ ê²½ìš° List ë° ComboBoxì— ì¶”ê°€í•œë‹¤.
     AddAndFindItemToListbox(lstPGrplist, edPGrpName.Text, True, True);
     g_bNewPatGr := False;
   end;
@@ -2786,7 +2945,7 @@ begin
 
 
 
-  // ¸¶Áö¸·¿¡ ÀÔ·Â°ª Ã¼Å©
+  // ë§ˆì§€ë§‰ì— ì…ë ¥ê°’ ì²´í¬
   if not CheckInputVal then begin
     Exit(bRet);
   end;

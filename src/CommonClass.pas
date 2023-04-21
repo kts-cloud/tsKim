@@ -453,13 +453,14 @@ type
     ModelCode    : string;
     LOG     		 : string;
     FLASH         : string;
+    LGDDLL       : string;
     GMES     		 : string; //Host
     EAS          : string;
     MLOG     		 : string; //Mlog
     DebugLog     : string;     //DebugLog  //2020-09-16 DEBUG_LOG
 //    CommPG       : string;
     PCDLog       : string; // PCD Log
-	Sensing      : string; // I Sensing Log
+	  Sensing      : string; // I Sensing Log
     PocbData     : string;
     SumCsv   		 : string; //Summary
     ApdrCsv      : string;
@@ -490,7 +491,7 @@ type
     DfsDefect     : string; // LocalPC DFS Log Path for DFS DEFECT (default: C:\DEFECT)
     DfsHex        : string; // LocalPC DFS Log Path for DFS HEX (default: C:\DEFECT\HEX)
     DfsHexIndex   : string; // LocalPC DFS Log Path for DFS HEX (default: C:\DEFECT\HEX_INDEX)
-	DfsSense      : string; // LocalPC DFS Log Path for DFS SENSE (default: C:\DEFECT\SENSE)
+	  DfsSense      : string; // LocalPC DFS Log Path for DFS SENSE (default: C:\DEFECT\SENSE)
     DfsSenseIndex : string; // LocalPC DFS Log Path for DFS SENSE (default: C:\DEFECT\SENSE_INDEX)
   end;
 
@@ -1865,6 +1866,7 @@ begin
   Path.PG_FW       		:= Path.DATA + 'PG_FW\';
   Path.PG_FPGA     		:= Path.DATA + 'PG_FPGA\';
   Path.Maint          := Path.RootSW + 'MAINT\';
+  Path.LGDDLL         := Path.RootSW + 'LGDDLL\';
 
 
 {$IFDEF CA410_USE}
@@ -1894,6 +1896,7 @@ begin
   CheckDir(Path.MLOG);
   CheckDir(Path.SumCsv);
   CheckDir(Path.ApdrCsv);
+  CheckDir(Path.LGDDLL);
 {$IFDEF ISPD_POCB}
   Path.CB_DATA  := Path.LOG + 'CB_DATA\';
   CheckDir(Path.CB_DATA);
@@ -3468,19 +3471,17 @@ var
   sLine,sDate,sResult: String;
   txtFile: TEXTFILE;
   i: Integer;
-  const
-    GroupName = 'AFM_VRR_OPTIMUM:';
+const
+  GroupName = 'AFM_VRR_OPTIMUM:';
 
 begin
   sDate := FormatDateTime('yyyy_mm_dd', Now);
 
-  sFileName:= Common.Path.MODEL_CUR +format('Oclog\SummaryLog\%s_Summary_Log_',[Common.SystemInfo.EQPId]) + sDate +'.csv';
+  sFileName:= Common.Path.LGDDLL +format('Oclog\SummaryLog\%s_Summary_Log_',[Common.SystemInfo.EQPId]) + sDate +'.csv';
   if FileExists(sFileName) = false then begin
     //File not Found
     Exit;
   end;
-
-  sComputerName:= GetComputerName;
   AssignFile(txtFile, sFileName);
 
   try
@@ -3492,9 +3493,8 @@ begin
       asSummaryData:= sLine.Split([',']);
       if asSummaryData[0] = 'BIN_VER' then begin
         asSummaryHeader:= sLine.Split([',']);   //SummaryLog Header 저장
-        Continue;
       end;
-      if sSn = asSummaryData[5] then Break;
+      if sSn = asSummaryData[5] then Break;    //SN
 
 
     end; //while eof(txtFile) do begin
@@ -4012,17 +4012,17 @@ var
   modelF : TIniFile;
   i : Integer;
 begin
-  CheckDir( Path.MODEL + fName + '\Setting\OCSet\');
-  fn :=  Path.MODEL + fName + '\Setting\OCSet\ModelSelection.ini';
+//  CheckDir( Path.MODEL + fName + '\Setting\OCSet\');
+  CheckDir( Path.LGDDLL +'Setting\OCSet\');
+  fn := Path.LGDDLL + '\Setting\OCSet\ModelSelection.ini';
+
   modelF := TIniFile.Create(fn);
   try
 
     with modelF do begin
       try
-
-          sSection := 'SelectedModel';
-          WriteString (sSection, 'Model',EdModelInfoFLOW.ModelTypeName);
-
+        sSection := 'SelectedModel';
+        WriteString (sSection, 'Model',EdModelInfoFLOW.ModelTypeName);
       except
         ShowMessage(fn + ' store was failed!!');
       end;
