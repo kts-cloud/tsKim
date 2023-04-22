@@ -2501,23 +2501,36 @@ begin
       case pGUIMsg.Param of  //Robot 이벤트 종류
         COMMPLC_PARAM_GALSSDATA_REPORT: begin
           ShowSysLog(format('GlassData Report: Pair=%d, %s', [pGUIMsg.Channel, pGUIMsg.Msg]));
-          frmTest4ChOC[nStage].DisplayResult(pGUIMsg.Channel*2 + 0, -3, 0, 'GlassData Report');
-          frmTest4ChOC[nStage].DisplayResult(pGUIMsg.Channel*2 + 1, -3, 0, 'GlassData Report');
-          PasScr[nStage*4 + pGUIMsg.Channel*2].TestInfo.GlassID:=  g_CommPLC.GlassData[nStage*4 + pGUIMsg.Channel*2].GlassID;
-          PasScr[nStage*4 + pGUIMsg.Channel*2 + 1].TestInfo.GlassID:=  g_CommPLC.GlassData[nStage*4 + pGUIMsg.Channel*2 + 1].GlassID;
+          if Common.PLCInfo.InlineGIB then begin
+            frmTest4ChOC[nStage].DisplayResult(pGUIMsg.Channel, -3, 0, 'GlassData Report');
+            PasScr[pGUIMsg.Channel].TestInfo.GlassID:=  g_CommPLC.GlassData[pGUIMsg.Channel].GlassID;
+          end
+          else begin
+            frmTest4ChOC[nStage].DisplayResult(pGUIMsg.Channel*2 + 0, -3, 0, 'GlassData Report');
+            frmTest4ChOC[nStage].DisplayResult(pGUIMsg.Channel*2 + 1, -3, 0, 'GlassData Report');
+            PasScr[nStage*4 + pGUIMsg.Channel*2].TestInfo.GlassID:=  g_CommPLC.GlassData[nStage*4 + pGUIMsg.Channel*2].GlassID;
+            PasScr[nStage*4 + pGUIMsg.Channel*2 + 1].TestInfo.GlassID:=  g_CommPLC.GlassData[nStage*4 + pGUIMsg.Channel*2 + 1].GlassID;
+          end;
         end;
 
         COMMPLC_PARAM_LOADCOMPLETE: begin
           if pGUIMsg.Param2 <> 0 then begin
             ShowSysLog(format('Load Complete On: Pair=%d, %s', [pGUIMsg.Channel, pGUIMsg.Msg]));
-            frmTest4ChOC[nStage].DisplayResult(pGUIMsg.Channel*2 + 0, -3, 0, 'Load Complete');
-            frmTest4ChOC[nStage].DisplayResult(pGUIMsg.Channel*2 + 1, -3, 0, 'Load Complete');
-            //Common.MLog(pGUIMsg.Channel*2 + 0 + nStage*4, 'Load Complete');
-//            g_CommPLC.ECS_Glass_Processing(True);
-            sMsg:= '[LOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[pGUIMsg.Channel*2 + 0 + nStage*4]);
-            frmTest4ChOC[nStage].AddLog(sMsg, pGUIMsg.Channel*2 + 0);
-            sMsg:= '[LOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[pGUIMsg.Channel*2 + 1 + nStage*4]);
-            frmTest4ChOC[nStage].AddLog(sMsg, pGUIMsg.Channel*2 + 1);
+            if Common.PLCInfo.InlineGIB then begin
+              frmTest4ChOC[nStage].DisplayResult(pGUIMsg.Channel, -3, 0, 'Load Complete');
+              sMsg:= '[LOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[pGUIMsg.Channel]);
+              frmTest4ChOC[nStage].AddLog(sMsg, pGUIMsg.Channel);
+            end
+            else begin
+              frmTest4ChOC[nStage].DisplayResult(pGUIMsg.Channel*2 + 0, -3, 0, 'Load Complete');
+              frmTest4ChOC[nStage].DisplayResult(pGUIMsg.Channel*2 + 1, -3, 0, 'Load Complete');
+              //Common.MLog(pGUIMsg.Channel*2 + 0 + nStage*4, 'Load Complete');
+  //            g_CommPLC.ECS_Glass_Processing(True);
+              sMsg:= '[LOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[pGUIMsg.Channel*2 + 0 + nStage*4]);
+              frmTest4ChOC[nStage].AddLog(sMsg, pGUIMsg.Channel*2 + 0);
+              sMsg:= '[LOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[pGUIMsg.Channel*2 + 1 + nStage*4]);
+              frmTest4ChOC[nStage].AddLog(sMsg, pGUIMsg.Channel*2 + 1);
+            end;
 
           end
           else begin
@@ -4204,10 +4217,9 @@ begin
         Exit;
       end;
 
-      for I := 0 to 1 do begin
-        if DaeIonizer[i] <> nil then
-          DaeIonizer[i].SendRun;
-      end;
+//      for I := 0 to 1 do begin
+//        frmTest4ChOC[0].SetIonizer(i,True);
+//      end;
 
 //      if not CheckVersionInterlock then begin
 //        ShowSysLog('Version Interlock NG', 1);
@@ -4255,8 +4267,7 @@ begin
       if not Common.StatusInfo.AutoMode then Exit;
       //tolGroupMain.Enabled:= True; //툴바 사용 가능
       for I := 0 to 1 do begin
-        if DaeIonizer[i] <> nil then
-          DaeIonizer[i].SendStop;
+        frmTest4ChOC[0].SetIonizer(i,false);
       end;
       Common.StatusInfo.Loading:= False;
       g_CommPLC.IgnoreConnect:= True;

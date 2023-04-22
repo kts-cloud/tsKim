@@ -135,7 +135,7 @@ begin
 
   tmIonAliveCheck := TTimer.Create(nil);
   tmIonAliveCheck.Interval := 1000;
-  tmIonAliveCheck.Enabled := False;
+  tmIonAliveCheck.Enabled := True;
   tmIonAliveCheck.OnTimer := OnTimeIonizerCheck;
 
   m_bForceStop := False;
@@ -185,7 +185,7 @@ begin
 
     if FModelType = 2 then begin
       if slTemp.Count > 6 then begin
-        if slTemp[5] <> '0' then begin
+        if slTemp[5] = '1' then begin
           sRetStr := sRetStr + 'H/V Alarm';
           bRet := False;
         end;
@@ -308,7 +308,8 @@ begin
     m_nConnectCnt := 0;
     if IsConnectIonizer(sPacket, sTemp) then begin
       m_bConnected := True;
-      //SendMainGuiDisplay(CommIonizer.MSG_MODE_IONIZER_ERR_MSG,1,'Connected');
+//      SendMainGuiDisplay(CommIonizer.MSG_MODE_IONIZER_ERR_MSG,1,'Connected');
+      SendMainGuiDisplay(CommIonizer.MSG_MODE_IONIZER_CONNECTION,1,'Connected');
     end
     else begin
       //if m_bConnected then begin //연결 중에 한번만 보내자

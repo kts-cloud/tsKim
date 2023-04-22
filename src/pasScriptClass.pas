@@ -8,7 +8,7 @@ uses
   System.Generics.Collections, ControlDio_OC, CommPLC_ECS,UserUtils,
   DefCommon, {UdpServerClient,}CommPG, DefScript, uSystemLibrary, IdGlobal, Vcl.Forms,
   CommonClass, DefPG, GMesCom, DefGmes, {LogicVh,} DefDio, System.Math
-  , CommCameraRadiant,dllClass,AF9_FPGA
+  , CommCameraRadiant,dllClass,AF9_FPGA,RegularExpressions
 {$IFDEF CA410_USE}
     , CA_SDK2
 {$ENDIF}
@@ -412,7 +412,7 @@ type
     procedure SendTestGuiDisplay(nGuiMode : Integer; sMsg: string = ''; sMsg2: string = ''; nParam: Integer = 0; nParam2 : Integer = 0);
     procedure SendDisplayGuiDisplay(nGuiMode : Integer; nParam : Integer = 0;sMsg : string = '');
 
-
+    function CheckLastIndexStop(nIndex : integer) : Boolean;
     procedure SethDisplay(const Value: HWND);
     procedure SetGetPatGrp(const Value: TPatterGroup);
 //    procedure SetRxData(const Value: TRxData);
@@ -455,6 +455,7 @@ type
     procedure Convert_VariantToHex_Proc(AMachine: TatVirtualMachine);
     procedure PowerSet_Proc(AMachine: TatVirtualMachine);
     procedure PowerBistSet_Proc(AMachine: TatVirtualMachine);
+
 //    function SendPocbHexFile_D84X_Template(nPacketSize, nFirstAddr, nNormalAddr: Integer; var sHexCS: String): Integer;
 //    procedure SetRxData(const Value: TRxData);
 
@@ -1228,6 +1229,14 @@ begin
   end;
 end;
 
+function IsAlphaNumeric(const S: string): Boolean;
+var
+  RegEx: TRegEx;
+begin
+  RegEx := TRegEx.Create('^[a-zA-Z0-9]+$');
+  Result := RegEx.IsMatch(S);
+end;
+
 procedure TScrCls.GetBcrData_Proc(AMachine: TatVirtualMachine);
 var
   sTempBcr : String;
@@ -1236,7 +1245,9 @@ begin
   with AMachine do begin
     nTemp := GetInputArgAsInteger(0);
     if nTemp = 0 then begin // panel ID
-      sTempBcr := TestInfo.SerialNo;
+      if not IsAlphaNumeric(TestInfo.SerialNo) then
+        TestInfo.SerialNo := format('Unable to convert characters CH : %d',[Self.FPgNo]);
+      sTempBcr := TestInfo.SerialNo
     end
     else if nTemp = 1 then begin // Jig ID
       sTempBcr := TestInfo.CarrierId;
@@ -3310,6 +3321,16 @@ begin
   SeqStatus[DefScript.SEQ_STOP].Process := spStop;
 end;
 
+function TScrCls.CheckLastIndexStop(nIndex: integer): Boolean;
+begin
+  if (CurrentSEQ = DefScript.SEQ_KEY_STOP) and (nIndex = DefScript.SEQ_KEY_STOP) then begin
+    Result := True;
+  end
+  else begin
+    Result := False;
+  end;
+end;
+
 procedure TScrCls.RunMaintScript(hDisplay: HWND; stSource: TScrMemo);
 var
   thScript : TThread;
@@ -3363,9 +3384,15 @@ begin
       Exit(DefScript.SEQ_ERR_RUNNING);
     end;
     if (DefScript.SEQ_KEY_STOP = nIdx) or (SeqStatus[nIdx].Process = spStop) then begin
-      atPasScrpt.Halt;
-      StopManualKey;
-      Sleep(10);
+      if m_bLockThread and CheckLastIndexStop(nIdx) then begin
+        Exit(DefScript.SEQ_ERR_RUNNING);
+      end
+      else begin
+        atPasScrpt.Halt;
+        StopManualKey;
+        Sleep(10);
+      end;
+
       //Exit(DefScript.SEQ_ERR_RUNNING);
     end;
   end;

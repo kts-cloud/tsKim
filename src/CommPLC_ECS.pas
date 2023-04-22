@@ -2342,7 +2342,7 @@ begin
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$4 + (nCh*$20), 3), 1); //Load Normal Status - 상태 설정에서....
   //  Unload GlassData
       ConvertGlassDataToBlock(GlassData[nCh*2], naGlassData[0]);
-      WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*10+$0 + (nCh*$80) , 3), 64, naGlassData[0]); //Unload Glass Data #1
+      WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$10+$0 + (nCh*$80) , 3), 64, naGlassData[0]); //Unload Glass Data #1
 
       ConvertGlassDataToBlock(GlassData[nCh*2+1], naGlassData[0]);
       WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$10+$0 + $40 + (nCh*$80), 3), 64, naGlassData[0]); //Unload Glass Data #2
@@ -2359,17 +2359,17 @@ begin
   //  Unload GlassData
       if Common.SystemInfo.CHReversal then begin
         ConvertGlassDataToBlock(GlassData[nCh*2 + 1], naGlassData[0]);
-        WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*20+$0 + (nCh*$80) , 3), 64, naGlassData[0]); //Unload Glass Data #1
+        WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$20+$0 + (nCh*$80) , 3), 64, naGlassData[0]); //Unload Glass Data #1
 
         ConvertGlassDataToBlock(GlassData[nCh*2], naGlassData[0]);
-        WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*20+$0 + $40 + (nCh*$80), 3), 64, naGlassData[0]); //Unload Glass Data #2
+        WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$20+$0 + $40 + (nCh*$80), 3), 64, naGlassData[0]); //Unload Glass Data #2
       end
       else begin
         ConvertGlassDataToBlock(GlassData[nCh*2], naGlassData[0]);
-        WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*20+$0 + (nCh*$80) , 3), 64, naGlassData[0]); //Unload Glass Data #1
+        WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$20+$0 + (nCh*$80) , 3), 64, naGlassData[0]); //Unload Glass Data #1
 
         ConvertGlassDataToBlock(GlassData[nCh*2+1], naGlassData[0]);
-        WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*20+$0 + $40 + (nCh*$80), 3), 64, naGlassData[0]); //Unload Glass Data #2
+        WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$20+$0 + $40 + (nCh*$80), 3), 64, naGlassData[0]); //Unload Glass Data #2
       end;
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$1 + (nCh*$20), 3), 1); //Glass Data Report
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$5 + (nCh*$20), 3), 1); //Unload Request
@@ -2384,7 +2384,7 @@ begin
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$08+$4 + (nCh*$20), 3), 1); //Load Normal Status - 상태 설정에서....
   //  Unload GlassData
       ConvertGlassDataToBlock(GlassData[nCh*2], naGlassData[0]);
-      WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*10+$0 + (nCh*$80) , 3), 64, naGlassData[0]); //Unload Glass Data #1
+      WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$10+$0 + (nCh*$80) , 3), 64, naGlassData[0]); //Unload Glass Data #1
 
       ConvertGlassDataToBlock(GlassData[nCh*2+1], naGlassData[0]);
       WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$10+$0 + $40 + (nCh*$80), 3), 64, naGlassData[0]); //Unload Glass Data #2
@@ -2913,14 +2913,14 @@ try
             //조건 검사 필요
             if InlineGIB then begin
               if nValue <> 0 then Process_ROBOT_LoadComplete(2)
-              else  Process_ROBOT_LoadComplete_Off(0);
+              else  Process_ROBOT_LoadComplete_Off(2);
             end;
           end;
           $63: begin //Load Complete
             //조건 검사 필요
             if InlineGIB then begin
               if nValue <> 0 then Process_ROBOT_LoadComplete(3)
-              else  Process_ROBOT_LoadComplete_Off(1);
+              else  Process_ROBOT_LoadComplete_Off(3);
             end;
           end;
 
@@ -2933,6 +2933,17 @@ try
             //조건 검사 필요
             if nValue <> 0 then Process_ROBOT_UnloadComplete(1)
             else  Process_ROBOT_UnloadComplete_Off(1);
+          end;
+
+          $53: begin //UnLoad Complete
+            //조건 검사 필요
+            if nValue <> 0 then Process_ROBOT_UnloadComplete(2)
+            else  Process_ROBOT_UnloadComplete_Off(2);
+          end;
+          $73: begin //UnLoad Complete
+            //조건 검사 필요
+            if nValue <> 0 then Process_ROBOT_UnloadComplete(3)
+            else  Process_ROBOT_UnloadComplete_Off(3);
           end;
 
           $12: begin  //Robot Unload Busy
@@ -3286,6 +3297,10 @@ begin
     WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$08+$5 + (nCh*$20), 3), 1); //Load Request
     Sleep(100);
     WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$09+$0 + (nCh*$20), 3), 1); //Load Enable
+
+    RequestState_Load[nCh]:= 2; //Load Enable
+    SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, nCh, COMMPLC_PARAM_GALSSDATA_REPORT, 0,
+    format('%s (%s)', [GlassData[nCh*2].CarrierID, GlassData[nCh*2].GlassID]), nil);
   end
   else begin
     if (nCh =1) and (StartAddr2_ROBOT_W <> 0) then
@@ -3316,11 +3331,12 @@ begin
       Sleep(100);
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$12+$0 + (nCh*$20), 3), 1); //Load Enable
     end;
-  end;
-  RequestState_Load[nCh]:= 2; //Load Enable
+    RequestState_Load[nCh]:= 2; //Load Enable
 
-  SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, nCh, COMMPLC_PARAM_GALSSDATA_REPORT, 0,
+    SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, nCh, COMMPLC_PARAM_GALSSDATA_REPORT, 0,
     format('%s (%s), %s (%s)', [GlassData[nCh*2].CarrierID, GlassData[nCh*2].GlassID, GlassData[nCh*2+1].CarrierID, GlassData[(StageNo*4)+nCh*2+1].GlassID]), nil);
+  end;
+
 (*
   //일정 시간안에 Robot Busy가 설정되지 않으면 Alarm
   nRet:= WaitSignal('B' + IntToHex(StartAddr_ROBOT+$10*$01+$2 + (nCh*$20), 3), 1, 30000); //Robot Busy

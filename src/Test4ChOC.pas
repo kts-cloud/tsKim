@@ -9,7 +9,7 @@ uses
   {UdpServerClient,} CommonClass, ScriptClass, DefScript, DefPG, DefCommon, ControlDio_OC, //PlcTcpPocb, defPlc,
   CodeSiteLogging, Vcl.ComCtrls, AdvListV, DongaPattern, RzGrids, AdvUtil, RzLine,
   HandBCR, GMesCom, pasScriptClass, AdvGlassButton, DefGmes, CommCameraRadiant, TILed, DefDio, CommPLC_ECS,DBModule
-  ,CA_SDK2,dllClass,CommPG,LogicVh,VirtualBcrForm,ECSRequestForm;
+  ,CA_SDK2,dllClass,CommPG,LogicVh,VirtualBcrForm,CommIonizer,ECSRequestForm;
 const
   //Stage 메시지 Mode
   STAGE_MODE_NONE                = 100;
@@ -124,6 +124,7 @@ type
     btnStopTest    :  array [DefCommon.CH1..DefCommon.MAX_JIG_CNT] of  TRzBitBtn;
     btnVirtualKey  :  array [DefCommon.CH1..DefCommon.MAX_JIG_CNT] of  TRzBitBtn;
     btnLampOnOff   :  array [DefCommon.CH1..DefCommon.MAX_JIG_CNT] of  TRzBitBtn;
+    btnSetIonizer  :  array [DefCommon.CH1..DefCommon.MAX_JIG_CNT] of  TRzBitBtn;
     // tact time.
     pnlTackTimes   :  array [DefCommon.CH1..DefCommon.MAX_CH] of  TRzPanel;
     pnlNowValues   :  array [DefCommon.CH1..DefCommon.MAX_CH] of  TPanel;     // CH 별 개별 표시
@@ -191,6 +192,7 @@ type
     procedure btnTakeOutReportClick(Sender: TObject);
     procedure chkPgClick(Sender: TObject);
     procedure btnLampOnoffClick(Sender: TObject);
+    procedure btnSetIonizerClick(Sender: TObject);
     procedure DisplayPGStatus(nPgNo, nType : Integer; sMsg : string);
     procedure DisplayPwrData(nPgNo: Integer; PwrData: TPwrData);
 
@@ -267,6 +269,7 @@ type
     procedure ShowPlcNgMeg(nJigCh : Integer;sErrMsg : string);
     procedure SetHostConnShow(bHostOn : Boolean);
     function CheckScriptRun : Boolean;
+    procedure SetIonizer(nCH : Integer; bIsOnOff : Boolean);
     procedure SetPlcStatus(IoPlc : Integer);
     procedure CamScriptStart;
     procedure UnloadScriptStart(nCH : Integer);
@@ -274,6 +277,7 @@ type
     procedure DisplayDio(bIsIn : Boolean);
     procedure ClearPreviousResult;
     procedure getBcrData(sScanData: string);
+
 //    procedure SetLanguage(nIdx : Integer);
   end;
 
@@ -414,6 +418,22 @@ begin
   pnlOKValues[nCh].Caption := IntToStr(m_nOkCnt[nCh]);
   pnlNGValues[nCh].Caption := IntToStr(m_nNgCnt[nCh]);
 
+end;
+
+procedure TfrmTest4ChOC.btnSetIonizerClick(Sender: TObject);
+var nCH : integer;
+begin
+  nCH := (Sender as TRzButton).Tag;
+  if not Common.StatusInfo.AutoMode then begin
+    if Pos('Ionizer ON',btnSetIonizer[nCH].Caption) > 0  then begin
+      SetIonizer(nCH,True);
+      btnSetIonizer[nCH].Caption := 'Ionizer OFF';
+    end
+    else begin
+      SetIonizer(nCH,False);
+      btnSetIonizer[nCH].Caption := 'Ionizer ON';
+    end;
+  end;
 end;
 
 procedure TfrmTest4ChOC.btnStopInputSClick(Sender: TObject);
@@ -787,10 +807,6 @@ begin
       pnlJigTitle[i].Top := 424  - i* 422
     else pnlJigTitle[i].Top := 2  + i* 422;
 
-
-
-
-
     pnlJigTitle[i].Height := 30;
     pnlJigTitle[i].Width := pnlJigInform.Width -3;
     pnlJigTitle[i].Font.Size := 16;
@@ -907,6 +923,19 @@ begin
     btnLampOnOff[i].OnClick := btnLampOnOffClick;
     btnLampOnOff[i].Cursor := crHandPoint;
     btnLampOnOff[i].HotTrack := True;
+
+    btnSetIonizer[i] := TRzBitBtn.Create(self);
+    btnSetIonizer[i].Parent := pnlJigInform;
+    btnSetIonizer[i].Tag  := i;
+    btnSetIonizer[i].Top := btnLampOnOff[i].Top + btnLampOnOff[i].Height + 1;//2;
+    btnSetIonizer[i].Left := 2;//200;
+    btnSetIonizer[i].Height := 50;
+    btnSetIonizer[i].Width := pnlJigInform.Width - 2;//;180;// pnlJig[nJig].Width div nMaxCh;
+    btnSetIonizer[i].Font.Size := 12;
+    btnSetIonizer[i].Caption :=  'Ionizer OFF';
+    btnSetIonizer[i].OnClick := btnSetIonizerClick;
+    btnSetIonizer[i].Cursor := crHandPoint;
+    btnSetIonizer[i].HotTrack := True;
 
   end;
 
@@ -2596,6 +2625,8 @@ begin
     end;
     common.MLog(4,Format('AutoLogicStart Process : %d',[nCH]));
 
+    frmTest4ChOC[0].SetIonizer(nCH,True);  //// 검사 종료 시 SetIonizer ON
+
     ControlDio.LampOnOff(nCH,false); // Added by KTS 2023-01-02 오후 5:39:50 시작 전 Lamp 제어
     if nCH = DefCommon.CH_TOP then begin
       common.MLog(4,Format(' CH_TOP SEQ_KEY_START Start : %d',[nCH]));
@@ -2797,6 +2828,20 @@ begin
 
 end;
 
+procedure TfrmTest4ChOC.SetIonizer(nCH: Integer; bIsOnOff: Boolean);
+begin
+  if bIsOnOff then begin
+    ControlDio.SetIonizer(nCH,False);
+      if DaeIonizer[nCH] <> nil then
+      DaeIonizer[nCH].SendRun;
+  end
+  else begin
+    ControlDio.SetIonizer(nCH,True);
+    if DaeIonizer[nCH] <> nil then
+      DaeIonizer[nCH].SendStop;
+  end;
+end;
+
 //procedure TfrmTest4Ch.SetLanguage(nIdx: Integer);
 //var
 //  i : Integer;
@@ -2867,16 +2912,16 @@ begin
   pnlPGStatuses[nJigCh].Font.Size := 24;
   pnlPGStatuses[nJigCh].Font.Name := 'Verdana';
 
-    pnlPGStatuses[nJigCh].Caption := 'Carrier Detact NG';
-    pnlPGStatuses[nJigCh].Color := clMaroon;
-    pnlPGStatuses[nJigCh].Font.Color := clYellow;
-    sDebug := FormatDateTime('[HH:MM:SS.zzz] ',now) + 'Carrier Detact NG : '+ sErrMsg;
-    mmChannelLog[nJigCh].SelAttributes.Color := clRed;
-    mmChannelLog[nJigCh].SelAttributes.Style := [fsBold];
-    mmChannelLog[nJigCh].Lines.Add(sDebug);
+  pnlPGStatuses[nJigCh].Caption := 'Carrier Detact NG';
+  pnlPGStatuses[nJigCh].Color := clMaroon;
+  pnlPGStatuses[nJigCh].Font.Color := clYellow;
+  sDebug := FormatDateTime('[HH:MM:SS.zzz] ',now) + 'Carrier Detact NG : '+ sErrMsg;
+  mmChannelLog[nJigCh].SelAttributes.Color := clRed;
+  mmChannelLog[nJigCh].SelAttributes.Style := [fsBold];
+  mmChannelLog[nJigCh].Lines.Add(sDebug);
 //    mmChannelLog[nJigCh].Perform(EM_SCROLL,SB_LINEDOWN,0);
-    CalcLogScroll(nJigCh,Length(sDebug));
-    Common.MLog(nJigCh+self.Tag*4,'Carrier Detact NG NG : '+sErrMsg);
+  CalcLogScroll(nJigCh,Length(sDebug));
+  Common.MLog(nJigCh+self.Tag*4,'Carrier Detact NG NG : '+sErrMsg);
 end;
 
 procedure TfrmTest4ChOC.StopTotalTimer(Sender: TObject; nJigCh, nTimerType : Integer);
@@ -2979,11 +3024,13 @@ begin
   if nCH = DefCommon.CH_TOP  then  begin
     CSharpDll.m_bIsProcessDone[0] := False;
     CSharpDll.m_bIsProcessDone[1] := False;
+    frmTest4ChOC[0].SetIonizer(nCH,false);  // 검사 종료 시 SetIonizer OFF
     JigLogic[Self.Tag].StartIspd_TOP(DefScript.SEQ_UNLOAD_ZONE);
   end;
   if nCH = DefCommon.CH_BOTTOM  then begin
     CSharpDll.m_bIsProcessDone[2] := False;
     CSharpDll.m_bIsProcessDone[3] := False;
+    frmTest4ChOC[0].SetIonizer(nCH,false);  // 검사 종료 시 SetIonizer OFF
     JigLogic[Self.Tag].StartIspd_BOTTOM(DefScript.SEQ_UNLOAD_ZONE);
   end;
 end;

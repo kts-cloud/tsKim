@@ -96,6 +96,7 @@ type
     function VaccumOFF(nCh: Integer): Integer;
     function LampOnOff(nGroup : integer;  bIsOnOff : Boolean): Integer;
     function CheckDIO_Start(nCH: Integer): Boolean;
+    function SetIonizer(nGroup : Integer; bIsOnOff : Boolean) : Boolean;
     /// <summary> Shutter Up & Down </summary>
     /// <param name='bIsUp'> True : Up, False : Down. (SendMessage)</param>
     function MovingShutter(nGroup : Integer; bIsUp : Boolean) : Integer;      // Added by KTS 2022-10-31 ¿ÀÀü 10:12:19
@@ -2867,6 +2868,14 @@ begin
       SendMsgMain(ControlDio_OC.MSG_MODE_DISPLAY_ALARAM, nIdx,0,'');
     end;
   end;
+end;
+
+function TControlDio.SetIonizer(nGroup: Integer; bIsOnOff: Boolean): Boolean;
+begin
+  if Common.SystemInfo.OCType = DefCommon.OCType then
+    WriteDioSig(DefDio.OUT_CH_1_2_ION_ONOFF_SOL + nGroup,bIsOnOff)
+  else
+    WriteDioSig(DefDio.OUT_GIB_CH_12_ION_ONOFF_SOL + nGroup,bIsOnOff)
 end;
 
 procedure TControlDio.Set_AlarmData(nIndex, nValue: Integer);
