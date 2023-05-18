@@ -42,6 +42,8 @@ type
 
   TCallBackTCONSetReg       = function(nChannel,Addr : Integer; data : Byte): Integer;
   TCallBackTCONGetReg       = function(nChannel,Addr : Integer; data : Byte): Integer;
+  TCallBackTCONSetRegArray  = function(nChannel,Addr : Integer; data : PByte; nLength : Integer): Integer;
+  TCallBackTCONGetRegArray  = function(nChannel,Addr : Integer; data : PByte; nLength : Integer): Integer;
   TCallBackFlashWrite_File  = function(nChannel,nStartSeg,nLength : Integer; filePath : PAnsiChar): Integer;
   TCallBackFlashWrite_Data  = function(nChannel,nStartSeg,nLength : Integer; data: PByte): Integer;
   TCallBackFlashRead_File   = function(nChannel,nStartSeg,nLength : Integer; filePath : PAnsiChar): Integer;
@@ -129,6 +131,8 @@ type
 
     m_SetCallBackTCONSetReg         : procedure (nChannel : Integer; CaallbackFunction : TCallBackTCONSetReg         );cdecl;
     m_SetCallBackTCONGetReg         : procedure (nChannel : Integer; CaallbackFunction : TCallBackTCONGetReg         );cdecl;
+    m_SetCallBackTCONSetRegArray    : procedure (nChannel : Integer; CaallbackFunction : TCallBackTCONSetRegArray    );cdecl;
+    m_SetCallBackTCONGetRegArray    : procedure (nChannel : Integer; CaallbackFunction : TCallBackTCONGetRegArray    );cdecl;
     m_SetCallBackFlashWrite_File    : procedure (nChannel : Integer; CaallbackFunction : TCallBackFlashWrite_File    );cdecl;
     m_SetCallBackFlashWrite_Data    : procedure (nChannel : Integer; CaallbackFunction : TCallBackFlashWrite_Data    );cdecl;
     m_SetCallBackFlashRead_File     : procedure (nChannel : Integer; CaallbackFunction : TCallBackFlashRead_File     );cdecl;
@@ -159,6 +163,7 @@ type
     m_hDll  : HWND;
     m_hMain : HWND;
     FNgMsg: string;
+    m_GetOCversion : function : PAnsiChar; cdecl;
     m_MainOC_START_CH1 : procedure(nCH : Integer; sParameter : PAnsiChar); cdecl;
     m_MainOC_START_CH2 : procedure(nCH : Integer; sParameter : PAnsiChar); cdecl;
     m_MainOC_START_CH3 : procedure(nCH : Integer; sParameter : PAnsiChar); cdecl;
@@ -174,6 +179,8 @@ type
 
     CB_TCONSetReg           : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackTCONSetReg;
     CB_TCONGetReg           : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackTCONGetReg;
+    CB_TCONSetRegArray      : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackTCONSetRegArray;
+    CB_TCONGetRegArray      : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackTCONGetRegArray;
     CB_FlashWrite_File      : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackFlashWrite_File;
     CB_FlashWrite_Data      : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackFlashWrite_Data;
     CB_FlashRead_File       : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackFlashRead_File;
@@ -268,6 +275,16 @@ type
   function MyCB_TCONGetReg_3(nChannel,Addr : Integer; var data : Byte): Integer;
   function MyCB_TCONGetReg_4(nChannel,Addr : Integer; var data : Byte): Integer;
 
+  function MyCB_TCONSetRegArray_1(nChannel,Addr : Integer; const data : PByte; nLength : Integer): Integer;
+  function MyCB_TCONSetRegArray_2(nChannel,Addr : Integer; const data : PByte; nLength : Integer): Integer;
+  function MyCB_TCONSetRegArray_3(nChannel,Addr : Integer; const data : PByte; nLength : Integer): Integer;
+  function MyCB_TCONSetRegArray_4(nChannel,Addr : Integer; const data : PByte; nLength : Integer): Integer;
+
+  function MyCB_TCONGetRegArray_1(nChannel,Addr : Integer; data : PByte; nLength : Integer): Integer;
+  function MyCB_TCONGetRegArray_2(nChannel,Addr : Integer; data : PByte; nLength : Integer): Integer;
+  function MyCB_TCONGetRegArray_3(nChannel,Addr : Integer; data : PByte; nLength : Integer): Integer;
+  function MyCB_TCONGetRegArray_4(nChannel,Addr : Integer; data : PByte; nLength : Integer): Integer;
+
   function MyCB_FlashWrite_File_1(nChannel,StartSeg,EndSeg : Integer; filePath : PAnsiChar): Integer;
   function MyCB_FlashWrite_File_2(nChannel,StartSeg,EndSeg : Integer; filePath : PAnsiChar): Integer;
   function MyCB_FlashWrite_File_3(nChannel,StartSeg,EndSeg : Integer; filePath : PAnsiChar): Integer;
@@ -293,103 +310,6 @@ type
   function MyCB_FlashErase_2(nChannel,nStartSeg,nLength : Integer): Integer;
   function MyCB_FlashErase_3(nChannel,nStartSeg,nLength : Integer): Integer;
   function MyCB_FlashErase_4(nChannel,nStartSeg,nLength : Integer): Integer;
-
-
-//
-//  function MyCB_APSBoxPatternSet_1(nChannel,XOffset,YOffset, Width,Height, R,G,B, Background_R,Background_G,Background_B: Integer): Integer;
-//  function MyCB_APSBoxPatternSet_2(nChannel,XOffset,YOffset, Width,Height, R,G,B, Background_R,Background_G,Background_B: Integer): Integer;
-//  function MyCB_APSBoxPatternSet_3(nChannel,XOffset,YOffset, Width,Height, R,G,B, Background_R,Background_G,Background_B: Integer): Integer;
-//  function MyCB_APSBoxPatternSet_4(nChannel,XOffset,YOffset, Width,Height, R,G,B, Background_R,Background_G,Background_B: Integer): Integer;
-//
-//  function MyCB_APSPatternRGBSet_1(nChannel,R, G, B: Integer): Integer;
-//  function MyCB_APSPatternRGBSet_2(nChannel,R, G, B: Integer): Integer;
-//  function MyCB_APSPatternRGBSet_3(nChannel,R, G, B: Integer): Integer;
-//  function MyCB_APSPatternRGBSet_4(nChannel,R, G, B: Integer): Integer;
-//
-//  function MyCB_APSSetReg_1(nChannel,Addr: Integer; Data: Integer): Integer;
-//  function MyCB_APSSetReg_2(nChannel,Addr: Integer; Data: Integer): Integer;
-//  function MyCB_APSSetReg_3(nChannel,Addr: Integer; Data: Integer): Integer;
-//  function MyCB_APSSetReg_4(nChannel,Addr: Integer; Data: Integer): Integer;
-//
-//  function MyCB_LGDSetReg_1(nChannel : Integer; Addr: DWORD; data: Byte): Integer;
-//  function MyCB_LGDSetReg_2(nChannel : Integer; Addr: DWORD; data: Byte): Integer;
-//  function MyCB_LGDSetReg_3(nChannel : Integer; Addr: DWORD; data: Byte): Integer;
-//  function MyCB_LGDSetReg_4(nChannel : Integer; Addr: DWORD; data: Byte): Integer;
-//
-//  function MyCB_LGDSetRegM_1(nChannel: Integer; LGDCommand: AF9_PLGDCommand; CommandCnt: Integer): Integer;
-//  function MyCB_LGDSetRegM_2(nChannel: Integer; LGDCommand: AF9_PLGDCommand; CommandCnt: Integer): Integer;
-//  function MyCB_LGDSetRegM_3(nChannel: Integer; LGDCommand: AF9_PLGDCommand; CommandCnt: Integer): Integer;
-//  function MyCB_LGDSetRegM_4(nChannel: Integer; LGDCommand: AF9_PLGDCommand; CommandCnt: Integer): Integer;
-//
-//  function MyCB_PatternRGBSet_1(nChannel,R, G, B: Integer): Integer;
-//  function MyCB_PatternRGBSet_2(nChannel,R, G, B: Integer): Integer;
-//  function MyCB_PatternRGBSet_3(nChannel,R, G, B: Integer): Integer;
-//  function MyCB_PatternRGBSet_4(nChannel,R, G, B: Integer): Integer;
-//
-//  function MyCB_SendHexFileCRC_1(nChannel : Integer; CRC: Word): Integer;
-//  function MyCB_SendHexFileCRC_2(nChannel : Integer; CRC: Word): Integer;
-//  function MyCB_SendHexFileCRC_3(nChannel : Integer; CRC: Word): Integer;
-//  function MyCB_SendHexFileCRC_4(nChannel : Integer; CRC: Word): Integer;
-//
-//  function MyCB_Start_Connection_1(nChannel : Integer): Integer;
-//  function MyCB_Start_Connection_2(nChannel : Integer): Integer;
-//  function MyCB_Start_Connection_3(nChannel : Integer): Integer;
-//  function MyCB_Start_Connection_4(nChannel : Integer): Integer;
-//
-//  function MyCB_Stop_Connection_1(nChannel : Integer): Integer;
-//  function MyCB_Stop_Connection_2(nChannel : Integer): Integer;
-//  function MyCB_Stop_Connection_3(nChannel : Integer): Integer;
-//  function MyCB_Stop_Connection_4(nChannel : Integer): Integer;
-//
-//  function MyCB_WriteBMPFile_1(nChannel : Integer; const pbyteBuffer: PByte; len: Integer): Integer;
-//  function MyCB_WriteBMPFile_2(nChannel : Integer; const pbyteBuffer: PByte; len: Integer): Integer;
-//  function MyCB_WriteBMPFile_3(nChannel : Integer; const pbyteBuffer: PByte; len: Integer): Integer;
-//  function MyCB_WriteBMPFile_4(nChannel : Integer; const pbyteBuffer: PByte; len: Integer): Integer;
-//
-//  function MyCB_Connection_Status_1(nChannel : Integer): Integer;
-//  function MyCB_Connection_Status_2(nChannel : Integer): Integer;
-//  function MyCB_Connection_Status_3(nChannel : Integer): Integer;
-//  function MyCB_Connection_Status_4(nChannel : Integer): Integer;
-//
-//  function MyCB_FreeAF9API_1(nChannel : Integer): Boolean;
-//  function MyCB_FreeAF9API_2(nChannel : Integer): Boolean;
-//  function MyCB_FreeAF9API_3(nChannel : Integer): Boolean;
-//  function MyCB_FreeAF9API_4(nChannel : Integer): Boolean;
-//
-//  function MyCB_SendHexFile_1(nChannel : Integer; const pbyteBuffer: PByte; len: Integer): Integer;
-//  function MyCB_SendHexFile_2(nChannel : Integer; const pbyteBuffer: PByte; len: Integer): Integer;
-//  function MyCB_SendHexFile_3(nChannel : Integer; const pbyteBuffer: PByte; len: Integer): Integer;
-//  function MyCB_SendHexFile_4(nChannel : Integer; const pbyteBuffer: PByte; len: Integer): Integer;
-//
-//  Function MyCB_DAC_SET_1(nChannel,nType: Integer; Channel: Integer; Voltage: Integer; Option: Integer): Boolean;
-//  Function MyCB_DAC_SET_2(nChannel,nType: Integer; Channel: Integer; Voltage: Integer; Option: Integer): Boolean;
-//  Function MyCB_DAC_SET_3(nChannel,nType: Integer; Channel: Integer; Voltage: Integer; Option: Integer): Boolean;
-//  Function MyCB_DAC_SET_4(nChannel,nType: Integer; Channel: Integer; Voltage: Integer; Option: Integer): Boolean;
-//
-//  Function MyCB_ExtendIO_Set_1(nChannel,Address: Integer; Channel: Integer; Enable: Integer): Boolean;
-//  Function MyCB_ExtendIO_Set_2(nChannel,Address: Integer; Channel: Integer; Enable: Integer): Boolean;
-//  Function MyCB_ExtendIO_Set_3(nChannel,Address: Integer; Channel: Integer; Enable: Integer): Boolean;
-//  Function MyCB_ExtendIO_Set_4(nChannel,Address: Integer; Channel: Integer; Enable: Integer): Boolean;
-//
-//  function MyCB_FlashRead_1(nChannel : Integer; const pBuffer: PByte; StartAddr,EndAddr: DWORD): Byte;
-//  function MyCB_FlashRead_2(nChannel : Integer; const pBuffer: PByte; StartAddr,EndAddr: DWORD): Byte;
-//  function MyCB_FlashRead_3(nChannel : Integer; const pBuffer: PByte; StartAddr,EndAddr: DWORD): Byte;
-//  function MyCB_FlashRead_4(nChannel : Integer; const pBuffer: PByte; StartAddr,EndAddr: DWORD): Byte;
-//
-//  function MyCB_SW_Revision_1(nChannel : Integer): Integer;
-//  function MyCB_SW_Revision_2(nChannel : Integer): Integer;
-//  function MyCB_SW_Revision_3(nChannel : Integer): Integer;
-//  function MyCB_SW_Revision_4(nChannel : Integer): Integer;
-//
-//  Function MyCB_SendHexFileOC_1(nChannel : Integer; pbyteBuffer: PByte; len: Integer): Integer;
-//  Function MyCB_SendHexFileOC_2(nChannel : Integer; pbyteBuffer: PByte; len: Integer): Integer;
-//  Function MyCB_SendHexFileOC_3(nChannel : Integer; pbyteBuffer: PByte; len: Integer): Integer;
-//  Function MyCB_SendHexFileOC_4(nChannel : Integer; pbyteBuffer: PByte; len: Integer): Integer;
-
-//  Function MyCB_SetFreqChange_1(nChannel : Integer; const pbyteBuffer: PByte; len: Integer; HzCnt: Integer; nRepeat: Integer): Integer;
-//  Function MyCB_SetFreqChange_2(nChannel : Integer; const pbyteBuffer: PByte; len: Integer; HzCnt: Integer; nRepeat: Integer): Integer;
-//  Function MyCB_SetFreqChange_3(nChannel : Integer; const pbyteBuffer: PByte; len: Integer; HzCnt: Integer; nRepeat: Integer): Integer;
-//  Function MyCB_SetFreqChange_4(nChannel : Integer; const pbyteBuffer: PByte; len: Integer; HzCnt: Integer; nRepeat: Integer): Integer;
 
   function MyCB_measure_XYL_1(nChannel:Integer; var t5 : TArray<double>; var nLen : Integer): Integer;
   function MyCB_measure_XYL_2(nChannel:Integer; var t5 : TArray<double>; var nLen : Integer): Integer;
@@ -656,6 +576,82 @@ begin
   {$ENDIF}
 end;
 
+function MyCB_TCONSetRegArray_1(nChannel , Addr : Integer; const data : PByte; nLength : integer): Integer;
+var
+nWaitMS,nRetry,nDataCnt : Integer;
+sDebug,sTxData : string;
+arRData : TIdBytes;
+begin
+  Inc(PG[nChannel].TconRWCnt.TconWriteDllCall); //2023-03-28 jhhwang (for T/T Test)
+
+  nWaitMS := 200; //2023-04-08 (3000->100->200)
+  nRetry  := 0;   //2023-04-08 (0->3->0)
+
+  nDataCnt := nLength;
+  SetLength(arRData,nDataCnt);
+  Move(data^, arRData[0], nLength);
+
+  Result := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nLength, arRData, nWaitMS,nRetry);
+
+end;
+
+function MyCB_TCONSetRegArray_2(nChannel , Addr : Integer; const data : PByte; nLength : integer): Integer;
+var
+nWaitMS,nRetry,nDataCnt : Integer;
+sDebug,sTxData : string;
+arRData : TIdBytes;
+begin
+  Inc(PG[nChannel].TconRWCnt.TconWriteDllCall); //2023-03-28 jhhwang (for T/T Test)
+
+  nWaitMS := 200; //2023-04-08 (3000->100->200)
+  nRetry  := 0;   //2023-04-08 (0->3->0)
+
+  nDataCnt := nLength;
+  SetLength(arRData,nDataCnt);
+  Move(data^, arRData[0], nLength);
+
+  Result := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nDataCnt, arRData, nWaitMS,nRetry);
+
+end;
+
+function MyCB_TCONSetRegArray_3(nChannel , Addr : Integer; const  data : PByte; nLength : integer): Integer;
+var
+nWaitMS,nRetry,nDataCnt : Integer;
+sDebug,sTxData : string;
+arRData : TIdBytes;
+begin
+  Inc(PG[nChannel].TconRWCnt.TconWriteDllCall); //2023-03-28 jhhwang (for T/T Test)
+
+  nWaitMS := 200; //2023-04-08 (3000->100->200)
+  nRetry  := 0;   //2023-04-08 (0->3->0)
+
+  nDataCnt := nLength;
+  SetLength(arRData,nDataCnt);
+  Move(data^, arRData[0], nLength);
+
+  Result := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nDataCnt, arRData, nWaitMS,nRetry);
+
+end;
+
+function MyCB_TCONSetRegArray_4(nChannel , Addr : Integer; const data : PByte; nLength : integer): Integer;
+var
+nWaitMS,nRetry,nDataCnt : Integer;
+sDebug,sTxData : string;
+arRData : TIdBytes;
+begin
+  Inc(PG[nChannel].TconRWCnt.TconWriteDllCall); //2023-03-28 jhhwang (for T/T Test)
+
+  nWaitMS := 200; //2023-04-08 (3000->100->200)
+  nRetry  := 0;   //2023-04-08 (0->3->0)
+
+  nDataCnt := nLength;
+  SetLength(arRData,nDataCnt);
+  Move(data^, arRData[0],nLength);
+
+  Result := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nDataCnt, arRData, nWaitMS,nRetry);
+
+end;
+
 
 
 function MyCB_TCONGetReg_1(nChannel , Addr : Integer; var data : Byte): Integer;
@@ -797,6 +793,101 @@ begin
 end;
 
 
+function MyCB_TCONGetRegArray_1(nChannel,Addr : Integer; data : PByte; nLength : Integer): Integer;
+var
+nWaitMS,nRetry,nDataCnt : Integer;
+sDebug,sTxData : string;
+arRData : TIdBytes;
+i : Integer;
+begin
+  Inc(PG[nChannel].TconRWCnt.TconReadDllCall); //2023-03-28 jhhwang (for T/T Test)
+
+  nWaitMS := 100; //2023-03-28 jhhwang (for T/T Test) //2023-04-08 (500->100)
+  nRetry  := 2;   //2023-03-28 jhhwang (for T/T Test) //2023-04-08 (1->2)
+
+  nDataCnt := nLength;
+
+  SetLength(arRData,nDataCnt);
+  for i := 0 to nRetry do begin //2023-04-07 retry at here (RxParsingErr)
+    Result := Pg[nChannel].SendI2CRead(DEVICE_ADDRESS,Addr,nDataCnt,arRData, nWaitMS,0{nRetry});
+    if Result = WAIT_OBJECT_0 then break;
+  end;
+
+  CopyMemory(data,@arRData[0],nLength);
+
+end;
+
+function MyCB_TCONGetRegArray_2(nChannel,Addr : Integer; data : PByte; nLength : Integer): Integer;
+var
+nWaitMS,nRetry,nDataCnt : Integer;
+sDebug,sTxData : string;
+arRData : TIdBytes;
+i : Integer;
+begin
+  Inc(PG[nChannel].TconRWCnt.TconReadDllCall); //2023-03-28 jhhwang (for T/T Test)
+
+  nWaitMS := 100; //2023-03-28 jhhwang (for T/T Test) //2023-04-08 (500->100)
+  nRetry  := 2;   //2023-03-28 jhhwang (for T/T Test) //2023-04-08 (1->2)
+
+  nDataCnt := nLength;
+
+  SetLength(arRData,nDataCnt);
+  for i := 0 to nRetry do begin //2023-04-07 retry at here (RxParsingErr)
+    Result := Pg[nChannel].SendI2CRead(DEVICE_ADDRESS,Addr,nDataCnt,arRData, nWaitMS,0{nRetry});
+    if Result = WAIT_OBJECT_0 then break;
+  end;
+  CopyMemory(data,@arRData[0],nLength);
+
+end;
+
+function MyCB_TCONGetRegArray_3(nChannel,Addr : Integer; data : PByte; nLength : Integer): Integer;
+var
+nWaitMS,nRetry,nDataCnt : Integer;
+sDebug,sTxData : string;
+arRData : TIdBytes;
+i : Integer;
+begin
+  Inc(PG[nChannel].TconRWCnt.TconReadDllCall); //2023-03-28 jhhwang (for T/T Test)
+
+  nWaitMS := 100; //2023-03-28 jhhwang (for T/T Test) //2023-04-08 (500->100)
+  nRetry  := 2;   //2023-03-28 jhhwang (for T/T Test) //2023-04-08 (1->2)
+
+  nDataCnt := nLength;
+
+  SetLength(arRData,nDataCnt);
+  for i := 0 to nRetry do begin //2023-04-07 retry at here (RxParsingErr)
+    Result := Pg[nChannel].SendI2CRead(DEVICE_ADDRESS,Addr,nDataCnt,arRData, nWaitMS,0{nRetry});
+    if Result = WAIT_OBJECT_0 then break;
+  end;
+  CopyMemory(data,@arRData[0],nLength);
+
+end;
+
+
+function MyCB_TCONGetRegArray_4(nChannel,Addr : Integer; data : PByte; nLength : Integer): Integer;
+var
+nWaitMS,nRetry,nDataCnt : Integer;
+sDebug,sTxData : string;
+arRData : TIdBytes;
+i : Integer;
+begin
+  Inc(PG[nChannel].TconRWCnt.TconReadDllCall); //2023-03-28 jhhwang (for T/T Test)
+
+  nWaitMS := 100; //2023-03-28 jhhwang (for T/T Test) //2023-04-08 (500->100)
+  nRetry  := 2;   //2023-03-28 jhhwang (for T/T Test) //2023-04-08 (1->2)
+
+  nDataCnt := nLength;
+
+  SetLength(arRData,nDataCnt);
+  for i := 0 to nRetry do begin //2023-04-07 retry at here (RxParsingErr)
+    Result := Pg[nChannel].SendI2CRead(DEVICE_ADDRESS,Addr,nDataCnt,arRData, nWaitMS,0{nRetry});
+    if Result = WAIT_OBJECT_0 then break;
+  end;
+  CopyMemory(data,@arRData[0],nLength);
+
+end;
+
+
 function MyCB_FlashWrite_File_1(nChannel,StartSeg,EndSeg : Integer; filePath : PAnsiChar): Integer;
 var
 nWaitMS,nRetry,nDataCnt : Integer;
@@ -804,11 +895,6 @@ sDebug,sTxData : string;
 arRData : TIdBytes;
 begin
   nDataCnt := EndSeg - StartSeg;
-//  sDebug := Format('I2C READ: DevAddr(0x%0.2x) RegAddr(0x%0.4x) DataCnt(%d), WaitMS(%d) Retry(%d) ',[DEVICE_ADDRESS,Addr,nDataCnt, nWaitMS,nRetry]);
-//  Common.MLog(nChannel,sDebug);
-
-//  SetLength(arRData,nDataCnt);
-//  Result := Pg[nChannel].SendI2CRead(DEVICE_ADDRESS,Addr,nDataCnt,arRData, nWaitMS,nRetry);
   Result := 0;
 end;
 
@@ -819,13 +905,7 @@ sDebug,sTxData : string;
 arRData : TIdBytes;
 begin
   nDataCnt := 1;
-//  sDebug := Format('I2C READ: DevAddr(0x%0.2x) RegAddr(0x%0.4x) DataCnt(%d), WaitMS(%d) Retry(%d) ',[DEVICE_ADDRESS,Addr,nDataCnt, nWaitMS,nRetry]);
-//  Common.MLog(nChannel,sDebug);
-//
-//  SetLength(arRData,nDataCnt);
-//  Result := Pg[nChannel].SendI2CRead(DEVICE_ADDRESS,Addr,nDataCnt,arRData, nWaitMS,nRetry);
   Result := 0;
-
 end;
 
 function MyCB_FlashWrite_File_3(nChannel,StartSeg,EndSeg : Integer; filePath : PAnsiChar): Integer;
@@ -835,13 +915,7 @@ sDebug,sTxData : string;
 arRData : TIdBytes;
 begin
   nDataCnt := 1;
-//  sDebug := Format('I2C READ: DevAddr(0x%0.2x) RegAddr(0x%0.4x) DataCnt(%d), WaitMS(%d) Retry(%d) ',[DEVICE_ADDRESS,Addr,nDataCnt, nWaitMS,nRetry]);
-//  Common.MLog(nChannel,sDebug);
-
-//  SetLength(arRData,nDataCnt);
-//  Result := Pg[nChannel].SendI2CRead(DEVICE_ADDRESS,Addr,nDataCnt,arRData, nWaitMS,nRetry);
   Result := 0;
-
 end;
 
 function MyCB_FlashWrite_File_4(nChannel,StartSeg,EndSeg : Integer; filePath : PAnsiChar): Integer;
@@ -851,12 +925,6 @@ sDebug,sTxData : string;
 arRData : TIdBytes;
 begin
   nDataCnt := 1;
-//  sDebug := Format('I2C READ: DevAddr(0x%0.2x) RegAddr(0x%0.4x) DataCnt(%d), WaitMS(%d) Retry(%d) ',[DEVICE_ADDRESS,Addr,nDataCnt, nWaitMS,nRetry]);
-//  Common.MLog(nChannel,sDebug);
-
-//  SetLength(arRData,nDataCnt);
-//  Result := Pg[nChannel].SendI2CRead(DEVICE_ADDRESS,Addr,nDataCnt,arRData, nWaitMS,nRetry);
-
   Result := 0;
 end;
 
@@ -865,31 +933,22 @@ var
  sDebug : string;
  bTest : array of Byte;
 begin
-//Pg[nChannel].SetCyclicTimer(False{bEnable});
-
   Result := Pg[nChannel].SendFlashWrite(StartSeg,nLength, data); //TBD:ITOLED?
-//Pg[nChannel].SetCyclicTimer(true{bEnable});
 end;
 
 function MyCB_FlashWrite_Data_2(nChannel,StartSeg,nLength : Integer; const data: PByte): Integer;
 begin
-//Pg[nChannel].SetCyclicTimer(False{bEnable});
   Result := Pg[nChannel].SendFlashWrite(StartSeg,nLength, data); //TBD:ITOLED?
-//Pg[nChannel].SetCyclicTimer(true {bEnable});
 end;
 
 function MyCB_FlashWrite_Data_3(nChannel,StartSeg,nLength : Integer; const data: PByte): Integer;
 begin
-//Pg[nChannel].SetCyclicTimer(False{bEnable});
   Result := Pg[nChannel].SendFlashWrite(StartSeg,nLength, data); //TBD:ITOLED?
-//Pg[nChannel].SetCyclicTimer(true{bEnable});
 end;
 
 function MyCB_FlashWrite_Data_4(nChannel,StartSeg,nLength : Integer; const data: PByte): Integer;
 begin
-//Pg[nChannel].SetCyclicTimer(False{bEnable});
   Result := Pg[nChannel].SendFlashWrite(StartSeg,nLength, data); //TBD:ITOLED?
-//Pg[nChannel].SetCyclicTimer(true{bEnable});
 end;
 
 function MyCB_FlashRead_File_1(nChannel,StartSeg,nLength : Integer; filePath : PAnsiChar): Integer;
@@ -899,13 +958,7 @@ sDebug,sTxData : string;
 arRData : TIdBytes;
 begin
   nDataCnt := 1;
-//  sDebug := Format('I2C READ: DevAddr(0x%0.2x) RegAddr(0x%0.4x) DataCnt(%d), WaitMS(%d) Retry(%d) ',[DEVICE_ADDRESS,Addr,nDataCnt, nWaitMS,nRetry]);
-//  Common.MLog(nChannel,sDebug);
-
-//  SetLength(arRData,nDataCnt);
-//  Result := Pg[nChannel].SendI2CRead(DEVICE_ADDRESS,Addr,nDataCnt,arRData, nWaitMS,nRetry);
   Result := 0;
-
 end;
 
 function MyCB_FlashRead_File_2(nChannel,StartSeg,nLength : Integer; filePath : PAnsiChar): Integer;
@@ -915,13 +968,7 @@ sDebug,sTxData : string;
 arRData : TIdBytes;
 begin
   nDataCnt := 1;
-//  sDebug := Format('I2C READ: DevAddr(0x%0.2x) RegAddr(0x%0.4x) DataCnt(%d), WaitMS(%d) Retry(%d) ',[DEVICE_ADDRESS,Addr,nDataCnt, nWaitMS,nRetry]);
-//  Common.MLog(nChannel,sDebug);
-
-//  SetLength(arRData,nDataCnt);
-//  Result := Pg[nChannel].SendI2CRead(DEVICE_ADDRESS,Addr,nDataCnt,arRData, nWaitMS,nRetry);
   Result := 0;
-
 end;
 
 function MyCB_FlashRead_File_3(nChannel,StartSeg,nLength : Integer; filePath : PAnsiChar): Integer;
@@ -931,11 +978,6 @@ sDebug,sTxData : string;
 arRData : TIdBytes;
 begin
   nDataCnt := 1;
-//  sDebug := Format('I2C READ: DevAddr(0x%0.2x) RegAddr(0x%0.4x) DataCnt(%d), WaitMS(%d) Retry(%d) ',[DEVICE_ADDRESS,Addr,nDataCnt, nWaitMS,nRetry]);
-//  Common.MLog(nChannel,sDebug);
-
-//  SetLength(arRData,nDataCnt);
-//  Result := Pg[nChannel].SendI2CRead(DEVICE_ADDRESS,Addr,nDataCnt,arRData, nWaitMS,nRetry);
   Result := 0;
 end;
 
@@ -946,11 +988,6 @@ sDebug,sTxData : string;
 arRData : TIdBytes;
 begin
   nDataCnt := 1;
-//  sDebug := Format('I2C READ: DevAddr(0x%0.2x) RegAddr(0x%0.4x) DataCnt(%d), WaitMS(%d) Retry(%d) ',[DEVICE_ADDRESS,Addr,nDataCnt, nWaitMS,nRetry]);
-//  Common.MLog(nChannel,sDebug);
-
-//  SetLength(arRData,nDataCnt);
-//  Result := Pg[nChannel].SendI2CRead(DEVICE_ADDRESS,Addr,nDataCnt,arRData, nWaitMS,nRetry);
   Result := 0;
 end;
 
@@ -1049,502 +1086,12 @@ begin
 end;
 
 
-//
-//function MyCB_APSBoxPatternSet_1(nChannel,XOffset,YOffset, Width,Height, R,G,B, Background_R,Background_G,Background_B: Integer): Integer;
-//var
-//nWaitMS,nRetry : Integer;
-//begin
-//  nWaitMS := 3000;
-//  nRetry  := 0;  // No Retry
-//  {$IFDEF PG_AF9}
-//  Result := PGAF9Fpga[nChannel].AF9_APSBoxPatternSet(XOffset,YOffset, Width,Height, R,G,B, Background_R,Background_G,Background_B);
-//  {$ENDIF}
-//  {$IFDEF PG_DP860}
-//  Result := pg[nChannel].DP860_SendDisplayPatRGB(R,G,B, nWaitMS,nRetry);
-//  {$ENDIF}
-//end;
-//function MyCB_APSBoxPatternSet_2(nChannel,XOffset,YOffset, Width,Height, R,G,B, Background_R,Background_G,Background_B: Integer): Integer;
-//var
-//nWaitMS,nRetry : Integer;
-//begin
-//  nWaitMS := 3000;
-//  nRetry  := 0;  // No Retry
-//  {$IFDEF PG_AF9}
-//  Result := PGAF9Fpga[nChannel].AF9_APSBoxPatternSet(XOffset,YOffset, Width,Height, R,G,B, Background_R,Background_G,Background_B);
-//  {$ENDIF}
-//  {$IFDEF PG_DP860}
-//  Result := pg[nChannel].DP860_SendDisplayPatRGB(R,G,B, nWaitMS,nRetry);
-//  {$ENDIF}
-//end;
-//function MyCB_APSBoxPatternSet_3(nChannel,XOffset,YOffset, Width,Height, R,G,B, Background_R,Background_G,Background_B: Integer): Integer;
-//var
-//nWaitMS,nRetry : Integer;
-//begin
-//  nWaitMS := 3000;
-//  nRetry  := 0;  // No Retry
-//  {$IFDEF PG_AF9}
-//  Result := PGAF9Fpga[nChannel].AF9_APSBoxPatternSet(XOffset,YOffset, Width,Height, R,G,B, Background_R,Background_G,Background_B);
-//  {$ENDIF}
-//  {$IFDEF PG_DP860}
-//  Result := pg[nChannel].DP860_SendDisplayPatRGB(R,G,B, nWaitMS,nRetry);
-//  {$ENDIF}
-//end;
-//function MyCB_APSBoxPatternSet_4(nChannel,XOffset,YOffset, Width,Height, R,G,B, Background_R,Background_G,Background_B: Integer): Integer;
-//var
-//nWaitMS,nRetry : Integer;
-//begin
-//  nWaitMS := 3000;
-//  nRetry  := 0;  // No Retry
-//  {$IFDEF PG_AF9}
-//  Result := PGAF9Fpga[nChannel].AF9_APSBoxPatternSet(XOffset,YOffset, Width,Height, R,G,B, Background_R,Background_G,Background_B);
-//  {$ENDIF}
-//  {$IFDEF PG_DP860}
-//  Result := pg[nChannel].DP860_SendDisplayPatRGB(R,G,B, nWaitMS,nRetry);
-//  {$ENDIF}
-//end;
-//
-//function MyCB_APSPatternRGBSet_1(nChannel, R, G, B: Integer): Integer;
-//var
-//nWaitMS,nRetry : Integer;
-//begin
-//  nWaitMS := 3000;
-//  nRetry  := 0;  // No Retry
-//  {$IFDEF PG_AF9}
-//  Result := PGAF9Fpga[nChannel].AF9_APSPatternRGBSet(R, G, B);
-//  {$ENDIF}
-//  {$IFDEF PG_DP860}
-//  Result := pg[nChannel].DP860_SendDisplayPatRGB(R,G,B, nWaitMS,nRetry);
-//  {$ENDIF}
-//end;
-//function MyCB_APSPatternRGBSet_2(nChannel, R, G, B: Integer): Integer;
-//var
-//nWaitMS,nRetry : Integer;
-//begin
-//  nWaitMS := 3000;
-//  nRetry  := 0;  // No Retry
-//  {$IFDEF PG_AF9}
-//  Result := PGAF9Fpga[nChannel].AF9_APSPatternRGBSet(R, G, B);
-//  {$ENDIF}
-//  {$IFDEF PG_DP860}
-//  Result := pg[nChannel].DP860_SendDisplayPatRGB(R,G,B, nWaitMS,nRetry);
-//  {$ENDIF}
-//end;
-//function MyCB_APSPatternRGBSet_3(nChannel, R, G, B: Integer): Integer;
-//var
-//nWaitMS,nRetry : Integer;
-//begin
-//  nWaitMS := 3000;
-//  nRetry  := 0;  // No Retry
-//  {$IFDEF PG_AF9}
-//  Result := PGAF9Fpga[nChannel].AF9_APSPatternRGBSet(R, G, B);
-//  {$ENDIF}
-//  {$IFDEF PG_DP860}
-//  Result := pg[nChannel].DP860_SendDisplayPatRGB(R,G,B, nWaitMS,nRetry);
-//  {$ENDIF}
-//end;
-//function MyCB_APSPatternRGBSet_4(nChannel, R, G, B: Integer): Integer;
-//var
-//nWaitMS,nRetry : Integer;
-//begin
-//  nWaitMS := 3000;
-//  nRetry  := 0;  // No Retry
-//  {$IFDEF PG_AF9}
-//  Result := PGAF9Fpga[nChannel].AF9_APSPatternRGBSet(R, G, B);
-//  {$ENDIF}
-//  {$IFDEF PG_DP860}
-//  Result := pg[nChannel].DP860_SendDisplayPatRGB(R,G,B, nWaitMS,nRetry);
-//  {$ENDIF}
-//end;
-//
-//function MyCB_APSSetReg_1(nChannel,Addr: Integer; Data: Integer): Integer;
-//var
-//  nWaitMS,nRetry : Integer;
-//  arrData    : TIdBytes;
-//begin
-//  nWaitMS := 3000;
-//  nRetry  := 0;  // No Retry
-//  SetLength(arrData,1);
-//  arrData[0] := Data;
-//  {$IFDEF PG_AF9}
-//  Result := PGAF9Fpga[nChannel].AF9_APSSetReg(Addr,Data);
-//  {$ENDIF}
-//  {$IFDEF PG_DP860}
-//  Result := pg[nChannel].DP860_SendI2CWrite(DefPG.LGD_REG_DEVICE,Addr,1,arrData, nWaitMS,nRetry);
-//  {$ENDIF}
-//end;
-//function MyCB_APSSetReg_2(nChannel,Addr: Integer; Data: Integer): Integer;
-//var
-//  nWaitMS,nRetry : Integer;
-//  arrData    : TIdBytes;
-//begin
-//  nWaitMS := 3000;
-//  nRetry  := 0;  // No Retry
-//  SetLength(arrData,1);
-//  arrData[0] := Data;
-//  {$IFDEF PG_AF9}
-//  Result := PGAF9Fpga[nChannel].AF9_APSSetReg(Addr,Data);
-//  {$ENDIF}
-//  {$IFDEF PG_DP860}
-//  Result := pg[nChannel].DP860_SendI2CWrite(DefPG.LGD_REG_DEVICE,Addr,1,arrData, nWaitMS,nRetry);
-//  {$ENDIF}
-//end;
-//function MyCB_APSSetReg_3(nChannel,Addr: Integer; Data: Integer): Integer;
-//var
-//  nWaitMS,nRetry : Integer;
-//  arrData    : TIdBytes;
-//begin
-//  nWaitMS := 3000;
-//  nRetry  := 0;  // No Retry
-//  SetLength(arrData,1);
-//  arrData[0] := Data;
-//  {$IFDEF PG_AF9}
-//  Result := PGAF9Fpga[nChannel].AF9_APSSetReg(Addr,Data);
-//  {$ENDIF}
-//  {$IFDEF PG_DP860}
-//  Result := pg[nChannel].DP860_SendI2CWrite(DefPG.LGD_REG_DEVICE,Addr,1,arrData, nWaitMS,nRetry);
-//  {$ENDIF}
-//end;
-//function MyCB_APSSetReg_4(nChannel,Addr: Integer; Data: Integer): Integer;
-//var
-//  nWaitMS,nRetry : Integer;
-//  arrData    : TIdBytes;
-//begin
-//  nWaitMS := 3000;
-//  nRetry  := 0;  // No Retry
-//  SetLength(arrData,1);
-//  arrData[0] := Data;
-//  {$IFDEF PG_AF9}
-//  Result := PGAF9Fpga[nChannel].AF9_APSSetReg(Addr,Data);
-//  {$ENDIF}
-//  {$IFDEF PG_DP860}
-//  Result := pg[nChannel].DP860_SendI2CWrite(DefPG.LGD_REG_DEVICE,Addr,1,arrData, nWaitMS,nRetry);
-//  {$ENDIF}
-//end;
-//
-//function MyCB_LGDSetReg_1(nChannel : Integer; Addr: DWORD; data: Byte): Integer;
-//var
-//  nWaitMS,nRetry : Integer;
-//  arrData    : TIdBytes;
-//begin
-//  nWaitMS := 3000;
-//  nRetry  := 0;  // No Retry
-//  SetLength(arrData,1);
-//  arrData[0] := Data;
-//  {$IFDEF PG_AF9}
-//  Result := PGAF9Fpga[nChannel].AF9_LGDSetReg(Addr,Data);
-//  {$ENDIF}
-//  {$IFDEF PG_DP860}
-//  Result := pg[nChannel].DP860_SendI2CWrite(DefPG.LGD_REG_DEVICE,Addr,1,arrData, nWaitMS,nRetry);
-//  {$ENDIF}
-//end;
-//function MyCB_LGDSetReg_2(nChannel : Integer; Addr: DWORD; data: Byte): Integer;
-//var
-//  nWaitMS,nRetry : Integer;
-//  arrData    : TIdBytes;
-//begin
-//  nWaitMS := 3000;
-//  nRetry  := 0;  // No Retry
-//  SetLength(arrData,1);
-//  arrData[0] := Data;
-//  {$IFDEF PG_AF9}
-//  Result := PGAF9Fpga[nChannel].AF9_LGDSetReg(Addr,Data);
-//  {$ENDIF}
-//  {$IFDEF PG_DP860}
-//  Result := pg[nChannel].DP860_SendI2CWrite(DefPG.LGD_REG_DEVICE,Addr,1,arrData, nWaitMS,nRetry);
-//  {$ENDIF}
-//end;
-//function MyCB_LGDSetReg_3(nChannel : Integer; Addr: DWORD; data: Byte): Integer;
-//var
-//  nWaitMS,nRetry : Integer;
-//  arrData    : TIdBytes;
-//begin
-//  nWaitMS := 3000;
-//  nRetry  := 0;  // No Retry
-//  SetLength(arrData,1);
-//  arrData[0] := Data;
-//  {$IFDEF PG_AF9}
-//  Result := PGAF9Fpga[nChannel].AF9_LGDSetReg(Addr,Data);
-//  {$ENDIF}
-//  {$IFDEF PG_DP860}
-//  Result := pg[nChannel].DP860_SendI2CWrite(DefPG.LGD_REG_DEVICE,Addr,1,arrData, nWaitMS,nRetry);
-//  {$ENDIF}
-//end;
-//function MyCB_LGDSetReg_4(nChannel : Integer; Addr: DWORD; data: Byte): Integer;
-//var
-//  nWaitMS,nRetry : Integer;
-//  arrData    : TIdBytes;
-//begin
-//  nWaitMS := 3000;
-//  nRetry  := 0;  // No Retry
-//  SetLength(arrData,1);
-//  arrData[0] := Data;
-//  {$IFDEF PG_AF9}
-//  Result := PGAF9Fpga[nChannel].AF9_LGDSetReg(Addr,Data);
-//  {$ENDIF}
-//  {$IFDEF PG_DP860}
-//  Result := pg[nChannel].DP860_SendI2CWrite(DefPG.LGD_REG_DEVICE,Addr,1,arrData, nWaitMS,nRetry);
-//  {$ENDIF}
-//end;
-//
-//function MyCB_LGDSetRegM_1(nChannel : Integer; LGDCommand: AF9_PLGDCommand; CommandCnt: Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_LGDSetRegM(LGDCommand,CommandCnt);
-//end;
-//function MyCB_LGDSetRegM_2(nChannel : Integer; LGDCommand: AF9_PLGDCommand; CommandCnt: Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_LGDSetRegM(LGDCommand,CommandCnt);
-//end;
-//function MyCB_LGDSetRegM_3(nChannel : Integer; LGDCommand: AF9_PLGDCommand; CommandCnt: Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_LGDSetRegM(LGDCommand,CommandCnt);
-//end;
-//function MyCB_LGDSetRegM_4(nChannel : Integer; LGDCommand: AF9_PLGDCommand; CommandCnt: Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_LGDSetRegM(LGDCommand,CommandCnt);
-//end;
-//
-//function MyCB_PatternRGBSet_1(nChannel, R, G, B: Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_APSPatternRGBSet(R, G, B);
-//end;
-//function MyCB_PatternRGBSet_2(nChannel, R, G, B: Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_APSPatternRGBSet(R, G, B);
-//end;
-//function MyCB_PatternRGBSet_3(nChannel, R, G, B: Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_APSPatternRGBSet(R, G, B);
-//end;
-//function MyCB_PatternRGBSet_4(nChannel, R, G, B: Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_APSPatternRGBSet(R, G, B);
-//end;
-//
-//function MyCB_SendHexFileCRC_1(nChannel : Integer; CRC: Word): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_SendHexFileCRC(CRC);
-//end;
-//function MyCB_SendHexFileCRC_2(nChannel : Integer; CRC: Word): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_SendHexFileCRC(CRC);
-//end;
-//function MyCB_SendHexFileCRC_3(nChannel : Integer; CRC: Word): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_SendHexFileCRC(CRC);
-//end;
-//function MyCB_SendHexFileCRC_4(nChannel : Integer; CRC: Word): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_SendHexFileCRC(CRC);
-//end;
-//
-//function MyCB_Start_Connection_1(nChannel : Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_Start_Connection;
-//end;
-//function MyCB_Start_Connection_2(nChannel : Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_Start_Connection;
-//end;
-//function MyCB_Start_Connection_3(nChannel : Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_Start_Connection;
-//end;
-//function MyCB_Start_Connection_4(nChannel : Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_Start_Connection;
-//end;
-//
-//function MyCB_Stop_Connection_1(nChannel : Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_Stop_Connection;
-//end;
-//function MyCB_Stop_Connection_2(nChannel : Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_Stop_Connection;
-//end;
-//function MyCB_Stop_Connection_3(nChannel : Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_Stop_Connection;
-//end;
-//function MyCB_Stop_Connection_4(nChannel : Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_Stop_Connection;
-//end;
-//
-//function MyCB_WriteBMPFile_1(nChannel : Integer; const pbyteBuffer: PByte; len: Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_WriteBMPFile(pbyteBuffer,len);
-//end;
-//function MyCB_WriteBMPFile_2(nChannel : Integer; const pbyteBuffer: PByte; len: Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_WriteBMPFile(pbyteBuffer,len);
-//end;
-//function MyCB_WriteBMPFile_3(nChannel : Integer; const pbyteBuffer: PByte; len: Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_WriteBMPFile(pbyteBuffer,len);
-//end;
-//function MyCB_WriteBMPFile_4(nChannel : Integer; const pbyteBuffer: PByte; len: Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_WriteBMPFile(pbyteBuffer,len);
-//end;
-//
-//function MyCB_Connection_Status_1(nChannel : Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_Connection_Status;
-//end;
-//function MyCB_Connection_Status_2(nChannel : Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_Connection_Status;
-//end;
-//function MyCB_Connection_Status_3(nChannel : Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_Connection_Status;
-//end;
-//function MyCB_Connection_Status_4(nChannel : Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_Connection_Status;
-//end;
-//
-//function MyCB_FreeAF9API_1(nChannel : Integer): Boolean;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_FreeAF9API;
-//end;
-//function MyCB_FreeAF9API_2(nChannel : Integer): Boolean;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_FreeAF9API;
-//end;
-//function MyCB_FreeAF9API_3(nChannel : Integer): Boolean;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_FreeAF9API;
-//end;
-//function MyCB_FreeAF9API_4(nChannel : Integer): Boolean;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_FreeAF9API;
-//end;
-//
-//function MyCB_SendHexFile_1(nChannel : Integer; const pbyteBuffer: PByte; len: Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_SendHexFile(pbyteBuffer,len);
-//end;
-//function MyCB_SendHexFile_2(nChannel : Integer; const pbyteBuffer: PByte; len: Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_SendHexFile(pbyteBuffer,len);
-//end;
-//function MyCB_SendHexFile_3(nChannel : Integer; const pbyteBuffer: PByte; len: Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_SendHexFile(pbyteBuffer,len);
-//end;
-//function MyCB_SendHexFile_4(nChannel : Integer; const pbyteBuffer: PByte; len: Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_SendHexFile(pbyteBuffer,len);
-//end;
-//
-//Function MyCB_DAC_SET_1(nChannel, nType: Integer; Channel: Integer; Voltage: Integer; Option: Integer): Boolean;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_DAC_SET(nType,Channel,Voltage,Option);
-//end;
-//Function MyCB_DAC_SET_2(nChannel, nType: Integer; Channel: Integer; Voltage: Integer; Option: Integer): Boolean;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_DAC_SET(nType,Channel,Voltage,Option);
-//end;
-//Function MyCB_DAC_SET_3(nChannel, nType: Integer; Channel: Integer; Voltage: Integer; Option: Integer): Boolean;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_DAC_SET(nType,Channel,Voltage,Option);
-//end;
-//Function MyCB_DAC_SET_4(nChannel, nType: Integer; Channel: Integer; Voltage: Integer; Option: Integer): Boolean;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_DAC_SET(nType,Channel,Voltage,Option);
-//end;
-//
-//Function MyCB_ExtendIO_Set_1(nChannel, Address: Integer; Channel: Integer; Enable: Integer): Boolean;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_ExtendIO_Set(Address,Channel,Enable);
-//end;
-//Function MyCB_ExtendIO_Set_2(nChannel, Address: Integer; Channel: Integer; Enable: Integer): Boolean;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_ExtendIO_Set(Address,Channel,Enable);
-//end;
-//Function MyCB_ExtendIO_Set_3(nChannel, Address: Integer; Channel: Integer; Enable: Integer): Boolean;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_ExtendIO_Set(Address,Channel,Enable);
-//end;
-//Function MyCB_ExtendIO_Set_4(nChannel, Address: Integer; Channel: Integer; Enable: Integer): Boolean;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_ExtendIO_Set(Address,Channel,Enable);
-//end;
-//
-//function MyCB_FlashRead_1(nChannel : Integer; const pBuffer: PByte; StartAddr,EndAddr: DWORD): Byte;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_FlashRead(pBuffer,StartAddr,EndAddr);
-//end;
-//function MyCB_FlashRead_2(nChannel : Integer; const pBuffer: PByte; StartAddr,EndAddr: DWORD): Byte;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_FlashRead(pBuffer,StartAddr,EndAddr);
-//end;
-//function MyCB_FlashRead_3(nChannel : Integer; const pBuffer: PByte; StartAddr,EndAddr: DWORD): Byte;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_FlashRead(pBuffer,StartAddr,EndAddr);
-//end;
-//function MyCB_FlashRead_4(nChannel : Integer; const pBuffer: PByte; StartAddr,EndAddr: DWORD): Byte;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_FlashRead(pBuffer,StartAddr,EndAddr);
-//end;
-//
-//function MyCB_SW_Revision_1(nChannel : Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_SW_Revision;
-//end;
-//function MyCB_SW_Revision_2(nChannel : Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_SW_Revision;
-//end;
-//function MyCB_SW_Revision_3(nChannel : Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_SW_Revision;
-//end;
-//function MyCB_SW_Revision_4(nChannel : Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_SW_Revision;
-//end;
-//
-//Function MyCB_SendHexFileOC_1(nChannel : integer; pbyteBuffer: PByte; len: Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_SendHexFileOC(pbyteBuffer,len);
-//end;
-//Function MyCB_SendHexFileOC_2(nChannel : integer; pbyteBuffer: PByte; len: Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_SendHexFileOC(pbyteBuffer,len);
-//end;
-//Function MyCB_SendHexFileOC_3(nChannel : integer; pbyteBuffer: PByte; len: Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_SendHexFileOC(pbyteBuffer,len);
-//end;
-//Function MyCB_SendHexFileOC_4(nChannel : integer; pbyteBuffer: PByte; len: Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_SendHexFileOC(pbyteBuffer,len);
-//end;
-//
-//Function MyCB_SetFreqChange_1(nChannel : Integer; const pbyteBuffer: PByte; len: Integer; HzCnt: Integer; nRepeat: Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_SetFreqChange(pbyteBuffer,len,HzCnt,nRepeat);
-//end;
-//Function MyCB_SetFreqChange_2(nChannel : Integer; const pbyteBuffer: PByte; len: Integer; HzCnt: Integer; nRepeat: Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_SetFreqChange(pbyteBuffer,len,HzCnt,nRepeat);
-//end;
-//Function MyCB_SetFreqChange_3(nChannel : Integer; const pbyteBuffer: PByte; len: Integer; HzCnt: Integer; nRepeat: Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_SetFreqChange(pbyteBuffer,len,HzCnt,nRepeat);
-//end;
-//Function MyCB_SetFreqChange_4(nChannel : Integer; const pbyteBuffer: PByte; len: Integer; HzCnt: Integer; nRepeat: Integer): Integer;
-//begin
-//  Result := PGAF9Fpga[nChannel].AF9_SetFreqChange(pbyteBuffer,len,HzCnt,nRepeat);
-//end;
 
 function MyCB_GetWaveformData_1(nChannel : Integer; var waveform_T: Pdouble; var  waveformData : Pdouble; nMeasureAmount : Integer): Double;
 var
 i,j : Integer;
 waveform,Data : array of Double;
+sDebug : string;
 begin
     SetLength(waveform,nMeasureAmount);
     SetLength(Data,nMeasureAmount);
@@ -1558,6 +1105,7 @@ function MyCB_GetWaveformData_2(nChannel : Integer; var waveform_T: Pdouble; var
 var
 i,j : Integer;
 waveform,Data : array of Double;
+sDebug : string;
 begin
     SetLength(waveform,nMeasureAmount);
     SetLength(Data,nMeasureAmount);
@@ -1571,6 +1119,7 @@ function MyCB_GetWaveformData_3(nChannel : Integer; var waveform_T: Pdouble; var
 var
 i,j : Integer;
 waveform,Data : array of Double;
+sDebug : string;
 begin
     SetLength(waveform,nMeasureAmount);
     SetLength(Data,nMeasureAmount);
@@ -1584,6 +1133,7 @@ function MyCB_GetWaveformData_4(nChannel : Integer; var waveform_T: Pdouble; var
 var
 i,j : Integer;
 waveform,Data : array of Double;
+sDebug : string;
 begin
     SetLength(waveform,nMeasureAmount);
     SetLength(Data,nMeasureAmount);
@@ -1882,13 +1432,13 @@ procedure TCSharpDll.Initialize(sModelName : string);
 var
 nT1,i : Integer;
 
-ss : string;
+sVer : string;
 begin
-  nT1 := m_Initialize(DefCommon.MAX_CH + 1,PAnsiChar(AnsiString(sModelName)));
-//    nT1 := m_Initialize(1,PAnsiChar(AnsiString(sModelName)));
-  for I := DefCommon.CH1 to DefCommon.MAX_CH do begin
-//    for I := DefCommon.CH1 to DefCommon.CH1 do begin
-
+  try
+    nT1 := m_Initialize(DefCommon.MAX_CH + 1,PAnsiChar(AnsiString(sModelName)));
+    sVer := PAnsiChar(m_GetOCversion); // DLL Ver 정보 API 함수 호출
+    SendMainGuiDisplay(0,MSG_TYPE_DLL,sVer,0); // DLL Ver 정보 MAIN 전달
+    for I := DefCommon.CH1 to DefCommon.MAX_CH do begin
       m_SetCallback_TextChanged(i,CB_TextChanged[i]);
 
       m_SetCallback_measure_XYL(i,CB_measure_XYL[i]);
@@ -1905,29 +1455,15 @@ begin
       m_SetCallBackFlashRead_Data   (i,CB_FlashRead_Data[i]);
       m_SetCallBackFlashErase       (i,CB_FlashErase[i]);
 
+      m_SetCallBackTCONSetRegArray       (i,CB_TCONSetRegArray[i]);
+      m_SetCallBackTCONGetRegArray       (i,CB_TCONGetRegArray[i]);
 
+    end;
+  finally
 
-//      m_SetCallBackAPSBoxPatternSet (i,CB_APSBoxPatternSet[i]);
-//      m_SetCallBackAPSPatternRGBSet (i,CB_APSPatternRGBSet[i]);
-//      m_SetCallBackAPSSetReg        (i,CB_APSSetReg[i]);
-//      m_SetCallBackLGDSetReg        (i,CB_LGDSetReg[i]);
-////      m_SetCallBackLGDSetRegM       (i,CB_LGDSetRegM[i]);
-//      m_SetCallBackPatternRGBSet    (i,CB_PatternRGBSet[i]);
-//      m_SetCallBackSendHexFileCRC   (i,CB_SendHexFileCRC[i]);
-//      m_SetCallBackStart_Connection (i,CB_Start_Connection[i]);
-//      m_SetCallBackStop_Connection  (i,CB_Stop_Connection[i]);
-//      m_SetCallBackWriteBMPFile     (i,CB_WriteBMPFile[i]);
-//      m_SetCallBackConnection_Status(i,CB_Connection_Status[i]);
-//      m_SetCallBackFreeAF9API       (i,CB_FreeAF9API[i]);
-//      m_SetCallBackSendHexFile      (i,CB_SendHexFile[i]);
-//      m_SetCallBackDAC_SET          (i,CB_DAC_SET[i]);
-//      m_SetCallBackExtendIO_Set     (i,CB_ExtendIO_Set[i]);
-//      m_SetCallBackFlashRead        (i,CB_FlashRead[i]);
-//      m_SetCallBackSW_Revision      (i,CB_SW_Revision[i]);
-//      m_SetCallBackSendHexFileOC    (i,CB_SendHexFileOC[i]);
-//      m_SetCallBackSetFreqChange    (i,CB_SetFreqChange[i]);
 
   end;
+
 
 end;
 
@@ -2087,6 +1623,11 @@ begin
         @CB_FlashRead_File[i] := @MyCB_FlashRead_File_1;
         @CB_FlashRead_Data[i] := @MyCB_FlashRead_Data_1;
         @CB_FlashErase[i] := @MyCB_FlashErase_1;
+
+        @CB_TCONSetRegArray[i] := @MyCB_TCONSetRegArray_1;
+        @CB_TCONGetRegArray[i] := @MyCB_TCONGetRegArray_1;
+
+
 //        @CB_APSBoxPatternSet[i] := @MyCB_APSBoxPatternSet_1;
 //        @CB_APSPatternRGBSet[i] := @MyCB_APSPatternRGBSet_1;
 //        @CB_APSSetReg[i] := @MyCB_APSSetReg_1;
@@ -2122,6 +1663,9 @@ begin
         @CB_FlashRead_File[i] := @MyCB_FlashRead_File_2;
         @CB_FlashRead_Data[i] := @MyCB_FlashRead_Data_2;
         @CB_FlashErase[i] := @MyCB_FlashErase_2;
+
+        @CB_TCONSetRegArray[i] := @MyCB_TCONSetRegArray_2;
+        @CB_TCONGetRegArray[i] := @MyCB_TCONGetRegArray_2;
 
 //        @CB_APSBoxPatternSet[i] := @MyCB_APSBoxPatternSet_2;
 //        @CB_APSPatternRGBSet[i] := @MyCB_APSPatternRGBSet_2;
@@ -2160,6 +1704,9 @@ begin
         @CB_FlashRead_Data[i] := @MyCB_FlashRead_Data_3;
         @CB_FlashErase[i] := @MyCB_FlashErase_3;
 
+        @CB_TCONSetRegArray[i] := @MyCB_TCONSetRegArray_3;
+        @CB_TCONGetRegArray[i] := @MyCB_TCONGetRegArray_3;
+
 //        @CB_APSBoxPatternSet[i] := @MyCB_APSBoxPatternSet_3;
 //        @CB_APSPatternRGBSet[i] := @MyCB_APSPatternRGBSet_3;
 //        @CB_APSSetReg[i] := @MyCB_APSSetReg_3;
@@ -2196,6 +1743,9 @@ begin
         @CB_FlashRead_File[i] := @MyCB_FlashRead_File_4;
         @CB_FlashRead_Data[i] := @MyCB_FlashRead_Data_4;
         @CB_FlashErase[i] := @MyCB_FlashErase_4;
+
+        @CB_TCONSetRegArray[i] := @MyCB_TCONSetRegArray_4;
+        @CB_TCONGetRegArray[i] := @MyCB_TCONGetRegArray_4;
 
 //        @CB_APSBoxPatternSet[i] := @MyCB_APSBoxPatternSet_4;
 //        @CB_APSPatternRGBSet[i] := @MyCB_APSPatternRGBSet_4;
@@ -2243,6 +1793,8 @@ begin
 
   @m_MainOC_Flash_Read := GetProcAddress(m_hDll, 'MainOC_Flash_Read');
 
+  @m_GetOCversion := GetProcAddress(m_hDll, 'GetOCversion');
+
 
   @m_SetCallback_measure_XYL := GetProcAddress(m_hDll, 'Callback_measure_XYL');
   @m_SetCallback_SetSync := GetProcAddress(m_hDll,'Callback_SetSync');
@@ -2263,6 +1815,9 @@ begin
   @m_SetCallBackAllPowerOnOff      := GetProcAddress(m_hDll,'Callback_AllPowerOnOff');
   @m_SetCallBackTCONSetReg         := GetProcAddress(m_hDll,'Callback_TCONSetReg');
   @m_SetCallBackTCONGetReg         := GetProcAddress(m_hDll,'Callback_TCONGetReg');
+
+  @m_SetCallBackTCONSetRegArray    := GetProcAddress(m_hDll,'Callback_TCONSetRegArray');
+  @m_SetCallBackTCONGetRegArray    := GetProcAddress(m_hDll,'Callback_TCONGetRegArray');
   @m_SetCallBackFlashWrite_File    := GetProcAddress(m_hDll,'Callback_FlashWrite_File');
   @m_SetCallBackFlashWrite_Data    := GetProcAddress(m_hDll,'Callback_FlashWrite_Data');
   @m_SetCallBackFlashRead_File     := GetProcAddress(m_hDll,'Callback_FlashRead_File');

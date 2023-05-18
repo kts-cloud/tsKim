@@ -228,6 +228,9 @@ object frmDoorOpenAlarmMsg: TfrmDoorOpenAlarmMsg
     Width = 336
     Height = 181
     Caption = 'Admin '
+    Color = clWhite
+    ParentBackground = False
+    ParentColor = False
     TabOrder = 4
     object Label7: TLabel
       Left = 24

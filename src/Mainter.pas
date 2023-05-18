@@ -12,9 +12,8 @@ uses
 {$IFDEF AXDIO_USE}
   AXDioLib,
 {$ENDIF}
-
   Winapi.WinSock, Vcl.Imaging.pngimage, AdvPanel, AdvSmoothListBox, AdvSmoothComboBox, CommPLC_ECS
-  ,CA_SDK2
+  ,CA_SDK2, Vcl.ComCtrls,LibCa410Option, VclTee.TeeGDIPlus, AdvChartView
   ;
   const
 
@@ -203,6 +202,75 @@ type
     btnPgFileOpen: TRzBitBtn;
     edPgFileSend: TRzEdit;
     btnPgSendCmd: TRzBitBtn;
+    TabSheet4: TRzTabSheet;
+    Panel1: TPanel;
+    Label1: TLabel;
+    Label2: TLabel;
+    Label3: TLabel;
+    edtW_Y: TEdit;
+    edtW_Z: TEdit;
+    Label4: TLabel;
+    Label5: TLabel;
+    Label6: TLabel;
+    edtW_LV: TEdit;
+    edtW_YY: TEdit;
+    edtW_XX: TEdit;
+    Label7: TLabel;
+    Label8: TLabel;
+    Label9: TLabel;
+    Label10: TLabel;
+    Label11: TLabel;
+    Label12: TLabel;
+    edtR_LV: TEdit;
+    edtR_YY: TEdit;
+    edtR_XX: TEdit;
+    edtR_Z: TEdit;
+    edtR_Y: TEdit;
+    Label13: TLabel;
+    Label14: TLabel;
+    Label15: TLabel;
+    Label16: TLabel;
+    Label17: TLabel;
+    Label18: TLabel;
+    edtW_X: TEdit;
+    edtR_X: TEdit;
+    edtG_X: TEdit;
+    edtG_Y: TEdit;
+    edtG_Z: TEdit;
+    edtG_XX: TEdit;
+    edtG_YY: TEdit;
+    edtG_LV: TEdit;
+    Label19: TLabel;
+    Label20: TLabel;
+    Label21: TLabel;
+    Label22: TLabel;
+    Label23: TLabel;
+    Label24: TLabel;
+    edtB_X: TEdit;
+    edtB_Y: TEdit;
+    edtB_Z: TEdit;
+    edtB_xx: TEdit;
+    edtB_yy: TEdit;
+    edtB_LV: TEdit;
+    mmoLog: TRzRichEdit;
+    Button3: TButton;
+    RzComboBox1: TRzComboBox;
+    RzPanel4: TRzPanel;
+    RzPanel6: TRzPanel;
+    cboCa310Channel: TRzComboBox;
+    Button1: TButton;
+    tbCA410Measurement: TRzTabSheet;
+    cboBandCount: TRzComboBox;
+    RzPanel10: TRzPanel;
+    RzPanel11: TRzPanel;
+    cboGrayRGB: TRzComboBox;
+    rbGrayScale: TRadioButton;
+    rbDBVTracking: TRadioButton;
+    cboMeasureCH: TRzComboBox;
+    RzPanel12: TRzPanel;
+    btnStop: TRzBitBtn;
+    btnMeasure: TRzBitBtn;
+    advstrngrdDataView: TAdvStringGrid;
 
     procedure btnCloseClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
@@ -287,9 +355,16 @@ type
     procedure btnSaveCalResultClick(Sender: TObject);
     procedure cboModelTypeClick(Sender: TObject);
     procedure cboCalDataClick(Sender: TObject);
+    procedure Button2Click(Sender: TObject);
+    procedure Button3Click(Sender: TObject);
+    procedure Button1Click(Sender: TObject);
+    procedure btnMeasureClick(Sender: TObject);
+    procedure btnStopClick(Sender: TObject);
+    procedure Button211Click(Sender: TObject);
 
   private
     { Private declarations }
+    bIs_Stop : Boolean;
 
     ledIn : array[0 .. DefDio.MAX_IO_CNT] of ThhALed;
     pnlIn : array[0 .. DefDio.MAX_IO_CNT] of TRzPanel;
@@ -335,7 +410,7 @@ type
 
     procedure ThreadTask(task : TProc; btnObj : TRzBitBtn);
 
-
+    procedure SaveCsvMeasureLog(nCh: Integer; sDataHeader,sData : string);
     procedure PowerOffSeq(nCh : Integer);
     procedure PowerOnSeq(nCh : Integer);
 //    procedure CmdThread(nCh : Integer);
@@ -348,6 +423,8 @@ type
 
     function GetProbeNum : Integer;
     procedure SaveCalResult(bIsVerify : Boolean = False);
+
+    procedure RunDosInMemo(DosApp: string; var sGetResult : string);
   
     procedure MaintFlashPucDataWrite(nCh: Integer);
     procedure POcbIpList;
@@ -358,6 +435,9 @@ type
 //    procedure ShowIoSignal(bIsIn, bConnChange : Boolean; nLen : Integer; naReadData : array of Integer);
     procedure LoadZAsixValue;
     procedure SaveZAsixValue;
+
+    procedure Run_GrayScale(nFPgNo,mBand_Count : Integer);
+    procedure Run_DBVtracking(nFPgNo,nRGBIdx: Integer);
 {$IFDEF CA410_USE}
     procedure CA410Calibration(Lth : TThread; GetAllxy, Getlmt: TAllLvXy);
     procedure wRgb_Measure(thMain : TThread);
@@ -1235,6 +1315,10 @@ begin
     end;
 
   end;
+  if CtrlCa410 <> nil then begin
+    CtrlCa410.Free;
+    CtrlCa410 := nil;
+  end;
 end;
 
 procedure TfrmMainter.AddItemsInCbo;
@@ -1418,6 +1502,28 @@ begin
   cboScriptCh.Items.clear;
   cboChannelFrobe.Items.Clear;
 
+  CtrlCa410 := TControlCa410.Create(self.Handle,Self.Handle,Common.TestModelInfoFLOW.Ca410MemCh+1);
+  cboCa310Channel.Items.Clear;
+  for i := 1 to 99 do begin
+    sTemp := Format('%d',[i]);
+    cboCa310Channel.Items.Add(sTemp);
+  end;
+  cboCa310Channel.ItemIndex := Common.TestModelInfoFLOW.Ca410MemCh;
+
+  cboBandCount.Items.Clear;
+  cboBandCount.Items.Add('ALLBamd');
+  for i := 1 to 32 do begin
+    sTemp := Format('Band %d',[i]);
+    cboBandCount.Items.Add(sTemp);
+  end;
+  cboBandCount.ItemIndex := 0;
+
+  cboGrayRGB.Items.Clear;
+  for i := 511 downto 0 do begin
+    sTemp := Format('%d',[i]);
+    cboGrayRGB.Items.Add(sTemp);
+  end;
+  cboGrayRGB.ItemIndex := 0;
   for nCh := DefCommon.CH1 to DefCommon.MAX_CH do begin
     sTemp := Format('%d',[nCh + 1]);
     cboChannelPg.Items.Add(sTemp);
@@ -1493,10 +1599,10 @@ begin
   RzPageControl1.ActivePageIndex:= 0;
 
   POcbIpList;
-
-  if DongaHandBcr <> nil then begin
-    DongaHandBcr.OnRevBcrDataMaint := getBcrData;
-  end;
+//
+//  if DongaHandBcr <> nil then begin            // Maint 창에서 BCR SCAN 시 Access violation 생성하여 삭제
+//    DongaHandBcr.OnRevBcrDataMaint := getBcrData;
+//  end;
 
 //  if DaeIonizer[0] <> nil then begin
 //    DaeIonizer[0].OnRevIonizerData:= IonizerReadData;
@@ -1522,6 +1628,21 @@ begin
   m_bStopCa310Cal := False;
   chkUseTowerLamp.Checked:= ControlDio.UseTowerLamp;
   MakeDIOSignal;
+
+
+
+//Adds 20 Points with random value from 0 to 50 to the first Pane (0)
+//with the first Series (0)
+// for i := 0 to 511 do begin
+//   AdvChartView1.Panes[0].Series[0].AddSinglePoint(Random(i));
+   //Set Range from 0 to 20
+//   AdvChartView1.Panes[0].Range.RangeFrom := 0;
+//   AdvChartView1.Panes[0].Range.RangeTo := 511;
+
+   //Set Auto Display Range to arEnabled
+//   AdvChartView1.Panes[0].Series[0].Autorange := AutoRange.arEnabled;
+// end;
+
 
 
 
@@ -2665,6 +2786,466 @@ begin
     btnUnlockTopDoors.Caption := 'Unlock CH 12 Doors';
   end;
 
+end;
+
+procedure TfrmMainter.RunDosInMemo(DosApp: string;var sGetResult : string);
+const
+    READ_BUFFER_SIZE = 2400;
+var
+    Security: TSecurityAttributes;
+    readableEndOfPipe, writeableEndOfPipe: THandle;
+    start: TStartUpInfo;
+    ProcessInfo: TProcessInformation;
+    Buffer: PAnsiChar;
+    BytesRead: DWORD;
+    AppRunning: DWORD;
+begin
+    Security.nLength := SizeOf(TSecurityAttributes);
+    Security.bInheritHandle := True;
+    Security.lpSecurityDescriptor := nil;
+
+    if CreatePipe({var}readableEndOfPipe, {var}writeableEndOfPipe, @Security, 0) then  begin
+      try
+        Buffer := AllocMem(READ_BUFFER_SIZE+1);
+        FillChar(Start, Sizeof(Start), #0);
+        start.cb := SizeOf(start);
+
+        // Set up members of the STARTUPINFO structure.
+        // This structure specifies the STDIN and STDOUT handles for redirection.
+        // - Redirect the output and error to the writeable end of our pipe.
+        // - We must still supply a valid StdInput handle (because we used STARTF_USESTDHANDLES to swear that all three handles will be valid)
+        start.dwFlags := start.dwFlags or STARTF_USESTDHANDLES;
+        start.hStdInput := GetStdHandle(STD_INPUT_HANDLE); //we're not redirecting stdInput; but we still have to give it a valid handle
+        start.hStdOutput := writeableEndOfPipe; //we give the writeable end of the pipe to the child process; we read from the readable end
+        start.hStdError := writeableEndOfPipe;
+
+        //We can also choose to say that the wShowWindow member contains a value.
+        //In our case we want to force the console window to be hidden.
+        start.dwFlags := start.dwFlags + STARTF_USESHOWWINDOW;
+        start.wShowWindow := SW_HIDE;
+
+        // Don't forget to set up members of the PROCESS_INFORMATION structure.
+        ProcessInfo := Default(TProcessInformation);
+
+        //WARNING: The unicode version of CreateProcess (CreateProcessW) can modify the command-line "DosApp" string.
+        //Therefore "DosApp" cannot be a pointer to read-only memory, or an ACCESS_VIOLATION will occur.
+        //We can ensure it's not read-only with the RTL function: UniqueString
+        UniqueString({var}DosApp);
+
+        if CreateProcess(nil, PChar(DosApp), nil, nil, True, NORMAL_PRIORITY_CLASS, nil, nil, start, {var}ProcessInfo) then begin
+            //Wait for the application to terminate, as it writes it's output to the pipe.
+            //WARNING: If the console app outputs more than 2400 bytes (ReadBuffer),
+            //it will block on writing to the pipe and *never* close.
+            repeat
+                Apprunning := WaitForSingleObject(ProcessInfo.hProcess, 100);
+                Application.ProcessMessages;
+            until (Apprunning <> WAIT_TIMEOUT);
+
+            //Read the contents of the pipe out of the readable end
+            //WARNING: if the console app never writes anything to the StdOutput, then ReadFile will block and never return
+            repeat
+                BytesRead := 0;
+                ReadFile(readableEndOfPipe, Buffer[0], READ_BUFFER_SIZE, {var}BytesRead, nil);
+                Buffer[BytesRead]:= #0;
+                OemToAnsi(Buffer,Buffer);
+                sGetResult := sGetResult + String(Buffer);
+            until (BytesRead < READ_BUFFER_SIZE);
+        end;
+      finally
+        FreeMem(Buffer);
+        CloseHandle(ProcessInfo.hProcess);
+        CloseHandle(ProcessInfo.hThread);
+        CloseHandle(readableEndOfPipe);
+        CloseHandle(writeableEndOfPipe);
+      end;
+    end;
+end;
+
+
+
+procedure TfrmMainter.Button1Click(Sender: TObject);
+var
+  cdCal : LibCa410Option.TCalValue;
+  sRet,sSendCmd,sMsg,slog : string;
+  stlTemp :  TStringList;
+  i,nRet : Integer;
+begin
+  if MessageDlg(#13#10 + format('Do you want to change to the following data on Memory Channel %d on CA410 CH %d??',[cboCa310Channel.ItemIndex +1,RzComboBox1.ItemIndex + 1]), mtConfirmation, [mbYes, mbNo], 0) = mrYes then begin
+    cdCal.W_X := StrToFloatDef(edtW_X.text,0);
+    cdCal.W_Y := StrToFloatDef(edtW_Y.text,0);
+    cdCal.W_Z := StrToFloatDef(edtW_Z.text,0);
+    cdCal.W_xx := StrToFloatDef(edtW_xx.text,0);
+    cdCal.W_yy := StrToFloatDef(edtW_yy.text,0);
+    cdCal.W_Lv := StrToFloatDef(edtW_LV.text,0);
+
+    cdCal.R_X := StrToFloatDef(edtR_X.Text,0);
+    cdCal.R_Y := StrToFloatDef(edtR_X.Text,0);
+    cdCal.R_Z := StrToFloatDef(edtR_Z.Text,0);
+    cdCal.R_xx := StrToFloatDef(edtR_xx.Text,0);
+    cdCal.R_yy := StrToFloatDef(edtR_yy.Text,0);
+    cdCal.R_Lv := StrToFloatDef(edtR_LV.Text,0);
+
+    cdCal.G_X := StrToFloatDef(edtG_X.Text,0);
+    cdCal.G_Y := StrToFloatDef(edtG_Y.Text,0);
+    cdCal.G_Z := StrToFloatDef(edtG_Z.Text,0);
+    cdCal.G_xx := StrToFloatDef(edtG_xx.Text,0);
+    cdCal.G_yy := StrToFloatDef(edtG_yy.Text,0);
+    cdCal.G_Lv := StrToFloatDef(edtG_LV.Text,0);
+
+    cdCal.B_X := StrToFloatDef(edtB_X.Text,0);
+    cdCal.B_Y := StrToFloatDef(edtB_Y.Text,0);
+    cdCal.B_Z := StrToFloatDef(edtB_Z.Text,0);
+    cdCal.B_xx := StrToFloatDef(edtB_xx.Text,0);
+    cdCal.B_yy := StrToFloatDef(edtB_yy.Text,0);
+    cdCal.B_Lv := StrToFloatDef(edtB_LV.Text,0);
+    CtrlCa410.CDCal := cdCal;
+
+    CtrlCa410.TestExample(RzComboBox1.ItemIndex,cboCa310Channel.ItemIndex,sRet); // 0 is channel num.
+    mmoLog.Lines.Add('----------------');
+    mmoLog.Lines.Add(sRet);
+
+
+  end
+  else Exit;
+end;
+
+procedure TfrmMainter.Button211Click(Sender: TObject);
+var
+ I : Integer;
+begin
+
+end;
+
+procedure TfrmMainter.Button2Click(Sender: TObject);
+
+var
+  sSendCmd, sTemp, sRet : string;
+  stlTemp :  TStringList;
+  i : Integer;
+  cdCal : LibCa410Option.TCalValue;
+begin
+  Exit;
+  cdCal.W_X := 677.2256;
+  cdCal.W_Y := 716.7414;
+  cdCal.W_Z := 769.7799;
+  cdCal.W_xx := 0.3120;
+  cdCal.W_yy := 0.3309;
+  cdCal.W_Lv := 730.1678;
+
+  cdCal.R_X := 420.4322;
+  cdCal.R_Y := 192.6249;
+  cdCal.R_Z := 0.3449;
+  cdCal.R_xx := 0.6853;
+  cdCal.R_yy := 0.3142;
+  cdCal.R_Lv := 195.1299;
+
+  cdCal.G_X := 183.3479;
+  cdCal.G_Y := 553.7119;
+  cdCal.G_Z := 27.5488;
+  cdCal.G_xx := 0.2401;
+  cdCal.G_yy := 0.7239;
+  cdCal.G_Lv := 564.8961;
+
+  cdCal.B_X := 133.9259;
+  cdCal.B_Y := 46.0480;
+  cdCal.B_Z := 795.0201;
+  cdCal.B_xx := 0.1373;
+  cdCal.B_yy := 0.0472;
+  cdCal.B_Lv := 47.1118;
+  CtrlCa410.CDCal := cdCal;
+  sSendCmd :=  'AppDllCaller.exe 7 1 02';
+  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.W_X]);
+  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.W_Y]);
+  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.W_Z]);
+  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.W_xx]);
+  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.W_yy]);
+  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.W_Lv]);
+
+  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.R_X]);
+  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.R_Y]);
+  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.R_Z]);
+  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.R_xx]);
+  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.R_yy]);
+  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.R_Lv]);
+
+  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.G_X]);
+  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.G_Y]);
+  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.G_Z]);
+  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.G_xx]);
+  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.G_yy]);
+  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.G_Lv]);
+
+  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.B_X]);
+  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.B_Y]);
+  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.B_Z]);
+  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.B_xx]);
+  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.B_yy]);
+  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.B_Lv]);
+
+  sTemp := ' 42BE175842C8000042D9CFC23F8000003F8000003F8000003F8000003F8000003F8000003F8000003F8000003F8000003EA01A373EA872B042C800003EAAAAAB3EAAAAAB3F8000003EAAAAAB3EAAAAAB3F8000003EAAAAAB3EAAAAAB3F80000042BE175842C8000042D9CFC2501C8C4501C8C4501C8C400A3';
+  sSendCmd := sSendCmd + sTemp;
+  sRet := '';
+//  RunDosInMemo(sSendCmd,sRet);
+  mmoLog.Lines.Add(sRet);
+  mmoLog.Lines.Add('-----------------------------------');
+  stlTemp :=  TStringList.Create;
+  try
+    ExtractStrings([#10, #13], [], PWideChar(sRet), stlTemp);
+    for i := 0 to Pred(stlTemp.Count) do mmoLog.Lines.Add('#'+i.ToString+' '+Trim(stlTemp[i]));
+  finally
+    stlTemp.Free;
+  end;
+end;
+
+procedure TfrmMainter.Button3Click(Sender: TObject);
+var
+  sRet : string;
+  cdCal : LibCa410Option.TCalValue;
+begin
+//    CtrlCa410.TestExample(RzComboBox1.ItemIndex,cboCa310Channel.ItemIndex,sRet); // 0 is channel num.
+    CtrlCa410.ReadR2R(RzComboBox1.ItemIndex,cboCa310Channel.ItemIndex,sRet);
+    mmoLog.Lines.Add('----------------');
+    mmoLog.Lines.Add(Format('CH : %d Memory CH %d :',[RzComboBox1.ItemIndex+1,cboCa310Channel.ItemIndex+1])+sRet);
+
+end;
+
+procedure GetBoxPtnSizeinfo(nModel,mBand : Integer; var nStartX,nStartY,nEndX,nEndY : Integer);
+begin
+  if nModel = 0 then begin      //Model X2146
+    if mBand = 1 then begin     //APL 40%
+      nStartX := 0;
+      nStartY := 619;
+      nEndX := 688;
+      nEndY := 826;
+    end
+    else if mBand = 2 then begin  // APL 60%
+      nStartX := 0;
+      nStartY := 412;
+      nEndX := 688;
+      nEndY := 1239;
+    end;
+  end
+  else if nModel = 1 then begin   //Model X2381
+    if mBand = 1 then begin     //APL 40%
+      nStartX := 0;
+      nStartY := 500;
+      nEndX := 605;
+      nEndY := 667;
+    end
+    else if mBand = 2 then begin  // APL 60%
+      nStartX := 0;
+      nStartY := 334;
+      nEndX := 605;
+      nEndY := 1001;
+    end;
+  end;
+end;
+
+
+procedure TfrmMainter.Run_DBVtracking(nFPgNo,nRGBIdx: Integer);
+var
+i,nDBVValue,nWaitMS,nRetry,wdRet : Integer;
+m_Ca410Data: TBrightValue;
+sFilePath : string;
+sDataHeader, sData : string;
+nSX,nSy,nEX,nEY : Integer;
+
+begin
+  PasScr[nFPgNo].m_sFileCsv :=  format('CH%d_DBVtracking_',[nFPgNo+1]) + formatDateTime('yyMMddHHmmss',now) + '.csv';
+  sDataHeader := 'DBV,x,y,LV,';
+
+  nWaitMS := 3000;
+  nRetry  := 0;  // No Retry
+  for I := 2047 downto 1 do begin
+    if bIs_Stop then Break;
+    case i of
+      1851..2047 :   //APL 40%  1Band
+      begin
+        GetBoxPtnSizeinfo(Common.TestModelInfoFLOW.ModelType,1,nSX,nSy,nEX,nEY);
+        wdRet := Pg[nFPgNo].DP860_SendBistAPL(nRGBIdx,nRGBIdx,nRGBIdx,nSX,nSy,nEX,nEY,nWaitMS,nRetry);
+      end;                             -
+      1645..1850 :  //APL 60%
+      begin
+        GetBoxPtnSizeinfo(Common.TestModelInfoFLOW.ModelType,2,nSX,nSy,nEX,nEY);
+        wdRet := Pg[nFPgNo].DP860_SendBistAPL(nRGBIdx,nRGBIdx,nRGBIdx,nSX,nSy,nEX,nEY,nWaitMS,nRetry);
+      end;
+      else begin
+        wdRet := Pg[nFPgNo].SendDisplayPatBistRGB_9Bit(nRGBIdx,nRGBIdx,nRGBIdx,nWaitMS,nRetry);
+      end;
+
+    end;
+    Sleep(100);
+
+    wdRet := Pg[nFPgNo].SendDimmingBist(i, nWaitMS,nRetry);
+    Sleep(100);
+    wdRet := CaSdk2.Measure(nFPgNo, m_Ca410Data);
+    sData := Format('%d,%3.f,%3.f,%3.f,',[i,m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
+    SaveCsvMeasureLog(nFPgNo,sDataHeader,sData);
+  end;
+end;
+
+
+procedure TfrmMainter.SaveCsvMeasureLog(nCh: Integer; sDataHeader,sData : string);
+var
+  sFilePath, sFileName : String;
+  sLine: String;
+  txtF                 : Textfile;
+  i : integer;
+begin
+//  m_csWriteCsvLog.Acquire; // 메인에서 sync 처리 되어서 들어옴
+  sFilePath := Common.Path.Gamma + FormatDateTime('yyyymm',now) + '\';
+  sFileName := sFilePath + PasScr[nCh].m_sFileCsv;
+  if Common.CheckDir(sFilePath) then Exit;
+  try
+    try
+      AssignFile(txtF, sFileName);
+      try
+
+        if not FileExists(sFileName) then begin
+          //Header 생성
+          Rewrite(txtF);
+
+          WriteLn(txtF, sDataHeader);
+        end;
+
+        //Data
+        Append(txtF);
+        WriteLn(txtF, sData);
+      except
+//        m_csWriteCsvLog.Release;
+      end;
+    finally
+      CloseFile(txtF); // Close the file
+//      m_csWriteCsvLog.Release;
+    end;
+  except
+//    m_csWriteCsvLog.Release;
+  end;
+end;
+
+
+
+procedure TfrmMainter.Run_GrayScale(nFPgNo,mBand_Count : Integer);
+var
+i,nDBVValue,nWaitMS,nRetry,wdRet : Integer;
+m_Ca410Data: TBrightValue;
+sFilePath : string;
+sDataHeader, sData : string;
+nSX,nSy,nEX,nEY : Integer;
+
+begin
+  PasScr[nFPgNo].m_sFileCsv :=  format('CH%d_%dband_GrayScale_',[nFPgNo+1,mBand_Count]) + formatDateTime('yyMMddHHmmss',now) + '.csv';
+  sDataHeader := 'BAND,GRAY,x,y,LV,';
+  advstrngrdDataView.Cells[0, 0] := '';
+  advstrngrdDataView.Cells[1, 0] := 'Gray';
+  advstrngrdDataView.Cells[2, 0] := 'x';
+  advstrngrdDataView.Cells[3, 0] := 'y';
+  advstrngrdDataView.Cells[4, 0] := 'Lv';
+  nWaitMS := 3000;
+  nRetry  := 0;  // No Retry
+//  Sleep(1000);
+//  nDBVValue := BandDBV[mBand_Count-1];
+//  wdRet := Pg[nFPgNo].SendDimmingBist(BandDBV[mBand_Count-1], nWaitMS,nRetry);  //2019-10-11 DIMMING (SendDisplayPat -> SendDisplayPWMPat)
+  Sleep(1000);
+  for I := 511 downto 1 do begin
+    if bIs_Stop then Break;
+    if (mBand_Count = 1) or (mBand_Count = 2) then begin
+      GetBoxPtnSizeinfo(Common.TestModelInfoFLOW.ModelType,mBand_Count,nSX,nSy,nEX,nEY);
+      wdRet := Pg[nFPgNo].DP860_SendBistAPL(i,i,i,nSX,nSy,nEX,nEY,nWaitMS,nRetry);
+      if i = 511 then begin
+         wdRet := Pg[nFPgNo].SendDimmingBist(BandDBV[mBand_Count-1], nWaitMS,nRetry);
+         Sleep(100);
+      end;
+    end
+    else begin
+     wdRet := Pg[nFPgNo].SendDisplayPatBistRGB_9Bit(i,i,i,nWaitMS,nRetry);
+     if i = 511 then begin
+         wdRet := Pg[nFPgNo].SendDimmingBist(BandDBV[mBand_Count-1], nWaitMS,nRetry);
+         Sleep(100);
+     end;
+    end;
+    Sleep(100);
+    wdRet := CaSdk2.Measure(nFPgNo, m_Ca410Data);
+//    AdvChartView1.Panes[0].Series[0].AddSinglePoint(m_Ca410Data.LvVal);
+    advstrngrdDataView.DisableAlign;
+    advstrngrdDataView.Cells[1, Abs(512-i)] := IntToStr(i);
+    advstrngrdDataView.Cells[2, Abs(512-i)] := FloatToStr(m_Ca410Data.xVal);
+    advstrngrdDataView.Cells[3, Abs(512-i)] := FloatToStr(m_Ca410Data.yVal);
+    advstrngrdDataView.Cells[4, Abs(512-i)] := FloatToStr(m_Ca410Data.LvVal);
+    advstrngrdDataView.EnableAlign;
+    sData := Format('%d,%d,%3.f,%3.f,%3.f,',[mBand_Count,i,m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
+    SaveCsvMeasureLog(nFPgNo,sDataHeader,sData);
+  end;
+end;
+
+procedure TfrmMainter.btnMeasureClick(Sender: TObject);
+var
+  nBandIdx, wdRet,nRGBIdx,j: integer;
+begin
+  bIs_Stop := false;
+  if cboMeasureCH.ItemIndex <> 4 then begin
+      ThreadTask( procedure var i : Integer; begin
+      ControlDio.lockCarrier(cboMeasureCH.ItemIndex,true);
+      ControlDio.ProbeForward(cboMeasureCH.ItemIndex);
+      wdRet := Pg[cboMeasureCH.ItemIndex].SendPowerBistOn(1{On},False,3000,0);
+      if rbGrayScale.Checked then begin
+        Sleep(500);
+        if cboBandCount.Text = 'ALLBamd' then begin
+          for I := 1 to 32 do begin
+            if bIs_Stop then Break;
+            advstrngrdDataView.ClearAll;
+            Run_GrayScale(cboMeasureCH.ItemIndex,i);
+          end;
+        end
+        else begin
+          advstrngrdDataView.ClearAll;
+
+          nBandIdx := cboBandCount.ItemIndex;
+          Run_GrayScale(cboMeasureCH.ItemIndex,nBandIdx);
+        end;
+      end
+      else if rbDBVTracking.Checked then begin
+        nRGBIdx := cboGrayRGB.ItemIndex;
+        Run_DBVtracking(cboMeasureCH.ItemIndex,nRGBIdx);
+      end;
+      wdRet := Pg[cboMeasureCH.ItemIndex].SendPowerBistOn(0{Off},False,3000,0); //TBD:DP860?
+      ControlDio.ProbeBackward(cboMeasureCH.ItemIndex);
+      ControlDio.UnlockCarrier(cboMeasureCH.ItemIndex,true);
+    end,btnMeasure);
+
+  end
+  else begin
+    for j := DefCommon.CH1 to DefCommon.CH4 do begin
+      ThreadTask( procedure var i : Integer; begin
+        ControlDio.lockCarrier(j,true);
+        ControlDio.ProbeForward(j);
+        wdRet := Pg[j].SendPowerBistOn(1{On},False,3000,0);
+        if rbGrayScale.Checked then begin
+          Sleep(500);
+          if cboBandCount.Text = 'ALLBamd' then begin
+            for I := 1 to 32 do begin
+              if bIs_Stop then Break;
+              advstrngrdDataView.ClearAll;
+              Run_GrayScale(j,i);
+            end;
+          end
+          else begin
+            advstrngrdDataView.ClearAll;
+
+            nBandIdx := cboBandCount.ItemIndex;
+            Run_GrayScale(j,nBandIdx);
+          end;
+        end
+        else if rbDBVTracking.Checked then begin
+          nRGBIdx := cboGrayRGB.ItemIndex;
+          Run_DBVtracking(j,nRGBIdx);
+        end;
+        wdRet := Pg[j].SendPowerBistOn(0{Off},False,3000,0); //TBD:DP860?
+        ControlDio.ProbeBackward(j);
+        ControlDio.UnlockCarrier(j,true);
+      end,btnMeasure);
+    end;
+  end;
 end;
 
 procedure TfrmMainter.btnMemChInfoClick(Sender: TObject);
@@ -4187,15 +4768,16 @@ procedure TfrmMainter.ThreadTask(task: TProc; btnObj : TRzBitBtn);
 var
   th : TThread;
 begin
+  btnObj.Enabled := False;
   th := TThread.CreateAnonymousThread(procedure begin
     task;
     th.Synchronize(nil,procedure begin
       btnObj.Enabled := True;
     end);
   end);
-
   th.Start;
 end;
+
 
 
 procedure TfrmMainter.WMCopyData(var Msg: TMessage);
@@ -4309,6 +4891,11 @@ var
   nCh : Integer;
 begin
   m_bStopCa310Cal := True;
+end;
+
+procedure TfrmMainter.btnStopClick(Sender: TObject);
+begin
+  bIs_Stop := True;
 end;
 
 procedure TfrmMainter.btnStopScriptClick(Sender: TObject);

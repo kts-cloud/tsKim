@@ -3,11 +3,6 @@ program ITOLED_OC;
 
 
 uses
-  madExcept,
-  madLinkDisAsm,
-  madListHardware,
-  madListProcesses,
-  madListModules,
   Vcl.Forms,
   Winapi.Windows,
   Main_OC in 'Main_OC.pas' {frmMain_OC},
@@ -54,7 +49,9 @@ uses
   LogicVh in 'LogicVh.pas',
   VirtualBcrForm in 'VirtualBcrForm.pas' {VirtualBcr},
   CommTCP_PLC in 'CommTCP_PLC.pas',
-  ECSRequestForm in 'ECSRequestForm.pas' {ECSTestForm};
+  ECSRequestForm in 'ECSRequestForm.pas' {ECSTestForm},
+  LibCa410Option in 'LibCa410Option.pas',
+  LibCommFuncs in 'LibCommFuncs.pas';
 
 {$R *.res}
 

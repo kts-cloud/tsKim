@@ -20,6 +20,7 @@ object frmTest4ChOC: TfrmTest4ChOC
   OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
   OnDestroy = FormDestroy
+  OnKeyPress = FormKeyPress
   PixelsPerInch = 96
   TextHeight = 13
   object imgCheckBox: TImage

@@ -24,6 +24,7 @@ interface
 		MES_EIJR         = 114;
     MES_ZSET         = 115;
     MES_SGEN         = 116;
+    MES_LPIR         = 117;  //LPIR 추가 M-GIB P_GIB 구분
     //  EAS MESSAGE INDEX
     EAS_APDR         = 201;
     EAS_EICR         = 202;
@@ -48,6 +49,7 @@ interface
 		EICR_OK_MSG       = 'EICR OK!';
 		APDR_OK_MSG       = 'APDR OK!';
 		RPR_EIJR_OK_MSG   = 'RPR_EIJR OK!';
+    LPIR_OK_MSG       = 'LPIR OK!';
 
 implementation
 

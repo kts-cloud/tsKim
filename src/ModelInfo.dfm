@@ -887,6 +887,7 @@ object frmModelInfo: TfrmModelInfo
           TabOrder = 2
           Transparent = True
           UseCustomGlyphs = True
+          Visible = False
           WordWrap = True
         end
         object cbFlowOptUseDutDetect: TRzCheckBox
@@ -5869,6 +5870,7 @@ object frmModelInfo: TfrmModelInfo
       PageAppearance.ColorMirrorTo = 16773863
       PageAppearance.Gradient = ggVertical
       PageAppearance.GradientMirror = ggVertical
+      TabVisible = False
       Text = ''
       TabAppearance.BorderColor = clNone
       TabAppearance.BorderColorHot = 15383705
@@ -7514,6 +7516,7 @@ object frmModelInfo: TfrmModelInfo
       PageAppearance.ColorMirrorTo = 16773863
       PageAppearance.Gradient = ggVertical
       PageAppearance.GradientMirror = ggVertical
+      TabVisible = False
       Text = ''
       TabAppearance.BorderColor = clNone
       TabAppearance.BorderColorHot = 15383705

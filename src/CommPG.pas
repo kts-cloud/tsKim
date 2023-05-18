@@ -380,12 +380,14 @@ type
     //------------------------------------------------------ PG_DP860 Command (Pattern)
 		function DP860_SendDisplayPatRGB(nR,nG,nB: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //DP860 Pattern(FPGA/Static)
     function DP860_SendDisplayPatBistRGB(nR,nG,nB: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+    function DP860_SendDisplayPatBistRGB_9Bit(nR,nG,nB: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
 		function DP860_SendDisplayPatNum(nPatNum: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;  //#SendDisplayPat //#SendPatDisplayReq
 		function DP860_SendDisplayPatBMP(sBmpName: string; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;  //#SendDisplayPat //#SendPatDisplayReq
     //------------------------------------------------------ PG_DP860 Command (DBV)
 		function DP860_SendAlpdpDBV(nDBV: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; ////TBD:2023-02-02? AlpdpDBV?
 		function DP860_SendBistDBV(nDBV: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; ////TBD:2023-02-02? AlpdpDBV?
-
+    //------------------------------------------------------ PG_DP860 Command (APL)
+		function DP860_SendBistAPL(nR,nG,nB,nStartX,nStartY,nEndX,nEndY: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
     //------------------------------------------------------ PG_DP860 Command (TCON)
 		function DP860_SendTconRead(nRegAddr,nDataCnt: Integer; var arDataR: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
 		function DP860_SendTconWrite(nRegAddr,nDataCnt: Integer; arDataW: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
@@ -423,6 +425,7 @@ type
     //------------------------------------------------------ FLOW-SPECIFIC (Pattern)
     function SendDisplayPatRGB(nR,nG,nB: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //#SendSetColorRGB
     function SendDisplayPatBistRGB(nR,nG,nB: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //#SendSetColorRGB
+    function SendDisplayPatBistRGB_9Bit(nR,nG,nB: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //#SendSetColorRGB
     function SendDisplayPatNum(nPatNum: Integer; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD; //#SendDisplayPat //#SendPatDisplayReq
 		function SendDisplayPatPwmNum(nPatNum: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //#SendDisplayPwmPat //TBD:DP860?
 		function SendDisplayPatNext( nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //#SendDisplayPwmPat //TBD:DP860?    //------------------------------------------------------ FLOW-SPECIFIC (GrayChange|Dimming|...)
@@ -659,23 +662,31 @@ begin
   //if (btSubSigId = DefPG.SIG_PG_CONN_CHECK)        then nDebugMsgType := DEBUG_LOG_MSGTYPE_CONNCHECK
   //else if (btSubSigId = DefPG.SIG_PG_READ_VOLTCUR) then nDebugMsgType := DEBUG_LOG_MSGTYPE_POWERREAD;
   	{$ENDIF}
-    sLocal  := Format('%d',[nLocalPort]);
-    sRemote := Format('%d',[nPeerPort]);
    	sCmdAck := StringReplace(sCmdAck, #$0A, '', [rfReplaceAll]);        // remove #$0A //TBD:DP860?
    	sCmdAck := StringReplace(sCmdAck, #$0D#$0D, #$0D, [rfReplaceAll]);  // remove #$0A //TBD:DP860?
-    if (Common.m_nDebugLogLevelActive >= nDebugMsgType) then
+    if (Common.m_nDebugLogLevelActive >= nDebugMsgType) then begin
+      sLocal  := Format('%d',[nLocalPort]);
+      sRemote := Format('%d',[nPeerPort]);
       Common.DebugLog(nPg, nDebugMsgType, 'RX', sLocal,sRemote, sCmdAck);
+    end;
 
     // Maint Log
-    if PG[nPg].FIsMainter and Assigned(PG[nPg].OnRxMaintEventPG) and (nDebugMsgType = DEBUG_LOG_MSGTYPE_INSPECT) then
-       PG[nPg].OnRxMaintEventPG(nPg, sLocal,sRemote, sCmdAck);
+    if PG[nPg].FIsMainter and Assigned(PG[nPg].OnRxMaintEventPG) and (nDebugMsgType = DEBUG_LOG_MSGTYPE_INSPECT) then begin
+      sLocal  := Format('%d',[nLocalPort]);
+      sRemote := Format('%d',[nPeerPort]);
+      PG[nPg].OnRxMaintEventPG(nPg, sLocal,sRemote, sCmdAck);
+    end;
 
     // PG process message
   //if Pos('pg.process',LowerCase(sCmdAck)) = 1 then begin
     if nRetXXLen <> 6 then begin //RET:INFO (pg.process)
+      PTxRxData^.RxPrevStr := TernaryOp((Length(Trim(sData)) > 0), sData, '');
+      {$IF Defined(INSPECTOR_OC) or Defined(INSPECTOR_PreOC)} //2023-03-28 jhhwang (for OC T/T)
+      {$ELSE}
       sTemp := '<PG> ' + Trim(Copy(sCmdAck, 1, Pos('RET:INFO',sCmdAck)-1));
       PG[nPg].ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sTemp); //Show Log Only
-      Exit; //!!! Exit
+      {$ENDIF}
+      Continue; //!!! Exit -> Continue //2023-04-28
     end;
 
     //
@@ -2693,6 +2704,7 @@ begin
     Result := WAIT_OBJECT_0;
   end
   else begin
+    PTxRxData^.RxPrevStr := ''; //2023-04-28 //TBD?
     Result := CheckCmdAck(procedure begin DP860_SendData(m_nPg{nBindIdx},sCommand); end, nCmdId,sCmdName, nWaitMS,nRetry);
   end;
 end;
@@ -3753,8 +3765,26 @@ begin
 
 	nCmdId   := DefPG.PG_CMDID_BIST_RGB;
 	sCmdName := DefPG.PG_CMDSTR_BIST_RGB; // 'bist.rgb <R> <G> <B>'
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName + ' ' + Format('%d %d %d',[nR,nG,nB]);
+	Result   := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+  if Result <> WAIT_OBJECT_0 then begin
+    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+  end;
+  //
+	sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+end;
 
+function TCommPG.DP860_SendDisplayPatBistRGB_9Bit(nR,nG,nB: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+begin
 
+	nCmdId   := DefPG.PG_CMDID_BIST_RGB_9BIT;
+	sCmdName := DefPG.PG_CMDSTR_BIST_RGB_9BIT; // 'bist.9bit <R> <G> <B>'
 	sEtcMsg  := '';
 	//
 	sCommand := sCmdName + ' ' + Format('%d %d %d',[nR,nG,nB]);
@@ -3841,6 +3871,25 @@ begin
 	sEtcMsg  := '';
 	//
 	sCommand := sCmdName + ' ' + Format('0x%x',[nDBV]);
+	Result   := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+//if Result <> WAIT_OBJECT_0 then begin
+    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+//end;
+  //
+	sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+end;
+
+function TCommPG.DP860_SendBistAPL(nR,nG,nB,nStartX,nStartY,nEndX,nEndY: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+begin
+	nCmdId   := DefPG.PG_CMDID_BIST_APL;
+	sCmdName := DefPG.PG_CMDSTR_BIST_APL;
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName + ' ' + Format('%d %d %d %d %d %d %d',[nR,nG,nB,nStartX,nStartY,nEndX,nEndY]);
 	Result   := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
 //if Result <> WAIT_OBJECT_0 then begin
     sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
@@ -4507,6 +4556,8 @@ begin
           // DP860 PowerOn : interposer.init -> (dut.detect) -> power.on -> (tcon.info)
           // DP860 (PowerReset)PowerOn : power.on
           if (not bPowerReset) then begin
+            DP860_SendInterposerOff(nWaitMS,nRetry);
+            Sleep(DELAY_POWER_INTERPOSER_OFF);
       			Result := DP860_SendInterposerOn(nWaitMS,nRetry);
             if Result = WAIT_OBJECT_0 then begin
               Sleep(DELAY_POWER_INTERPOSER_ON);
@@ -4768,6 +4819,25 @@ begin
 			Result := DP860_SendDisplayPatbistRGB(nR,nG,nB, nWaitMS,nRetry);
 		end;
 		{$ENDIF}
+	end;
+end;
+
+function TCommPG.SendDisplayPatBistRGB_9Bit(nR,nG,nB: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //#SendSetColorRGB
+{$IFDEF PG_AF9}
+var
+  nApiRtn : Integer;
+{$ENDIF}
+begin
+  Result := WAIT_FAILED;
+	//
+	if (nR < 0) then nR := 0; if (nR > 511) then nR := 511;
+	if (nG < 0) then nG := 0; if (nG > 511) then nG := 511;
+	if (nB < 0) then nB := 0; if (nB > 511) then nB := 511;
+	//
+	case PG_TYPE of
+		DefPG.PG_TYPE_DP860 : begin //-------------- DP860
+			Result := DP860_SendDisplayPatBistRGB_9Bit(nR,nG,nB, nWaitMS,nRetry);
+		end;
 	end;
 end;
 
@@ -5382,6 +5452,9 @@ begin
 		{$ENDIF}
 		{$IFDEF PG_DP860}
 		DefPG.PG_TYPE_DP860 : begin //-------------- DP860
+      {$IF Defined(INSPECTOR_OC) or Defined(INSPECTOR_PreOC)} //2023-03-28 jhhwang (for OC T/T)
+      if Common.SystemInfo.PG_TconWriteCmdType = 0 then Sleep(Common.SystemInfo.PG_TconReadBeforeDelayMsec); //2023-04-24 jhhwang (for T/T Test) (if oc.write)
+  		{$ENDIF}
 			Result := DP860_SendTConRead(nRegAddr,nDataCnt,btaData, nWaitMS,nRetry);
 		end;
 		{$ENDIF}
@@ -5426,13 +5499,21 @@ begin
         0 : begin // all tcon.ocwrite (no ack)
           if (Common.SystemInfo.PG_WaitAckAfterContOcWriteCnt = 0) or (TconRWCnt.ContTConOcWrite < Common.SystemInfo.PG_WaitAckAfterContOcWriteCnt) then begin
       			Result := DP860_SendTconOCWrite(nRegAddr,nDataCnt,arDataW, 0{nWaitMS},0);
-            Sleep(Common.SystemInfo.PG_TconOcWriteDelayMsec);
+            if Common.SystemInfo.PG_TconOcWriteDelayMsec > 0 then
+              Sleep(Common.SystemInfo.PG_TconOcWriteDelayMsec)
+            else if Common.SystemInfo.PG_TconOcWriteDelayMicroSec > 0 then
+              Common.SleepMicro(Common.SystemInfo.PG_TconOcWriteDelayMicroSec)  // SleepMicro 적용
+            else begin
+              for i := 0 to Pred(Common.SystemInfo.PG_TconOcWriteDelayLoopCnt) do begin
+                ; //NOP
+              end;
+            end;
           end
           else begin
             Result := DP860_SendTconWrite(nRegAddr,nDataCnt,arDataW, nWaitMS,nRetry);
           end;
         end;
-        1 : begin // all tcon.ocwrite (ack)
+        1 : begin // all tcon.write (ack)
     			Result := DP860_SendTconWrite(nRegAddr,nDataCnt,arDataW, nWaitMS,nRetry);
         end;
         2 : begin // default tcon.ocwrite + selective tcon.write only if SyncAddr

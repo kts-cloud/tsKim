@@ -38,6 +38,7 @@ type
     Button14: TButton;
     Button15: TButton;
     Button16: TButton;
+    Button17: TButton;
     procedure btnVirtualBcrClick(Sender: TObject);
     procedure Button1Click(Sender: TObject);
     procedure Button2Click(Sender: TObject);
@@ -55,6 +56,7 @@ type
     procedure Button14Click(Sender: TObject);
     procedure Button15Click(Sender: TObject);
     procedure Button16Click(Sender: TObject);
+    procedure Button17Click(Sender: TObject);
   private
     { Private declarations }
 
@@ -169,6 +171,38 @@ end;
 procedure TVirtualBcr.Button16Click(Sender: TObject);
 begin
     SendTestGuiDisplay(3,DefCommon.MSG_MODE_BARCODE_READY,'','',1);
+end;
+
+procedure TVirtualBcr.Button17Click(Sender: TObject);
+begin
+  if Length(edtVirtualBcr1.Text) > 0 then begin
+    PasScr[0].TestInfo.SerialNo := edtVirtualBcr1.Text;
+    PasScr[0].CheckSyncCmdAck(procedure begin
+            SendMainGuiDisplay(0,DefGmes.MES_LPIR,1);
+            SendTestGuiDisplay(0,DefGmes.MES_LPIR, '','', 0);
+  end,5000,1);
+  end;
+  if Length(edtVirtualBcr2.Text) > 0 then begin
+    PasScr[1].TestInfo.SerialNo := edtVirtualBcr2.Text;
+    PasScr[1].CheckSyncCmdAck(procedure begin
+            SendMainGuiDisplay(1,DefGmes.MES_LPIR,1);
+            SendTestGuiDisplay(1,DefGmes.MES_LPIR, '','', 0);
+  end,5000,1);
+  end;
+  if Length(edtVirtualBcr3.Text) > 0 then begin
+    PasScr[2].TestInfo.SerialNo := edtVirtualBcr3.Text;
+    PasScr[2].CheckSyncCmdAck(procedure begin
+            SendMainGuiDisplay(2,DefGmes.MES_LPIR,1);
+            SendTestGuiDisplay(2,DefGmes.MES_LPIR, '','', 0);
+  end,5000,1);
+   end;
+  if Length(edtVirtualBcr4.Text) > 0 then begin
+    PasScr[3].TestInfo.SerialNo := edtVirtualBcr4.Text;
+    PasScr[3].CheckSyncCmdAck(procedure begin
+            SendMainGuiDisplay(3,DefGmes.MES_LPIR,1);
+            SendTestGuiDisplay(3,DefGmes.MES_LPIR, '','', 0);
+  end,5000,1);
+   end;
 end;
 
 procedure TVirtualBcr.Button1Click(Sender: TObject);

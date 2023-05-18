@@ -7,8 +7,14 @@ uses
   Vcl.Forms,Vcl.Dialogs, Winapi.WinSock, Vcl.StdCtrls, psAPI,System.IOUtils,IdGlobal,
   System.IniFiles,  CodeSiteLogging, StrUtils,  DefCommon, system.zip,DefPG,
   Graphics,  IdSocketHandle, DateUtils, Winapi.ActiveX, System.Generics.Collections,
-  Winapi.Messages,DongaPattern,Registry; //, AdvGrid, AdvObj, AdvGridWorkbook, , ScrMemo; //, DefScript;
+  Winapi.Messages,DongaPattern,Registry, SyncObjs; //, AdvGrid, AdvObj, AdvGridWorkbook, , ScrMemo; //, DefScript;
 {$I Common.inc}
+
+const
+  BandDBV: array[0..31] of Integer = (2047, 1085, 1644, 1461,1301,1158,1071,989,915,845,775,711,651,
+                                     598,553,513,489,443,400,362,328,296,268,243,219,198,180,168,157,146,136,119);
+
+
 type
 
   TArrayChannelString = array[0..DefCommon.MAX_CH] of String;
@@ -60,6 +66,8 @@ type
     EQPId_INLINE				: String;  //조립라인 EQP ID
     EQPId_MGIB					: String;  //MGIB EQP ID
     EQPId_PGIB					: String;  //PGIB EQP ID
+    EQPId_MGIB_Process_Code : string; // LPIR 관련 Process_Code
+    EQPId_PGIB_Process_Code : string; // LPIR 관련 Process_Code
     PIDLengthLimit      : Integer;
     ZIGLengthLimit      : Integer;
     Eas_Service         : string;
@@ -142,8 +150,14 @@ type
     PG_ToonOcWriteSyncAddrArr : array of Integer; //2023-03-30 jhhwang (for T/T Test)
     PG_GpioReadHpdBeforeMeasure   : Boolean; //2023-03-30 jhhwang (for T/T Test)
     PG_WaitAckAfterContOcWriteCnt : Integer; //2023-03-31 jhhwang (for T/T Test)
+    PG_TconReadBeforeDelayMsec    : Integer; //2023-04-24 jhhwang (for T/T Test)
+    PG_TconOcWriteDelayLoopCnt    : Integer; //2023-04-24 jhhwang (for T/T Test)
+    PG_TconOcWriteDelayMicroSec   : Integer; //2023-04-24 jhhwang (for T/T Test)
 
+    PG_FWVsersion                : array[DefCommon.CH1 .. Defcommon.MAX_CH] of string; // Added by sam81 2023-04-28 오후 2:14:38
+    CA410_MemoryCh               : array[DefCommon.CH1 .. Defcommon.MAX_CH] of string; // Added by sam81 2023-04-28 오후 2:14:38
   end;
+
 
   PPLCInfo = ^TPLCInfo;
   TPLCInfo = record
@@ -161,6 +175,7 @@ type
     ComputerName        : string;
     Address_ROBOT2      : string;
     Address_ROBOT_W2    : string;
+    Address_DoorOpen    : string;
     Use_Simulation      : Boolean;
     InlineGIB           : Boolean;  //InlineGIB용으로 사용 여부- PLC 메모리가 다르다.
     Zone: Integer;
@@ -454,10 +469,13 @@ type
     LOG     		 : string;
     FLASH         : string;
     LGDDLL       : string;
+    Gamma        : string;
     GMES     		 : string; //Host
     EAS          : string;
+    R2R          : string;
     MLOG     		 : string; //Mlog
     DebugLog     : string;     //DebugLog  //2020-09-16 DEBUG_LOG
+    DIOLog       : string; // Added by sam81 2023-04-24 오후 4:06:54
 //    CommPG       : string;
     PCDLog       : string; // PCD Log
 	  Sensing      : string; // I Sensing Log
@@ -479,6 +497,7 @@ type
     Maint        : string;
     // File
     SysInfo     : string;
+    PGInfo      : string; //PGSetting.ini
     OcInfo      : string;
     PatGrp      : string;
     OtpCfg      : string; // for RGB Average - oc Parameter only pass panel.
@@ -589,6 +608,8 @@ type
     EdModelInfoPG,    TestModelInfoPG   : TModelInfoPG;   //PG
     EdModelInfoFLOW,  TestModelInfoFLOW : TModelInfoFLOW; //Depends on Insepctor Flow
 
+    m_csReadCsvLog: TCriticalSection;
+    m_csWriteCsvLog: TCriticalSection;
     m_csvLine, m_csvFile : Integer;
     m_nCurPosZAxis : Integer;
     m_hMainFrm : THandle;
@@ -662,13 +683,19 @@ type
     procedure LoadCompiledFiles;
     procedure LoadPLCInfo;
     procedure ReadSystemInfo;
+    function ReadPGSettingInfo : Boolean;
     procedure ReadOpticInfo;
-    function ReadLGDDLLSummaryLog(sSn : string) : string;
+    function ReadLGDDLLSummaryLog(sSn : string; nCh : Integer) : string;
+    function CheckFileAccess(const Path: string; Mode: Word): Boolean;
+    function CanOpenFile(const FilePath: string; FileMode: Word = fmOpenRead): Boolean;
+    function FindLGDSummaryCsvFile(sFolderPath : String; sData : string):String;
     function SignalInversion(nSignal : Integer): Boolean;
     function LoadPatGroup(SelPatGroupName : string) : TPatterGroup;
     procedure SavePatGroup(sPatGroup : string; SavePatGrp : TPatterGroup);
     procedure InitSystemInfo;
     procedure SaveSystemInfo;
+    procedure SavesystemInfoFwVersion(nCh : Integer; sData : string);
+    procedure SavesystemInfoCA410Memory(nCh : Integer; sData : string);
     procedure UpdateSystemInfo_Runtime;
     procedure SaveLocalIpToSys(nIdx : Integer);
     procedure SaveOpticInfo(nModelType : Integer);
@@ -685,6 +712,7 @@ type
     function BmpGetSectionList : TStringList;
     function BmpGetKeyValueList(section : String) : TStringList;
     procedure Delay(msec: longint);
+    procedure WaitMicroSec(micro_sec : Int64);
     procedure SleepMicro(nSec : Int64);
     procedure DebugMessage(const str: String);
     procedure InitPath;
@@ -694,6 +722,7 @@ type
     procedure SaveModelInfoDLL(fName: String);
     procedure SaveModelInfo2(fName: String);
     procedure MLog(nCh : Integer;const Msg : String);
+    procedure MLogWaveformData(nCh : Integer;const Msg: String);
     procedure EELog(const pg_no : Integer);
 //    procedure CheckModelDownload(fname: String);
     procedure DelateBmpRawFile;
@@ -813,6 +842,24 @@ begin
   for i  := 0 to byteCount-1 do begin
     inc(SumValue, q^);
     inc(q);
+  end;
+end;
+
+function TCommon.CanOpenFile(const FilePath: string; FileMode: Word): Boolean;
+var
+  FileHandle: THandle;
+begin
+  Result := False;
+
+  // 파일 열기 시도
+  FileHandle := FileOpen(FilePath, FileMode);
+  try
+    // 파일 열기에 성공하면 True 반환
+    Result := FileHandle <> THandle(-1);
+  finally
+    // 파일 핸들 닫기
+    if Result then
+      FileClose(FileHandle);
   end;
 end;
 
@@ -1038,6 +1085,37 @@ begin
 end;
 
 
+function TCommon.CheckFileAccess(const Path: string; Mode: Word): Boolean;
+var
+  FileAttr: Word;
+begin
+  Result := False;
+  // 파일이 존재하는지 검사
+  if not FileExists(Path) then
+    Exit;
+  // 파일 속성을 가져옴
+  FileAttr := FileGetAttr(Path);
+  // 파일 읽기 권한 검사
+  if (Mode and 4) = 4 then
+  begin
+    if (FileAttr and faReadOnly) = faReadOnly then
+      Exit;
+  end;
+  // 파일 쓰기 권한 검사
+  if (Mode and 2) = 2 then
+  begin
+    if (FileAttr and faReadOnly) = faReadOnly then
+      Exit;
+  end;
+  // 파일 실행 권한 검사
+  if (Mode and 1) = 1 then
+  begin
+    if (FileAttr and faDirectory) = faDirectory then
+      Exit;
+  end;
+  Result := True;
+end;
+
 //procedure TCommon.CheckModelDownload(fname: String);
 //var
 //  pg : Integer;
@@ -1186,6 +1264,8 @@ begin
   m_bIsChanged := False;
   ExeVersion:= GetFileVersion(Application.ExeName);
   ComputerName:= GetComputerName;
+  m_csReadCsvLog:= TCriticalSection.Create;
+  m_csWriteCsvLog := TCriticalSection.Create;
 end;
 
 procedure TCommon.DebugLog(nCh, nMsgType: Integer; sRTX, sLocal, sRemote, sMsg: string);
@@ -1287,6 +1367,22 @@ begin
   FindClose(sr);
 end;
 
+procedure TCommon.WaitMicroSec(micro_sec : Int64);
+var
+  StartTick,Freq,EndTick, diff : int64;
+begin
+  if QueryPerformanceFrequency(Freq) then
+  begin
+    QueryPerformanceCounter(StartTick);
+    repeat
+      Application.ProcessMessages;
+      QueryPerformanceCounter(EndTick);
+      diff := ((EndTick-StartTick) * 1000000) div Freq;
+    until diff > micro_sec;
+  end;
+end;
+
+
 procedure TCommon.Delay(msec: longint);
 var
   FirstTickCount: longint;
@@ -1323,6 +1419,8 @@ begin
   m_Ver.psu_Crc  := '';
   m_Ver.isu_Date := '';
   m_bStopWork := True;
+  m_csReadCsvLog.Free;
+  m_csWriteCsvLog.Free;
   Delay(100);  // back ground ÀÛ¾÷½Ã Ãë¼ÒÇÏ´Â ½Ã°£ ÂüÁ¶.
 
   if loadAllPat <> nil then  begin
@@ -1481,6 +1579,34 @@ begin
   finally
     zipFile.Free;
   end;
+end;
+
+function TCommon.FindLGDSummaryCsvFile(sFolderPath, sData: string): String;
+var
+  SearchRec: TSearchRec;
+  sResult : String;
+begin
+  sResult := '';
+  try
+    // 폴더 경로의 모든 파일 검색
+    if FindFirst(sFolderPath + '\*.csv', faAnyFile, SearchRec) = 0 then
+    begin
+      try
+        repeat
+          // 파일의 생성일자가 매개변수로 받은 날짜와 같은 경우
+          if ContainsStr(SearchRec.Name, sData) then
+          begin
+            sResult := sFolderPath + '\' + SearchRec.Name;
+            break;
+          end;
+        until FindNext(SearchRec) <> 0;
+      finally
+        FindClose(SearchRec);
+      end;
+    end;
+  except
+  end;
+  Result := sResult;
 end;
 
 function TCommon.GetAnsiCrcToWord(sData: AnsiString; nLen : Integer): Word;
@@ -1859,14 +1985,17 @@ begin
   Path.IMAGE          := Path.RootSW + 'image\';
   Path.MLOG           := Path.LOG + 'MLog\';
   Path.DebugLog       := Path.LOG + 'DebugLog\'; //2020-09-16 DEBUG_LOG
+  Path.DIOLog         := Path.LOG + 'CommDIO\';
 //  Path.CommPG         := Path.LOG + 'CommPG\';
   Path.GMES       		:= Path.LOG + 'Mes\';
   Path.EAS            := Path.LOG + 'Eas\';
+  Path.R2R           := Path.LOG + 'R2R\';
   PATH.DATA 					:= Path.RootSW + 'DATA\';
   Path.PG_FW       		:= Path.DATA + 'PG_FW\';
   Path.PG_FPGA     		:= Path.DATA + 'PG_FPGA\';
   Path.Maint          := Path.RootSW + 'MAINT\';
   Path.LGDDLL         := Path.RootSW + 'LGDDLL\';
+  Path.Gamma          := Path.LOG + 'Gamma\';
 
 
 {$IFDEF CA410_USE}
@@ -1877,9 +2006,11 @@ begin
 
 
   Path.SysInfo        := Path.INI + 'SysTemConfig.ini';
+  Path.PGInfo         := Path.Ini + 'PGSetting.ini';
   Path.PowerCali      := 'PowerCalibration.ini';
   Path.SumCsv         := Path.LOG + 'SummaryCsv\';
   Path.ApdrCsv        := Path.LOG + 'ApdrCsv\';
+
   CheckDir(Path.INI);
   CheckDir(Path.PATTERN);
   CheckDir(Path.PATTERNGROUP);
@@ -1897,6 +2028,7 @@ begin
   CheckDir(Path.SumCsv);
   CheckDir(Path.ApdrCsv);
   CheckDir(Path.LGDDLL);
+  CheckDir(Path.Gamma);
 {$IFDEF ISPD_POCB}
   Path.CB_DATA  := Path.LOG + 'CB_DATA\';
   CheckDir(Path.CB_DATA);
@@ -2059,7 +2191,12 @@ begin
   InitPath;
   SetCodeLog;
 
+
   ReadSystemInfo;
+  if not ReadPGSettingInfo then begin
+    ShowMessage('<SYSTEM> Need to PGSetting.ini file. Check INI folder');
+  end;
+
 
 {$IFDEF CA310_USE}
   ReadOpticInfo;
@@ -3446,6 +3583,52 @@ begin
   end;
 end;
 
+procedure TCommon.MLogWaveformData(nCh : Integer;const Msg: String);
+var
+  _infile : TextFile;
+  sInputData, sFileName, sDate, sFilePath: String;
+//  nCurTime, nFreq : Int64;
+//	dElapse : Double;
+begin
+//  DebugMessage('[MLog] ' + Msg);
+  if CheckDir(Path.MLOG) then begin
+    Exit;
+  end;
+  sDate := FormatDateTime('yyyymmdd', Now);
+  sFilePath := Path.MLOG + sDate + '\';
+  if CheckDir(sFilePath) then begin
+    Exit;
+  end;
+  case nCh of
+    DefCommon.MAX_SYSTEM_LOG  : sFileName := sFilePath + Format('SystemLog_%s_%s.txt',[systemInfo.EQPId,sDate]);
+    DefCommon.MAX_PLC_LOG     : sFileName := sFilePath + Format('PLC_%s_%s.txt',[systemInfo.EQPId,sDate])
+    else begin
+      sFileName := sFilePath + Format('MLogWaveformData_%s_%s_Ch%d.txt',[systemInfo.EQPId,sDate,nCh + 1]);
+    end;
+  end;
+
+  try
+    try
+      AssignFile(_infile, sFileName);
+      if not FileExists(sFileName) then
+        Rewrite(_infile)
+      else
+        Append(_infile);
+      sInputData := FormatDateTime('(hh:mm:ss.zzz) : ', Now) + Msg;
+      WriteLn(_infile, sInputData);
+    except
+      on E: Exception do  begin
+        Sleep(10); //MLog 충돌 방지- IO 103
+        if nCh <> MAX_SYSTEM_LOG then begin
+          MLog(MAX_SYSTEM_LOG, format('Exception On Mlog Ch=%d, Err=%s', [nCh, E.Message]));
+        end;
+      end;
+    end;
+  finally
+    CloseFile(_infile);
+  end;
+end;
+
 
 
 function TCommon.ProcessMemory: longint;
@@ -3463,46 +3646,85 @@ begin
   FreeMem(pmc);
 end;
 
-function TCommon.ReadLGDDLLSummaryLog(sSn : string) : string;
+function TCommon.ReadLGDDLLSummaryLog(sSn : string; nCh : Integer) : string;
 var
-  asSummaryHeader,asSummaryData: TArray<String>;
+  asSummaryHeader,asSummaryGroupHeader,asSummaryData: TArray<String>;
   sComputerName: String;
-  sFileName: String;
+  sFileName , sCopyFileName: String;
   sLine,sDate,sResult: String;
   txtFile: TEXTFILE;
-  i: Integer;
+  i,nlineCount: Integer;
+  nStartTick, nEndTick : Cardinal;
 const
-  GroupName = 'AFM_VRR_OPTIMUM:';
-
+//  GroupName = 'AFM_VRR_OPTIMUM:';
+  GroupName = 'OC';
 begin
+//  m_csReadCsvLog.Acquire; // 동시 접근 방지
   sDate := FormatDateTime('yyyy_mm_dd', Now);
 
   sFileName:= Common.Path.LGDDLL +format('Oclog\SummaryLog\%s_Summary_Log_',[Common.SystemInfo.EQPId]) + sDate +'.csv';
-  if FileExists(sFileName) = false then begin
+  if not FileExists(sFileName) then begin
     //File not Found
     Exit;
   end;
-  AssignFile(txtFile, sFileName);
+  sCopyFileName := Common.Path.LGDDLL +format('Oclog\SummaryLog\%s_Summary_Log_%s_%d.csv',[Common.SystemInfo.EQPId, sDate, nCh]);
+  CopyFile(PChar(sFileName),Pchar(sCopyFileName),False);
+//  TFile.Copy(sFileName, sCopyFileName, true);
+//  sFileName := Common.FindLGDSummaryCsvFile(Common.Path.LGDDLL + 'Oclog\SummaryLog\',sDate);
+//  nStartTick := GetTickCount;
+//  while True do begin
+//    if CheckFileAccess(sFileName) then begin
+//      Break;
+//    end;
+//    nEndTick := GetTickCount;
+//    Sleep(100);
+//    if nEndTick - nStartTick > 5000 then begin
+//      break;
+//    end;
+//  end;
 
+  if FileExists(sCopyFileName) = false then begin
+    //File not Found
+    Exit;
+  end;
+  AssignFile(txtFile, sCopyFileName);
   try
-
     Reset(txtFile);
-
+    nlineCount := 0;
     while not Eof(txtFile) do begin
       ReadLn(txtFile, sLine);
       asSummaryData:= sLine.Split([',']);
+      Inc(nlineCount); // 현재 처리 중인 라인 카운트 증가
       if asSummaryData[0] = 'BIN_VER' then begin
         asSummaryHeader:= sLine.Split([',']);   //SummaryLog Header 저장
       end;
+      if asSummaryData[0] = 'BIN' then begin
+        asSummaryGroupHeader:= sLine.Split([',']);   //SummaryLog Group Header 저장
+      end;
+//      if nlineCount = 1 then asSummaryGroupHeader:= sLine.Split([',']);
+//      if nlineCount = 2 then asSummaryHeader:= sLine.Split([',']);
       if sSn = asSummaryData[5] then Break;    //SN
-
-
     end; //while eof(txtFile) do begin
-    for I := 0 to Length(asSummaryData) do
-      sResult :=sResult + GroupName + asSummaryHeader[i] + ':' + asSummaryData[i]+ ',';
+
+    for I := 0 to Length(asSummaryData) do begin
+      if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
+        if Length(asSummaryGroupHeader[i]) = 0 then asSummaryGroupHeader[i] := GroupName;
+      end
+      else begin
+        asSummaryGroupHeader[i] := GroupName
+      end;
+      if i = Length(asSummaryData)  then sResult := sResult + asSummaryGroupHeader[i] + ':' + asSummaryHeader[i] + ':' + asSummaryData[i]
+      else sResult := sResult + asSummaryGroupHeader[i] + ':' + asSummaryHeader[i] + ':' + asSummaryData[i]+ ',';
+    end;
     Result := sResult;
   finally
+//    m_csReadCsvLog.Release; //copy하면 상관없음
     CloseFile(txtFile);
+     //지우기
+    if FileExists(sCopyFileName) = True then begin
+      DeleteFile(sCopyFileName)
+    end;
+
   end;
 end;
 
@@ -3518,6 +3740,47 @@ begin
   finally
     fSys.Free;
   end;
+end;
+
+Function TCommon.ReadPGSettingInfo : Boolean;
+var
+  fSys        : TIniFile;
+  i : Integer;
+  arTemp   : TArray<string>; //2023-03-28 jhhwang (for T/T Test)
+begin
+  if not FileExists(Path.PGInfo) then begin
+    Result := False;
+    Exit;
+  end
+  else begin
+   fSys := TIniFile.Create(Path.PGInfo);
+    try
+      SystemInfo.DebugLogLevelConfig := fSys.ReadInteger('DEBUG', 'DEBUG_LOG_LEVEL_PG', 0); //TBD:DP860?
+      m_nDebugLogLevelActive := SystemInfo.DebugLogLevelConfig;
+
+      //2023-03-30 jhhwang (for T/T Test)
+      SystemInfo.PG_TconWriteLogDisplay    := fSys.ReadBool   ('DEBUG', 'PG_TconWriteLogDisplay', False); //2023-03-28 jhhwang (for T/T Test)
+      SystemInfo.PG_TconWriteCmdType       := fSys.ReadInteger('DEBUG', 'PG_TconWriteCmdType',    0);     //2023-03-30 jhhwang (for T/T Test)
+      SystemInfo.PG_TconOcWriteDelayMsec   := fSys.ReadInteger('DEBUG', 'PG_TconOcWriteDelayMsec',1);     //2023-03-28 jhhwang (for T/T Test) (valid if PgOcWriteAckUse=False)
+      SystemInfo.PG_TconOcWriteSyncAddrStr := Trim(fSys.ReadString('DEBUG', 'PG_TconOcWriteSyncAddrStr','1727,6926,6928,6930,6936,10260')); //2023-03-30 jhhwang (for T/T Test)
+      SetLength(SystemInfo.PG_ToonOcWriteSyncAddrArr,0);
+			if SystemInfo.PG_TconOcWriteSyncAddrStr <> '' then begin  //2023-03-30 jhhwang (for T/T Test)
+        arTemp := SystemInfo.PG_TconOcWriteSyncAddrStr.Split([',']);
+        SetLength(SystemInfo.PG_ToonOcWriteSyncAddrArr,Length(arTemp));
+        for i := 0 to Length(arTemp)-1 do begin
+          SystemInfo.PG_ToonOcWriteSyncAddrArr[i] := StrToIntDef(arTemp[i],0);
+        end;
+			end;
+      SystemInfo.PG_GpioReadHpdBeforeMeasure   := fSys.ReadBool   ('DEBUG', 'PG_GpioReadHpdBeforeMeasure',   True); //2023-03-30 jhhwang (for T/T Test)
+      SystemInfo.PG_WaitAckAfterContOcWriteCnt := fSys.ReadInteger('DEBUG', 'PG_WaitAckAfterContOcWriteCnt', 0);     //2023-03-31 jhhwang (for T/T Test)
+      SystemInfo.PG_TconReadBeforeDelayMsec    := fSys.ReadInteger('DEBUG', 'PG_TconReadBeforeDelayMsec',    0);     //2023-04-24 jhhwang (for T/T Test)
+      SystemInfo.PG_TconOcWriteDelayLoopCnt    := fSys.ReadInteger('DEBUG', 'PG_TconOcWriteDelayLoopCnt',    0);     //2023-04-24 jhhwang (for T/T Test)
+      SystemInfo.PG_TconOcWriteDelayMicroSec   := fSys.ReadInteger('DEBUG', 'PG_TconOcWriteDelayMicroSec',    0);     //2023-04-24 jhhwang (for T/T Test)
+    finally
+      fSys.Free;
+    end;
+  end;
+  Result := True;
 end;
 
 procedure TCommon.ReadSystemInfo;
@@ -3578,6 +3841,8 @@ begin
       SystemInfo.EQPId_INLINE				 	:= fSys.ReadString('SYSTEMDATA',  'EQPID_INLINE',             '');
       SystemInfo.EQPId_MGIB					 	:= fSys.ReadString('SYSTEMDATA',  'EQPID_MGIB',      '');
       SystemInfo.EQPId_PGIB			   		:= fSys.ReadString('SYSTEMDATA',  'EQPID_PGIB',             '');
+      SystemInfo.	EQPId_MGIB_Process_Code				 	:= fSys.ReadString('SYSTEMDATA',  'EQPID_MGIB_PROCESS_CODE',      '');
+      SystemInfo.	EQPId_PGIB_Process_Code		   		:= fSys.ReadString('SYSTEMDATA',  'EQPID_PGIB_PROCESS_CODE',      '');
       SystemInfo.Test_Repeat		   		:= fSys.Readbool('SYSTEMDATA',    'TEST_REPEAT',             False);
       SystemInfo.UseNoExchange		   	:= fSys.Readbool('SYSTEMDATA',    'UseNoExchange',             False);
       SystemInfo.UseNoPogo		   	    := fSys.Readbool('SYSTEMDATA',    'UseNoPogo',             False);
@@ -3715,6 +3980,7 @@ begin
       PLCInfo.Address_ECS_W       := fSys.ReadString('PLC', 'Address_ECS_W', '0');
       PLCInfo.Address_ROBOT2       := fSys.ReadString('PLC', 'Address_ROBOT2', '0');
       PLCInfo.Address_ROBOT_W2     := fSys.ReadString('PLC', 'Address_ROBOT_W2', '0');
+      PLCInfo.Address_DoorOpen     := fSys.ReadString('PLC', 'Address_DOOROPEN', '0');
 
 
       //Zone 설정
@@ -3736,7 +4002,6 @@ begin
       SimulateInfo.DIO_IP              := fSys.ReadString('SimulateInfo',    'DIO_IP', '127.0.0.1');
       SimulateInfo.DIO_PORT            := fSys.ReadInteger('SimulateInfo',    'DIO_PORT', 6988);
 
-
       SystemInfo.DebugLogLevelConfig := fSys.ReadInteger('DEBUG', 'DEBUG_LOG_LEVEL_PG', 0); //TBD:DP860?
       m_nDebugLogLevelActive := SystemInfo.DebugLogLevelConfig;
 
@@ -3755,6 +4020,9 @@ begin
 			end;
       SystemInfo.PG_GpioReadHpdBeforeMeasure   := fSys.ReadBool   ('DEBUG', 'PG_GpioReadHpdBeforeMeasure',   True); //2023-03-30 jhhwang (for T/T Test)
       SystemInfo.PG_WaitAckAfterContOcWriteCnt := fSys.ReadInteger('DEBUG', 'PG_WaitAckAfterContOcWriteCnt', 0);     //2023-03-31 jhhwang (for T/T Test)
+      SystemInfo.PG_TconReadBeforeDelayMsec    := fSys.ReadInteger('DEBUG', 'PG_TconReadBeforeDelayMsec',    0);     //2023-04-24 jhhwang (for T/T Test)
+      SystemInfo.PG_TconOcWriteDelayLoopCnt    := fSys.ReadInteger('DEBUG', 'PG_TconOcWriteDelayLoopCnt',    0);     //2023-04-24 jhhwang (for T/T Test)
+      SystemInfo.PG_TconOcWriteDelayMicroSec   := fSys.ReadInteger('DEBUG', 'PG_TconOcWriteDelayMicroSec',    0);     //2023-04-24 jhhwang (for T/T Test)
     finally
       fSys.Free;
     end;
@@ -4108,6 +4376,9 @@ begin
       WriteString('SYSTEMDATA',  'EQPID_INLINE',  		   	SystemInfo.EQPId_INLINE);
       WriteString('SYSTEMDATA',  'EQPID_MGIB',  		   	 	SystemInfo.EQPId_MGIB);
       WriteString('SYSTEMDATA',  'EQPID_PGIB',  		   	 	SystemInfo.EQPId_PGIB);
+      WriteString('SYSTEMDATA',  'EQPID_MGIB_PROCESS_CODE',  		   	 	SystemInfo.EQPId_MGIB_Process_Code);
+      WriteString('SYSTEMDATA',  'EQPID_PGIB_PROCESS_CODE',  		   	 	SystemInfo.EQPId_PGIB_Process_Code);
+
       WriteString('SYSTEMDATA',  'MES_SERVICEPORT',  			SystemInfo.ServicePort);
       WriteString('SYSTEMDATA',  'MES_NETWORK',  					SystemInfo.Network);
       WriteString('SYSTEMDATA',  'MES_DAEMONPORT',  			SystemInfo.DaemonPort);
@@ -4251,8 +4522,9 @@ begin
       WriteString('PLC', 'Address_EQP_W',         PLCInfo.Address_EQP_W);
       WriteString('PLC', 'Address_ECS_W',         PLCInfo.Address_ECS_W);
       WriteString('PLC', 'Address_ROBOT_W',       PLCInfo.Address_ROBOT_W);
-      WriteString('PLC', 'Address_ROBOT2',         PLCInfo.Address_ROBOT2);
-      WriteString('PLC', 'Address_ROBOT_W2',       PLCInfo.Address_ROBOT_W2);
+      WriteString('PLC', 'Address_ROBOT2',        PLCInfo.Address_ROBOT2);
+      WriteString('PLC', 'Address_ROBOT_W2',      PLCInfo.Address_ROBOT_W2);
+      WriteString('PLC', 'Address_DOOROPEN',      PLCInfo.Address_DoorOpen );
 
       WriteBool  ('Interlock', 'USE',                InterlockInfo.Use);
       WriteString('Interlock', 'Version_SW',         InterlockInfo.Version_SW);
@@ -4261,6 +4533,36 @@ begin
       WriteString('Interlock', 'Version_FPGA',       InterlockInfo.Version_FPGA);
       WriteString('Interlock', 'Version_Power',      InterlockInfo.Version_Power);
 
+    except
+    end;
+  end;
+  sysF.Free;
+  WritePrivateProfileString(nil, nil, nil, PChar(Path.SysInfo));
+end;
+
+procedure TCommon.SavesystemInfoCA410Memory(nCh: Integer; sData: string);
+var
+  sysF : TIniFile;
+begin
+  sysF := TIniFile.Create(Path.SysInfo);
+  with sysF do begin
+    try
+      WriteString('SYSTEMDATA', Format('CA410_MEMORY_CH%d',[nCh]),  sData);
+    except
+    end;
+  end;
+  sysF.Free;
+  WritePrivateProfileString(nil, nil, nil, PChar(Path.SysInfo));
+end;
+
+procedure TCommon.SavesystemInfoFwVersion(nCh: Integer; sData: string);
+var
+  sysF : TIniFile;
+begin
+  sysF := TIniFile.Create(Path.SysInfo);
+  with sysF do begin
+    try
+      WriteString('SYSTEMDATA', Format('PG_VERSION_CH%d',[nCh]),  sData);
     except
     end;
   end;

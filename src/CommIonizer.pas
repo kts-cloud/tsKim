@@ -10,9 +10,9 @@ const
   MSG_MODE_IONIZER_ERR_MSG        = 2;
   MSG_MODE_IONIZER_LOG            = 3;
 
-
+  MSG_TESTFORM_IONIZER_STATUS     = 400;
 type
-
+  TIonStatus = (IonNone, IonStop, IonRun, IonAlarm);
   InIonizerEvent = procedure(bIsConnect : Boolean; sGetData : String) of object;
 
   PGuiIonizer  = ^RGuiIonizer;
@@ -41,7 +41,7 @@ type
     procedure ReadVaCom(Sender: TObject; Count: Integer);
     function IsConnectIonizer(sData : string; var sRetStr : string) : Boolean;
     procedure SendMainGuiDisplay(nGuiMode, nConnect : integer; sMsg : string);
-    procedure SendTestGuiDisplay(nGuiMode : integer; sMsg : string);
+    procedure SendTestGuiDisplay(nGuiMode : integer; sMsg : string; nParam1 : integer = 0);
     procedure SetOnRevIonizerData(const Value: InIonizerEvent);
     procedure OnTimeIonizerCheck( Sender: TObject);
     procedure OnTimeIonTimeOut(Sender : TObject);
@@ -50,6 +50,7 @@ type
     m_bConnected : Boolean;
     // Added by Clint 2020-04-01 오후 3:14:57 Script 제어시 NG 처리 하지 말자.
     m_bScriptControl : Boolean;
+    IonizerStatus : TIonStatus;
     constructor Create(nIdx : Integer; hMain, hTest :HWND;  nMsgType : Integer); virtual;
     destructor Destroy; override;
     procedure SendMsg(sData : string);
@@ -124,6 +125,7 @@ constructor TIonizer.Create(nIdx : Integer; hMain, hTest :HWND; nMsgType : Integ
 begin
   FReadySwData := 0;
   m_hMain := hMain;
+  m_hTest := hTest;
   m_nIdx  := nIdx;
   m_nMsgType := nMsgType;
   ComIonizer := TVaComm.Create(nil);
@@ -142,6 +144,7 @@ begin
   // sbl, sob.
   m_nConnectCnt := 0;
   m_bConnected  := False;
+  IonizerStatus := IonStop;
 end;
 
 destructor TIonizer.Destroy;
@@ -242,6 +245,7 @@ begin
       m_bConnected := False;
       SendMainGuiDisplay(CommIonizer.MSG_MODE_IONIZER_CONNECTION,3,'Disconnected');
       SendMainGuiDisplay(CommIonizer.MSG_MODE_IONIZER_ERR_MSG,3,'Ionizer No Respose');
+      SendTestGuiDisplay(CommIonizer.MSG_TESTFORM_IONIZER_STATUS,'', 0);
     end;
     m_bConnected := False;
 
@@ -310,11 +314,15 @@ begin
       m_bConnected := True;
 //      SendMainGuiDisplay(CommIonizer.MSG_MODE_IONIZER_ERR_MSG,1,'Connected');
       SendMainGuiDisplay(CommIonizer.MSG_MODE_IONIZER_CONNECTION,1,'Connected');
+      SendTestGuiDisplay(CommIonizer.MSG_TESTFORM_IONIZER_STATUS,'', 1);
+      IonizerStatus := IonRun;
     end
     else begin
       //if m_bConnected then begin //연결 중에 한번만 보내자
         //SendMainGuiDisplay(CommIonizer.MSG_MODE_IONIZER_ERR_MSG,3,'Ionizer Status NG('+sTemp+')');
-        SendMainGuiDisplay(CommIonizer.MSG_MODE_IONIZER_ERR_MSG,3,sTemp);
+      SendMainGuiDisplay(CommIonizer.MSG_MODE_IONIZER_ERR_MSG,3,sTemp);
+      SendTestGuiDisplay(CommIonizer.MSG_TESTFORM_IONIZER_STATUS,'', 0);
+      IonizerStatus := IonStop;
       //end;
       m_bConnected := False;
     end;
@@ -440,16 +448,18 @@ begin
   SendMsg(',STP,1');
 end;
 
-procedure TIonizer.SendTestGuiDisplay(nGuiMode: Integer; sMsg: string);
+procedure TIonizer.SendTestGuiDisplay(nGuiMode: Integer; sMsg: string; nParam1 : integer);
 var
   ccd         : TCopyDataStruct;
   GuiLightData :  RGuiIonizer;
 begin
 
   GuiLightData.MsgType := m_nMsgType;
-  GuiLightData.Channel := 0;
+//  GuiLightData.Channel := 0;
+  GuiLightData.Channel := m_nIdx;
   GuiLightData.Mode    := nGuiMode;
-  GuiLightData.Param1  := m_nIdx;
+//  GuiLightData.Param1  := m_nIdx;
+  GuiLightData.Param1  := nParam1;
   GuiLightData.Msg     := sMsg;
   ccd.dwData      := 0;
   ccd.cbData      := SizeOf(GuiLightData);

@@ -251,6 +251,12 @@ type
     edtStartAddress_Robot2: TRzEdit;
     edtStartAddress_Robot_W2: TRzEdit;
     ChkCHReversal: TCheckBox;
+    pnl2: TRzPanel;
+    edtStartAddress_Robot_B_DoorOpen: TRzEdit;
+    RzPanel46: TRzPanel;
+    RzPanel47: TRzPanel;
+    edPRCS_CD_MGIB: TRzEdit;
+    edPRCS_CD_PGIB: TRzEdit;
 
     procedure FormCreate(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -668,12 +674,15 @@ begin
         if saAddress[1] = sStationNo then begin
           //StationNo 일치
           sIndex:= saAddress[0];
-          edtStartAddress_ECS.Text:=     saAddress[2];
-          edtStartAddress_ECS_W.Text:=   saAddress[3];
-          edtStartAddress_EQP.Text:=     saAddress[4];
-          edtStartAddress_EQP_W.Text:=   saAddress[5];
-          edtStartAddress_Robot.Text:=   saAddress[6];
-          edtStartAddress_Robot_W.Text:= saAddress[7];
+          edtStartAddress_ECS.Text      := saAddress[2];
+          edtStartAddress_ECS_W.Text    := saAddress[3];
+          edtStartAddress_EQP.Text      := saAddress[4];
+          edtStartAddress_EQP_W.Text    := saAddress[5];
+          edtStartAddress_Robot.Text    := saAddress[6];
+          edtStartAddress_Robot2.Text   := saAddress[7];
+          edtStartAddress_Robot_W.Text  := saAddress[8];
+          edtStartAddress_Robot_W2.Text := saAddress[9];
+          edtStartAddress_Robot_B_DoorOpen.Text := saAddress[10];
           break;
         end; //if saAddress[1] = sStationNo then begin
       end; //while not Eof(txFile) do begin
@@ -785,6 +794,9 @@ begin
     EQPId_INLINE   := edEQPID_INLINE.Text;
     EQPId_MGIB     := edEQPID_MGIB.Text;
     EQPId_PGIB     := edEQPID_PGIB.Text;
+    EQPId_MGIB_Process_Code := edPRCS_CD_MGIB.Text;
+    EQPId_PGIB_Process_Code := edPRCS_CD_PGIB.Text;
+
     case EQPId_Type of
       0: begin
         if EQPId_INLINE = '' then begin
@@ -940,6 +952,7 @@ begin
     Address_ROBOT_W:= edtStartAddress_Robot_W.Text;
     Address_ROBOT2  := edtStartAddress_Robot2.Text; // ADDR 주소 떨어진 경우
     Address_ROBOT_W2 := edtStartAddress_Robot_W2.Text; //
+    Address_DoorOpen  := edtStartAddress_Robot_B_DoorOpen.Text;
 
     InlineGIB:=  chkInlineGIB.Checked;
   end;
@@ -1231,6 +1244,8 @@ begin
     edEQPID_INLINE.Text            :=    EQPId_INLINE;
     edEQPID_MGIB.Text              :=    EQPId_MGIB;
     edEQPID_PGIB.Text              :=    EQPId_PGIB;
+    edPRCS_CD_MGIB.Text              :=    EQPId_MGIB_Process_Code;
+    edPRCS_CD_PGIB.Text              :=    EQPId_PGIB_Process_Code;
     edServicePort.Text             :=    ServicePort;
     edNetwork.Text                 :=    Network;
     edDeamonPort.Text              :=    DaemonPort;
@@ -1366,6 +1381,7 @@ begin
     edtStartAddress_EQP_W.Text:= Address_EQP_W;
     edtStartAddress_ROBOT_W.Text:= Address_ROBOT_W;
     edtStartAddress_ROBOT_W2.Text:= Address_ROBOT_W2;
+    edtStartAddress_Robot_B_DoorOpen.Text := Address_DoorOpen;
     chkInlineGIB.Checked:= InlineGIB;
   end;
 

@@ -3,7 +3,7 @@ object VirtualBcr: TVirtualBcr
   Top = 0
   Caption = 'VirtualBcr'
   ClientHeight = 163
-  ClientWidth = 670
+  ClientWidth = 1083
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -11,6 +11,7 @@ object VirtualBcr: TVirtualBcr
   Font.Name = 'Tahoma'
   Font.Style = []
   OldCreateOrder = False
+  Position = poMainFormCenter
   PixelsPerInch = 96
   TextHeight = 13
   object Label1: TLabel
@@ -94,11 +95,11 @@ object VirtualBcr: TVirtualBcr
     TabOrder = 3
   end
   object btnVirtualBcr: TButton
-    Left = 571
-    Top = 24
+    Left = 715
+    Top = 22
     Width = 97
     Height = 118
-    Caption = 'Input'
+    Caption = 'PCHK'
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
     Font.Height = -21
@@ -145,7 +146,7 @@ object VirtualBcr: TVirtualBcr
     OnClick = Button4Click
   end
   object Button5: TButton
-    Left = 674
+    Left = 818
     Top = 22
     Width = 75
     Height = 25
@@ -154,7 +155,7 @@ object VirtualBcr: TVirtualBcr
     OnClick = Button5Click
   end
   object Button6: TButton
-    Left = 812
+    Left = 956
     Top = 22
     Width = 75
     Height = 25
@@ -163,7 +164,7 @@ object VirtualBcr: TVirtualBcr
     OnClick = Button6Click
   end
   object Button7: TButton
-    Left = 674
+    Left = 818
     Top = 53
     Width = 75
     Height = 25
@@ -172,7 +173,7 @@ object VirtualBcr: TVirtualBcr
     OnClick = Button7Click
   end
   object Button8: TButton
-    Left = 812
+    Left = 956
     Top = 53
     Width = 75
     Height = 25
@@ -181,7 +182,7 @@ object VirtualBcr: TVirtualBcr
     OnClick = Button8Click
   end
   object Button9: TButton
-    Left = 674
+    Left = 818
     Top = 84
     Width = 75
     Height = 25
@@ -190,7 +191,7 @@ object VirtualBcr: TVirtualBcr
     OnClick = Button9Click
   end
   object Button10: TButton
-    Left = 812
+    Left = 956
     Top = 84
     Width = 75
     Height = 25
@@ -199,7 +200,7 @@ object VirtualBcr: TVirtualBcr
     OnClick = Button10Click
   end
   object Button11: TButton
-    Left = 674
+    Left = 818
     Top = 115
     Width = 75
     Height = 25
@@ -208,7 +209,7 @@ object VirtualBcr: TVirtualBcr
     OnClick = Button11Click
   end
   object Button12: TButton
-    Left = 812
+    Left = 956
     Top = 115
     Width = 75
     Height = 25
@@ -217,28 +218,28 @@ object VirtualBcr: TVirtualBcr
     OnClick = Button12Click
   end
   object Edit1: TEdit
-    Left = 768
+    Left = 912
     Top = 24
     Width = 38
     Height = 21
     TabOrder = 17
   end
   object Edit2: TEdit
-    Left = 768
+    Left = 912
     Top = 55
     Width = 38
     Height = 21
     TabOrder = 18
   end
   object Edit3: TEdit
-    Left = 768
+    Left = 912
     Top = 86
     Width = 38
     Height = 21
     TabOrder = 19
   end
   object Edit4: TEdit
-    Left = 768
+    Left = 912
     Top = 115
     Width = 38
     Height = 21
@@ -279,5 +280,20 @@ object VirtualBcr: TVirtualBcr
     Caption = 'Ready'
     TabOrder = 24
     OnClick = Button16Click
+  end
+  object Button17: TButton
+    Left = 586
+    Top = 22
+    Width = 97
+    Height = 118
+    Caption = 'LPIR'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -21
+    Font.Name = 'Tahoma'
+    Font.Style = []
+    ParentFont = False
+    TabOrder = 25
+    OnClick = Button17Click
   end
 end

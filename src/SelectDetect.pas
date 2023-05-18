@@ -30,9 +30,13 @@ implementation
 
 procedure TfrmSelectDetect.FormCreate(Sender: TObject);
 begin
-  if Common.SystemInfo.OCType = DefCommon.OCType then
-    btnNo.Caption := 'UnLoad'
-  else btnNo.Caption := 'Exchange';
+  if Common.SystemInfo.OCType = DefCommon.OCType then begin
+    btnNo.Caption := 'UnLoad';
+  end
+  else if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
+    btnNo.Caption := 'Exchange';
+    pnlCaption.Caption := 'Panel Detected'
+  end;
 
   pnlCaption.StyleElements:= [];
   btnOk.StyleElements:= [];

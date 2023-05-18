@@ -1220,7 +1220,7 @@ const
   PG_CMDID_POWER_BIST_ON        =  26;  PG_CMDSTR_POWER_BIST_ON        = 'power.bist.on'; // PreOC 및 OC는bist on,off로 전원 제어
   PG_CMDID_POWER_BIST_OFF       =  27;  PG_CMDSTR_POWER_BIST_OFF       = 'power.bist.off'; // PreOC 및 OC는bist on,off로 전원 제어
   PG_CMDID_BIST_RGB             =  28;  PG_CMDSTR_BIST_RGB             = 'bist.rgb'; // PreOC 및 OC RGB 패턴 출력
-	//------------------------------------------ Power measurement
+  PG_CMDID_BIST_RGB_9BIT        =  29;  PG_CMDSTR_BIST_RGB_9BIT        = 'bist.9bit'; // PreOC 및 OC RGB 패턴 출력	//------------------------------------------ Power measurement
   PG_CMDID_POWER_READ           =  30;  PG_CMDSTR_POWER_READ           = 'power.read';    //voltage+current
   //
   PG_CMDID_POWER_VOLTAGE        =  31;  PG_CMDSTR_POWER_VOLTAGE        = 'power.voltage'; //voltage(specific rail)
@@ -1230,10 +1230,12 @@ const
      	PGSIG_POWER_RAIL_VDD3 = 'VDD3';
      	PGSIG_POWER_RAIL_VDD4 = 'VDD4';
      	PGSIG_POWER_RAIL_VDD5 = 'VDD5';
+  PG_CMDID_BIST_APL             =  33;  PG_CMDSTR_BIST_APL             = 'bist.box.apl'; // APL 함수 추가
 	//------------------------------------------ TCON R/W
   PG_CMDID_TCON_READ            =  40;  PG_CMDSTR_TCON_READ            = 'tcon.read';
   PG_CMDID_TCON_WRITE           =  41;  PG_CMDSTR_TCON_WRITE           = 'tcon.write';
   PG_CMDID_TCON_OCWRITE         =  42;  PG_CMDSTR_TCON_OCWRITE         = 'tcon.ocwrite';
+  PG_CMDID_TCON_MULTIWRITE      =  43;  PG_CMDSTR_TCON_MULTIWRITE      = 'tcon.multiwrite';
 	//------------------------------------------ NVM(FLASH) R/W
   PG_CMDID_NVM_INIT             =  50;  PG_CMDSTR_NVM_INIT             = 'nvm.init';        //TBD:DP860?  //SPI Speed and Init 
   PG_CMDID_NVM_ERASE            =  51;  PG_CMDSTR_NVM_ERASE            = 'nvm.erase';       //TBD:DP860?

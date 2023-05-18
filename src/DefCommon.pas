@@ -25,8 +25,10 @@ Const
   TIBServer_MAX = TIBServer_EAS + 1;
 
   PG_CNT                  = 4;
+
   OCType                  = 0;
   PreOCType               = 1;
+
   MAX_PG_CNT 							= 4;
   CH_TOP                  = 0;
   CH_BOTTOM               = 1;

@@ -486,15 +486,16 @@ procedure TfrmECSStatus.btnLostGlassClick(Sender: TObject);
 var
   nGlassCode, nRequestOption: Integer;
   nRes: Integer;
+  nCh : Integer;
 begin
   nGlassCode:= StrToInt(edtParam2.Text);
   nRequestOption:= StrToInt(edtParam3.Text);
-
+  nCh := cboChannel_Robot.ItemIndex;
   TThread.CreateAnonymousThread(
   procedure begin
 
-    AddLog(format('ECS_Lost_Glass_Request: sGlassID=%s, nGlassCode=%d, nRequestOption=%d', [edtParam1.Text, nGlassCode, nRequestOption]));
-    nRes:= g_CommPLC.ECS_Lost_Glass_Request(edtParam1.Text, nGlassCode, nRequestOption);
+    AddLog(format('ECS_Lost_Glass_Request: sGlassID=%s, nGlassCode=%d, nRequestOption=%d Ch=%d', [edtParam1.Text, nGlassCode, nRequestOption, nCh]));
+    nRes:= g_CommPLC.ECS_Lost_Glass_Request(edtParam1.Text, nGlassCode, nRequestOption, nCh);
     if nRes <> 0 then begin
       AddLog('ECS_Lost_Glass_Request NG ' + IntToStr(nRes));
     end
@@ -811,13 +812,28 @@ end;
 
 procedure TfrmECSStatus.FormCreate(Sender: TObject);
 var
-  sEventName: String;
+  sEventName,sTemp: String;
   i: Integer;
 begin
   if g_CommPLC = nil then begin
     Self.Enabled:= false;
     Exit;
   end;
+  cboChannel_Robot.Items.Clear;
+  if Common.PLCInfo.InlineGIB then begin
+    for i := 0 to 3 do begin
+      sTemp := Format('CH %d',[i]);
+      cboChannel_Robot.Items.Add(sTemp);
+    end;
+  end
+  else begin
+    for i := 0 to 1 do begin
+      sTemp := Format('CH %d',[i]);
+      cboChannel_Robot.Items.Add(sTemp);
+    end;
+
+  end;
+  cboChannel_Robot.ItemIndex := 0;
 
   for i := 0 to 7 do begin
     m_aMESItemValue[i].Channel:= i;
@@ -861,6 +877,9 @@ var
   nAddr: Integer;
   sAddress : string;
 begin
+  if Common.PLCInfo.InlineGIB then
+    grdStatus.ColCount := 24
+  else   grdStatus.ColCount := 16;
   for i:= 0 to grdStatus.RowCount-1 do  begin
     grdStatus.Cells[0, i]:= IntToStr(i-1);
 //    for k:= 0 to grdStatus.ColCount-1 do  begin
@@ -914,99 +933,253 @@ begin
   grdStatus.Cells[3, 14] := 'Position #14 GlassExist';
   grdStatus.Cells[3, 15] := 'Position #15 GlassExist';
   grdStatus.Cells[3, 16] := 'Position #16 GlassExist';
-//  grdStatus.Cells[3, 1] := 'BCR Read Report #1';
-//  //grdStatus.Cells[3, 2] := 'BCR Read Report #2';
-//  //grdStatus.Cells[3, 3] := 'BCR Read Report #3';
-//  //grdStatus.Cells[3, 4] := 'BCR Read Report #4';
-//  grdStatus.Cells[3, 5] := 'Inspection Data Report #1';
-//  //grdStatus.Cells[3, 6] := 'Inspection Data Report #2';
-//  //grdStatus.Cells[3, 7] := 'Inspection Data Report #3';
-//  //grdStatus.Cells[3, 8] := 'Inspection Data Report #4';
-//  grdStatus.Cells[3, 9] := 'Inspection Data Confirm Ack #1';
-//  //grdStatus.Cells[3, 10] := 'Inspection Data Confirm Ack #2';
-//  //grdStatus.Cells[3, 11] := 'Inspection Data Confirm Ack #3';
-//  //grdStatus.Cells[3, 12] := 'Inspection Data Confirm Ack #4';
-//  grdStatus.Cells[3, 13] := 'Glass APD Report';
-//  grdStatus.Cells[3, 16] := 'User ID Report';
 
-//  grdStatus.Cells[4, 0] := 'EQP';
 
   nAddr:= StrToInt('$' + Common.PLCInfo.Address_EQP);
-  if Common.SystemInfo.OCType = DefCommon.OCType  then
-    nAddr:= nAddr + $C0
-  else nAddr:= nAddr + $12*$10;
-  grdStatus.Cells[4, 0] := 'EQP' + #10#13 + '(B' + IntToHex(nAddr, 4) + ')';
-  grdStatus.Cells[4, 1] := 'Load' + sLineBreak + 'Enable';
-  grdStatus.Cells[4, 2] := 'Glass Data Request';
-  grdStatus.Cells[4, 5] := 'Load Normal Status';
-  grdStatus.Cells[4, 6] := 'Load Request';
-  grdStatus.Cells[4, 7] := 'Load Complete Confirm';
-  //grdStatus.Cells[5, 14] := 'Ready To Start';
-  //grdStatus.Cells[5, 14] := 'Inspection Start Confirm';
-  //grdStatus.Cells[5, 15] := 'Reset Count Confirm';
-  //grdStatus.Cells[5, 16] := 'Last Product Confirm';
-
-  //grdStatus.Cells[6, 0] := 'EQP';
-  grdStatus.Cells[5, 1] := 'Unload' + sLineBreak + 'Enable';
-  grdStatus.Cells[5, 2] := 'Glass Data Report';
-  grdStatus.Cells[5, 5] := 'Unload Normal Status';
-  grdStatus.Cells[5, 6] := 'Unload Request';
-  grdStatus.Cells[5, 7] := 'Unload Complete Confirm';
-
-  //grdStatus.Cells[7, 0] := 'EQP';
-  grdStatus.Cells[6, 1] := 'Load' + sLineBreak + 'Enable';
-  grdStatus.Cells[6, 2] := 'Glass Data Request';
-  grdStatus.Cells[6, 5] := 'Load Normal Status';
-  grdStatus.Cells[6, 6] := 'Load Request';
-  grdStatus.Cells[6, 7] := 'Load Complete Confirm';
-  //grdStatus.Cells[7, 14] := 'Ready To Start';
-  //grdStatus.Cells[7, 14] := 'Inspection Start Confirm';
-  //grdStatus.Cells[7, 15] := 'Reset Count Confirm';
-  //grdStatus.Cells[7, 16] := 'Last Product Confirm';
-
-  //grdStatus.Cells[8, 0] := 'EQP';
-  grdStatus.Cells[7, 1] := 'Unload' + sLineBreak + 'Enable';
-  grdStatus.Cells[7, 2] := 'Glass Data Report';
-  grdStatus.Cells[7, 5] := 'Unload Normal Status';
-  grdStatus.Cells[7, 6] := 'Unload Request';
-  grdStatus.Cells[7, 7] := 'Unload Complete Confirm';
-
-
-  //Robot
-  nAddr:= StrToInt('$' + Common.PLCInfo.Address_Robot);
-  grdStatus.Cells[8, 0] := 'Robot' + #10#13 + 'B(' + IntToHex(nAddr, 4) + ')';
-  grdStatus.Cells[8, 1] := 'Load' + sLineBreak + 'Noninterference';
-  grdStatus.Cells[8, 2] := 'Glass Data Report';
-  grdStatus.Cells[8, 3] := 'Load Robot Busy';
-  grdStatus.Cells[8, 4] := 'Load Complete';
-  grdStatus.Cells[8, 5] := 'Load Normal Status';
-
-  //grdStatus.Cells[10, 0] := 'Robot';
-  grdStatus.Cells[9, 1] := 'Unload' + sLineBreak + 'Noninterference';
-  grdStatus.Cells[9, 3] := 'Unload Robot' + sLineBreak + 'Busy';
-  grdStatus.Cells[9, 4] := 'Unload Complete';
-  grdStatus.Cells[9, 5] := 'Unload Normal Status';
-
-  //grdStatus.Cells[10, 14] := 'Inspection Start';
-  //grdStatus.Cells[10, 15] := 'Reset Count';
-  //grdStatus.Cells[10, 16] := 'Last Product';
-
-  //grdStatus.Cells[11, 0] := 'Robot';
-  if StrToInt('$' + Common.PLCInfo.Address_Robot2) <> 0 then begin
-    nAddr:= StrToInt('$' + Common.PLCInfo.Address_Robot2);
-    grdStatus.Cells[10, 0] := 'Robot' + #10#13 + 'B(' + IntToHex(nAddr, 4) + ')';
+  if Common.PLCInfo.InlineGIB then
+    nAddr:= nAddr + $80
+  else begin
+    if Common.SystemInfo.OCType = DefCommon.OCType  then
+      nAddr:= nAddr + $C0
+    else nAddr:= nAddr + $12*$10;
   end;
+  if Common.PLCInfo.InlineGIB then  begin
+    grdStatus.Cells[4, 0] := 'EQP' + #10#13 + '(B' + IntToHex(nAddr, 4) + ')';
+    grdStatus.Cells[4, 1] := 'Load' + sLineBreak + 'Enable';
+    grdStatus.Cells[4, 2] := 'Glass Data Request';
+    grdStatus.Cells[4, 5] := 'Load Normal Status';
+    grdStatus.Cells[4, 6] := 'Load Request';
+    grdStatus.Cells[4, 7] := 'Load Complete Confirm';
 
-  grdStatus.Cells[10, 1] := 'Load' + sLineBreak + 'Noninterference';
-  grdStatus.Cells[10, 2] := 'Glass Data Report';
-  grdStatus.Cells[10, 3] := 'Load Robot Busy';
-  grdStatus.Cells[10, 4] := 'Load Complete';
-  grdStatus.Cells[10, 5] := 'Load Normal Status';
+//    grdStatus.Cells[4, 15] := 'Interlock' + sLineBreak+ 'PROBE';
+//    grdStatus.Cells[4, 16] := 'Interlock' + sLineBreak+ 'SHUTTER';
 
-  grdStatus.Cells[11, 1] := 'Unload' + sLineBreak + 'Noninterference';
-  grdStatus.Cells[11, 3] := 'Unload Robot Busy';
-  grdStatus.Cells[11, 4] := 'Unload Complete';
-  grdStatus.Cells[11, 5] := 'Unload Normal Status';
+    grdStatus.Cells[5, 1] := 'Unload' + sLineBreak + 'Enable';
+    grdStatus.Cells[5, 2] := 'Glass Data Report';
+    grdStatus.Cells[5, 5] := 'Unload Normal Status';
+    grdStatus.Cells[5, 6] := 'Unload Request';
+    grdStatus.Cells[5, 7] := 'Unload Complete Confirm';
+
+
+    grdStatus.Cells[6, 1] := 'Load' + sLineBreak + 'Enable';
+    grdStatus.Cells[6, 2] := 'Glass Data Request';
+    grdStatus.Cells[6, 5] := 'Load Normal Status';
+    grdStatus.Cells[6, 6] := 'Load Request';
+    grdStatus.Cells[6, 7] := 'Load Complete Confirm';
+
+//    grdStatus.Cells[6, 15] := 'Interlock' + sLineBreak+ 'PROBE';
+//    grdStatus.Cells[6, 16] := 'Interlock' + sLineBreak+ 'SHUTTER';
+
+    grdStatus.Cells[7, 1] := 'Unload' + sLineBreak + 'Enable';
+    grdStatus.Cells[7, 2] := 'Glass Data Report';
+    grdStatus.Cells[7, 5] := 'Unload Normal Status';
+    grdStatus.Cells[7, 6] := 'Unload Request';
+    grdStatus.Cells[7, 7] := 'Unload Complete Confirm';
+
+    grdStatus.Cells[8, 1] := 'Load' + sLineBreak + 'Enable';
+    grdStatus.Cells[8, 2] := 'Glass Data Request';
+    grdStatus.Cells[8, 5] := 'Load Normal Status';
+    grdStatus.Cells[8, 6] := 'Load Request';
+    grdStatus.Cells[8, 7] := 'Load Complete Confirm';
+
+//    grdStatus.Cells[8, 15] := 'Interlock' + sLineBreak+ 'PROBE';
+//    grdStatus.Cells[8, 16] := 'Interlock' + sLineBreak+ 'SHUTTER';
+
+    grdStatus.Cells[9, 1] := 'Unload' + sLineBreak + 'Enable';
+    grdStatus.Cells[9, 2] := 'Glass Data Report';
+    grdStatus.Cells[9, 5] := 'Unload Normal Status';
+    grdStatus.Cells[9, 6] := 'Unload Request';
+    grdStatus.Cells[9, 7] := 'Unload Complete Confirm';
+
+    grdStatus.Cells[10, 1] := 'Load' + sLineBreak + 'Enable';
+    grdStatus.Cells[10, 2] := 'Glass Data Request';
+    grdStatus.Cells[10, 5] := 'Load Normal Status';
+    grdStatus.Cells[10, 6] := 'Load Request';
+    grdStatus.Cells[10, 7] := 'Load Complete Confirm';
+
+//    grdStatus.Cells[10, 15] := 'Interlock' + sLineBreak+ 'PROBE';
+//    grdStatus.Cells[10, 16] := 'Interlock' + sLineBreak+ 'SHUTTER';
+
+    grdStatus.Cells[11, 1] := 'Unload' + sLineBreak + 'Enable';
+    grdStatus.Cells[11, 2] := 'Glass Data Report';
+    grdStatus.Cells[11, 5] := 'Unload Normal Status';
+    grdStatus.Cells[11, 6] := 'Unload Request';
+    grdStatus.Cells[11, 7] := 'Unload Complete Confirm';
+
+
+    //Robot
+    nAddr:= StrToInt('$' + Common.PLCInfo.Address_Robot);
+    grdStatus.Cells[12, 0] := 'Robot' + #10#13 + 'B(' + IntToHex(nAddr, 4) + ')';
+    grdStatus.Cells[12, 1] := 'Load' + sLineBreak + 'Noninterference';
+    grdStatus.Cells[12, 2] := 'Glass Data Report';
+    grdStatus.Cells[12, 3] := 'Load Robot Busy';
+    grdStatus.Cells[12, 4] := 'Load Complete';
+    grdStatus.Cells[12, 5] := 'Load Normal Status';
+    if Common.SystemInfo.OCType = DefCommon.OCType then begin
+      grdStatus.Cells[12, 16] := 'Robot Door Open';
+    end;
+
+    grdStatus.Cells[13, 1] := 'Unload' + sLineBreak + 'Noninterference';
+    grdStatus.Cells[13, 3] := 'Unload Robot' + sLineBreak + 'Busy';
+    grdStatus.Cells[13, 4] := 'Unload Complete';
+    grdStatus.Cells[13, 5] := 'Unload Normal Status';
+
+
+    if StrToInt('$' + Common.PLCInfo.Address_Robot2) <> 0 then begin
+      nAddr:= StrToInt('$' + Common.PLCInfo.Address_Robot2);
+      grdStatus.Cells[14, 0] := 'Robot' + #10#13 + 'B(' + IntToHex(nAddr, 4) + ')';
+    end;
+
+    grdStatus.Cells[14, 1] := 'Load' + sLineBreak + 'Noninterference';
+    grdStatus.Cells[14, 2] := 'Glass Data Report';
+    grdStatus.Cells[14, 3] := 'Load Robot Busy';
+    grdStatus.Cells[14, 4] := 'Load Complete';
+    grdStatus.Cells[14, 5] := 'Load Normal Status';
+
+    grdStatus.Cells[15, 1] := 'Unload' + sLineBreak + 'Noninterference';
+    grdStatus.Cells[15, 3] := 'Unload Robot Busy';
+    grdStatus.Cells[15, 4] := 'Unload Complete';
+    grdStatus.Cells[15, 5] := 'Unload Normal Status';
+
+    grdStatus.Cells[16, 1] := 'Load' + sLineBreak + 'Noninterference';
+    grdStatus.Cells[16, 2] := 'Glass Data Report';
+    grdStatus.Cells[16, 3] := 'Load Robot Busy';
+    grdStatus.Cells[16, 4] := 'Load Complete';
+    grdStatus.Cells[16, 5] := 'Load Normal Status';
+
+    grdStatus.Cells[17, 1] := 'Unload' + sLineBreak + 'Noninterference';
+    grdStatus.Cells[17, 3] := 'Unload Robot Busy';
+    grdStatus.Cells[17, 4] := 'Unload Complete';
+    grdStatus.Cells[17, 5] := 'Unload Normal Status';
+
+    grdStatus.Cells[18, 1] := 'Load' + sLineBreak + 'Noninterference';
+    grdStatus.Cells[18, 2] := 'Glass Data Report';
+    grdStatus.Cells[18, 3] := 'Load Robot Busy';
+    grdStatus.Cells[18, 4] := 'Load Complete';
+    grdStatus.Cells[18, 5] := 'Load Normal Status';
+
+    grdStatus.Cells[19, 1] := 'Unload' + sLineBreak + 'Noninterference';
+    grdStatus.Cells[19, 3] := 'Unload Robot Busy';
+    grdStatus.Cells[19, 4] := 'Unload Complete';
+    grdStatus.Cells[19, 5] := 'Unload Normal Status';
+
+  end
+  else begin
+
+    grdStatus.Cells[4, 0] := 'EQP' + #10#13 + '(B' + IntToHex(nAddr, 4) + ')';
+    grdStatus.Cells[4, 1] := 'Load' + sLineBreak + 'Enable';
+    grdStatus.Cells[4, 2] := 'Glass Data Request';
+    grdStatus.Cells[4, 5] := 'Load Normal Status';
+    grdStatus.Cells[4, 6] := 'Load Request';
+    grdStatus.Cells[4, 7] := 'Load Complete Confirm';
+
+    grdStatus.Cells[4, 15] := 'Interlock' + sLineBreak+ 'PROBE';
+    grdStatus.Cells[4, 16] := 'Interlock' + sLineBreak+ 'SHUTTER + LC';
+
+    grdStatus.Cells[5, 1] := 'Unload' + sLineBreak + 'Enable';
+    grdStatus.Cells[5, 2] := 'Glass Data Report';
+    grdStatus.Cells[5, 5] := 'Unload Normal Status';
+    grdStatus.Cells[5, 6] := 'Unload Request';
+    grdStatus.Cells[5, 7] := 'Unload Complete Confirm';
+
+    if Common.SystemInfo.OCType = Defcommon.PreOCType then begin
+      if Common.SystemInfo.CHReversal then begin
+        grdStatus.Cells[5, 11] := 'UnLoad CH2';
+        grdStatus.Cells[5, 12] := 'UnLoad CH1';
+      end
+      else begin
+        grdStatus.Cells[5, 11] := 'UnLoad CH1';
+        grdStatus.Cells[5, 12] := 'UnLoad CH2';
+      end;
+    end;
+
+    grdStatus.Cells[6, 1] := 'Load' + sLineBreak + 'Enable';
+    grdStatus.Cells[6, 2] := 'Glass Data Request';
+    grdStatus.Cells[6, 5] := 'Load Normal Status';
+    grdStatus.Cells[6, 6] := 'Load Request';
+    grdStatus.Cells[6, 7] := 'Load Complete Confirm';
+
+    grdStatus.Cells[6, 15] := 'Interlock' + sLineBreak+ 'PROBE';
+    grdStatus.Cells[6, 16] := 'Interlock' + sLineBreak+ 'SHUTTER + LC';
+
+    grdStatus.Cells[7, 1] := 'Unload' + sLineBreak + 'Enable';
+    grdStatus.Cells[7, 2] := 'Glass Data Report';
+    grdStatus.Cells[7, 5] := 'Unload Normal Status';
+    grdStatus.Cells[7, 6] := 'Unload Request';
+    grdStatus.Cells[7, 7] := 'Unload Complete Confirm';
+
+    if Common.SystemInfo.OCType = Defcommon.PreOCType then begin
+      if Common.SystemInfo.CHReversal then begin
+        grdStatus.Cells[7, 11] := 'UnLoad CH4';
+        grdStatus.Cells[7, 12] := 'UnLoad CH3';
+      end
+      else begin
+        grdStatus.Cells[7, 11] := 'UnLoad CH3';
+        grdStatus.Cells[7, 12] := 'UnLoad CH4';
+      end;
+    end;
+
+    //Robot
+    nAddr:= StrToInt('$' + Common.PLCInfo.Address_Robot);
+    grdStatus.Cells[8, 0] := 'Robot' + #10#13 + 'B(' + IntToHex(nAddr, 4) + ')';
+    grdStatus.Cells[8, 1] := 'Load' + sLineBreak + 'Noninterference';
+    grdStatus.Cells[8, 2] := 'Glass Data Report';
+    grdStatus.Cells[8, 3] := 'Load Robot Busy';
+    grdStatus.Cells[8, 4] := 'Load Complete';
+    grdStatus.Cells[8, 5] := 'Load Normal Status';
+    if Common.SystemInfo.OCType = DefCommon.OCType then begin
+      grdStatus.Cells[8, 16] := 'Robot Door Open';
+    end;
+    if Common.SystemInfo.OCType = Defcommon.PreOCType then begin
+      if Common.SystemInfo.CHReversal then begin
+        grdStatus.Cells[8, 11] := 'Load CH2';
+        grdStatus.Cells[8, 12] := 'Load CH1';
+      end
+      else begin
+        grdStatus.Cells[8, 11] := 'Load CH1';
+        grdStatus.Cells[8, 12] := 'Load CH2';
+      end;
+    end;
+
+
+    //grdStatus.Cells[10, 0] := 'Robot';
+    grdStatus.Cells[9, 1] := 'Unload' + sLineBreak + 'Noninterference';
+    grdStatus.Cells[9, 3] := 'Unload Robot' + sLineBreak + 'Busy';
+    grdStatus.Cells[9, 4] := 'Unload Complete';
+    grdStatus.Cells[9, 5] := 'Unload Normal Status';
+
+    //grdStatus.Cells[10, 14] := 'Inspection Start';
+    //grdStatus.Cells[10, 15] := 'Reset Count';
+    //grdStatus.Cells[10, 16] := 'Last Product';
+
+    //grdStatus.Cells[11, 0] := 'Robot';
+    if StrToInt('$' + Common.PLCInfo.Address_Robot2) <> 0 then begin
+      nAddr:= StrToInt('$' + Common.PLCInfo.Address_Robot2);
+      grdStatus.Cells[10, 0] := 'Robot' + #10#13 + 'B(' + IntToHex(nAddr, 4) + ')';
+    end;
+
+    grdStatus.Cells[10, 1] := 'Load' + sLineBreak + 'Noninterference';
+    grdStatus.Cells[10, 2] := 'Glass Data Report';
+    grdStatus.Cells[10, 3] := 'Load Robot Busy';
+    grdStatus.Cells[10, 4] := 'Load Complete';
+    grdStatus.Cells[10, 5] := 'Load Normal Status';
+    if Common.SystemInfo.OCType = Defcommon.PreOCType then begin
+      if Common.SystemInfo.CHReversal then begin
+        grdStatus.Cells[10, 11] := 'Load CH4';
+        grdStatus.Cells[10, 12] := 'Load CH3';
+      end
+      else begin
+        grdStatus.Cells[10, 11] := 'Load CH3';
+        grdStatus.Cells[10, 12] := 'Load CH4';
+      end;
+    end;
+
+    grdStatus.Cells[11, 1] := 'Unload' + sLineBreak + 'Noninterference';
+    grdStatus.Cells[11, 3] := 'Unload Robot Busy';
+    grdStatus.Cells[11, 4] := 'Unload Complete';
+    grdStatus.Cells[11, 5] := 'Unload Normal Status';
+
+  end;
 
   //grdStatus.Cells[12, 0] := 'Robot';
   //grdStatus.Cells[12, 14] := 'Inspection Start';
@@ -1027,44 +1200,51 @@ begin
     grdStatus.Cells[12, 16] := 'Last Product'  + #10#13 + '(B' + IntToHex(nAddr, 4) + ')';
   end;
 
-  //ECS
-  nAddr:= StrToInt('$000');
-  grdStatus.Cells[12, 0] := 'ECS' + #10#13 + '(B' + IntToHex(nAddr, 4) + ')';
-  grdStatus.Cells[12, 1] := 'ECS Restart' + sLineBreak + '(2 sec)' ;
-  grdStatus.Cells[12, 2] := 'Time Set Request' + sLineBreak + '(2 sec)';
-  grdStatus.Cells[12, 3] := 'ECS User Login' + sLineBreak +  'Data Send';
-  grdStatus.Cells[12, 4] := 'LostPanel'+ sLineBreak + 'Data Request' + sLineBreak +'ACK OK';
-  grdStatus.Cells[12, 5] := 'LostPanel'+ sLineBreak + 'Data Request' + sLineBreak +'ACK NG';
 
-//  grdStatus.Cells[13, 5] := 'User ID Report Confirm';
-//  grdStatus.Cells[13, 7] := 'Inspection Data  Confirm #1';
-//  grdStatus.Cells[13, 9] := 'BCR #1 Read Report Confirm';
-//  grdStatus.Cells[13, 11] := '';//'Inspection Data Report Confirm #4';
-//  grdStatus.Cells[13, 16] := 'AAB Mode';
+  if Common.PLCInfo.InlineGIB then begin
+    nAddr:= StrToInt('$000');
+    grdStatus.Cells[20, 0] := 'ECS' + #10#13 + '(B' + IntToHex(nAddr, 4) + ')';
+    grdStatus.Cells[20, 1] := 'ECS Restart' + sLineBreak + '(2 sec)' ;
+    grdStatus.Cells[20, 2] := 'Time Set Request' + sLineBreak + '(2 sec)';
+    grdStatus.Cells[20, 3] := 'ECS User Login' + sLineBreak +  'Data Send';
+    grdStatus.Cells[20, 4] := 'LostPanel'+ sLineBreak + 'Data Request' + sLineBreak +'ACK OK';
+    grdStatus.Cells[20, 5] := 'LostPanel'+ sLineBreak + 'Data Request' + sLineBreak +'ACK NG';
 
-//  grdStatus.Cells[13, 9] := ''; //'Inspection Data  Confirm #1';
-//  grdStatus.Cells[13, 10] := ''; //'Inspection Data  Confirm #2';
-//  grdStatus.Cells[13, 11] := ''; //'Inspection Data  Confirm #3';
-//  grdStatus.Cells[13, 12] := ''; //'Inspection Data  Confirm #4';
-//  grdStatus.Cells[13, 16] := ''; //'User ID Report Confirm';
-  if Common.SystemInfo.OCType = DefCommon.OCType then begin
-    if Common.PLCInfo.InlineGIB then  begin
-      nAddr:= StrToInt('$' + Common.PLCInfo.Address_ECS)+ ((Common.PLCInfo.EQP_ID -6) div 16)*$10;
-      grdStatus.Cells[13, 0] := 'ECS' + #10#13 + '(B' + IntToHex(nAddr, 4) + ')';
-      grdStatus.Cells[13, ((Common.PLCInfo.EQP_ID + 10 )mod 16)+1] :=
-      Format('OC #%d Link',[Common.PLCInfo.EQP_ID - 6])  + sLineBreak + 'Test Request';
+    nAddr:= StrToInt('$' + Common.PLCInfo.Address_ECS)+ ((Common.PLCInfo.EQP_ID -3) div 16)*$10;
+    grdStatus.Cells[21, 0] := 'ECS' + #10#13 + '(B' + IntToHex(nAddr, 4) + ')';
+    grdStatus.Cells[21, ((Common.PLCInfo.EQP_ID + 10 )mod 16)+1] :=
+    Format('OC #%d Link',[Common.PLCInfo.EQP_ID - 6])  + sLineBreak + 'Test Request';
 
 
-      grdStatus.Cells[14, 0] := 'ECS' + #10#13 + '(B' + IntToHex(nAddr + $100, 4) + ')';
-      grdStatus.Cells[14, ((Common.PLCInfo.EQP_ID +10 )mod 16)+1] :=
-      Format('OC #%d Lost',[Common.PLCInfo.EQP_ID - 6]) + sLineBreak + 'Panel Data Report';
+    grdStatus.Cells[22, 0] := 'ECS' + #10#13 + '(B' + IntToHex(nAddr + $100, 4) + ')';
+    grdStatus.Cells[22, ((Common.PLCInfo.EQP_ID +10 )mod 16)+1] :=
+    Format('OC #%d Lost',[Common.PLCInfo.EQP_ID - 6]) + sLineBreak + 'Panel Data Report';
 
 
-      grdStatus.Cells[15, 0] := 'ECS' + #10#13 + '(B' + IntToHex(nAddr + $200, 4) + ')';
-      grdStatus.Cells[15, ((Common.PLCInfo.EQP_ID + 10 )mod 16)+1] :=
-      Format('OC #%d Take',[Common.PLCInfo.EQP_ID - 6]) + sLineBreak + 'Out Report_Confirm';
+    grdStatus.Cells[23, 0] := 'ECS' + #10#13 + '(B' + IntToHex(nAddr + $200, 4) + ')';
+    grdStatus.Cells[23, ((Common.PLCInfo.EQP_ID + 10 )mod 16)+1] :=
+    Format('OC #%d Take',[Common.PLCInfo.EQP_ID - 6]) + sLineBreak + 'Out Report_Confirm';
+
+
+    grdStatus.MergeCells(1, 0, 3, 1);
+    grdStatus.MergeCells(4, 0, 8, 1);
+    if StrToInt('$' + Common.PLCInfo.Address_Robot2) <> 0 then begin
+      grdStatus.MergeCells(8, 0, 2, 1);
+      grdStatus.MergeCells(10, 0, 2, 1);
     end
-    else begin
+    else grdStatus.MergeCells(12, 0, 8, 1);
+  end
+  else begin
+  //ECS
+    nAddr:= StrToInt('$000');
+    grdStatus.Cells[12, 0] := 'ECS' + #10#13 + '(B' + IntToHex(nAddr, 4) + ')';
+    grdStatus.Cells[12, 1] := 'ECS Restart' + sLineBreak + '(2 sec)' ;
+    grdStatus.Cells[12, 2] := 'Time Set Request' + sLineBreak + '(2 sec)';
+    grdStatus.Cells[12, 3] := 'ECS User Login' + sLineBreak +  'Data Send';
+    grdStatus.Cells[12, 4] := 'LostPanel'+ sLineBreak + 'Data Request' + sLineBreak +'ACK OK';
+    grdStatus.Cells[12, 5] := 'LostPanel'+ sLineBreak + 'Data Request' + sLineBreak +'ACK NG';
+
+    if Common.SystemInfo.OCType = DefCommon.OCType then begin
       nAddr:= StrToInt('$' + Common.PLCInfo.Address_ECS)+ ((Common.PLCInfo.EQP_ID -3) div 16)*$10;
       grdStatus.Cells[13, 0] := 'ECS' + #10#13 + '(B' + IntToHex(nAddr, 4) + ')';
       grdStatus.Cells[13, ((Common.PLCInfo.EQP_ID + 13 )mod 16)+1] :=
@@ -1079,38 +1259,36 @@ begin
       grdStatus.Cells[15, 0] := 'ECS' + #10#13 + '(B' + IntToHex(nAddr + $200, 4) + ')';
       grdStatus.Cells[15, ((Common.PLCInfo.EQP_ID + 13 )mod 16)+1] :=
       Format('OC #%d Take',[Common.PLCInfo.EQP_ID - 10]) + sLineBreak + 'Out Report_Confirm';
-    end;
+    end
+    else begin
 
-  end
-  else begin
-    if Common.PLCInfo.InlineGIB then
-      nAddr:= StrToInt('$' + Common.PLCInfo.Address_ECS)+ ((Common.PLCInfo.EQP_ID -6) div 16)*$10
-    else
       nAddr:= StrToInt('$' + Common.PLCInfo.Address_ECS)+ ((Common.PLCInfo.EQP_ID -3) div 16)*$10;
 
-    grdStatus.Cells[13, 0] := 'ECS' + #10#13 + '(B' + IntToHex(nAddr, 4) + ')';
-    grdStatus.Cells[13, ((Common.PLCInfo.EQP_ID + 13 )mod 16)+1] :=
-    Format('OC #%d Link',[Common.PLCInfo.EQP_ID - 10])  + sLineBreak + 'Test Request';
+      grdStatus.Cells[13, 0] := 'ECS' + #10#13 + '(B' + IntToHex(nAddr, 4) + ')';
+      grdStatus.Cells[13, ((Common.PLCInfo.EQP_ID + 13 )mod 16)+1] :=
+      Format('OC #%d Link',[Common.PLCInfo.EQP_ID - 10])  + sLineBreak + 'Test Request';
 
 
-    grdStatus.Cells[14, 0] := 'ECS' + #10#13 + '(B' + IntToHex(nAddr + $100, 4) + ')';
-    grdStatus.Cells[14, ((Common.PLCInfo.EQP_ID +13 )mod 16)+1] :=
-    Format('OC #%d Lost',[Common.PLCInfo.EQP_ID - 10]) + sLineBreak + 'Panel Data Report';
+      grdStatus.Cells[14, 0] := 'ECS' + #10#13 + '(B' + IntToHex(nAddr + $100, 4) + ')';
+      grdStatus.Cells[14, ((Common.PLCInfo.EQP_ID +13 )mod 16)+1] :=
+      Format('OC #%d Lost',[Common.PLCInfo.EQP_ID - 10]) + sLineBreak + 'Panel Data Report';
 
 
-    grdStatus.Cells[15, 0] := 'ECS' + #10#13 + '(B' + IntToHex(nAddr + $200, 4) + ')';
-    grdStatus.Cells[15, ((Common.PLCInfo.EQP_ID + 13 )mod 16)+1] :=
-    Format('OC #%d Take',[Common.PLCInfo.EQP_ID - 10]) + sLineBreak + 'Out Report_Confirm';
+      grdStatus.Cells[15, 0] := 'ECS' + #10#13 + '(B' + IntToHex(nAddr + $200, 4) + ')';
+      grdStatus.Cells[15, ((Common.PLCInfo.EQP_ID + 13 )mod 16)+1] :=
+      Format('OC #%d Take',[Common.PLCInfo.EQP_ID - 10]) + sLineBreak + 'Out Report_Confirm';
+
+    end;
+    grdStatus.MergeCells(1, 0, 3, 1);
+    grdStatus.MergeCells(4, 0, 4, 1);
+    if StrToInt('$' + Common.PLCInfo.Address_Robot2) <> 0 then begin
+      grdStatus.MergeCells(8, 0, 2, 1);
+      grdStatus.MergeCells(10, 0, 2, 1);
+    end
+    else grdStatus.MergeCells(8, 0, 4, 1);
+    //grdStatus.MergeCells(13, 0, 2, 1);
 
   end;
-  grdStatus.MergeCells(1, 0, 3, 1);
-  grdStatus.MergeCells(4, 0, 4, 1);
-  if StrToInt('$' + Common.PLCInfo.Address_Robot2) <> 0 then begin
-    grdStatus.MergeCells(8, 0, 2, 1);
-    grdStatus.MergeCells(10, 0, 2, 1);
-  end
-  else grdStatus.MergeCells(8, 0, 4, 1);
-  //grdStatus.MergeCells(13, 0, 2, 1);
 
 end;
 
@@ -1131,6 +1309,14 @@ begin
     end
     else if nDivisioin = 2 then begin //ECS
       bState:= g_CommPLC.IsBitOn(g_CommPLC.PollingECS[nIndex], nBitLoc);
+    end
+    else if nDivisioin = 12 then begin //Robot Door Open
+      if g_CommPLC.PollingDoorOpened = 1 then begin
+        bState := True;
+      end
+      else begin
+        bState := False;
+      end;
     end
     else begin
       bState:= g_CommPLC.IsBitOn(g_CommPLC.PollingCV[nIndex], nBitLoc);
@@ -1349,71 +1535,115 @@ procedure TfrmECSStatus.UpdateStatus;
 var
   i: Integer;
 begin
-
-  //SetCellState(nCol, nRow, nDivisioin, nIndex, nBitLoc: Integer);
-  if Common.SystemInfo.OCType = DefCommon.OCType then begin
-    for i := 0 to 15 do begin
+  if Common.PLCInfo.InlineGIB then begin
+      for i := 0 to 15 do begin
       //EQP
       SetCellState(1,  i+1, 0, 0,  i); //Status
       SetCellState(2,  i+1, 0, 1,  i); //Special Equipment
-      //SetCellState(2,  i+1, 0, 10, i); //Glass Position
-      //SetCellState(4,  i+1, 0, 6,  i); //PCHK, EICR
-      SetCellState(4,  i+1, 0, 12, i); //Load 0
-      SetCellState(5,  i+1, 0, 13, i); //Unload 0
-      SetCellState(6,  i+1, 0, 14, i); //Load 1
-      SetCellState(7,  i+1, 0, 15, i); //Unload 1
-  //    SetCellState(3,  i+1, 0, 8, i); //Unload 1
+      SetCellState(4,  i+1, 0, 8, i); //Load 0
+      SetCellState(5,  i+1, 0, 9, i); //Unload 0
+      SetCellState(6,  i+1, 0, 10, i); //Load 1
+      SetCellState(7,  i+1, 0, 11, i); //Unload 1
+      SetCellState(8,  i+1, 0, 12, i); //Load 0
+      SetCellState(9,  i+1, 0, 13, i); //Unload 0
+      SetCellState(10,  i+1, 0, 14, i); //Load 1
+      SetCellState(11,  i+1, 0, 15, i); //Unload 1
     end;
 
     for i := 0 to 7 do begin
       //EQP - Position
       SetCellState(3,  i+1, 0, 7, i); //Glass Position
     end;
+
+    for i := 0 to 15 do begin
+      //Robot
+      SetCellState(12, i+1, 1, 0, i);
+      SetCellState(13, i+1, 1, 1, i);
+      SetCellState(14, i+1, 1, 2, i);
+      SetCellState(15, i+1, 1, 3, i);
+      SetCellState(16, i+1, 1, 4, i);
+      SetCellState(17, i+1, 1, 5, i);
+      SetCellState(18, i+1, 1, 6, i);
+      SetCellState(19, i+1, 1, 7, i);
+    end;
+
+    for I := 0 to 4 do
+      SetCellState(20, i+1, 2, 3, i);  // ECS Status & Data (ECS ¡æ All)
+
+    for I := 0 to 15 do begin
+      SetCellState(21, i+1, 2, 0, i); //Link Test Request
+      SetCellState(22, i+1, 2, 1, i); //Link Test Request
+      SetCellState(23, i+1, 2, 2, i); //Link Test Request
+    end;
   end
   else begin
+  //SetCellState(nCol, nRow, nDivisioin, nIndex, nBitLoc: Integer);
+    if Common.SystemInfo.OCType = DefCommon.OCType then begin
+      for i := 0 to 15 do begin
+        //EQP
+        SetCellState(1,  i+1, 0, 0,  i); //Status
+        SetCellState(2,  i+1, 0, 1,  i); //Special Equipment
+        //SetCellState(2,  i+1, 0, 10, i); //Glass Position
+        //SetCellState(4,  i+1, 0, 6,  i); //PCHK, EICR
+        SetCellState(4,  i+1, 0, 12, i); //Load 0
+        SetCellState(5,  i+1, 0, 13, i); //Unload 0
+        SetCellState(6,  i+1, 0, 14, i); //Load 1
+        SetCellState(7,  i+1, 0, 15, i); //Unload 1
+    //    SetCellState(3,  i+1, 0, 8, i); //Unload 1
+      end;
+
+      for i := 0 to 7 do begin
+        //EQP - Position
+        SetCellState(3,  i+1, 0, 7, i); //Glass Position
+      end;
+    end
+    else begin
+      for i := 0 to 15 do begin
+        //EQP
+        SetCellState(1,  i+1, 0, 0,  i); //Status
+        SetCellState(2,  i+1, 0, 1,  i); //Special Equipment
+        //SetCellState(2,  i+1, 0, 10, i); //Glass Position
+        //SetCellState(4,  i+1, 0, 6,  i); //PCHK, EICR
+        SetCellState(4,  i+1, 0, 18, i); //Load 0
+        SetCellState(5,  i+1, 0, 19, i); //Unload 0
+        SetCellState(6,  i+1, 0, 20, i); //Load 1
+        SetCellState(7,  i+1, 0, 21, i); //Unload 1
+    //    SetCellState(3,  i+1, 0, 8, i); //Unload 1
+      end;
+
+      for I := 0 to 7 do
+        SetCellState(2,  i+1, 0, 1,  i); //Special Equipment
+      for I := 0 to 7 do
+        SetCellState(2,  i+8, 0, 6,  i); //Special Equipment
+
+      for i := 0 to 7 do begin
+        //EQP - Position
+        SetCellState(3,  i+1, 0, 12, i); //Glass Position
+      end;
+
+
+    end;
+
+
     for i := 0 to 15 do begin
-      //EQP
-      SetCellState(1,  i+1, 0, 0,  i); //Status
-      SetCellState(2,  i+1, 0, 1,  i); //Special Equipment
-      //SetCellState(2,  i+1, 0, 10, i); //Glass Position
-      //SetCellState(4,  i+1, 0, 6,  i); //PCHK, EICR
-      SetCellState(4,  i+1, 0, 18, i); //Load 0
-      SetCellState(5,  i+1, 0, 19, i); //Unload 0
-      SetCellState(6,  i+1, 0, 20, i); //Load 1
-      SetCellState(7,  i+1, 0, 21, i); //Unload 1
-  //    SetCellState(3,  i+1, 0, 8, i); //Unload 1
+      //Robot
+      SetCellState(8,  i+1, 1, 0, i);
+      SetCellState(9, i+1, 1, 1, i);
+      SetCellState(10, i+1, 1, 2, i);
+      SetCellState(11, i+1, 1, 3, i);
     end;
 
-    for I := 0 to 7 do
-      SetCellState(2,  i+1, 0, 1,  i); //Special Equipment
-    for I := 0 to 7 do
-      SetCellState(2,  i+8, 0, 6,  i); //Special Equipment
+    SetCellState(8, 16, 12, 0, 0); // door open
 
-    for i := 0 to 7 do begin
-      //EQP - Position
-      SetCellState(3,  i+1, 0, 12, i); //Glass Position
+    for I := 0 to 4 do
+      SetCellState(12, i+1, 2, 3, i);  // ECS Status & Data (ECS ¡æ All)
+      //Link Test Request
+  //    (g_CommPLC.EQP_ID - 11)
+    for I := 0 to 15 do begin
+      SetCellState(13, i+1, 2, 0, i); //Link Test Request
+      SetCellState(14, i+1, 2, 1, i); //Link Test Request
+      SetCellState(15, i+1, 2, 2, i); //Link Test Request
     end;
-
-
-  end;
-
-
-  for i := 0 to 15 do begin
-    //Robot
-    SetCellState(8,  i+1, 1, 0, i);
-    SetCellState(9, i+1, 1, 1, i);
-    SetCellState(10, i+1, 1, 2, i);
-    SetCellState(11, i+1, 1, 3, i);
-  end;
-
-  for I := 0 to 4 do
-    SetCellState(12, i+1, 2, 3, i);  // ECS Status & Data (ECS ¡æ All)
-    //Link Test Request
-//    (g_CommPLC.EQP_ID - 11)
-  for I := 0 to 15 do begin
-    SetCellState(13, i+1, 2, 0, i); //Link Test Request
-    SetCellState(14, i+1, 2, 1, i); //Link Test Request
-    SetCellState(15, i+1, 2, 2, i); //Link Test Request
   end;
 
 end;

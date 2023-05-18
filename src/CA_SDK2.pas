@@ -355,14 +355,15 @@ begin
             ShowTestForm(DefCommon.MSG_MODE_WORKING,nCh,False,sErrMsg);
             wdRet := CaSdk2.GetMemCh(nCh,nGetMemCh);
             if wdRet <> 0 then begin
-              ShowTestForm(defCommon.MSG_MODE_CAX10_MEM_CH_NO,nCh,False,'MEM CH: NG');
+              ShowTestForm(defCommon.MSG_MODE_CAX10_MEM_CH_NO,nCh,False,'MEM CH: NG',-1);
               sErrMsg := Format('Ca410 Memory Channel Read NG - NG Code :%0.2d',[wdRet]);
               ShowTestForm(DefCommon.MSG_MODE_WORKING,nCh,False,sErrMsg);
               ShowMainForm(DefCommon.MSG_MODE_CA310_STATUS,nCh,True,sErrMsg);
             end
             else begin
               sErrMsg := Format('MEM CH:%0.2d',[nGetMemCh]);
-              ShowTestForm(defCommon.MSG_MODE_CAX10_MEM_CH_NO,nCh,False,sErrMsg);
+//              ShowTestForm(defCommon.MSG_MODE_CAX10_MEM_CH_NO,nCh,False,sErrMsg);
+              ShowTestForm(defCommon.MSG_MODE_CAX10_MEM_CH_NO,nCh,False, '' , nGetMemCh);
               sErrMsg := Format('Get CA410 MEM CH:%0.2d - OK',[nGetMemCh]);
               ShowTestForm(DefCommon.MSG_MODE_WORKING,nCh,False,sErrMsg);
             end;
@@ -444,11 +445,12 @@ var
 begin
 
   if not m_bConnection[nChannel] then Exit(DefCaSdk.DISCONNECTION_CODE);
-  Measure_waveform(nChannel,measureAmount);
-  waveformDataSize := Get_waveformDataSize(nChannel,measureAmount);
+  Measure_waveform(FsetupCnt.SetupList[nChannel].Ca410Ch,measureAmount);
+  waveformDataSize := Get_waveformDataSize(FsetupCnt.SetupList[nChannel].Ca410Ch,measureAmount);
   Setlength(weightedWaveformData,waveformDataSize);
+
   measurementTime := 0;
-  measurementTime := Get_waveform_Data(nChannel,waveformData,@weightedWaveformData[0],waveformDataSize,measurementTime);
+  measurementTime := Get_waveform_Data(FsetupCnt.SetupList[nChannel].Ca410Ch,waveformData,@weightedWaveformData[0],waveformDataSize,measurementTime);
   SamplingPitch := measurementTime / waveformDataSize;
 
   for I := 0 to waveformDataSize -1  do

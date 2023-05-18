@@ -1571,6 +1571,7 @@ function TCommDIOThread.WriteDO_Bit(nAddr, nBitLoc, nValue: Byte; bWaitReply: Bo
 var
   nRet   : Cardinal;
 begin
+  if not Assigned(Self) then Exit(4);    // Added by sam81 2023-05-09 ¿ÀÈÄ 1:22:22
   if not m_bConnected then Exit(1);
   if nAddr > m_nDeviceCount-1 then Exit(2);
   if nBitLoc > 7 then Exit(3);

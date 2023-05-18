@@ -162,6 +162,10 @@ procedure TfrmDoorOpenAlarmMsg.FormShow(Sender: TObject);
 begin
   CheckDoor;
   tmrRefresh.Enabled:= True;
+  if Common.SystemInfo.UIType = DefCommon.UI_WIN10_BLACK then begin
+    gbAdminClose.Color  := clBlack;
+    gbAdminClose.StyleElements := [];
+  end;
 //  lblPhone.Top := self.Height - 60;
 //
 //  lblWorker.Top := self.Height - 60;

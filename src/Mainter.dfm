@@ -39,7 +39,7 @@ object frmMainter: TfrmMainter
     GradientColorStop = 16768443
     GradientDirection = gdVerticalEnd
     ParentFont = False
-    TabOrder = 1
+    TabOrder = 0
     VisualStyle = vsGradient
   end
   object RzPageControl1: TRzPageControl
@@ -48,7 +48,7 @@ object frmMainter: TfrmMainter
     Width = 1470
     Height = 920
     Hint = ''
-    ActivePage = TabSheet3
+    ActivePage = tbCA410Measurement
     ActivePageDefault = TabSheet1
     Align = alClient
     Font.Charset = DEFAULT_CHARSET
@@ -58,8 +58,8 @@ object frmMainter: TfrmMainter
     Font.Style = []
     ParentFont = False
     SoftCorners = True
-    TabIndex = 4
-    TabOrder = 2
+    TabIndex = 7
+    TabOrder = 1
     FixedDimension = 25
     object TabSheet1: TRzTabSheet
       Caption = 'Communication PG - Script Testing'
@@ -3101,7 +3101,7 @@ object frmMainter: TfrmMainter
       Caption = 'CA-410'
       object btnCal0: TRzBitBtn
         Left = 664
-        Top = 767
+        Top = 760
         Width = 184
         Height = 58
         Cursor = crHandPoint
@@ -4321,7 +4321,7 @@ object frmMainter: TfrmMainter
             TabOrder = 0
           end
           object pnlMCh1: TPanel
-            Left = 59
+            Left = 64
             Top = 20
             Width = 45
             Height = 22
@@ -5204,7 +5204,7 @@ object frmMainter: TfrmMainter
         Left = 35
         Top = 18
         Width = 584
-        Height = 171
+        Height = 535
         BorderInner = fsFlat
         Caption = 'Ionizer'
         FlatColor = clBlack
@@ -5283,7 +5283,7 @@ object frmMainter: TfrmMainter
           Left = 11
           Top = 63
           Width = 566
-          Height = 98
+          Height = 458
           ImeName = 'Microsoft IME 2010'
           ScrollBars = ssVertical
           TabOrder = 1
@@ -10342,10 +10342,920 @@ object frmMainter: TfrmMainter
         end
       end
     end
+    object TabSheet4: TRzTabSheet
+      Caption = 'R2R System'
+      object Panel1: TPanel
+        Left = 0
+        Top = 0
+        Width = 1466
+        Height = 225
+        Align = alTop
+        TabOrder = 0
+        object Label1: TLabel
+          Left = 40
+          Top = 56
+          Width = 69
+          Height = 19
+          Caption = 'White_X'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -16
+          Font.Name = 'Tahoma'
+          Font.Style = [fsBold]
+          ParentFont = False
+        end
+        object Label2: TLabel
+          Left = 40
+          Top = 82
+          Width = 69
+          Height = 19
+          Caption = 'White_Y'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -16
+          Font.Name = 'Tahoma'
+          Font.Style = [fsBold]
+          ParentFont = False
+        end
+        object Label3: TLabel
+          Left = 40
+          Top = 110
+          Width = 68
+          Height = 19
+          Caption = 'White_Z'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -16
+          Font.Name = 'Tahoma'
+          Font.Style = [fsBold]
+          ParentFont = False
+        end
+        object Label4: TLabel
+          Left = 40
+          Top = 138
+          Width = 68
+          Height = 19
+          Caption = 'White_x'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -16
+          Font.Name = 'Tahoma'
+          Font.Style = [fsBold]
+          ParentFont = False
+        end
+        object Label5: TLabel
+          Left = 40
+          Top = 165
+          Width = 67
+          Height = 19
+          Caption = 'White_y'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -16
+          Font.Name = 'Tahoma'
+          Font.Style = [fsBold]
+          ParentFont = False
+        end
+        object Label6: TLabel
+          Left = 39
+          Top = 192
+          Width = 76
+          Height = 19
+          Caption = 'White_Lv'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -16
+          Font.Name = 'Tahoma'
+          Font.Style = [fsBold]
+          ParentFont = False
+        end
+        object Label7: TLabel
+          Left = 296
+          Top = 56
+          Width = 53
+          Height = 19
+          Caption = 'Red_X'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -16
+          Font.Name = 'Tahoma'
+          Font.Style = [fsBold]
+          ParentFont = False
+        end
+        object Label8: TLabel
+          Left = 296
+          Top = 82
+          Width = 53
+          Height = 19
+          Caption = 'Red_Y'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -16
+          Font.Name = 'Tahoma'
+          Font.Style = [fsBold]
+          ParentFont = False
+        end
+        object Label9: TLabel
+          Left = 296
+          Top = 110
+          Width = 52
+          Height = 19
+          Caption = 'Red_Z'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -16
+          Font.Name = 'Tahoma'
+          Font.Style = [fsBold]
+          ParentFont = False
+        end
+        object Label10: TLabel
+          Left = 296
+          Top = 138
+          Width = 52
+          Height = 19
+          Caption = 'Red_x'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -16
+          Font.Name = 'Tahoma'
+          Font.Style = [fsBold]
+          ParentFont = False
+        end
+        object Label11: TLabel
+          Left = 296
+          Top = 165
+          Width = 51
+          Height = 19
+          Caption = 'Red_y'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -16
+          Font.Name = 'Tahoma'
+          Font.Style = [fsBold]
+          ParentFont = False
+        end
+        object Label12: TLabel
+          Left = 295
+          Top = 192
+          Width = 60
+          Height = 19
+          Caption = 'Red_Lv'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -16
+          Font.Name = 'Tahoma'
+          Font.Style = [fsBold]
+          ParentFont = False
+        end
+        object Label13: TLabel
+          Left = 550
+          Top = 56
+          Width = 70
+          Height = 19
+          Caption = 'Green_X'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -16
+          Font.Name = 'Tahoma'
+          Font.Style = [fsBold]
+          ParentFont = False
+        end
+        object Label14: TLabel
+          Left = 551
+          Top = 82
+          Width = 70
+          Height = 19
+          Caption = 'Green_Y'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -16
+          Font.Name = 'Tahoma'
+          Font.Style = [fsBold]
+          ParentFont = False
+        end
+        object Label15: TLabel
+          Left = 551
+          Top = 110
+          Width = 69
+          Height = 19
+          Caption = 'Green_Z'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -16
+          Font.Name = 'Tahoma'
+          Font.Style = [fsBold]
+          ParentFont = False
+        end
+        object Label16: TLabel
+          Left = 552
+          Top = 138
+          Width = 69
+          Height = 19
+          Caption = 'Green_x'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -16
+          Font.Name = 'Tahoma'
+          Font.Style = [fsBold]
+          ParentFont = False
+        end
+        object Label17: TLabel
+          Left = 553
+          Top = 165
+          Width = 68
+          Height = 19
+          Caption = 'Green_y'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -16
+          Font.Name = 'Tahoma'
+          Font.Style = [fsBold]
+          ParentFont = False
+        end
+        object Label18: TLabel
+          Left = 551
+          Top = 192
+          Width = 77
+          Height = 19
+          Caption = 'Green_Lv'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -16
+          Font.Name = 'Tahoma'
+          Font.Style = [fsBold]
+          ParentFont = False
+        end
+        object Label19: TLabel
+          Left = 799
+          Top = 56
+          Width = 57
+          Height = 19
+          Caption = 'Blue_X'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -16
+          Font.Name = 'Tahoma'
+          Font.Style = [fsBold]
+          ParentFont = False
+        end
+        object Label20: TLabel
+          Left = 799
+          Top = 82
+          Width = 57
+          Height = 19
+          Caption = 'Blue_Y'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -16
+          Font.Name = 'Tahoma'
+          Font.Style = [fsBold]
+          ParentFont = False
+        end
+        object Label21: TLabel
+          Left = 801
+          Top = 110
+          Width = 56
+          Height = 19
+          Caption = 'Blue_Z'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -16
+          Font.Name = 'Tahoma'
+          Font.Style = [fsBold]
+          ParentFont = False
+        end
+        object Label22: TLabel
+          Left = 800
+          Top = 138
+          Width = 56
+          Height = 19
+          Caption = 'Blue_x'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -16
+          Font.Name = 'Tahoma'
+          Font.Style = [fsBold]
+          ParentFont = False
+        end
+        object Label23: TLabel
+          Left = 801
+          Top = 165
+          Width = 55
+          Height = 19
+          Caption = 'Blue_y'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -16
+          Font.Name = 'Tahoma'
+          Font.Style = [fsBold]
+          ParentFont = False
+        end
+        object Label24: TLabel
+          Left = 799
+          Top = 192
+          Width = 64
+          Height = 19
+          Caption = 'Blue_Lv'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -16
+          Font.Name = 'Tahoma'
+          Font.Style = [fsBold]
+          ParentFont = False
+        end
+        object edtW_Y: TEdit
+          Left = 137
+          Top = 80
+          Width = 121
+          Height = 27
+          TabOrder = 1
+          Text = '716.7414'
+        end
+        object edtW_Z: TEdit
+          Left = 137
+          Top = 107
+          Width = 121
+          Height = 27
+          TabOrder = 2
+          Text = '769.7799'
+        end
+        object edtW_LV: TEdit
+          Left = 137
+          Top = 189
+          Width = 121
+          Height = 27
+          TabOrder = 5
+          Text = '730.1678'
+        end
+        object edtW_YY: TEdit
+          Left = 137
+          Top = 162
+          Width = 121
+          Height = 27
+          TabOrder = 4
+          Text = '0.3309'
+        end
+        object edtW_XX: TEdit
+          Left = 137
+          Top = 135
+          Width = 121
+          Height = 27
+          TabOrder = 3
+          Text = '0.3120'
+        end
+        object edtR_LV: TEdit
+          Left = 391
+          Top = 189
+          Width = 121
+          Height = 27
+          TabOrder = 11
+          Text = '195.1299'
+        end
+        object edtR_YY: TEdit
+          Left = 391
+          Top = 162
+          Width = 121
+          Height = 27
+          TabOrder = 10
+          Text = '0.3142'
+        end
+        object edtR_XX: TEdit
+          Left = 391
+          Top = 135
+          Width = 121
+          Height = 27
+          TabOrder = 9
+          Text = '0.6853'
+        end
+        object edtR_Z: TEdit
+          Left = 391
+          Top = 107
+          Width = 121
+          Height = 27
+          TabOrder = 8
+          Text = '0.3449'
+        end
+        object edtR_Y: TEdit
+          Left = 391
+          Top = 80
+          Width = 121
+          Height = 27
+          TabOrder = 7
+          Text = '192.6249'
+        end
+        object edtW_X: TEdit
+          Left = 137
+          Top = 53
+          Width = 121
+          Height = 27
+          TabOrder = 0
+          Text = '677.2256'
+        end
+        object edtR_X: TEdit
+          Left = 391
+          Top = 53
+          Width = 121
+          Height = 27
+          TabOrder = 6
+          Text = '420.4322'
+        end
+        object edtG_X: TEdit
+          Left = 647
+          Top = 53
+          Width = 121
+          Height = 27
+          TabOrder = 12
+          Text = '183.3479'
+        end
+        object edtG_Y: TEdit
+          Left = 647
+          Top = 80
+          Width = 121
+          Height = 27
+          TabOrder = 13
+          Text = '553.7119'
+        end
+        object edtG_Z: TEdit
+          Left = 647
+          Top = 107
+          Width = 121
+          Height = 27
+          TabOrder = 14
+          Text = '27.5488'
+        end
+        object edtG_XX: TEdit
+          Left = 647
+          Top = 135
+          Width = 121
+          Height = 27
+          TabOrder = 15
+          Text = '0.2401'
+        end
+        object edtG_YY: TEdit
+          Left = 647
+          Top = 162
+          Width = 121
+          Height = 27
+          TabOrder = 16
+          Text = '0.7239'
+        end
+        object edtG_LV: TEdit
+          Left = 647
+          Top = 189
+          Width = 121
+          Height = 27
+          TabOrder = 17
+          Text = '564.8961'
+        end
+        object edtB_X: TEdit
+          Left = 895
+          Top = 53
+          Width = 121
+          Height = 27
+          TabOrder = 18
+          Text = '133.9259'
+        end
+        object edtB_Y: TEdit
+          Left = 895
+          Top = 80
+          Width = 121
+          Height = 27
+          TabOrder = 19
+          Text = '46.0480'
+        end
+        object edtB_Z: TEdit
+          Left = 895
+          Top = 107
+          Width = 121
+          Height = 27
+          TabOrder = 20
+          Text = '795.0201'
+        end
+        object edtB_xx: TEdit
+          Left = 895
+          Top = 135
+          Width = 121
+          Height = 27
+          TabOrder = 21
+          Text = '0.1373'
+        end
+        object edtB_yy: TEdit
+          Left = 895
+          Top = 162
+          Width = 121
+          Height = 27
+          TabOrder = 22
+          Text = '0.0472'
+        end
+        object edtB_LV: TEdit
+          Left = 895
+          Top = 189
+          Width = 121
+          Height = 27
+          TabOrder = 23
+          Text = '47.1118'
+        end
+        object Button3: TButton
+          Left = 1077
+          Top = 45
+          Width = 108
+          Height = 44
+          Caption = 'Read'
+          TabOrder = 24
+          OnClick = Button3Click
+        end
+        object RzComboBox1: TRzComboBox
+          Left = 137
+          Top = 24
+          Width = 234
+          Height = 26
+          Style = csDropDownList
+          DropDownCount = 10
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clBlack
+          Font.Height = -16
+          Font.Name = 'Verdana'
+          Font.Style = [fsBold]
+          FocusColor = 14283263
+          ImeName = 'Microsoft IME 2010'
+          ParentFont = False
+          TabOrder = 25
+          Text = 'Ch 1'
+          OnChange = cboChannelPgChange
+          Items.Strings = (
+            'Ch 1'
+            'Ch 2'
+            'Ch 3'
+            'Ch 4')
+          ItemIndex = 0
+        end
+        object RzPanel4: TRzPanel
+          Left = 32
+          Top = 24
+          Width = 101
+          Height = 26
+          BorderOuter = fsFlatRounded
+          Caption = 'Channel'
+          Color = 16777164
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clBlack
+          Font.Height = -16
+          Font.Name = 'Verdana'
+          Font.Style = []
+          ParentFont = False
+          TabOrder = 26
+        end
+        object RzPanel6: TRzPanel
+          Left = 396
+          Top = 25
+          Width = 133
+          Height = 25
+          BorderOuter = fsFlat
+          BorderHighlight = clWhite
+          BorderShadow = 6080734
+          Caption = 'Model Memory CH'
+          Color = 11921137
+          FlatColorAdjustment = 0
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Verdana'
+          Font.Style = []
+          GradientColorStyle = gcsCustom
+          GradientColorStop = clLime
+          ParentFont = False
+          TabOrder = 27
+        end
+        object cboCa310Channel: TRzComboBox
+          Left = 535
+          Top = 27
+          Width = 152
+          Height = 22
+          Style = csDropDownList
+          Color = clWhite
+          Ctl3D = False
+          DropDownCount = 20
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -12
+          Font.Name = 'Verdana'
+          Font.Style = [fsBold]
+          FlatButtons = True
+          FrameHotTrack = True
+          FrameVisible = True
+          ImeName = 'Microsoft Office IME 2007'
+          ParentCtl3D = False
+          ParentFont = False
+          TabOrder = 28
+          Text = 'None'
+          Items.Strings = (
+            'None'
+            'COM1'
+            'COM2'
+            'COM3'
+            'COM4'
+            'COM5'
+            'COM6'
+            'COM7'
+            'COM8'
+            'COM9'
+            'COM10')
+          ItemIndex = 0
+        end
+        object Button1: TButton
+          Left = 1077
+          Top = 127
+          Width = 108
+          Height = 44
+          Caption = 'write'
+          TabOrder = 29
+          OnClick = Button1Click
+        end
+      end
+      object mmoLog: TRzRichEdit
+        Left = 0
+        Top = 566
+        Width = 1466
+        Height = 325
+        Align = alBottom
+        Font.Charset = HANGEUL_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = '@'#44404#47548#52404
+        Font.Style = []
+        ParentFont = False
+        ScrollBars = ssVertical
+        TabOrder = 1
+        Zoom = 100
+      end
+    end
+    object tbCA410Measurement: TRzTabSheet
+      Caption = 'CA410 Measurement'
+      object cboBandCount: TRzComboBox
+        Left = 424
+        Top = 41
+        Width = 234
+        Height = 26
+        Style = csDropDownList
+        DropDownCount = 10
+        Font.Charset = ANSI_CHARSET
+        Font.Color = clBlack
+        Font.Height = -16
+        Font.Name = 'Verdana'
+        Font.Style = [fsBold]
+        FocusColor = 14283263
+        ImeName = 'Microsoft IME 2010'
+        ParentFont = False
+        TabOrder = 0
+        Text = 'Band 1'
+        OnChange = cboChannelPgChange
+        Items.Strings = (
+          'Band 1')
+        ItemIndex = 0
+      end
+      object RzPanel10: TRzPanel
+        Left = 325
+        Top = 40
+        Width = 101
+        Height = 26
+        BorderOuter = fsFlatRounded
+        Caption = 'Band'
+        Color = 16777164
+        Font.Charset = ANSI_CHARSET
+        Font.Color = clBlack
+        Font.Height = -16
+        Font.Name = 'Verdana'
+        Font.Style = []
+        ParentFont = False
+        TabOrder = 1
+      end
+      object RzPanel11: TRzPanel
+        Left = 855
+        Top = 40
+        Width = 101
+        Height = 26
+        BorderOuter = fsFlatRounded
+        Caption = 'Gray'
+        Color = 16777164
+        Font.Charset = ANSI_CHARSET
+        Font.Color = clBlack
+        Font.Height = -16
+        Font.Name = 'Verdana'
+        Font.Style = []
+        ParentFont = False
+        TabOrder = 2
+      end
+      object cboGrayRGB: TRzComboBox
+        Left = 955
+        Top = 41
+        Width = 234
+        Height = 26
+        Style = csDropDownList
+        DropDownCount = 10
+        Font.Charset = ANSI_CHARSET
+        Font.Color = clBlack
+        Font.Height = -16
+        Font.Name = 'Verdana'
+        Font.Style = [fsBold]
+        FocusColor = 14283263
+        ImeName = 'Microsoft IME 2010'
+        ParentFont = False
+        TabOrder = 3
+        Text = '511'
+        OnChange = cboChannelPgChange
+        Items.Strings = (
+          '511')
+        ItemIndex = 0
+      end
+      object rbGrayScale: TRadioButton
+        Left = 230
+        Top = 41
+        Width = 121
+        Height = 25
+        Caption = 'Gray Scale'
+        TabOrder = 4
+      end
+      object rbDBVTracking: TRadioButton
+        Left = 728
+        Top = 41
+        Width = 121
+        Height = 25
+        Caption = 'DBV Tracking'
+        TabOrder = 5
+      end
+      object cboMeasureCH: TRzComboBox
+        Left = 117
+        Top = 41
+        Width = 100
+        Height = 26
+        Style = csDropDownList
+        DropDownCount = 10
+        Font.Charset = ANSI_CHARSET
+        Font.Color = clBlack
+        Font.Height = -16
+        Font.Name = 'Verdana'
+        Font.Style = [fsBold]
+        FocusColor = 14283263
+        ImeName = 'Microsoft IME 2010'
+        ParentFont = False
+        TabOrder = 6
+        Text = 'Ch 1'
+        Items.Strings = (
+          'Ch 1'
+          'Ch 2'
+          'Ch 3'
+          'Ch 4'
+          'ALLCH')
+        ItemIndex = 0
+      end
+      object RzPanel12: TRzPanel
+        Left = 12
+        Top = 41
+        Width = 101
+        Height = 26
+        BorderOuter = fsFlatRounded
+        Caption = 'Channel'
+        Color = 16777164
+        Font.Charset = ANSI_CHARSET
+        Font.Color = clBlack
+        Font.Height = -16
+        Font.Name = 'Verdana'
+        Font.Style = []
+        ParentFont = False
+        TabOrder = 7
+      end
+      object btnStop: TRzBitBtn
+        Left = 1328
+        Top = 24
+        Width = 121
+        Height = 57
+        Caption = 'STOP'
+        TabOrder = 8
+        OnClick = btnStopClick
+      end
+      object btnMeasure: TRzBitBtn
+        Left = 1201
+        Top = 24
+        Width = 121
+        Height = 57
+        Caption = 'Measure'
+        TabOrder = 9
+        OnClick = btnMeasureClick
+      end
+      object advstrngrdDataView: TAdvStringGrid
+        Left = 1096
+        Top = 96
+        Width = 367
+        Height = 665
+        Cursor = crDefault
+        DrawingStyle = gdsClassic
+        RowCount = 512
+        ScrollBars = ssBoth
+        TabOrder = 10
+        HoverRowCells = [hcNormal, hcSelected]
+        ActiveCellFont.Charset = DEFAULT_CHARSET
+        ActiveCellFont.Color = clWindowText
+        ActiveCellFont.Height = -11
+        ActiveCellFont.Name = 'Tahoma'
+        ActiveCellFont.Style = [fsBold]
+        ControlLook.FixedGradientHoverFrom = clGray
+        ControlLook.FixedGradientHoverTo = clWhite
+        ControlLook.FixedGradientDownFrom = clGray
+        ControlLook.FixedGradientDownTo = clSilver
+        ControlLook.DropDownHeader.Font.Charset = DEFAULT_CHARSET
+        ControlLook.DropDownHeader.Font.Color = clWindowText
+        ControlLook.DropDownHeader.Font.Height = -11
+        ControlLook.DropDownHeader.Font.Name = 'Tahoma'
+        ControlLook.DropDownHeader.Font.Style = []
+        ControlLook.DropDownHeader.Visible = True
+        ControlLook.DropDownHeader.Buttons = <>
+        ControlLook.DropDownFooter.Font.Charset = DEFAULT_CHARSET
+        ControlLook.DropDownFooter.Font.Color = clWindowText
+        ControlLook.DropDownFooter.Font.Height = -11
+        ControlLook.DropDownFooter.Font.Name = 'Tahoma'
+        ControlLook.DropDownFooter.Font.Style = []
+        ControlLook.DropDownFooter.Visible = True
+        ControlLook.DropDownFooter.Buttons = <>
+        Filter = <>
+        FilterDropDown.Font.Charset = DEFAULT_CHARSET
+        FilterDropDown.Font.Color = clWindowText
+        FilterDropDown.Font.Height = -11
+        FilterDropDown.Font.Name = 'Tahoma'
+        FilterDropDown.Font.Style = []
+        FilterDropDown.TextChecked = 'Checked'
+        FilterDropDown.TextUnChecked = 'Unchecked'
+        FilterDropDownClear = '(All)'
+        FilterEdit.TypeNames.Strings = (
+          'Starts with'
+          'Ends with'
+          'Contains'
+          'Not contains'
+          'Equal'
+          'Not equal'
+          'Larger than'
+          'Smaller than'
+          'Clear')
+        FixedRowHeight = 22
+        FixedFont.Charset = DEFAULT_CHARSET
+        FixedFont.Color = clWindowText
+        FixedFont.Height = -11
+        FixedFont.Name = 'Tahoma'
+        FixedFont.Style = [fsBold]
+        FloatFormat = '%.3f'
+        HoverButtons.Buttons = <>
+        HoverButtons.Position = hbLeftFromColumnLeft
+        HTMLSettings.ImageFolder = 'images'
+        HTMLSettings.ImageBaseName = 'img'
+        PrintSettings.DateFormat = 'dd/mm/yyyy'
+        PrintSettings.Font.Charset = DEFAULT_CHARSET
+        PrintSettings.Font.Color = clWindowText
+        PrintSettings.Font.Height = -11
+        PrintSettings.Font.Name = 'Tahoma'
+        PrintSettings.Font.Style = []
+        PrintSettings.FixedFont.Charset = DEFAULT_CHARSET
+        PrintSettings.FixedFont.Color = clWindowText
+        PrintSettings.FixedFont.Height = -11
+        PrintSettings.FixedFont.Name = 'Tahoma'
+        PrintSettings.FixedFont.Style = []
+        PrintSettings.HeaderFont.Charset = DEFAULT_CHARSET
+        PrintSettings.HeaderFont.Color = clWindowText
+        PrintSettings.HeaderFont.Height = -11
+        PrintSettings.HeaderFont.Name = 'Tahoma'
+        PrintSettings.HeaderFont.Style = []
+        PrintSettings.FooterFont.Charset = DEFAULT_CHARSET
+        PrintSettings.FooterFont.Color = clWindowText
+        PrintSettings.FooterFont.Height = -11
+        PrintSettings.FooterFont.Name = 'Tahoma'
+        PrintSettings.FooterFont.Style = []
+        PrintSettings.PageNumSep = '/'
+        SearchFooter.FindNextCaption = 'Find &next'
+        SearchFooter.FindPrevCaption = 'Find &previous'
+        SearchFooter.Font.Charset = DEFAULT_CHARSET
+        SearchFooter.Font.Color = clWindowText
+        SearchFooter.Font.Height = -11
+        SearchFooter.Font.Name = 'Tahoma'
+        SearchFooter.Font.Style = []
+        SearchFooter.HighLightCaption = 'Highlight'
+        SearchFooter.HintClose = 'Close'
+        SearchFooter.HintFindNext = 'Find next occurrence'
+        SearchFooter.HintFindPrev = 'Find previous occurrence'
+        SearchFooter.HintHighlight = 'Highlight occurrences'
+        SearchFooter.MatchCaseCaption = 'Match case'
+        SearchFooter.ResultFormat = '(%d of %d)'
+        SortSettings.DefaultFormat = ssAutomatic
+        Version = '8.3.2.4'
+        ColWidths = (
+          64
+          64
+          81
+          64
+          64)
+      end
+    end
   end
   object btnClose: TRzBitBtn
-    Left = 1176
-    Top = 856
+    Left = 1153
+    Top = 879
     Width = 282
     Height = 69
     Cursor = crHandPoint
@@ -10361,7 +11271,7 @@ object frmMainter: TfrmMainter
     HotTrack = True
     HotTrackColor = 3983359
     ParentFont = False
-    TabOrder = 0
+    TabOrder = 2
     OnClick = btnCloseClick
     Glyph.Data = {
       36060000424D3606000000000000360400002800000020000000100000000100

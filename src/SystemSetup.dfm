@@ -4,7 +4,7 @@ object frmSystemSetup: TfrmSystemSetup
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
   Caption = 'System Information'
-  ClientHeight = 672
+  ClientHeight = 757
   ClientWidth = 853
   Color = clWindow
   Ctl3D = False
@@ -26,7 +26,7 @@ object frmSystemSetup: TfrmSystemSetup
     Left = 0
     Top = 0
     Width = 853
-    Height = 672
+    Height = 757
     Hint = ''
     ActivePage = tbEcsSheet
     Align = alClient
@@ -2399,7 +2399,7 @@ object frmSystemSetup: TfrmSystemSetup
         Left = 11
         Top = 19
         Width = 400
-        Height = 351
+        Height = 374
         Caption = 'ECS(PLC) Configuration (Auto Mode)'
         CaptionFont.Charset = DEFAULT_CHARSET
         CaptionFont.Color = clWindowText
@@ -2496,8 +2496,8 @@ object frmSystemSetup: TfrmSystemSetup
           TabOrder = 6
         end
         object btnLoadPlcAddress: TRzBitBtn
-          Left = 6
-          Top = 276
+          Left = 7
+          Top = 305
           Width = 183
           Height = 35
           Caption = 'Load PLC Address'
@@ -2558,8 +2558,8 @@ object frmSystemSetup: TfrmSystemSetup
           NumGlyphs = 2
         end
         object edPlcConfigPath: TRzEdit
-          Left = 6
-          Top = 317
+          Left = 7
+          Top = 346
           Width = 371
           Height = 22
           Text = ''
@@ -2667,7 +2667,7 @@ object frmSystemSetup: TfrmSystemSetup
           Left = 6
           Top = 229
           Width = 69
-          Height = 46
+          Height = 70
           BorderOuter = fsFlatRounded
           Caption = 'Robot'
           Font.Charset = ANSI_CHARSET
@@ -2711,7 +2711,7 @@ object frmSystemSetup: TfrmSystemSetup
         object edtStartAddress_Robot: TRzEdit
           Left = 254
           Top = 229
-          Width = 70
+          Width = 64
           Height = 22
           Text = '200'
           Ctl3D = True
@@ -2731,7 +2731,7 @@ object frmSystemSetup: TfrmSystemSetup
         object edtStartAddress_Robot_W: TRzEdit
           Left = 254
           Top = 253
-          Width = 70
+          Width = 64
           Height = 22
           Text = '200'
           Ctl3D = True
@@ -2889,8 +2889,8 @@ object frmSystemSetup: TfrmSystemSetup
           TabOrder = 4
         end
         object chkInlineGIB: TCheckBox
-          Left = 195
-          Top = 294
+          Left = 196
+          Top = 323
           Width = 97
           Height = 17
           Caption = 'Inline GIB'
@@ -2899,7 +2899,7 @@ object frmSystemSetup: TfrmSystemSetup
         object edtStartAddress_Robot2: TRzEdit
           Left = 328
           Top = 229
-          Width = 70
+          Width = 64
           Height = 22
           Text = '200'
           Ctl3D = True
@@ -2919,7 +2919,7 @@ object frmSystemSetup: TfrmSystemSetup
         object edtStartAddress_Robot_W2: TRzEdit
           Left = 328
           Top = 253
-          Width = 70
+          Width = 64
           Height = 22
           Text = '200'
           Ctl3D = True
@@ -2937,12 +2937,47 @@ object frmSystemSetup: TfrmSystemSetup
           TabOrder = 27
         end
         object ChkCHReversal: TCheckBox
-          Left = 195
-          Top = 277
+          Left = 196
+          Top = 306
           Width = 193
           Height = 17
           Caption = 'CH Reversal(CH 1 <->2 )'
           TabOrder = 28
+        end
+        object pnl2: TRzPanel
+          Left = 74
+          Top = 277
+          Width = 177
+          Height = 22
+          BorderOuter = fsFlatRounded
+          Caption = 'Robot Door Open(Bit Addr)'
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clBlack
+          Font.Height = -11
+          Font.Name = 'Verdana'
+          Font.Style = []
+          ParentFont = False
+          TabOrder = 29
+        end
+        object edtStartAddress_Robot_B_DoorOpen: TRzEdit
+          Left = 254
+          Top = 277
+          Width = 139
+          Height = 22
+          Text = '200'
+          Ctl3D = True
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clBlack
+          Font.Height = -12
+          Font.Name = 'Verdana'
+          Font.Style = [fsBold]
+          FocusColor = 14283263
+          FrameHotTrack = True
+          FrameVisible = True
+          ImeName = 'Microsoft IME 2010'
+          ParentCtl3D = False
+          ParentFont = False
+          TabOrder = 30
         end
       end
       object grpGMES: TRzGroupBox
@@ -3506,8 +3541,8 @@ object frmSystemSetup: TfrmSystemSetup
         end
       end
       object chkEQCC: TRzCheckBox
-        Left = 381
-        Top = 606
+        Left = 441
+        Top = 589
         Width = 136
         Height = 18
         Caption = 'Use MES_EQCC'
@@ -3645,7 +3680,7 @@ object frmSystemSetup: TfrmSystemSetup
       end
       object RzGroupBox3: TRzGroupBox
         Left = 11
-        Top = 378
+        Top = 404
         Width = 400
         Height = 126
         BiDiMode = bdLeftToRight
@@ -3747,12 +3782,13 @@ object frmSystemSetup: TfrmSystemSetup
           ImeName = 'Microsoft IME 2010'
           ParentFont = False
           TabOrder = 4
+          Visible = False
         end
       end
       object RzGroupBox5: TRzGroupBox
         Left = 11
-        Top = 510
-        Width = 400
+        Top = 536
+        Width = 522
         Height = 126
         BiDiMode = bdLeftToRight
         Caption = 'EQP ID'
@@ -3787,7 +3823,7 @@ object frmSystemSetup: TfrmSystemSetup
         object edEQPID_MGIB: TRzEdit
           Left = 111
           Top = 77
-          Width = 280
+          Width = 140
           Height = 22
           Text = ''
           Ctl3D = True
@@ -3822,7 +3858,7 @@ object frmSystemSetup: TfrmSystemSetup
         object edEQPID_PGIB: TRzEdit
           Left = 111
           Top = 101
-          Width = 280
+          Width = 140
           Height = 22
           Text = ''
           Ctl3D = True
@@ -3908,6 +3944,76 @@ object frmSystemSetup: TfrmSystemSetup
           Font.Style = []
           ParentFont = False
           TabOrder = 7
+        end
+        object RzPanel46: TRzPanel
+          Left = 257
+          Top = 77
+          Width = 121
+          Height = 21
+          BorderOuter = fsFlatRounded
+          Caption = 'MGIB Process_Code'
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clBlack
+          Font.Height = -11
+          Font.Name = 'Verdana'
+          Font.Style = []
+          ParentFont = False
+          TabOrder = 8
+        end
+        object RzPanel47: TRzPanel
+          Left = 257
+          Top = 101
+          Width = 121
+          Height = 21
+          BorderOuter = fsFlatRounded
+          Caption = 'PGIB Process_Code'
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clBlack
+          Font.Height = -11
+          Font.Name = 'Verdana'
+          Font.Style = []
+          ParentFont = False
+          TabOrder = 9
+        end
+        object edPRCS_CD_MGIB: TRzEdit
+          Left = 379
+          Top = 77
+          Width = 140
+          Height = 22
+          Text = ''
+          Ctl3D = True
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clBlack
+          Font.Height = -12
+          Font.Name = 'Verdana'
+          Font.Style = [fsBold]
+          FocusColor = 14283263
+          FrameHotTrack = True
+          FrameVisible = True
+          ImeName = 'Microsoft IME 2010'
+          ParentCtl3D = False
+          ParentFont = False
+          TabOrder = 10
+        end
+        object edPRCS_CD_PGIB: TRzEdit
+          Left = 379
+          Top = 101
+          Width = 140
+          Height = 22
+          Text = ''
+          Ctl3D = True
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clBlack
+          Font.Height = -12
+          Font.Name = 'Verdana'
+          Font.Style = [fsBold]
+          FocusColor = 14283263
+          FrameHotTrack = True
+          FrameVisible = True
+          ImeName = 'Microsoft IME 2010'
+          ParentCtl3D = False
+          ParentFont = False
+          TabOrder = 11
         end
       end
       object RzGroupBox7: TRzGroupBox
@@ -5926,8 +6032,8 @@ object frmSystemSetup: TfrmSystemSetup
     end
   end
   object btnClose: TRzBitBtn
-    Left = 685
-    Top = 629
+    Left = 693
+    Top = 701
     Width = 135
     Height = 35
     FrameColor = clBtnFace
@@ -5944,8 +6050,8 @@ object frmSystemSetup: TfrmSystemSetup
     OnClick = btnCloseClick
   end
   object btnSave: TRzBitBtn
-    Left = 535
-    Top = 629
+    Left = 548
+    Top = 701
     Width = 135
     Height = 35
     FrameColor = clBtnFace

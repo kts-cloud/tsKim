@@ -90,6 +90,10 @@ type
     function MovingProbe(nGroup: Integer; bIsUp : Boolean): Integer; // Added by KTS 2022-10-28 오전 11:41:06         Pre OC ProbeUP FLow
     function UnlockPinBlock(nCh: Integer): Integer;// Added by KTS 2022-11-28 오후 2:24:14  Pre OC Pinblack backward flow
     function LockPinBlock(nCh: Integer): Integer;// Added by KTS 2022-11-28 오후 2:24:14  Pre OC Pinblack backward flow
+    function CheckOpenPinBlock(nCh : Integer) : Integer;
+    function CheckPreOcUnloadStatus(nCh : Integer) : integer; // Added by sam81 2023-05-01 오후 12:12:34  interlock 확인
+    function CheckPreOcPanelDetectJig(nJig : Integer) : integer; // Added by sam81 2023-05-02 오전 12:19:07
+    function CheckPreOCPanelDetectCh(nCh : Integer; nReverseMode : integer = 0) : integer;
     function CLOSE_Up_PinBlock(nCh: Integer): Integer;
     function CLOSE_Dn_PinBlock(nCh: Integer): Integer;
     function VaccumON(nCh: Integer): Integer;
@@ -112,6 +116,10 @@ type
     function ReadInSig(nSignal : Integer) : Boolean;
     function ReadOutSig(nSignal : Integer) : Boolean;
     function IsDetected(nCH: Integer): Boolean;
+
+    function IsPreOCInterlockPROBE(nCH : Integer) : Integer;
+    function IsPreOCInterlockSHUTTER(nCH : Integer) : Integer;
+
 //    procedure ThreadTurnStage;
     procedure DisplayIo;
     procedure Set_AlarmData(nIndex, nValue: Integer);
@@ -170,6 +178,7 @@ begin
     nAlarmNo:= DefDio.IN_EMO_SWITCH;
     if CheckDi(nAlarmNo) then begin
       nRet := nAlarmNo;
+      // EMO 동작 시 SEQ 종료 후에 Initalization 누를 수 있도록 가이드
       SendAlarm(MSG_MODE_SYSTEM_ALARAM, nAlarmNo, 1);
     end
     else begin
@@ -469,6 +478,89 @@ begin
 
 end;
 
+
+function TControlDio.CheckOpenPinBlock(nCh: Integer): integer;
+begin
+  if (not ReadInSig(DefDio.IN_GIB_CH_1_PINBLOCK_OPEN_SENSOR +nCh*8)) then begin
+    // Close Status
+    Result := 1;
+  end
+  else begin
+    // OPen status
+    Result := 0;
+  end;
+end;
+
+function TControlDio.CheckPreOCPanelDetectCh(nCh: Integer; nReverseMode : integer): integer;
+var
+  nResult : integer;
+begin
+  if ReadInSig(DefDio.IN_GIB_CH_1_CARRIER_SENSOR + nCh * 8) then begin
+    nResult := 0;  // 제품이 있는 경우
+  end
+  else begin
+    nResult := 1;  // 없는 경우
+  end;
+  if nReverseMode = 1 then begin
+    // bit on off 때문에 반전
+    if nResult = 0 then begin
+      nResult := 1;
+    end
+    else if nResult = 1 then begin
+      nResult := 0;
+    end;
+  end;
+  Result := nResult;
+end;
+
+function TControlDio.CheckPreOcPanelDetectJig(nJig: Integer): integer;
+var
+  nResult : integer;
+begin
+  if nJig = 0 then begin //TOP 1,2
+    if ReadInSig(DefDio.IN_GIB_CH_1_CARRIER_SENSOR) or ReadInSig(DefDio.IN_GIB_CH_2_CARRIER_SENSOR) then begin
+      nResult := 0;
+    end
+    else begin
+      nResult := 1;
+    end;
+  end
+  else if nJig = 1 then begin  // Bottom 3,4
+    if ReadInSig(DefDio.IN_GIB_CH_3_CARRIER_SENSOR) or ReadInSig(DefDio.IN_GIB_CH_4_CARRIER_SENSOR) then begin
+      nResult := 0;
+    end
+    else begin
+      nResult := 1;
+    end;
+  end;
+  Result := nResult
+end;
+
+function TControlDio.CheckPreOcUnloadStatus(nCh: Integer): integer;
+var
+  nResult : Integer;
+begin
+  nResult := 0;
+  if (not ReadInSig(DefDio.IN_GIB_CH_1_PINBLOCK_OPEN_SENSOR +nCh*8)) then begin
+    // Close Status
+    nResult := 1;
+    SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_GIB_CH_1_PINBLOCK_OPEN_SENSOR + nCh*8, 1, '');
+  end
+  else begin
+    // OPen status
+  end;
+  //IN_GIB_CH_1_PRESSURE_GUAGE 제품만 올라가 있을때 게이지 확인 필요
+//  if ReadOutSig(DefDio.OUT_GIB_CH_1_VACCUM_SOL + nCh*8) then begin
+  if ReadInSig(DefDio.IN_GIB_CH_1_PRESSURE_GUAGE + nCh*8) then begin
+    nResult := 1;
+    SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_GIB_CH_1_PRESSURE_GUAGE + nCh*8, 1, '');
+  end
+  else begin
+
+  end;
+
+  Result := nResult;
+end;
 
 function TControlDio.LockCarrier(nCh: Integer; bMainter : Boolean): Integer;
 var
@@ -1055,13 +1147,13 @@ begin
       end;
       SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'UnLockCarrier Finish ALL_CH');
     end
-
     else begin
       SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'UnLockCarrier Start Ch=' + IntToStr(nCh));
 
       nDiv := nCh;
       ClearOutDioSig(DefDio.OUT_CH_1_CARRIER_LOCK_SOL + nCh*16);
-
+      //Clamp Down
+//      WriteDioSig(DefDio.OUT_CH_1_CARRIER_UNLOCK_SOL + nCh*16,false);
       if  (ReadInSig(DefDio.IN_CH_1_CARRIER_UNLOCK_SENSOR_1 +nCh*16)) and
           (ReadInSig(DefDio.IN_CH_1_CARRIER_UNLOCK_SENSOR_2 +nCh*16)) and
           (ReadInSig(DefDio.IN_CH_1_CARRIER_UNLOCK_SENSOR_3 +nCh*16)) and
@@ -1926,7 +2018,7 @@ begin
     CommDaeDIO.DevicePort:= DefDio.DAE_IO_DEVICE_PORT;
   end;
   CommDaeDIO.PollingInterval:= DefDio.DAE_IO_DEVICE_INTERVAL;
-  CommDaeDIO.LogPath := Common.Path.LOG;
+  CommDaeDIO.LogPath := Common.Path.DIOLog;
   CommDaeDIO.LogLevel := 0;
   CommDaeDIO.Start;
 //  DisplayIo;
@@ -1938,6 +2030,11 @@ begin
   m_bDoorOpen := False;
   m_bIoThreadWork := False;
   m_nStageToFront := 0;
+
+  // Added by sam81 2023-05-03 오전 11:46:44
+  if Common.SystemInfo.OCType = DefCommon.OCType then begin
+    Set_TowerLampState(LAMP_STATE_MANUAL); // 설비 처음 실행 시에 Tower Lamp 등록
+  end;
 end;
 
 destructor TControlDio.Destroy;
@@ -2050,7 +2147,7 @@ begin
     if (not ReadInSig(DefDio.IN_GIB_CH_1_PRESSURE_GUAGE +nCh*8)) then Break;
   end;
   if  ( ReadInSig(DefDio.IN_GIB_CH_1_PRESSURE_GUAGE +nCh*8)) then begin
-    SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_GIB_CH_1_PRESSURE_GUAGE + nCh*8, 1, '');
+    SendAlarm(MSG_MODE_DISPLAY_ALARAM, IN_GIB_CH_1_PRESSURE_GUAGE + nCh*8, 1, '');
     Exit(1);
   end;
 
@@ -2070,7 +2167,7 @@ begin
   // for lock.
 
     if  (not ReadInSig(DefDio.IN_GIB_CH_1_CARRIER_SENSOR +nCh*8)) then begin  // 제품 미감지 시 NG 발생
-    SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_GIB_CH_1_CARRIER_SENSOR + nCh*8, 1, '');
+    SendAlarm(MSG_MODE_DISPLAY_ALARAM, IN_GIB_CH_1_CARRIER_SENSOR + nCh*8, 1, '');
     Exit(1);
   end;
 
@@ -2096,7 +2193,7 @@ begin
     if ( ReadInSig(DefDio.IN_GIB_CH_1_PRESSURE_GUAGE +nCh*8)) then Break;
   end;
   if  (not ReadInSig(DefDio.IN_GIB_CH_1_PRESSURE_GUAGE +nCh*8)) then begin
-    SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_GIB_CH_1_PRESSURE_GUAGE + nCh*8, 1, '');
+    SendAlarm(MSG_MODE_DISPLAY_ALARAM, IN_GIB_CH_1_PRESSURE_GUAGE + nCh*8, 1, '');
     Exit(1);
   end;
 
@@ -2250,38 +2347,70 @@ end;
 function TControlDio.IsDetected(nCH: Integer): Boolean;
 begin
   Result:= False;
-  if Common.SystemInfo.OCType = DefCommon.OCType  then begin
-    if nCH = 0 then begin
-      if ControlDio.ReadInSig(IN_CH_1_CARRIER_SENSOR)
-        or ControlDio.ReadInSig(IN_CH_1_CARRIER_SENSOR+16) then
-      begin
-        Result:= True;
-      end;
-    end
-    else begin
-      if ControlDio.ReadInSig(IN_CH_3_CARRIER_SENSOR)
-        or ControlDio.ReadInSig(IN_CH_3_CARRIER_SENSOR+16) then
-      begin
-        Result:= True;
-      end;
-    end;
-  end
-  else begin
-      if nCH = 0 then begin
-      if ControlDio.ReadInSig(IN_GIB_CH_1_CARRIER_SENSOR)
-        or ControlDio.ReadInSig(IN_GIB_CH_1_CARRIER_SENSOR+8) then
-      begin
-        Result:= True;
-      end;
-    end
-    else begin
-      if ControlDio.ReadInSig(IN_GIB_CH_3_CARRIER_SENSOR)
-        or ControlDio.ReadInSig(IN_GIB_CH_3_CARRIER_SENSOR+8) then
-      begin
-        Result:= True;
-      end;
+  if Common.PLCInfo.InlineGIB then begin
+    if ControlDio.ReadInSig(IN_CH_1_CARRIER_SENSOR + nCH * 16)then
+    begin
+      Result:= True;
     end;
 
+  end
+  else begin
+    if Common.SystemInfo.OCType = DefCommon.OCType  then begin
+      if nCH = 0 then begin
+        if ControlDio.ReadInSig(IN_CH_1_CARRIER_SENSOR)
+          or ControlDio.ReadInSig(IN_CH_1_CARRIER_SENSOR+16) then
+        begin
+          Result:= True;
+        end;
+      end
+      else begin
+        if ControlDio.ReadInSig(IN_CH_3_CARRIER_SENSOR)
+          or ControlDio.ReadInSig(IN_CH_3_CARRIER_SENSOR+16) then
+        begin
+          Result:= True;
+        end;
+      end;
+    end
+    else begin
+        if nCH = 0 then begin
+        if ControlDio.ReadInSig(IN_GIB_CH_1_CARRIER_SENSOR)
+          or ControlDio.ReadInSig(IN_GIB_CH_1_CARRIER_SENSOR+8) then
+        begin
+          Result:= True;
+        end;
+      end
+      else begin
+        if ControlDio.ReadInSig(IN_GIB_CH_3_CARRIER_SENSOR)
+          or ControlDio.ReadInSig(IN_GIB_CH_3_CARRIER_SENSOR+8) then
+        begin
+          Result:= True;
+        end;
+      end;
+    end;
+  end;
+end;
+
+
+function TControlDio.IsPreOCInterlockPROBE(nCH : Integer): Integer;
+begin
+  Result:= 0;
+  if Common.SystemInfo.OCType <> DefCommon.OCType  then begin
+    if not ControlDio.ReadInSig(IN_GIB_CH_12_PROBE_UP_SENSOR + nCH * 4) then
+    begin
+      Result:= 1;
+    end;
+  end;
+end;
+
+function TControlDio.IsPreOCInterlockSHUTTER(nCH : Integer): Integer;
+begin
+  Result:= 0;
+  if Common.SystemInfo.OCType <> DefCommon.OCType  then begin
+    if not ControlDio.ReadInSig(IN_GIB_CH_12_SHUTTER_UP_SENSOR + nCH * 4) and
+      ControlDio.ReadInSig(IN_GIB_CH_12_LIGHTCURTAIN + nCH)then
+    begin
+      Result:= 1;
+    end;
   end;
 end;
 
@@ -2294,10 +2423,6 @@ begin
   if Common.SystemInfo.OCType <> DefCommon.PreOCType  then Exit(2);
   if nGroup = DefCommon.CH_TOP  then sCH := ' CH 1,2 '
                                 else sCH := 'CH 3,4 ';
-  if g_CommPLC.IsBusy_Robot(nGroup) then begin
-    SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Do not MovingProbe - Robot Busy ' + sCH);
-    Exit(3);
-  end;
 
   //if ErrorCheck > 0 then Exit(1);
   nWaitingCount:= 100; //100ms * nWaitingCount
@@ -2329,6 +2454,10 @@ begin
     SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Probe UP Finish ' + sCH);
   end
   else begin
+    if g_CommPLC.IsBusy_Robot(nGroup) then begin
+      SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Do not MovingProbe - Robot Busy ' + sCH);
+      Exit(3);
+    end;
     SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Probe DN Start ' + sCH);
     ClearOutDioSig(DefDio.OUT_GIB_CH_12_PROBE_UP_SOL + nGroup *4);
     if not ReadInSig(DefDio.IN_GIB_CH_12_PROBE_DN_SENSOR + nGroup *4) then begin
@@ -2367,10 +2496,6 @@ begin
   if Common.SystemInfo.OCType <> DefCommon.PreOCType  then Exit(2);
   if nGroup = DefCommon.CH_TOP then sCH := 'CH 1,2'
   else                              sCH := 'CH 3,4';
-  if g_CommPLC.IsBusy_Robot(nGroup) then begin
-    SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Do not MovingProbe - Robot Busy ' + sCH);
-    Exit(3);
-  end;
   //if ErrorCheck > 0 then Exit(1);
   nWaitingCount:= 100; //100ms * nWaitingCount
 
@@ -2403,6 +2528,10 @@ begin
         SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Shutter UP Finish ' + sCH);
       end
       else begin
+        if g_CommPLC.IsBusy_Robot(nGroup) then begin
+          SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Do not MovingProbe - Robot Busy ' + sCH);
+          Exit(3);
+        end;
         SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Shutter DN Start ' + SCH);
         ClearOutDioSig(DefDio.OUT_GIB_CH_12_SHUTTER_UP_SOL);
         if not ReadInSig(DefDio.IN_GIB_CH_12_SHUTTER_DN_SENSOR) then begin
@@ -2456,6 +2585,10 @@ begin
         SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Shutter UP Finish ' + sCH);
       end
       else begin
+        if g_CommPLC.IsBusy_Robot(nGroup) then begin
+          SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Do not MovingProbe - Robot Busy ' + sCH);
+          Exit(3);
+        end;
         SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Shutter DN Start ' + sCH);
         ClearOutDioSig(DefDio.OUT_GIB_CH_34_SHUTTER_UP_SOL);
         if not ReadInSig(DefDio.IN_GIB_CH_34_SHUTTER_DN_SENSOR) then begin
@@ -2636,11 +2769,11 @@ begin
       end;
       if ReadOutSig(nTowerLamp_G)      then WriteDioSig(nTowerLamp_G, True);
       if MelodyOn then begin
-        if not ReadOutSig(nTowerLamp_B1)    then WriteDioSig(nTowerLamp_B1);
+//        if not ReadOutSig(nTowerLamp_B1)    then WriteDioSig(nTowerLamp_B1);
         //if ReadOutSig(DefDio.OUT_MELODY_2)        then WriteDioSig(DefDio.OUT_MELODY_2, True);
       end
       else begin
-        if ReadOutSig(nTowerLamp_B1)    then WriteDioSig(nTowerLamp_B1, True);
+//        if ReadOutSig(nTowerLamp_B1)    then WriteDioSig(nTowerLamp_B1, True);
       end;
     end;
 
@@ -2734,6 +2867,7 @@ function TControlDio.ReadInSig(nSignal: Integer): Boolean;
 var
   nIdx, nPos : Integer;
 begin
+  if ControlDio = nil then Exit(False);
   if nSignal > 95  then begin
     Result := false;
     Exit;
@@ -2746,6 +2880,7 @@ function TControlDio.ReadOutSig(nSignal: Integer): Boolean;
 var
   nIdx, nPos : Integer;
 begin
+  if ControlDio = nil then Exit(False);
   if nSignal > 95  then begin
    Result := false;
    Exit
@@ -2829,6 +2964,9 @@ var
   cds         : TCopyDataStruct;
   COPYDATAMessage : RGuiDaeDio;
 begin
+  if not Assigned(Self) then begin   // Added by sam81 2023-05-09 오후 1:22:26
+    Exit;
+  end;
   COPYDATAMessage.MsgType := m_nMsgType; //MSGTYPE_COMMDIO;
   COPYDATAMessage.Channel := 1;
   COPYDATAMessage.Mode    := nMsgMode;

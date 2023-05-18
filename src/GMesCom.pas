@@ -27,6 +27,7 @@ type
     Registry  : Boolean;
     DataSend  : Boolean;
     bPCHK     : Boolean;
+    bLPIR     : Boolean;
     LotNo     : string;
 
     SerialNo  : string;
@@ -48,6 +49,7 @@ type
     EicrRtnCode     : String; // EICR_R.RTN_CD
     ApdrRtnCode     : String; // PCHK_R.RTN_CD
     ApdrRtnSerialNo : String; // PCHK_R.RTN_SERIAL_NO
+    LpirProcessCode : string; // LPIR Process Code
   end;
 
   PSyncHost = ^RSyncHost;
@@ -84,6 +86,10 @@ type
     FMesRtnCd      : string;
     FMesRtnPID     : string;
     FMesErrMsgLc   : string;
+
+    //LPIR
+    FMesProsessCode : string;
+
 
     //R2R Scenario
     FR2RUnit        : string;
@@ -163,6 +169,8 @@ type
     procedure parse_EIJR(nCh : Integer;sMsg : string);
     procedure parse_RPR_EIJR(nCh : Integer;sMsg : string);
     procedure parse_INS_PCHK(nCh : Integer;sMsg : string);
+    procedure parse_LPIR(nCh : Integer;sMsg : string);
+
 //    procedure parse_FLDR;
     procedure parse_LPHI;
     procedure parse_REPN;
@@ -226,6 +234,7 @@ type
     procedure SendHostZset(sPid, sZigId : string);
     procedure SendHostSGEN(sSerialNo: string; nPg: Integer; bIsDelayed: Boolean= False);
     procedure SendHostPchk(sSerialNo : string; nPg : Integer; bIsDelayed : Boolean = False);  //JHHWANG-GMES: 2018-06-20
+    procedure SendHostLpir(sSerialNo : string; nPg : Integer; bIsDelayed : Boolean = False);
     procedure SendHostFldr(sMsg : string);
     procedure SendHostApdr(sSerialNo : string; nPg : Integer; bIsDelayed : Boolean = False);
     procedure SendEasApdr(sSerialNo : string; nPg : Integer; bIsDelayed : Boolean = False);
@@ -562,6 +571,49 @@ end;
 procedure TGmes.parse_LPHI;
 begin
 
+end;
+
+procedure TGmes.parse_LPIR(nCh: Integer; sMsg: string);
+var
+	sPModel, sGModel, ErrMsg, sProcess_Code,sSerialNo : string;
+	nPos : Integer;
+  i, nPgNo: Integer;
+begin
+  sSerialNo := StringReplace(FMesFogId,#$0a, #$24, [rfReplaceAll]);
+  sSerialNo := StringReplace(sSerialNo,#$0d, #$25, [rfReplaceAll]);
+
+  if not (nCh in [DefCommon.CH1 .. DefCommon.MAX_CH]) then begin
+    // 보내고 받는 중간에 다른 데이터가 치고 들어 올때 PG Idx 꼬일수 밖에 없음.
+    nPgNo := FMesPg;
+    for i := DefCommon.CH1 to DefCommon.MAX_CH do begin
+      if sSerialNo = m_sPgSerial[i] then begin
+        nPgNo := i;
+        Break;
+      end;
+    end;
+  end
+  else begin
+    nPgNo := nCh;
+  end;
+
+  if nPgNo in [DefCommon.CH1 .. DefCommon.MAX_CH] then begin
+    Common.MLog(nPgNo,'MES REV : ' + sMsg);
+  end;
+  MesData[nPgNo].MesPendingMsg := MES_UNKNOWN;   //
+  MesData[nPgNo].LpirProcessCode     := FMesProsessCode;     // LPIR_R.PROCESS_CODE
+
+
+	if FMesRtnCd = '0' then begin
+    MesData[nPgNo].bLPIR := True;
+    ReturnDataToTestForm(DefGmes.MES_LPIR, nPgNo, False, LPIR_OK_MSG);
+    SendHostPchk(sSerialNo, nCh);
+	end
+	else begin
+		MesData[nPgNo].bLPIR := False;
+		ErrMsg := 'Error code:'+FMesRtnCd+' : '+FMesErrMsgLc + '('+ FMesErrMsgEn + ')';
+		ReturnDataToTestForm(DefGmes.MES_LPIR,nPgNo,True,ErrMsg);
+	end;
+  MesData[nPgNo].MesSentMsg := MES_UNKNOWN; // JHHWANG-GMES 2018-06-27
 end;
 
 procedure TGmes.parse_PCHK(nCh : Integer;sMsg : string);
@@ -1479,6 +1531,7 @@ begin
   else if CompareStr(sMode,'REPN_R') = 0 then parse_REPN
   else if CompareStr(sMode,'APDR_R') = 0 then parse_APDR(nCh,sMsg)
   else if CompareStr(sMode,'ZSET_R') = 0 then parse_ZSET
+  else if CompareStr(sMode,'LPIR_R') = 0 then parse_LPIR(nCh, sMsg)
   else if CompareStr(sMode,'EICR_R') = 0 then	begin
     parse_EICR(nCh,sMsg);
   end
@@ -1613,6 +1666,19 @@ begin
   SEND_MESG2HOST(DefGmes.MES_PCHK,sConvertSerial,'',nPg, bIsDelayed);  //JHHWANG-GMES: 2018-06-20);
 end;
 
+procedure TGmes.SendHostLpir(sSerialNo : string; nPg : Integer; bIsDelayed : Boolean = False);
+var
+  sConvertSerial : string;
+begin
+  if Length(sSerialNo) = 0 then
+    Exit;
+  FMesPg  := nPg;
+  sConvertSerial := StringReplace(sSerialNo,#$24, #$0a, [rfReplaceAll]);
+  sConvertSerial := StringReplace(sConvertSerial,#$25,#$0d , [rfReplaceAll]);
+  m_sPgSerial[nPg] := sConvertSerial;
+  SEND_MESG2HOST(DefGmes.MES_LPIR,sConvertSerial,'',nPg, bIsDelayed);  //JHHWANG-GMES: 2018-06-20);
+end;
+
 procedure TGmes.SendHostIns_Pchk(sSerialNo: string; nPg: Integer; bIsDelayed : Boolean = False);
 var
   sConvertSerial : string;
@@ -1716,6 +1782,64 @@ begin
     DefGmes.MES_PCHK : begin
       sSendMsg := 'PCHK';
 			sSendMsg := sSendMsg  + ' ADDR=' + m_sLocal + ',' + m_sLocal;
+      if Common.PLCInfo.InlineGIB then begin
+        if FMesProsessCode = Common.SystemInfo.EQPId_MGIB_Process_Code then
+          sSendMsg := sSendMsg  + ' EQP=' + Common.SystemInfo.EQPId_MGIB
+        else if FMesProsessCode = Common.SystemInfo.EQPId_PGIB_Process_Code then
+          sSendMsg := sSendMsg  + ' EQP=' + Common.SystemInfo.EQPId_PGIB
+        else  sSendMsg := sSendMsg  + ' EQP=' + FSystemNo;
+      end
+      else begin
+			  sSendMsg := sSendMsg  + ' EQP=' + FSystemNo;
+      end;
+      (*
+      case FMesSerialType of
+        0 : begin
+          sSendMsg := sSendMsg  + ' FOG_ID='+sSerialNo;
+          sSendMsg := sSendMsg  + ' PID=';
+          sSendMsg := sSendMsg  + ' SERIAL_NO=';
+        end;
+        1 : begin
+          sSendMsg := sSendMsg  + ' FOG_ID=';
+          sSendMsg := sSendMsg  + ' PID='+sSerialNo;
+          sSendMsg := sSendMsg  + ' SERIAL_NO=';
+        end;
+        2 : begin
+          sSendMsg := sSendMsg  + ' FOG_ID=';
+          sSendMsg := sSendMsg  + ' PID=';
+          sSendMsg := sSendMsg  + ' SERIAL_NO='+sSerialNo;
+        end;
+      end;
+      *)
+      if Common.SystemInfo.OCType = DefCommon.OCType then begin
+        sSerialNo := Trim(Copy(sSerialNo,0,Common.TestModelInfoFLOW.SerialNoFlashInfo.nLength)); // length 변경
+        sSendMsg := sSendMsg  + ' PID=';
+        sSendMsg := sSendMsg  + ' SERIAL_NO='+sSerialNo;
+      end
+      else begin
+        sSerialNo := Trim(Copy(sSerialNo,0,30));
+        sSendMsg := sSendMsg  + ' PID=';
+        sSendMsg := sSendMsg  + ' PCB_ID='+sSerialNo;
+//        sSendMsg := sSendMsg  + ' SERIAL_NO=';
+      end;
+      //sSendMsg := sSendMsg  + ' SERIAL_NO=';
+      sSendMsg := sSendMsg  + ' COVER_GLASS_ID=';
+      sSendMsg := sSendMsg  + ' LCM_ID=';
+      sSendMsg := sSendMsg  + ' BLID=[]';
+      sSendMsg := sSendMsg  + format(' INSPCHANEL_A=%d',[nPg]);
+			sSendMsg := sSendMsg  + ' PPALLET=';
+			sSendMsg := sSendMsg  + ' SKD_BOX_ID=';
+			sSendMsg := sSendMsg  + ' USER_ID=' + FUserId ;
+			sSendMsg := sSendMsg  + ' MODE=AUTO';
+			sSendMsg := sSendMsg  + ' CLIENT_DATE='+FormatDateTime('yyyymmddhhnnss', Now);
+			sSendMsg := sSendMsg  + ' COMMENT=[]';
+      sSendMsg := sSendMsg  + ' MODEL_INFO=' + FMesModelInfo;
+      //
+      bIsChMsg := True;   //JHHWANG-GMES: 2018-06-20
+    end;
+    DefGmes.MES_LPIR : begin
+      sSendMsg := 'LPIR';
+			sSendMsg := sSendMsg  + ' ADDR=' + m_sLocal + ',' + m_sLocal;
 			sSendMsg := sSendMsg  + ' EQP=' + FSystemNo;
       (*
       case FMesSerialType of
@@ -1737,7 +1861,7 @@ begin
       end;
       *)
       if Common.SystemInfo.OCType = DefCommon.OCType then begin
-        sSerialNo := Trim(Copy(sSerialNo,0,239));
+        sSerialNo := Trim(Copy(sSerialNo,0,Common.TestModelInfoFLOW.SerialNoFlashInfo.nLength));
         sSendMsg := sSendMsg  + ' PID=';
         sSendMsg := sSendMsg  + ' SERIAL_NO='+sSerialNo;
       end
@@ -1765,7 +1889,16 @@ begin
     DefGmes.MES_INS_PCHK : begin
       sSendMsg := 'INS_PCHK';
       sSendMsg := sSendMsg  + ' ADDR=' + m_sLocal + ',' + m_sLocal;
-			sSendMsg := sSendMsg  + ' EQP=' + FSystemNo;
+      if Common.PLCInfo.InlineGIB then begin
+        if FMesProsessCode = Common.SystemInfo.EQPId_MGIB_Process_Code then
+          sSendMsg := sSendMsg  + ' EQP=' + Common.SystemInfo.EQPId_MGIB
+        else if FMesProsessCode = Common.SystemInfo.EQPId_PGIB_Process_Code then
+          sSendMsg := sSendMsg  + ' EQP=' + Common.SystemInfo.EQPId_PGIB
+        else  sSendMsg := sSendMsg  + ' EQP=' + FSystemNo;
+      end
+      else begin
+  			sSendMsg := sSendMsg  + ' EQP=' + FSystemNo;
+      end;
 //      case FMesSerialType of
 //        0 : begin
 //          sSendMsg := sSendMsg  + ' PID=';
@@ -1777,15 +1910,25 @@ begin
 //        end;
 //      end;
       //sSendMsg := sSendMsg  + ' SERIAL_NO=';
-      sSendMsg := sSendMsg  + ' PID=';
-      sSendMsg := sSendMsg  + ' SERIAL_NO='+sSerialNo;
+//      sSendMsg := sSendMsg  + ' PID=';
+      if Common.SystemInfo.OCType = DefCommon.OCType then begin
+        sSerialNo := Trim(Copy(sSerialNo,0,Common.TestModelInfoFLOW.SerialNoFlashInfo.nLength)); // length 변경
+        sSendMsg := sSendMsg  + ' PID=';
+        sSendMsg := sSendMsg  + ' SERIAL_NO='+sSerialNo;
+      end
+      else begin
+//        sSerialNo := Trim(Copy(sSerialNo,0,30));
+        sSendMsg := sSendMsg  + ' PID=';
+        sSendMsg := sSendMsg  + ' PCB_ID=' + sSerialNo;
+//        sSendMsg := sSendMsg  + ' SERIAL_NO=';
+      end;
       sSendMsg := sSendMsg  + ' LCM_ID=';
 			sSendMsg := sSendMsg  + ' BLID=[]';
       sSendMsg := sSendMsg  + ' COVER_GLASS_ID=';
       sSendMsg := sSendMsg  + ' ZIG_ID=';
       sSendMsg := sSendMsg  + ' PCB_ID=';
       sSendMsg := sSendMsg  + format(' INSPCHANEL_A=%d',[nPg]);
-			sSendMsg := sSendMsg  + ' USER_ID=' + MesUserId ;
+			sSendMsg := sSendMsg  + ' USER_ID=' + FUserId ;
 			sSendMsg := sSendMsg  + ' MODE=AUTO';
 			sSendMsg := sSendMsg  + ' CLIENT_DATE='+FormatDateTime('yyyymmddhhnnss', Now);
 			sSendMsg := sSendMsg  + ' COMMENT=[]';
@@ -1992,7 +2135,16 @@ begin
 //      Common.MLog(nPg,'SEND_MESG2HOST2 : ' + sSerialNo);
       sSendMsg := 'RPR_EIJR';
 			sSendMsg := sSendMsg  + ' ADDR=' + m_sLocal + ',' + m_sLocal;
-			sSendMsg := sSendMsg  + ' EQP=' + FSystemNo;
+      if Common.PLCInfo.InlineGIB then begin
+        if FMesProsessCode = Common.SystemInfo.EQPId_MGIB_Process_Code then
+          sSendMsg := sSendMsg  + ' EQP=' + Common.SystemInfo.EQPId_MGIB
+        else if FMesProsessCode = Common.SystemInfo.EQPId_PGIB_Process_Code then
+          sSendMsg := sSendMsg  + ' EQP=' + Common.SystemInfo.EQPId_PGIB
+        else  sSendMsg := sSendMsg  + ' EQP=' + FSystemNo;
+      end
+      else begin
+  			sSendMsg := sSendMsg  + ' EQP=' + FSystemNo;
+      end;
       sSendMsg := sSendMsg  + ' PID=';
       sSendMsg := sSendMsg  + ' SERIAL_NO='+ sSerialNo;
       //sSendMsg := sSendMsg  + ' FOG_ID=' + sSerialNo;
@@ -2016,10 +2168,10 @@ begin
 			end;
       *)
       if  MesData[FMesPg].Rwk = '' then begin
-				sSendMsg := sSendMsg  + ' SUBJUDGE_INFO=[POCB:P:]';
+				sSendMsg := sSendMsg  + ' SUBJUDGE_INFO=[GB:P:]';
 			end
 			else begin
-				sSendMsg := sSendMsg  + ' SUBJUDGE_INFO=[POCB:F:' + MesData[FMesPg].Rwk + ']';
+				sSendMsg := sSendMsg  + ' SUBJUDGE_INFO=[GB:F:' + MesData[FMesPg].Rwk + ']';
 			end;
 
       sSendMsg := sSendMsg  + ' USER_ID='+ FUserId;
@@ -2080,7 +2232,7 @@ begin
       sSendMsg := sSendMsg  + ' START_TIME='+FormatDateTime('yyyymmddhhnnss', PasScr[nPg].TestInfo.StartTime);
       sSendMsg := sSendMsg  + ' END_TIME='+FormatDateTime('yyyymmddhhnnss', PasScr[nPg].TestInfo.EndTime);
       bIsChMsg := True;
-//      Common.MLog(nPg,'SEND_MESG2HOST2 : Send Msg :  ' + sSendMsg);
+      Common.MLog(nPg,'SEND_MESG2HOST2 : Send Msg :  ' + sSendMsg);
     end;
     DefGmes.R2R_EODS : begin
       sSendMsg := 'EODS';
@@ -2130,7 +2282,7 @@ begin
         end;
       end;
       Exit;
-   end;
+    end;
 {$IFDEF WIN32}
     if bIsChMsg then begin  //JHHWANG-GMES 2018-06-20
       if nMsgType <> DefGmes.EAS_APDR then begin
@@ -2410,6 +2562,7 @@ begin
     else if Uppercase(string(sMsgId))= 'UNIT'           then FR2RUnit         := Trim(string(sMsgCont))
     else if Uppercase(string(sMsgId))= 'MMC_TXN_ID'     then FR2RMmcTxnID     := Trim(string(sMsgCont))
     else if Uppercase(string(sMsgId))= 'DATAINFO'       then FR2RDatainfo     := Trim(string(sMsgCont))
+    else if Uppercase(string(sMsgId))= 'PROCESS_CODE'   then FMesProsessCode  := Trim(string(sMsgCont)) //LPIR 추가m-GIB p-GIB 구분 코드
 
     //    else if CompareStr(Uppercase(sMsgId), 'RWK_PID')  = 0     then begin
 //      RtnLotID[StrToInt(m_sGetUID)-1]       := sMsgCont;

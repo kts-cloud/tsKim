@@ -73,6 +73,7 @@ type
       procedure StopIspd_TOP;
       function StartIspd_BOTTOM(nSeq : Integer = 1) : Boolean;
       procedure StopIspd_BOTTOM;
+      procedure StopIspdCh(nCh : Integer);
       function IsScriptRunning : Boolean;
       // 화면 UI가 바뀌면서 Handle값이 바뀌어 재 설정.
       procedure SetHandleAgain(hMain, hTest : HWND);
@@ -351,8 +352,8 @@ begin
   if Common.SystemInfo.OCType = DefCommon.PreOCType then  begin
     //두번째인지 확인 필요
     //if ... then
-    bFirst_Process := false;
-    if nSeq = DefScript.SEQ_KEY_9 then  begin
+    bFirst_Process := True;
+     if nSeq = DefScript.SEQ_KEY_9 then  begin
       for I := DefCommon.CH1 to DefCommon.CH2 do begin
         if not PasScr[i].m_First_Process_DONE then  begin
           bFirst_Process := False;
@@ -364,6 +365,13 @@ begin
           sLog := 'You must close Pinblock to Start CH 1,2';
           SendMainGuiDisplay(DefCommon.MSG_TYPE_CTL_DIO, 0, 2, 0, sLog);
   //        Application.MessageBox('You must close Pinblock to Start', 'Error', MB_OK+MB_ICONEXCLAMATION);
+          Exit(False);
+        end;
+      end
+      else begin
+        if ControlDio.CheckPreOcPanelDetectJig(0) <> 0 then begin
+          sLog := '1,2 Ch not have to Panel. Check Detect Sensor';
+          SendMainGuiDisplay(DefCommon.MSG_TYPE_CTL_DIO, 0, 2, 0, sLog);
           Exit(False);
         end;
       end;
@@ -388,8 +396,10 @@ var
   nCh, i : Integer;
 begin
   for i := DefCommon.CH1 to DefCommon.CH2 do begin
-    PasScr[i].m_bIsSyncSeq := False;  // 동기화시 Stop 되지 않는 이슈 때문.
-    PasScr[i].RunSeq(DefScript.SEQ_KEY_STOP);
+    if PasScr[i] <> nil  then begin
+      PasScr[i].m_bIsSyncSeq := False;  // 동기화시 Stop 되지 않는 이슈 때문.
+      PasScr[i].RunSeq(DefScript.SEQ_KEY_STOP);
+    end;
   end;
 end;
 
@@ -423,6 +433,13 @@ begin
   //        Application.MessageBox('You must close Pinblock to Start', 'Error', MB_OK+MB_ICONEXCLAMATION);
           Exit(False);
         end;
+      end
+      else begin
+        if ControlDio.CheckPreOcPanelDetectJig(1) <> 0 then begin
+          sLog := '3,4 Ch not have to Panel. Check Detect Sensor';
+          SendMainGuiDisplay(DefCommon.MSG_TYPE_CTL_DIO, 0, 2, 0, sLog);
+          Exit(False);
+        end;
       end;
       g_CommPLC.EQP_Clear_ROBOT_Request(1);
     end;
@@ -440,13 +457,23 @@ begin
   Result := True;
 end;
 
+procedure TJig.StopIspdCh(nCh: Integer);
+begin
+  if PasScr[nCh] <> nil  then begin
+    PasScr[nCh].m_bIsSyncSeq := False;  // 동기화시 Stop 되지 않는 이슈 때문.
+    PasScr[nCh].RunSeq(DefScript.SEQ_KEY_STOP);
+  end;
+end;
+
 procedure TJig.StopIspd_BOTTOM;
 var
   nCh, i : Integer;
 begin
   for i := DefCommon.CH3 to DefCommon.CH4 do begin
-    PasScr[i].m_bIsSyncSeq := False;  // 동기화시 Stop 되지 않는 이슈 때문.
-    PasScr[i].RunSeq(DefScript.SEQ_KEY_STOP);
+    if PasScr[i] <> nil  then begin
+      PasScr[i].m_bIsSyncSeq := False;  // 동기화시 Stop 되지 않는 이슈 때문.
+      PasScr[i].RunSeq(DefScript.SEQ_KEY_STOP);
+    end;
   end;
 end;
 

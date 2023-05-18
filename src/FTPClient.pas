@@ -63,7 +63,7 @@ type
     property OnErrMsg : InFtpErrMsg read FOnErrMsg write SetOnErrMsg;
     //
 		constructor Create(sHost, sUserName, sPassword: string); //TBD: m_nCh?
-		destructor Destroy;
+		destructor Destroy; override;
 		//
 		function Connect: string;
 		procedure Disconnect;

@@ -7,8 +7,8 @@ uses
    Vcl.ScripterInit, atpascal, atScript, ScrMemo, ScrMps, atScriptDebug,InternalScriptClass, ap_Classes ,
   System.Generics.Collections, ControlDio_OC, CommPLC_ECS,UserUtils,
   DefCommon, {UdpServerClient,}CommPG, DefScript, uSystemLibrary, IdGlobal, Vcl.Forms,
-  CommonClass, DefPG, GMesCom, DefGmes, {LogicVh,} DefDio, System.Math
-  , CommCameraRadiant,dllClass,AF9_FPGA,RegularExpressions
+  CommonClass, DefPG, GMesCom, DefGmes, {LogicVh,} DefDio, System.Math,System.SyncObjs
+  , CommCameraRadiant,dllClass,AF9_FPGA,RegularExpressions , CommDIO_DAE, CommIonizer
 {$IFDEF CA410_USE}
     , CA_SDK2
 {$ENDIF}
@@ -108,6 +108,7 @@ type
     AutoMode      : Boolean;
     AABMode       : Boolean;
     Login         : Boolean;
+    OCDllCall     : Boolean;  // Added by sam81 2023-04-29 오전 11:45:48  OC Dll 호출 했는지 여부
     Use_MES       : Boolean;
     Use_ECS       : Boolean;
     Use_DFS       : Boolean;
@@ -125,6 +126,7 @@ type
     RTN_MODEL     : string;
     LCM_ID        : string;
     GlassID       : string;
+    Process_Code  : string; //LPIR Process_Code 추가
     RetryValue    : Integer;
     nSerialType   : Integer;
     Before_OtpCnt : Integer;
@@ -316,6 +318,7 @@ type
     procedure Sleep_Proc(AMachine:TatVirtualMachine);
     procedure NextStep_Proc(AMachine:TatVirtualMachine);
     procedure CheckRetry_Proc(AMachine:TatVirtualMachine);
+    procedure ReadPairNgCode_Proc(AMachine:TatVirtualMachine);
 
     //OC DLL FLOW
     procedure OCFlowStart_Proc(AMachine:TatVirtualMachine);
@@ -361,9 +364,11 @@ type
     procedure ControlDio_Proc(AMachine:TatVirtualMachine);
     procedure SetConfirmRty_Proc(AMachine:TatVirtualMachine);
     procedure GetPlcInfo_Proc(AMachine:TatVirtualMachine);
+    procedure IonizerOn_Proc(AMachine:TatVirtualMachine);
 
     procedure ReadBcr_Proc(AMachine:TatVirtualMachine);
     procedure SendPCHK_Proc(AMachine:TatVirtualMachine);
+    procedure SendLPIR_Proc(AMachine:TatVirtualMachine);
     procedure SendINSPCHK_Proc(AMachine:TatVirtualMachine);
     procedure SendEICR_Proc(AMachine:TatVirtualMachine);
     procedure SendEIJR_Proc(AMachine:TatVirtualMachine);
@@ -467,6 +472,7 @@ type
     m_bIsProbeBackSig : boolean;
     m_bComfileCheck : boolean;
     m_bIsSyncSeq   : Boolean;
+    nSyncMode      : integer;
     m_bIsRetryContact : Boolean;
     g_bIsBcrReady     : boolean;
 //    m_ShowGrid  : array[0..defPg.MAX_FRAME_SIZE] of RGridDisplay;
@@ -482,6 +488,7 @@ type
     m_sMesPchkModel       : string;
     m_sMesPchkRtnSerialNo : String; // PCHK_R.RTN_SERIAL_NO (Set by PAS)
     m_sMesEicrRtnCode     : String; // EICR_R.RTN_CD (set by PAS)
+    m_nMesLpirProcessCode : string; // LPIR_R.PROCESS_CODE
     m_bMesPMMode          : Boolean;// TBD JHHWANG-GMES: 2018-06-20
     m_nNgCode    : Integer; // Script내에서 사용.
     m_sNgMsg              : string;
@@ -496,6 +503,7 @@ type
     m_lstPrevRet      : TList<Integer>;
     m_nPlcReadData    : Integer;
     m_InspectResult   : array of TNgRatio;
+    PairCh            : integer;
     CurrentSEQ: Integer;
     TestInfo: TTestInformation;
     procedure DefineMethodFunc(SetPaScript : TatPascalScripter);
@@ -548,6 +556,12 @@ var
   sEventName: String;
 begin
   FPgNo := nPgNo;
+  if (nPgNo mod 2) = 0 then begin
+    PairCh:= nPgNo + 1;
+  end
+  else begin
+    PairCh:= nPgNo - 1;
+  end;
   m_bIsCaEvent := False;
   m_bIsBCREvent := False;
   m_bPlcDetect  := True;
@@ -560,6 +574,7 @@ begin
   m_InsStatus  := isReady;
   m_bIsSyncEvent := False;
   m_bIsSyncSeq   := False;
+  nSyncMode      := 0;
   m_bTotalTact   := False;
   m_bUnitiTact   := False;
 
@@ -669,7 +684,8 @@ begin
   SetPaScript.DefineMethod('f_OC_VerifyStart',      0,tkInteger, nil,OCVerifyStart_Proc,False,0);
   SetPaScript.DefineMethod('f_ThreadStateCheck',      0,tkInteger, nil,OCThreadStateCheck_Proc,False,0);
   SetPaScript.DefineMethod('f_Flash_Read_Se_NO',      0,tkInteger, nil,OCThreadFlash_READ_Proc,False,0);
-  SetPaScript.DefineMethod('f_SetAgingTm', 2, tkNone, nil, SetAgingTm_Proc,False, 2);
+  SetPaScript.DefineMethod('f_SetAgingTm',             2, tkNone, nil, SetAgingTm_Proc,False, 2);
+  SetPaScript.DefineMethod('f_ReadPairNgCode',         1, tkNone, nil, ReadPairNgCode_Proc,False, 1).SetVarArgs([0]);
 
 
   with SetPaScript.DefineMethod('f_ReadCa410', 3, tkInteger, nil,
@@ -726,7 +742,7 @@ begin
   SetPaScript.DefineMethod('f_CheckRetry',    1,tkInteger,    nil,CheckRetry_Proc,    False);
 
 
-
+  SetPaScript.DefineMethod('f_SendLPIR',   2,tkInteger, nil,SendLPIR_Proc,   False,1).SetVarArgs([1]);
   SetPaScript.DefineMethod('f_SendSGEN',   1,tkInteger, nil,SendSGEN_Proc,   False,1); //checkmate 20191115
   SetPaScript.DefineMethod('f_SendPCHK',   3,tkInteger, nil,SendPCHK_Proc,   False,1); // JHHWANG-GMES: 2018-06-20
   SetPaScript.DefineMethod('f_SendINSPCHK', 1,tkInteger, nil,SendINSPCHK_Proc, False,1); // checkmate 20191031
@@ -749,7 +765,7 @@ begin
   SetPaScript.DefineMethod('f_StrReplace', 3,tkString, nil,StrReplace_Proc, False);
 
   SetPaScript.DefineMethod('f_ReadDio',    2,tkNone,    nil,ReadDio_Proc,    False).SetVarArgs([1]);
-  SetPaScript.DefineMethod('f_WriteDio',   3,tkNone,    nil,WriteDio_Proc,   False,2);
+  SetPaScript.DefineMethod('f_WriteDio',   3,tkInteger, nil,WriteDio_Proc,   False,2);
   SetPaScript.DefineMethod('f_SetDio64',   3,tkNone,    nil,SetDio64_Proc,   False,2);  //GIB-OPTIC:DIO
   SetPaScript.DefineMethod('f_GetDio64',   2,tkInteger, nil,GetDio64_Proc,   False,1);  //GIB-OPTIC:DIO
   SetPaScript.DefineMethod('f_SetHandBcr', 1,tkNone,    nil,SetHandBcr_Proc, False);  //GIB-OPTIC:HANDBCR 2018-08-05
@@ -778,6 +794,7 @@ begin
   SetPaScript.DefineMethod('f_ForceDirectories', 1,tkInteger,  nil, ForceDirectories_Proc, False);
   SetPaScript.DefineMethod('f_Convert_VariantToHex',  5,tkString, nil, Convert_VariantToHex_Proc,  False);
   SetPaScript.DefineMethod('f_Convert_VariantToAscii',  3,tkString, nil, Convert_VariantToAscii_Proc,  False);
+  SetPaScript.DefineMethod('f_IonizerOn',        2,tkInteger, nil, IonizerOn_Proc, False);
 
   // Hint 때문에 Out of Memory 발생.
 //  // Parameter Hint for I2CWrite
@@ -836,6 +853,7 @@ begin
 
   SetPaScript.AddVariable('c_bIsRetryContact',m_bIsRetryContact);
   SetPaScript.AddVariable('c_bIsSyncSeq',m_bIsSyncSeq);
+  SetPaScript.AddVariable('c_nSyncMode', nSyncMode);
   SetPaScript.AddVariable('c_bIsBcrReady',g_bIsBcrReady);
   SetPaScript.AddVariable('c_sRootDir',Common.Path.RootSW);
 
@@ -1229,24 +1247,21 @@ begin
   end;
 end;
 
-function IsAlphaNumeric(const S: string): Boolean;
-var
-  RegEx: TRegEx;
+
+
+function IsValidString(const S: string): Boolean;
 begin
-  RegEx := TRegEx.Create('^[a-zA-Z0-9]+$');
-  Result := RegEx.IsMatch(S);
+  Result := TRegEx.IsMatch(S, '^[a-zA-Z0-9+]+$');
 end;
 
 procedure TScrCls.GetBcrData_Proc(AMachine: TatVirtualMachine);
 var
-  sTempBcr : String;
+  sTempBcr,sIsAlphaNumeric : String;
   nTemp : Integer;
 begin
   with AMachine do begin
     nTemp := GetInputArgAsInteger(0);
     if nTemp = 0 then begin // panel ID
-      if not IsAlphaNumeric(TestInfo.SerialNo) then
-        TestInfo.SerialNo := format('Unable to convert characters CH : %d',[Self.FPgNo]);
       sTempBcr := TestInfo.SerialNo
     end
     else if nTemp = 1 then begin // Jig ID
@@ -1940,6 +1955,7 @@ begin
     DongaGmes.MesData[Self.FPgNo].CarrierId  := '';
     DongaGmes.MesData[Self.FPgNo].PchkSendNg := False;
     DongaGmes.MesData[Self.FPgNo].bPCHK       := False;
+    DongaGmes.MesData[Self.FPgNo].bLPIR       := False;
     DongaGmes.MesData[Self.FPgNo].PchkRtnCode := '';
     DongaGmes.MesData[Self.FPgNo].PchkRtnPID  := '';
     DongaGmes.MesData[Self.FPgNo].PchkRtnSerialNo := '';
@@ -1995,6 +2011,7 @@ begin
   TestInfo.CarrierId:= '';
   TestInfo.RTN_PID:= '';
   TestInfo.LCM_ID:= '';
+  TestInfo.ApdrData := '';
   TestInfo.PowerOn   := False;
   TestInfo.CanSendApdr := False;
   TestInfo.NG_EICR:= False;
@@ -2005,6 +2022,7 @@ begin
   TestInfo.Log_WritePOCB:= Common.SystemInfo.MIPILog;
   TestInfo.RetryValue:= 0;
   TestInfo.Test_Repeat:= Common.SystemInfo.Test_Repeat;
+  TestInfo.OCDllCall := False;
 
   if g_CommPLC <> nil then  begin
     TestInfo.CarrierId:= g_CommPLC.GlassData[FPgNo].CarrierID; //GlassData에서 CarrierID를 LOT_ID에 설정
@@ -2039,6 +2057,40 @@ begin
   sData.Insert(nCnt,sInputData);
   Inc(nCnt);
 end;
+
+procedure TScrCls.IonizerOn_Proc(AMachine: TatVirtualMachine);
+var
+  nRet, i, nOn : Integer;
+  nPair : integer;
+  nCh : integer;
+begin
+  nRet := 1; // Fail.
+  with AMachine do begin
+    if InputArgCount in [1,2] then begin
+      nOn := GetInputArgAsInteger(0);
+      nCh := GetInputArgAsInteger(1);
+      if nOn = 0 then begin
+        for i := 0 to Pred(DefCommon.MAX_IONIZER_CNT) do begin
+          if Common.SystemInfo.Com_Ionizer[i] = 0 then Continue;
+          if not ((Common.SystemInfo.IonizerCnt-1) < i) then begin
+            DaeIonizer[nCh].SendStop;
+          end;
+        end;
+      end
+      else begin
+        for i := 0 to Pred(DefCommon.MAX_IONIZER_CNT) do begin
+          if Common.SystemInfo.Com_Ionizer[i] = 0 then Continue;
+          if not ((Common.SystemInfo.IonizerCnt-1) < i) then begin
+            DaeIonizer[nCh].Sendrun;
+          end;
+        end;
+      end;
+      nRet := 0;
+    end;
+    ReturnOutputArg(nRet);
+  end;
+end;
+
 function TScrCls.IsScriptRun: boolean;
 begin
   Result :=  atPasScrpt.Running;
@@ -2607,17 +2659,16 @@ begin
         2 : begin
 //        sPID := 'PPP';
           sPID := GetInputArgAsstring(0);
-//          if DongaGmes = nil then
-            sPID := 'PPP';
-//          else sPID := copy(DongaGmes.MesPID,0,239);
-          if Length(sPID) = 0 then sPID := Copy(sSerialNumber,0,3);
           sSerialNumber := GetInputArgAsstring(1);
           sSerialNumber := Trim(sSerialNumber);
+          if Length(sPID) = 0 then sPID := Copy(sSerialNumber,0,3);
+          if Common.SystemInfo.OCType = DefCommon.PreOCType then
+            sSerialNumber := Format('%s_PCB_ID_CH_%d',[sSerialNumber,Self.FPgNo+1]);
           {$IFDEF SIMULATOR}
             sSerialNumber := format('TEST1234567890_%d',[Self.FPgNo]);
           {$ENDIF}
 //          sPID := Copy(sSerialNumber,0,3);
-          if Length(sSerialNumber) = 0 then sSerialNumber := 'TERST1234567';
+          if Length(sSerialNumber) = 0 then sSerialNumber := 'TEST123456789012345678901';
           sEquipment := Common.SystemInfo.EQPId;
           sUSERID := Common.SystemInfo.AutoLoginID;
           if Length(sEquipment) = 0 then sEquipment :=  Format('Equipment:%d',[Self.FPgNo]);
@@ -2631,7 +2682,7 @@ begin
         end;
       end;
     //CSharpDll.m_bIsDLLWork[Self.FPgNo] := False;
-    PG[Self.FPgNo].SetCyclicTimer(True); //2023-03-28 jhhwang (for T/T Test)
+//    PG[Self.FPgNo].SetCyclicTimer(True); //2023-03-28 jhhwang (for T/T Test)
 //    end
 //    else wdRet := 2;
     ReturnOutputArg( Integer(wdRet));
@@ -2690,7 +2741,7 @@ end;
 procedure TScrCls.OCThreadFlash_READ_Proc(AMachine: TatVirtualMachine);
 var
 wdRet ,nStartAddr,nLength: Integer;
-sAnsiStr ,sSerialNo: string;
+sAnsiStr ,sSerialNo,sIsAlphaNumeric: string;
 SerialNoBuf : TIdBytes;
 begin
   With AMachine do begin
@@ -2711,6 +2762,11 @@ begin
         SetString(sAnsiStr, PAnsiChar(@SerialNoBuf[0]), nLength);
         sAnsiStr := Copy(sAnsiStr,0,nLength);
         sSerialNo := string(Trim(sAnsiStr));
+        sIsAlphaNumeric := Copy(sSerialNo,1,1);
+        if not IsValidString(sIsAlphaNumeric) then begin
+          sSerialNo := Format('TEST_CH%d',[Self.FPgNo]);
+          SendTestGuiDisplay(defCommon.MSG_MODE_WORKING,format('Unable to convert characters CH : %d',[Self.FPgNo]));
+        end;
         TestInfo.SerialNo := sSerialNo;
         Common.MLog(self.FPgNo,format('OCThreadFlash_READ_Proc SerialNo : %s ',[sSerialNo]));
       end;
@@ -2926,8 +2982,16 @@ begin
             naParam[2] := GetInputArgAsInteger(2); // G Value
             naParam[3] := GetInputArgAsInteger(3); // B Value
             if InputArgCount >= 5 then nWaitMS := GetInputArgAsInteger(4); // WaitAck
-            if InputArgCount >= 6 then nRetry  := GetInputArgAsInteger(3); // Retry
+            if InputArgCount >= 6 then nRetry  := GetInputArgAsInteger(5); // Retry
             wdRet := Pg[Self.FPgNo].SendDisplayPatBistRGB(naParam[1],naParam[2],naParam[3],nWaitMS,nRetry);
+          end;
+          9 : begin
+            naParam[1] := GetInputArgAsInteger(1); // R Value
+            naParam[2] := GetInputArgAsInteger(2); // G Value
+            naParam[3] := GetInputArgAsInteger(3); // B Value
+            if InputArgCount >= 5 then nWaitMS := GetInputArgAsInteger(4); // WaitAck
+            if InputArgCount >= 6 then nRetry  := GetInputArgAsInteger(5); // Retry
+            wdRet := Pg[Self.FPgNo].SendDisplayPatBistRGB_9Bit(naParam[1],naParam[2],naParam[3],nWaitMS,nRetry);
           end;
         end;
       end;
@@ -3184,7 +3248,19 @@ procedure TScrCls.ReadDio_Proc(AMachine: TatVirtualMachine);
 var
   nPos, nVal, nCh : Integer;
   wdRet : Integer;
+  nCount : Integer;
 begin
+  With AMAchine do begin
+    if CommDaeDIO <> nil then begin
+      nPos := GetInputArgAsInteger(0);
+      nVal :=  0;
+      nCount := nPos div 8;
+      nPos   := nPos mod 8;
+      nVal := CommDaeDIO.Get_Bit(CommDaeDIO.DIDataPre[nCount],nPos);
+      SetInputArg(1,nVal);
+    end;
+    ReturnOutputArg(wdRet);
+  end;
 {$IFDEF  AXDIO_USE}
   With AMachine do begin
     wdRet := 1;
@@ -3528,7 +3604,7 @@ begin
   m_bTheadIsTerminated := False;
   m_bIsScriptWork := False;
   if m_bIsSyncSeq then begin
-    SendTestGuiDisplay(DefCommon.MSG_MODE_SYNC_WORK,'','',2, 0);
+    SendTestGuiDisplay(DefCommon.MSG_MODE_SYNC_WORK,'','', nSyncMode, 0);
 //    Common.MLog(self.FPgNo,Format('inside -- %d',[Integer(m_InsStatus)]));
     if m_InsStatus = isStop then begin
       m_bIsSyncSeq := False;
@@ -3636,16 +3712,16 @@ begin
           ReturnOutputArg(0);
           Exit;
         end;
-
-        //if TestInfo.CanSendApdr then begin
-//          TestInfo.ApdrData := ExecExtraFunction('MakeApdrData_EAS');
-        TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog(sSN);
-
         if not Common.StatusInfo.LogIn then begin
           Common.MLog(self.FPgNo, 'APDR_EAS SKIP - OFF');
           ReturnOutputArg(0);
           Exit;
         end;
+        //if TestInfo.CanSendApdr then begin
+//          TestInfo.ApdrData := ExecExtraFunction('MakeApdrData_EAS');
+        TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog(sSN, self.FPgNo);
+
+
         //Common.MLog(Self.FPgNo,TestInfo.ApdrData);
         if DongaGmes <> nil then begin
           //EAS ADPR은 응답을 기다리지 않는다.
@@ -3840,18 +3916,14 @@ begin
         // Default.
         TestInfo.nSerialType := 0;      // 0: FOG ID, 1 :PID
         if InputArgCount = 3 then TestInfo.nSerialType := GetInputArgAsInteger(2);
-{$IFDEF ISPD_POCB}
-      if CommCamera <> nil then begin
-        CommCamera.m_sSerialNo[Self.FPgNo mod 4] := TestInfo.SerialNo;
-      end;
-{$ENDIF}
-        sTemp := '';
-        if Trim(TestInfo.CarrierId) <> ''  then begin
-          sTemp := Trim(TestInfo.CarrierId) + ' / ';
-        end;
-        sTemp := sTemp + Trim(TestInfo.CarrierId);
 
-        SendTestGuiDisplay(DefCommon.MSG_MODE_SHOW_SERIAL_NUMBER,TestInfo.CarrierId +' / '+TestInfo.SerialNo);
+//        sTemp := '';
+//        if Trim(TestInfo.CarrierId) <> ''  then begin
+//          sTemp := Trim(TestInfo.CarrierId) + ' / ';
+//        end;
+//        sTemp := sTemp + Trim(TestInfo.CarrierId);
+
+        SendTestGuiDisplay(DefCommon.MSG_MODE_SHOW_SERIAL_NUMBER,TestInfo.SerialNo);
 
         if not Common.StatusInfo.LogIn then begin
           Common.MLog(self.FPgNo, 'PCHK SKIP - OFF');
@@ -4066,16 +4138,20 @@ begin
 //      end;
 
       if Common.SystemInfo.Use_GIB then begin //GIB구분- Auto이고 GIB 모드이면 Inline GIB
-        nStation:= g_CommPLC.GetGlassData_Processing_Status(g_CommPLC.GlassData[FPgNo], nSeq, 3);
-        g_CommPLC.SetGlassData_Processing_Status(g_CommPLC.GlassData[FPgNo], nSeq, 3);
+        nStation:= g_CommPLC.GetGlassData_Processing_Status(g_CommPLC.GlassData[FPgNo], nSeq, 6);
+        g_CommPLC.SetGlassData_Processing_Status(g_CommPLC.GlassData[FPgNo], 0, 6);
       end
       else begin
         nStation:= g_CommPLC.GetGlassData_Processing_Status(g_CommPLC.GlassData[FPgNo], nSeq , 6);
         g_CommPLC.SetGlassData_Processing_Status(g_CommPLC.GlassData[FPgNo], 1, 6);
       end;
     end;
-
-    g_CommPLC.SetGlassData_Previous_Unit_Processing(g_CommPLC.GlassData[FPgNo], g_CommPLC.EQP_ID-10);
+    if Common.SystemInfo.Use_GIB then begin //GIB구분- Auto이고 GIB 모드이면 Inline GIB
+      g_CommPLC.SetGlassData_Previous_Unit_Processing(g_CommPLC.GlassData[FPgNo], g_CommPLC.EQP_ID-6);
+    end
+    else begin
+      g_CommPLC.SetGlassData_Previous_Unit_Processing(g_CommPLC.GlassData[FPgNo], g_CommPLC.EQP_ID-10);
+    end;
   end;
 end;
 
@@ -4991,6 +5067,49 @@ begin
 end;
 
 
+procedure TScrCls.SendLPIR_Proc(AMachine: TatVirtualMachine);
+var
+  wdRet : Integer;
+  sTemp,sProcesssCode : string;
+begin
+  With AMachine do begin
+    wdRet := 1;
+		Case InputArgCount of
+      1 : begin
+        TestInfo.SerialNo  := GetInputArgAsString(0);
+        sProcesssCode := GetInputArgAsString(1);
+        SendTestGuiDisplay(DefCommon.MSG_MODE_SHOW_SERIAL_NUMBER,TestInfo.SerialNo);
+
+        if not Common.StatusInfo.LogIn then begin
+          Common.MLog(self.FPgNo, 'LPIR SKIP - OFF');
+          ReturnOutputArg(0);
+          Exit;
+        end;
+
+        m_bMesPMMode := True;
+        if DongaGmes <> nil then begin
+          m_bMesPMMode := False;
+          wdRet := CheckSyncCmdAck(procedure begin
+            SendMainGuiDisplay(DefGmes.MES_LPIR,1);
+            SendTestGuiDisplay(DefGmes.MES_LPIR, '','', 0);
+          end,5000,1);
+          if wdRet = WAIT_OBJECT_0 then begin
+            wdRet :=  m_nHostResult;
+            //TestInfo.RTN_PID:= m_sMesPchkRtnPID;
+            TestInfo.Process_Code:= DongaGMes.MesData[Self.FPgNo].LpirProcessCode;
+            SetInputArg(1,TestInfo.Process_Code);
+          end;
+
+        end
+        else begin
+          wdRet := WAIT_OBJECT_0;
+        end;
+      end;
+    End;
+    ReturnOutputArg( wdRet);
+  end;
+end;
+
 procedure TScrCls.ShowSerial_Proc(AMachine: TatVirtualMachine);
 var
   sSerialNo: String;
@@ -5227,6 +5346,8 @@ begin
         case nParam of
           1 : begin
               TestInfo.StartTime  := Now;
+              TestInfo.StUnitTact := 0;   // 초기화
+              TestInfo.EdUnitTact := 0;
               //TestInfo.StartTime:= Now;
             end;
           2 : begin
@@ -5281,6 +5402,7 @@ var
   nPos, nVal,nCh : Integer;
   wdRet  : DWORD;
   bOff : boolean;
+  nCount : Integer;
 begin
   bOff := False;
   With AMachine do begin
@@ -5289,19 +5411,23 @@ begin
       2,3 : begin
         nPos :=  GetInputArgAsInteger(0);
         nVal :=  GetInputArgAsInteger(1);
-
-
-      {$IFDEF ISPD_A}
-        if (nPos = 4) and (nVal = 1) then Logic[FPgNo].m_InsStatus := IsRun;
-        // DIO Open 신호는 Test Form에서 처리
-        if (nPos in [0, 7]) and (nVal = 1) then begin
-          SendTestGuiDisplay(DefCommon.MSG_MODE_DIO_CONTROL, '','', nPos);
-          Exit; // Test Form에 Message 보내고 나가기
+        if CommDaeDIO <> nil then begin
+          nCount := nPos div 8;
+          nPos   := nPos mod 8;
+          wdRet := CommDaeDIO.WriteDO_Bit(nCount,nPos,nVal);
         end;
-      {$ENDIF}
+
+//      {$IFDEF ISPD_A}
+//        if (nPos = 4) and (nVal = 1) then Logic[FPgNo].m_InsStatus := IsRun;
+//        // DIO Open 신호는 Test Form에서 처리
+//        if (nPos in [0, 7]) and (nVal = 1) then begin
+//          SendTestGuiDisplay(DefCommon.MSG_MODE_DIO_CONTROL, '','', nPos);
+//          Exit; // Test Form에 Message 보내고 나가기
+//        end;
+//      {$ENDIF}
       end;
     End;
-    ReturnOutputArg( wdRet);
+    ReturnOutputArg(wdRet);
   end;
 end;
 
@@ -5673,6 +5799,9 @@ begin
           15 :wdRet := ControlDio.CLOSE_Up_PinBlock(Self.FPgNo);
           16 :wdRet := ControlDio.CLOSE_DN_PinBlock(Self.FPgNo);
         end;
+        {$IFDEF DEBUG}
+        wdRet := 0;
+        {$ENDIF}
         ReturnOutputArg( wdRet);
       end;
     except
@@ -6240,6 +6369,21 @@ begin
   CloseFile(txtFile);
 end;
 
+
+procedure TScrCls.ReadPairNgCode_Proc(AMachine: TatVirtualMachine);
+var
+  nPairCh : integer;
+begin
+  With AMachine do begin
+    if (FPgNo mod 2) = 0 then begin
+      nPairCh:= FPgNo + 1;
+    end
+    else begin
+      nPairCh:= FPgNo - 1;
+    end;
+    SetInputArg(0,PasScr[nPairCh].m_nNgCode);
+  end;
+end;
 
 //procedure TScrCls.WriteFlash_Mipi2SRAM_Proc(AMachine: TatVirtualMachine);
 //var
