@@ -121,7 +121,7 @@
         <VerInfo_Locale>1033</VerInfo_Locale>
         <DCC_ExeOutput>..\IT_OLED_OC\</DCC_ExeOutput>
         <BRCC_Defines>SIMULATOR;$(BRCC_Defines)</BRCC_Defines>
-        <DCC_Define>IITOLED_OC;SIMULATOR;$(DCC_Define)</DCC_Define>
+        <DCC_Define>IITOLED_OC;SIMULATOR;madExcept;LeakChecking;$(DCC_Define)</DCC_Define>
         <DCC_MapFile>3</DCC_MapFile>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2)'!=''">
@@ -152,7 +152,7 @@
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <VerInfo_Locale>1033</VerInfo_Locale>
         <DCC_SymbolReferenceInfo>2</DCC_SymbolReferenceInfo>
-        <DCC_Define>IITOLED_OC;$(DCC_Define)</DCC_Define>
+        <DCC_Define>IITOLED_OC;madExcept;LeakChecking;$(DCC_Define)</DCC_Define>
         <VerInfo_MajorVer>2</VerInfo_MajorVer>
         <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=2.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
         <DCC_MapFile>3</DCC_MapFile>

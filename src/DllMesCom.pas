@@ -53,14 +53,11 @@ type
       m_Terminate : procedure(nCH : integer) ; cdecl;
 
 
-
       CB_Send_Data          : TCallBackSend_Data;
       CB_Return_Data        : TCallBackReturn_Data;
       CB_Log                : TCallBackLog;
       procedure SetFunction;
       procedure LOG(nMsgTpye : Integer; sMLOG : string);
-
-
       procedure SendTestGuiDisplay(nCh,nGuiMode: Integer; sMsg: string; nParam: Integer);
       function StringToPAnsiChar(AString: string): PAnsiChar;
 
@@ -104,7 +101,6 @@ begin
   sDllFile := sDLLPath+sFileName;
   bISLOG := false;
   m_MainHandle := hMain;
-
 
   m_hDll := 0;
   if FileExists(sDllFile) then m_hDll := LoadLibrary(PChar(sDllFile))

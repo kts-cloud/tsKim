@@ -498,12 +498,15 @@ type
     /// <summary> 각 장비의 처리 후 검사 채널 번호와 호기 번호를 갱신
     /// </summary>
     function SetGlassData_Previous_Unit_Processing(var GlassData: TECSGlassData; nValue: Integer): Integer;
+    function SetGlassData_Previous_Unit_Processing_GIB(var GlassData: TECSGlassData; nCH,nABBCount: Integer): Integer;
+
     /// <summary> 각 장비의 처리 결과를 나타내는 것으로 처리 결과가 NG일 경우 상태 Bit를 ‘On’시킨다.
     /// Bit ~ 8 Bit : 진행 EQP No. (Bit 4개 조합 : 1~15)
     /// POCB COMPENSATION #1 ~ #12
     ///  nSeq: 1차검사, 2차검사, 3차검사
     /// </summary>
     function SetGlassData_Processing_Status(var GlassData: TECSGlassData; nSeq: Integer; nBitCount: Integer = 4): Integer;
+    function SetGlassData_Processing_Status_GIB(var GlassData: TECSGlassData; nCH,nABBCount: Integer): Integer;
     function SetGlassData_ContactNG(var GlassData: TECSGlassData; nValue: Integer): Integer;
     function SetGlassData_JudgCode(var GlassData: TECSGlassData; nValue: Integer): Integer;
     function GetGlassDataString(var AGlassData: TECSGlassData): String;
@@ -1096,7 +1099,7 @@ begin
   CopyMemory(@naGlassData[28], @AGlassData.GlassSpecificData[0], 4*sizeof(Integer));
   CopyMemory(@naGlassData[32], @AGlassData.PreviousUnitProcessing[0], 8*sizeof(Integer));
   CopyMemory(@naGlassData[40], @AGlassData.GlassProcessingStatus[0], 8*sizeof(Integer));
-
+  ConvertStrToPLC(AGlassData.MateriID, 30, naGlassData[48]); //Ascii 16
   naGlassData[63]:=AGlassData.PCZTCode;
 //  ConvertStrToPLC(AGlassData.LCM_ID, 24, naGlassData[48]); //문자는 Word당 2글자
 
@@ -1107,10 +1110,8 @@ begin
 //    WriteDeviceBlockPro('W' + IntToHex(StartAddr_EQP_W+$10*$01+$0, 3), 64, naGlassData[0]); ///Glass Data
 //  end
 //  );
-  if nCH = 0 then
-    WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$10+$0, 3), 64, naGlassData[0]) ///Glass Data
-  else
-    WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$10+$0 + (nCH * $40), 3), 64, naGlassData[0]); ///Glass Data
+  WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$10+$0 + (nCh*$40) , 3), 64, naGlassData[0]); //Unload Glass Data #1
+
 end;
 
 function TCommPLCThread.ECS_Glass_Position(nCh: Integer; bExist: Boolean): Integer;    // Added by KTS 2022-11-14 오전 11:02:42 CH 설정 확인
@@ -2636,6 +2637,7 @@ begin
       end;
     end;
 
+
     Read_PollingData;
 
     if (nTickToggle - nTick) > 1000 then begin
@@ -2653,6 +2655,11 @@ begin
         WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$12 + (i * $20) + $E, 3), ControlDio.IsPreOCInterlockPROBE(i), False);
         WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$12 + (i * $20) + $F, 3), ControlDio.IsPreOCInterlockSHUTTER(i), False);
       end;
+    end
+    else begin
+//      for I := DefCommon.CH1 to DefCommon.MAX_CH do begin
+//        WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$04 + 8 + i, 3), Ord(not Common.StatusInfo.UseChannel[i]) , False);
+//      end;
     end;
 
 //    Synchronize(Read_PollingData); //데이터 폴링
@@ -4421,8 +4428,8 @@ function TCommPLCThread.GetGlassDataString(var AGlassData: TECSGlassData): Strin
 var
   sData: String;
 begin
-  sData:= format('CarrierID=%s, ProcessingCode=%s, LOTSpecificData=%d %d %d %d, RecipeNumber=%d, GlassType=%d, GlassCode=%d, GlassID=%s, GlassJudge=%d',
-                [AGlassData.CarrierID, AGlassData.ProcessingCode,
+  sData:= format('CarrierID=%s, MateriID=%s, ProcessingCode=%s, LOTSpecificData=%d %d %d %d, RecipeNumber=%d, GlassType=%d, GlassCode=%d, GlassID=%s, GlassJudge=%d',
+                [AGlassData.CarrierID,AGlassData.MateriID, AGlassData.ProcessingCode,
                 AGlassData.LOTSpecificData[0], AGlassData.LOTSpecificData[1], AGlassData.LOTSpecificData[2], AGlassData.LOTSpecificData[3],
                 AGlassData.RecipeNumber, AGlassData.GlassType, AGlassData.GlassCode,
                  AGlassData.GlassID, AGlassData.GlassJudge]);
@@ -4769,6 +4776,32 @@ begin
 //  Set_Bit(GlassData.PreviousUnitProcessing[1], 2, 1);
 end;
 
+function TCommPLCThread.SetGlassData_Previous_Unit_Processing_GIB(var GlassData: TECSGlassData; nCH,nABBCount: Integer): Integer;
+begin
+  Result:= 0;
+
+  case nCH of
+    DefCommon.CH1 :
+    begin
+      Set_Bit(GlassData.PreviousUnitProcessing[0], 0 + 6 *nABBCount,1);
+    end;
+    DefCommon.CH2 :
+    begin
+      Set_Bit(GlassData.PreviousUnitProcessing[0], 1 + 6 *nABBCount,1);
+    end;
+    DefCommon.CH3 :
+    begin
+      Set_Bit(GlassData.PreviousUnitProcessing[0], 2 + 6 *nABBCount,1);
+    end;
+    DefCommon.CH4 :
+    begin
+      Set_Bit(GlassData.PreviousUnitProcessing[0], 3 + 6 *nABBCount,1);
+    end;
+  end;
+
+//  Set_Bit(GlassData.PreviousUnitProcessing[1], 2, 1);
+end;
+
 function TCommPLCThread.SetGlassData_Processing_Status(var GlassData: TECSGlassData; nSeq, nBitCount: Integer): Integer;
 var
   nStation: Integer;
@@ -4807,6 +4840,34 @@ begin
   end;
 end;
 
+function TCommPLCThread.SetGlassData_Processing_Status_GIB(var GlassData: TECSGlassData; nCH,nABBCount: Integer): Integer;
+var
+  nStation: Integer;
+begin
+  //HN-M-ECS-AN03-장비운영사양서(조립 Inline)_v0.2.pdf
+  //2.1.7. Glass Processing Status
+  Result:= 0;
+  case nCH of
+    DefCommon.CH1 :
+    begin
+      Set_Bit(GlassData.GlassProcessingStatus[0], 0 + 6 *nABBCount,1);
+    end;
+    DefCommon.CH2 :
+    begin
+      Set_Bit(GlassData.GlassProcessingStatus[0], 1 + 6 *nABBCount,1);
+    end;
+    DefCommon.CH3 :
+    begin
+      Set_Bit(GlassData.GlassProcessingStatus[0], 2 + 6 *nABBCount,1);
+    end;
+    DefCommon.CH4 :
+    begin
+      Set_Bit(GlassData.GlassProcessingStatus[0], 3 + 6 *nABBCount,1);
+    end;
+
+  end;
+end;
+
 function TCommPLCThread.GetGlassData_Processing_Status(var GlassData: TECSGlassData; var nSeq: Integer; nBitCount: Integer): Integer;
 var
   nStation, nValue: Integer;
@@ -4826,16 +4887,15 @@ begin
       end;
       nStation:= nValue;
     end
-    else if nBitCount = 18 then begin
-      //0,1,2,3,4,5 bit Stattion 번호
-      nValue:= GlassData.GlassProcessingStatus[1];
-//      nValue:= nValue shr 5;
-      nValue:= nValue and $FF;
-      if nValue = 0 then begin
-        nSeq:= i;
-        Exit;
-      end;
-      nStation:= nValue;
+    else if nBitCount = 16 then begin
+      nValue:= GlassData.GlassProcessingStatus[0];
+
+      if nValue and $F000 = 0 then nSeq := 2;
+      if nValue and $3C0 = 0 then nSeq := 1;
+      if nValue and $F = 0 then nSeq := 0;
+      Result:= nValue;
+      Exit;
+
     end
     else if nBitCount = 6 then begin
       //0,1,2,3,4,5 bit Stattion 번호

@@ -47,6 +47,8 @@ type
     PchkRtnSerialNo : String; // PCHK_R.RTN_SERIAL_NO
     EicrSendNg      : Boolean;// JHHWANG-GMES 2018-06-26
     EicrRtnCode     : String; // EICR_R.RTN_CD
+    LpirSendNg      : Boolean;// JHHWANG-GMES 2018-06-26
+    LpirRtnCode     : String; // EICR_R.RTN_CD
     ApdrRtnCode     : String; // PCHK_R.RTN_CD
     ApdrRtnSerialNo : String; // PCHK_R.RTN_SERIAL_NO
     LpirProcessCode : string; // LPIR Process Code
@@ -603,17 +605,21 @@ begin
   MesData[nPgNo].LpirProcessCode     := FMesProsessCode;     // LPIR_R.PROCESS_CODE
 
 
+  MesData[nPgNo].MesSentMsg := MES_UNKNOWN; // JHHWANG-GMES 2018-06-27
+
 	if FMesRtnCd = '0' then begin
     MesData[nPgNo].bLPIR := True;
+    OnGmsEvent(DefGmes.MES_LPIR,0,False,'');
     ReturnDataToTestForm(DefGmes.MES_LPIR, nPgNo, False, LPIR_OK_MSG);
-    SendHostPchk(sSerialNo, nCh);
+    SendHostIns_Pchk(sSerialNo, nCh);
 	end
 	else begin
 		MesData[nPgNo].bLPIR := False;
 		ErrMsg := 'Error code:'+FMesRtnCd+' : '+FMesErrMsgLc + '('+ FMesErrMsgEn + ')';
+    OnGmsEvent(DefGmes.MES_LPIR,0,True,'');
 		ReturnDataToTestForm(DefGmes.MES_LPIR,nPgNo,True,ErrMsg);
 	end;
-  MesData[nPgNo].MesSentMsg := MES_UNKNOWN; // JHHWANG-GMES 2018-06-27
+
 end;
 
 procedure TGmes.parse_PCHK(nCh : Integer;sMsg : string);
@@ -1812,12 +1818,12 @@ begin
       end;
       *)
       if Common.SystemInfo.OCType = DefCommon.OCType then begin
-        sSerialNo := Trim(Copy(sSerialNo,0,Common.TestModelInfoFLOW.SerialNoFlashInfo.nLength)); // length 변경
+        sSerialNo := Trim(Copy(sSerialNo,1,Common.TestModelInfoFLOW.SerialNoFlashInfo.nLength)); // length 변경
         sSendMsg := sSendMsg  + ' PID=';
         sSendMsg := sSendMsg  + ' SERIAL_NO='+sSerialNo;
       end
       else begin
-        sSerialNo := Trim(Copy(sSerialNo,0,30));
+        sSerialNo := Trim(Copy(sSerialNo,1,30));
         sSendMsg := sSendMsg  + ' PID=';
         sSendMsg := sSendMsg  + ' PCB_ID='+sSerialNo;
 //        sSendMsg := sSendMsg  + ' SERIAL_NO=';
@@ -1861,12 +1867,12 @@ begin
       end;
       *)
       if Common.SystemInfo.OCType = DefCommon.OCType then begin
-        sSerialNo := Trim(Copy(sSerialNo,0,Common.TestModelInfoFLOW.SerialNoFlashInfo.nLength));
+        sSerialNo := Trim(Copy(sSerialNo,1,Common.TestModelInfoFLOW.SerialNoFlashInfo.nLength));
         sSendMsg := sSendMsg  + ' PID=';
         sSendMsg := sSendMsg  + ' SERIAL_NO='+sSerialNo;
       end
       else begin
-        sSerialNo := Trim(Copy(sSerialNo,0,30));
+        sSerialNo := Trim(Copy(sSerialNo,1,30));
         sSendMsg := sSendMsg  + ' PID=';
         sSendMsg := sSendMsg  + ' PCB_ID='+sSerialNo;
 //        sSendMsg := sSendMsg  + ' SERIAL_NO=';
@@ -1912,7 +1918,7 @@ begin
       //sSendMsg := sSendMsg  + ' SERIAL_NO=';
 //      sSendMsg := sSendMsg  + ' PID=';
       if Common.SystemInfo.OCType = DefCommon.OCType then begin
-        sSerialNo := Trim(Copy(sSerialNo,0,Common.TestModelInfoFLOW.SerialNoFlashInfo.nLength)); // length 변경
+        sSerialNo := Trim(Copy(sSerialNo,1,Common.TestModelInfoFLOW.SerialNoFlashInfo.nLength)); // length 변경
         sSendMsg := sSendMsg  + ' PID=';
         sSendMsg := sSendMsg  + ' SERIAL_NO='+sSerialNo;
       end
@@ -2257,8 +2263,6 @@ begin
 
       sSendMsg := sSendMsg  + ' MMC_TXN_ID=' + FR2RMmcTxnID;
       bIsChMsg := True;
-
-
     end;
   end;
   if FCanUseHost then begin
@@ -2671,6 +2675,11 @@ begin
         else if (MesData[nPg].MesSentMsg = MES_EICR) or (MesData[nPg].MesPendingMsg = MES_EICR) then begin
           MesData[nPg].EicrSendNg  := True;
           ReturnDataToTestForm(DefGmes.MES_EICR, nPg, False, 'EICR_NG');
+        end
+        else if (MesData[nPg].MesSentMsg = MES_LPIR) or (MesData[nPg].MesPendingMsg = MES_LPIR) then begin
+          MesData[nPg].LpirSendNg  := True;
+          MesData[nPg].bLPIR := false;
+          ReturnDataToTestForm(DefGmes.MES_LPIR, nPg, False, 'LPIR_NG');
         end;
         MesData[nPg].MesSendRcvWaitTick:= 0;
         MesData[nPg].MesPendingMsg := MES_UNKNOWN;  //here!!!

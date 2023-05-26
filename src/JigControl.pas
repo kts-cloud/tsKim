@@ -3,8 +3,6 @@ unit JigControl;
 interface
 {$I Common.inc}
 uses
-
-
   Winapi.Windows, Winapi.Messages, System.Classes, System.SysUtils, DefCommon, {CodeSiteLogging,}
   CommonClass, GMesCom, LogicVh, pasScriptClass, DefScript,Forms,CommPLC_ECS, {UdpServerClient,}CommPG,DefPG,  DefDio
 {$IFDEF CA310_USE}

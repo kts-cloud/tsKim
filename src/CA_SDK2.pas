@@ -553,6 +553,7 @@ function TCA_SDK2.Measure(nCh : Integer; var MeasRet : TBrightValue): Integer;
 var
   nRet : Integer;
   dX, dY, dLv : Double;
+  sErrMsg : string;
 begin
   if not m_bConnection[nCh] then Exit(DefCaSdk.DISCONNECTION_CODE);
   // CA Driver Channel : 0 ~ 1, But  SelectIdx includes 'NONE' so, 1 ~ 2
@@ -564,6 +565,8 @@ begin
     MeasRet.LvVal  :=  dLv;
   end
   else begin
+    sErrMsg := Format('Ca410 Measure NG - NG Code :%0.2d',[nRet]);  // Measure Error 발생 시 Error code 확인
+    ShowTestForm(DefCommon.MSG_MODE_WORKING,nCh,False,sErrMsg);
     MeasRet.xVal   :=  0.0;
     MeasRet.yVal   :=  0.0;
     MeasRet.LvVal  :=  0.0;

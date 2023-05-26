@@ -592,7 +592,7 @@ begin
   TestInfo.NgCode:= 0;
   TestInfo.nPwrVCC := Common.TestModelInfoPG.PgPwrData.PWR_VOL[DefPG.PWR_VCC];
   TestInfo.nPwrVIN := Common.TestModelInfoPG.PgPwrData.PWR_VOL[DefPG.PWR_VIN];
-
+  TestInfo.StartTime := Now;
 
   SetLength(m_InspectResult,Common.m_nGmesInfoCnt);
 
@@ -2661,17 +2661,20 @@ begin
           sPID := GetInputArgAsstring(0);
           sSerialNumber := GetInputArgAsstring(1);
           sSerialNumber := Trim(sSerialNumber);
-          if Length(sPID) = 0 then sPID := Copy(sSerialNumber,0,3);
+          if DongaGmes <> nil then
+            sPID :=  DongaGmes.MesData[FPgNo].PchkRtnPID; // Added by KTS 2023-05-19 오후 5:32:48 PCHK 받은 RYN_PID
+          if Length(sPID) = 0 then sPID := Copy(sSerialNumber,1,3);
           if Common.SystemInfo.OCType = DefCommon.PreOCType then
             sSerialNumber := Format('%s_PCB_ID_CH_%d',[sSerialNumber,Self.FPgNo+1]);
-          {$IFDEF SIMULATOR}
-            sSerialNumber := format('TEST1234567890_%d',[Self.FPgNo]);
-          {$ENDIF}
+//          {$IFDEF SIMULATOR}
+//            sSerialNumber := format('TEST1234567890_%d',[Self.FPgNo]);
+//          {$ENDIF}
 //          sPID := Copy(sSerialNumber,0,3);
           if Length(sSerialNumber) = 0 then sSerialNumber := 'TEST123456789012345678901';
           sEquipment := Common.SystemInfo.EQPId;
           sUSERID := Common.SystemInfo.AutoLoginID;
           if Length(sEquipment) = 0 then sEquipment :=  Format('Equipment:%d',[Self.FPgNo]);
+          PasScr[FPgNo].TestInfo.StartTime := now;
           case FPgNo of
             0:         wdRet := CSharpDll.MainOC_Start_CH1(Self.FPgNo,sPID,sSerialNumber,sUSERID,sEquipment);
             1:         wdRet := CSharpDll.MainOC_Start_CH2(Self.FPgNo,sPID,sSerialNumber,sUSERID,sEquipment);
@@ -2749,19 +2752,20 @@ begin
     case InputArgCount of
     0:
       begin
-      wdRet := 1;
-//      nStartAddr := GetInputArgAsInteger(0);
-//      nLength :=  GetInputArgAsInteger(1);
+        wdRet := 1;
         nStartAddr := Common.TestModelInfoFLOW.SerialNoFlashInfo.nAddr;
         nLength :=  Common.TestModelInfoFLOW.SerialNoFlashInfo.nLength;
         Common.MLog(self.FPgNo,format('OCThreadFlash_READ_Proc nStartAddr : %d nLength : %d ',[nStartAddr,nLength]));
-//      PG[FPgNo].SendFlashRead(nStartAddr,nLength);
 
         SetLength(SerialNoBuf,nLength);
         wdRet :=  Pg[FPgNo].SendFlashRead(nStartAddr,nLength, @SerialNoBuf[0]);
         SetString(sAnsiStr, PAnsiChar(@SerialNoBuf[0]), nLength);
-        sAnsiStr := Copy(sAnsiStr,0,nLength);
+        sAnsiStr := Copy(sAnsiStr,1,nLength);
         sSerialNo := string(Trim(sAnsiStr));
+
+        {$IFDEF SIMULATOR}
+          sSerialNo := Format('PPPGU500011EEEEEEE000000ABNAA00000S00B12C00000000000000000003XA000000C43GQA0009R00000EL+3+T32LL1GM750D7R00000EN+1GJ6GLL0022B00000EPGJ6GPE0014M00000EQTHAGPG000MT00000EKF3111111112C1LY1GTS255720000273J1LLL3125AJY043010304T0MHU0S00ML341WL013L_%d',[FPgNo]);
+        {$ENDIF}
         sIsAlphaNumeric := Copy(sSerialNo,1,1);
         if not IsValidString(sIsAlphaNumeric) then begin
           sSerialNo := Format('TEST_CH%d',[Self.FPgNo]);
@@ -3719,7 +3723,7 @@ begin
         end;
         //if TestInfo.CanSendApdr then begin
 //          TestInfo.ApdrData := ExecExtraFunction('MakeApdrData_EAS');
-        TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog(sSN, self.FPgNo);
+        TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog(sSN,FormatDateTime('yymmdd',PasScr[FPgNo].TestInfo.StartTime), self.FPgNo);
 
 
         //Common.MLog(Self.FPgNo,TestInfo.ApdrData);
@@ -4116,41 +4120,50 @@ procedure TScrCls.ECS_SetGlassData_Proc(AMachine: TatVirtualMachine);
 var
   nNgCode: Integer;
   nStation: Integer;
-  nSeq: Integer;
+  nSeq,wdRet: Integer;
 begin
-  if g_CommPLC = nil then  Exit;
-  //if not Common.StatusInfo.AutoMode then Exit;
 
   With AMachine do begin
-    nNgCode:= GetInputArgAsInteger(0);
-    Common.MLog(self.FPgNo, 'ECS_SetGlassData NgCode=' + IntToStr(nNgCode));
-    if nNgCode = 0 then begin
-      g_CommPLC.SetGlassData_JudgCode(g_CommPLC.GlassData[FPgNo], ord('G'));
-    end
-    else begin
-//      if nNgCode <= 5 then begin
-//        //Contact NG 등 카메라 측정에 진입 못한 경우 GlassData 설정
-//        g_CommPLC.SetGlassData_JudgCode(g_CommPLC.GlassData[FPgNo], ord('S'));
-//        g_CommPLC.SetGlassData_ContactNG(g_CommPLC.GlassData[FPgNo], 1);
-//      end
-//      else begin
-      g_CommPLC.SetGlassData_JudgCode(g_CommPLC.GlassData[FPgNo], ord('N'));
-//      end;
-
-      if Common.SystemInfo.Use_GIB then begin //GIB구분- Auto이고 GIB 모드이면 Inline GIB
-        nStation:= g_CommPLC.GetGlassData_Processing_Status(g_CommPLC.GlassData[FPgNo], nSeq, 6);
-        g_CommPLC.SetGlassData_Processing_Status(g_CommPLC.GlassData[FPgNo], 0, 6);
+    try
+      wdRet := 1;
+      if g_CommPLC = nil then begin
+        ReturnOutputArg(0);
+        Exit;
+      end;
+      nNgCode := GetInputArgAsInteger(0);
+      Common.MLog(self.FPgNo, 'ECS_SetGlassData NgCode=' + IntToStr(nNgCode));
+      if nNgCode = 0 then begin
+        g_CommPLC.SetGlassData_JudgCode(g_CommPLC.GlassData[FPgNo], ord('G'));
       end
       else begin
-        nStation:= g_CommPLC.GetGlassData_Processing_Status(g_CommPLC.GlassData[FPgNo], nSeq , 6);
-        g_CommPLC.SetGlassData_Processing_Status(g_CommPLC.GlassData[FPgNo], 1, 6);
+  //      if nNgCode <= 5 then begin
+  //        //Contact NG 등 카메라 측정에 진입 못한 경우 GlassData 설정
+  //        g_CommPLC.SetGlassData_JudgCode(g_CommPLC.GlassData[FPgNo], ord('S'));
+  //        g_CommPLC.SetGlassData_ContactNG(g_CommPLC.GlassData[FPgNo], 1);
+  //      end
+  //      else begin
+        g_CommPLC.SetGlassData_JudgCode(g_CommPLC.GlassData[FPgNo], ord('N'));
+  //      end;
+
+        if Common.SystemInfo.Use_GIB then begin //GIB구분- Auto이고 GIB 모드이면 Inline GIB
+          nStation:= g_CommPLC.GetGlassData_Processing_Status(g_CommPLC.GlassData[FPgNo], nSeq, 16);
+          g_CommPLC.SetGlassData_Processing_Status_GIB(g_CommPLC.GlassData[FPgNo], FPgNo,nSeq);
+        end
+        else begin
+          nStation:= g_CommPLC.GetGlassData_Processing_Status(g_CommPLC.GlassData[FPgNo], nSeq , 6);
+          g_CommPLC.SetGlassData_Processing_Status(g_CommPLC.GlassData[FPgNo], 1, 6);
+        end;
       end;
-    end;
-    if Common.SystemInfo.Use_GIB then begin //GIB구분- Auto이고 GIB 모드이면 Inline GIB
-      g_CommPLC.SetGlassData_Previous_Unit_Processing(g_CommPLC.GlassData[FPgNo], g_CommPLC.EQP_ID-6);
-    end
-    else begin
-      g_CommPLC.SetGlassData_Previous_Unit_Processing(g_CommPLC.GlassData[FPgNo], g_CommPLC.EQP_ID-10);
+      if Common.SystemInfo.Use_GIB then begin //GIB구분- Auto이고 GIB 모드이면 Inline GIB
+        g_CommPLC.SetGlassData_Previous_Unit_Processing_GIB(g_CommPLC.GlassData[FPgNo],FPgNo,nSeq);
+      end
+      else begin
+        g_CommPLC.SetGlassData_Previous_Unit_Processing(g_CommPLC.GlassData[FPgNo], g_CommPLC.EQP_ID-10);
+      end;
+      wdRet := 0;
+      ReturnOutputArg(wdRet);
+    except
+      ReturnOutputArg(wdRet);
     end;
   end;
 end;
@@ -5075,7 +5088,7 @@ begin
   With AMachine do begin
     wdRet := 1;
 		Case InputArgCount of
-      1 : begin
+      2 : begin
         TestInfo.SerialNo  := GetInputArgAsString(0);
         sProcesssCode := GetInputArgAsString(1);
         SendTestGuiDisplay(DefCommon.MSG_MODE_SHOW_SERIAL_NUMBER,TestInfo.SerialNo);

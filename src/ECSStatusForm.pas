@@ -356,7 +356,7 @@ end;
 procedure TfrmECSStatus.btnGlassDataClick(Sender: TObject);
 var
   GlassData: TECSGlassData;
-  nRes,i: Integer;
+  nRes,i,nCH: Integer;
 begin
   GlassData.CarrierID:= '1234567890ABCDEF';
   GlassData.ProcessingCode:= '87654321';
@@ -399,9 +399,12 @@ begin
 //  GlassData.GlassRoutingData[1]:= $3535;
 //  GlassData.GlassRoutingData[2]:= $3535;
 
+  GlassData.MateriID := edtParam2.Text;
+
   AddLog('ECS_GlassData');
-  for I := 0 to 1 do
-    nRes:= g_CommPLC.ECS_GlassData_Report(i,GlassData);
+//  for I := 0 to 1 do
+  nCH := StrToIntDef(edtParam1.Text,0);
+  nRes:= g_CommPLC.ECS_GlassData_Report(nCH,GlassData);
   if nRes <> 0 then begin
     AddLog('ECS_GlassData_Report NG ' + IntToStr(nRes));
   end
@@ -907,11 +910,20 @@ begin
 //  grdStatus.Cells[2, 3] := 'Inspection' + sLineBreak + 'Data Report';
 
 //  grdStatus.Cells[2, 5] := 'Material' + sLineBreak + 'Matching Report';
-  if Common.SystemInfo.OCType = DefCommon.OCType  then
-    grdStatus.Cells[2, 7] := 'Take Out' + sLineBreak + 'Report'
+  if Common.SystemInfo.OCType = DefCommon.OCType  then begin
+    grdStatus.Cells[2, 7] := 'Take Out' + sLineBreak + 'Report';
+
+    grdStatus.Cells[2, 9] := 'CH 1 Skip';
+    grdStatus.Cells[2, 10] := 'CH 2 Skip';
+    grdStatus.Cells[2, 11] := 'CH 3 Skip';
+    grdStatus.Cells[2, 12] := 'CH 4 Skip';
+  end
   else grdStatus.Cells[2, 8] := 'Take Out' + sLineBreak + 'Report';
 
 //  grdStatus.Cells[2, 9] := 'APD' + sLineBreak + 'Report';
+
+
+
 
 
 
@@ -1073,7 +1085,7 @@ begin
     grdStatus.Cells[4, 6] := 'Load Request';
     grdStatus.Cells[4, 7] := 'Load Complete Confirm';
 
-    grdStatus.Cells[4, 15] := 'Interlock' + sLineBreak+ 'PROBE';
+    grdStatus.Cells[4, 15] := 'Interlock' + sLineBreak+ 'PROBE + TT';
     grdStatus.Cells[4, 16] := 'Interlock' + sLineBreak+ 'SHUTTER + LC';
 
     grdStatus.Cells[5, 1] := 'Unload' + sLineBreak + 'Enable';
@@ -1099,7 +1111,7 @@ begin
     grdStatus.Cells[6, 6] := 'Load Request';
     grdStatus.Cells[6, 7] := 'Load Complete Confirm';
 
-    grdStatus.Cells[6, 15] := 'Interlock' + sLineBreak+ 'PROBE';
+    grdStatus.Cells[6, 15] := 'Interlock' + sLineBreak+ 'PROBE + TT';
     grdStatus.Cells[6, 16] := 'Interlock' + sLineBreak+ 'SHUTTER + LC';
 
     grdStatus.Cells[7, 1] := 'Unload' + sLineBreak + 'Enable';
@@ -1582,7 +1594,7 @@ begin
       for i := 0 to 15 do begin
         //EQP
         SetCellState(1,  i+1, 0, 0,  i); //Status
-        SetCellState(2,  i+1, 0, 1,  i); //Special Equipment
+//        SetCellState(2,  i+1, 0, 1,  i); //Special Equipment
         //SetCellState(2,  i+1, 0, 10, i); //Glass Position
         //SetCellState(4,  i+1, 0, 6,  i); //PCHK, EICR
         SetCellState(4,  i+1, 0, 12, i); //Load 0
@@ -1594,7 +1606,12 @@ begin
 
       for i := 0 to 7 do begin
         //EQP - Position
+        SetCellState(2,  i+1, 0, 1,  i); //Special Equipment
         SetCellState(3,  i+1, 0, 7, i); //Glass Position
+      end;
+      for i := 8 to 11 do begin
+        //EQP - Position
+        SetCellState(2,  i+1, 0, 4,  i); //CH Skip
       end;
     end
     else begin

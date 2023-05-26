@@ -105,6 +105,7 @@ type
     procedure btnRepeatClick(Sender: TObject);
     procedure btnCh4Click(Sender: TObject);
     procedure FormKeyPress(Sender: TObject; var Key: Char);
+
   private
     { Private declarations }
 
@@ -157,7 +158,7 @@ type
     pnlChGrp       : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TRzPanel;
     ledPGStatuses  : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of ThhALed;
     pnlHwVersion   : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TRzPanel;
-    chkChannelUse  : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TRzCheckBox;
+
     pnlSerials     : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TPanel;
     pnlSerials2    : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TRzPanel;
     pnlMESResults  : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TPanel;
@@ -199,6 +200,7 @@ type
     procedure chkPgClick(Sender: TObject);
     procedure btnLampOnoffClick(Sender: TObject);
     procedure btnSetIonizerClick(Sender: TObject);
+    procedure pnlSerials1DblClick(Sender: TObject);
     procedure DisplayPGStatus(nPgNo, nType : Integer; sMsg : string);
     procedure DisplayPwrData(nPgNo: Integer; PwrData: TPwrData);
 
@@ -237,7 +239,7 @@ type
     m_nJigTact      : Integer;
     pnlJigTitle    :  array [DefCommon.CH1..DefCommon.MAX_JIG_CNT] of TPanel;
 //    pnlPlcClampDn  : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TPanel;
-
+    chkChannelUse  : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TRzCheckBox;
     ledDiProbeForward  : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TTILed;
     ledDiProbeBackward  : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TTILed;
     ledDiProbeUp  : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TTILed;
@@ -489,8 +491,6 @@ begin
     Exit;
   end;
 
-
-//  tmTotalTactTime.Enabled := False;
   SendMessageMain(STAGE_MODE_TEST_STOP, nCH, 0, 0, '', nil);
 
   if nCH = 0  then  begin
@@ -509,11 +509,9 @@ begin
       pnlPGStatuses[i].Font.Color := clBlack;
       pnlPGStatuses[i].Font.Size := 24;
       pnlPGStatuses[i].Caption := 'Stop';
-  end;
+    end;
 
   end;
-
-
 
 end;
 
@@ -683,11 +681,17 @@ procedure TfrmTest4ChOC.chkPgClick(Sender: TObject);
 var
   i : integer;
 begin
+
   for i := DefCommon.CH1 to DefCommon.MAX_JIG_CH do begin
     if Sender = chkChannelUse[i] then begin
       if chkChannelUse[i].Checked then  chkChannelUse[i].Font.Color := clGreen
       else                              chkChannelUse[i].Font.Color := clRed;
       PasScr[i+self.Tag*4].m_bUse := chkChannelUse[i].Checked;
+      if PasScr[i].m_bUse THEN 
+       AddLog(Format('m_bUse CH: %d' ,[I]),i)
+      else AddLog(Format('m_bUse no CH: %d' ,[I]),i); 
+      
+
       Common.StatusInfo.UseChannel[i+self.Tag*4]:= chkChannelUse[i].Checked;
       Break;
     end;
@@ -1115,6 +1119,8 @@ begin
     pnlSerials[i].ParentBackground := False;
     pnlSerials[i].StyleElements := [];
     pnlSerials[i].Font.Size := 10;
+    pnlSerials[i].Tag := i;
+    pnlSerials[i].OnDblClick := pnlSerials1DblClick;
 
     if Common.SystemInfo.UseAutoBCR then begin
       pnlSerials2[i] := TRzPanel.Create(self);
@@ -2539,6 +2545,7 @@ var
   nJigCh, i : Integer;
   bIsDone : Boolean;
   sDebug, sRemoveCr : string;
+  sPCB_ID : string;
 begin
   m_csBcrRead.Acquire; // Hand Bcr Thread event UI 컨트롤 방지
   Common.MLog(DefCommon.MAX_SYSTEM_LOG, '<HAND-BCR> Read Data ' + sScanData);
@@ -2557,6 +2564,69 @@ begin
       Exit;
     end;
   end;
+  if g_CommPLC <> nil then   begin        // GlassData MateriID 비교 하여 해당 CH 로 매칭
+    for nJigCh := DefCommon.CH1 to DefCommon.MAX_CH do begin
+      if (pnlSerials[nJigCh].Caption <> DefCommon.MSG_SCAN_BCR) then begin
+        Continue; // Scan BCR Ready 상태가 아니면 다음 ch로
+      end;
+      if Common.SystemInfo.OCType = DefCommon.PreOCType then  begin
+        sRemoveCr := Copy(sRemoveCr,1,18);
+        sPCB_ID := Copy(g_CommPLC.GlassData[nJigCh].MateriID,1,18);
+      end;
+      sDebug := Format('<HAND-BCR> MateriID Matching sRemoveCr : %s Length : %d sPCB_ID : %s Length : %d ',[sRemoveCr,Length(sRemoveCr),sPCB_ID,Length(sPCB_ID)]);
+      Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+
+      if Pos(sRemoveCr,sPCB_ID) > 0 then begin   // GlassData MateriID 비교 하여 해당 CH 로 매칭
+        if PasScr[nJigCh] <> nil then begin
+          sDebug := Format('<HAND-BCR> input Data MateriID  Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
+          Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+          PasScr[nJigCh].TestInfo.SerialNo  := sRemoveCr;
+        end
+        else begin
+          sDebug := Format('<HAND-BCR> Cant not input Data Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
+          Common.MLog(nJigCh,sDebug);
+        end;
+
+        sDebug := Format('<HAND-BCR> Ui display Data MateriID Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
+        Common.MLog(nJigCh,sDebug);
+        Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+
+        pnlSerials[nJigCh].Caption := sRemoveCr;
+        pnlSerials[nJigCh].Color := $0088AEFF;
+        pnlSerials[nJigCh].Font.Color := clBlack;
+
+        if DongaGmes <> nil then begin
+          sDebug := Format('<HAND-BCR> Send PCHK Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
+          Common.MLog(nJigCh,sDebug);
+          Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+          DongaGmes.SendHostPchk(sRemoveCr, nJigCh);
+          pnlMESResults[nJigCh].Color      := clBtnFace;
+          pnlMESResults[nJigCh].Font.Color := clBlack;
+          pnlMESResults[nJigCh].Caption    := 'SEND PCHK';
+        end;
+        sDebug := Format('<HAND-BCR> Bcr Data flow End Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
+        Common.MLog(nJigCh,sDebug);
+        Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+
+        bIsDone := True;
+        if (UpperCase(Common.m_sUserId) = 'PM') then begin
+          bIsDone := True;
+        end;
+
+        if bIsDone then begin
+          if PasScr[nJigCh] <> nil then begin
+            PasScr[nJigCh].m_First_Process_DONE := True;
+            PasScr[nJigCh].g_bIsBcrReady := True;
+          end;
+        end;
+        sDebug := Format('<HAND-BCR> Bcr Data input pasScr Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
+        Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+        m_csBcrRead.Release;
+        Exit;
+      end;
+    end;
+  end;
+
   for nJigCh := DefCommon.CH1 to DefCommon.MAX_CH do begin
 //    if pnlSerials[nJigCh].Caption = sRemoveCr then begin
 //      sDebug := Format('<HAND-BCR> Same Data Exsit skip(Ch:%d) data(%s)',[nJigCh + 1, sRemoveCr]);
@@ -2635,7 +2705,7 @@ procedure TfrmTest4ChOC.getBcrData2(sScanData: string);
 var
   nJigCh, i : Integer;
   bIsDone : Boolean;
-  sDebug, sRemoveCr : string;
+  sDebug, sRemoveCr,sPCB_ID : string;
 begin
   try
   //Common.MLog(DefCommon.MAX_SYSTEM_LOG, '<HAND-BCR> Read Data ' + sScanData);
@@ -2649,6 +2719,68 @@ begin
         sDebug := Format('<HAND-BCR> Same Data Exsit skip(Ch:%d) data(%s)',[i + 1, sRemoveCr]);
         Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
         Exit;
+      end;
+    end;
+    if g_CommPLC <> nil then   begin        // GlassData MateriID 비교 하여 해당 CH 로 매칭
+      for nJigCh := DefCommon.CH1 to DefCommon.MAX_CH do begin
+        if (pnlSerials[nJigCh].Caption <> DefCommon.MSG_SCAN_BCR) then begin
+          Continue; // Scan BCR Ready 상태가 아니면 다음 ch로
+        end;
+        if Common.SystemInfo.OCType = DefCommon.PreOCType then  begin
+          sRemoveCr := Copy(sRemoveCr,1,18);
+          sPCB_ID := Copy(g_CommPLC.GlassData[nJigCh].MateriID,1,18);
+        end;
+        sDebug := Format('<HAND-BCR> MateriID Matching sRemoveCr : %s Length : %d sPCB_ID : %s Length : %d ',[sRemoveCr,Length(sRemoveCr),sPCB_ID,Length(sPCB_ID)]);
+        Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+
+        if Pos(sRemoveCr,sPCB_ID) > 0 then begin   // GlassData MateriID 비교 하여 해당 CH 로 매칭
+          if PasScr[nJigCh] <> nil then begin
+            sDebug := Format('<HAND-BCR> input Data MateriID  Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
+            Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+            PasScr[nJigCh].TestInfo.SerialNo  := sRemoveCr;
+          end
+          else begin
+            sDebug := Format('<HAND-BCR> Cant not input Data Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
+            Common.MLog(nJigCh,sDebug);
+          end;
+
+          sDebug := Format('<HAND-BCR> Ui display Data MateriID Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
+          Common.MLog(nJigCh,sDebug);
+          Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+
+          pnlSerials[nJigCh].Caption := sRemoveCr;
+          pnlSerials[nJigCh].Color := $0088AEFF;
+          pnlSerials[nJigCh].Font.Color := clBlack;
+
+          if DongaGmes <> nil then begin
+            sDebug := Format('<HAND-BCR> Send PCHK Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
+            Common.MLog(nJigCh,sDebug);
+            Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+            DongaGmes.SendHostPchk(sRemoveCr, nJigCh);
+            pnlMESResults[nJigCh].Color      := clBtnFace;
+            pnlMESResults[nJigCh].Font.Color := clBlack;
+            pnlMESResults[nJigCh].Caption    := 'SEND PCHK';
+          end;
+          sDebug := Format('<HAND-BCR> Bcr Data flow End Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
+          Common.MLog(nJigCh,sDebug);
+          Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+
+          bIsDone := True;
+          if (UpperCase(Common.m_sUserId) = 'PM') then begin
+            bIsDone := True;
+          end;
+
+          if bIsDone then begin
+            if PasScr[nJigCh] <> nil then begin
+              PasScr[nJigCh].m_First_Process_DONE := True;
+              PasScr[nJigCh].g_bIsBcrReady := True;
+            end;
+          end;
+          sDebug := Format('<HAND-BCR> Bcr Data input pasScr Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
+          Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+          m_csBcrRead.Release;
+          Exit;
+        end;
       end;
     end;
 
@@ -2893,6 +3025,22 @@ begin
 end;
 
 
+procedure TfrmTest4ChOC.pnlSerials1DblClick(Sender: TObject);
+var
+nCH : Integer;
+begin
+  nCH := (Sender as TPanel).Tag;
+  if pnlSerials[nCh].Caption = DefCommon.MSG_SCAN_BCR then Exit;
+
+  if MessageDlg(#13#10 + format('Are you sure you want to clear the following [%s] serial numbers?',[pnlSerials[nCH].Caption]), mtConfirmation, [mbYes, mbNo], 0) = mrYes then begin
+    pnlSerials[nCh].Caption := DefCommon.MSG_SCAN_BCR;
+    pnlSerials[nCh].Color := clBlue;
+    pnlSerials[nCh].Font.Color := clYellow;
+  end;
+end;
+
+
+
 procedure TfrmTest4ChOC.OnTotal2Timer(Sender: TObject);
 var
   nSec, nMin : Integer;
@@ -2986,6 +3134,7 @@ begin
   common.MLog(4,Format('AutoLogicStart CH : %d',[nCH]));
   if Common.PLCInfo.InlineGIB then begin
     ClearChData(nCH);
+    PasScr[nCH].TestInfo.StartTime := now;
     common.MLog(nCH,Format('AutoLogicStart Process : %d',[nCH]));
 
     frmTest4ChOC[0].SetIonizer(nCH div 2,True);  //// 검사 종료 시 SetIonizer ON
@@ -3001,16 +3150,22 @@ begin
 
       //채널 UI 클리어
       if nCH = DefCommon.CH_TOP then begin
+        PasScr[DefCommon.CH1].TestInfo.StartTime := now;
+        PasScr[DefCommon.CH2].TestInfo.StartTime := now;
         ClearChData(DefCommon.CH1);
         ClearChData(DefCommon.CH2);
       end
       else if nCH = DefCommon.CH_BOTTOM then begin
+        PasScr[DefCommon.CH3].TestInfo.StartTime := now;
+        PasScr[DefCommon.CH4].TestInfo.StartTime := now;
         ClearChData(DefCommon.CH3);
         ClearChData(DefCommon.CH4);
       end
       else if nCH = DefCommon.CH_ALL then begin
-        for I := 0 to MAX_CH do
+        for I := 0 to MAX_CH do begin
           ClearChData(i);
+          PasScr[i].TestInfo.StartTime := now;
+        end;
       end;
       common.MLog(4,Format('AutoLogicStart Process : %d',[nCH]));
 
@@ -3705,7 +3860,7 @@ begin
                 PasScr[nCh].m_nNgCode:= 60; //Other
               end;
             end;
-
+            PasScr[nCH].TestInfo.EndTime := now;  // Added by KTS 2023-05-19 오후 1:09:57 End Time
             PG[nCH].DP860_SendOcOnOff(0{end},2000,0); //2023-03-28 jhhwang (for T/T Test)
             PG[nCH].SetCyclicTimer(True); //2023-03-28 jhhwang (for T/T Test)
             CSharpDll.m_bIsProcessDone[nCH] := true;
@@ -4448,4 +4603,5 @@ begin
 end;
 
 end.
+
 

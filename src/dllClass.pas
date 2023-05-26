@@ -341,7 +341,7 @@ var
 
 begin
   sDllFile := sDLLPath+sFileName;
-  Common.MLog(DefCommon.MAX_SYSTEM_LOG,Format('TCSharpDll.Create sDllFile : $s',[sDllFile]));
+  Common.MLog(DefCommon.MAX_SYSTEM_LOG,Format('TCSharpDll.Create sDllFile : %s',[sDllFile]));
   m_MainHandle := hMain;
   m_TestHandle := hTest;
   SetLength(m_bIsProcessDone,4);
@@ -1460,11 +1460,7 @@ begin
 
     end;
   finally
-
-
   end;
-
-
 end;
 
 function TCSharpDll.MainOC_Start_CH1(nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
@@ -1472,15 +1468,11 @@ var
 sParameter : string;
 begin
   try
-//    Pg[nCH].SetCyclicTimer(False{bEnable});
     sParameter := sPID + ',' + sSerialNumber + ',' + sUser_ID +',' + sEquipment;
     m_bIsProcessDone[nCH] := False;
-    //ThreadTask(procedure begin
-      m_MainOC_START_CH1(nCH,Common.StringToPAnsiChar(sParameter));
-    //end );
+    m_MainOC_START_CH1(nCH,Common.StringToPAnsiChar(sParameter));
     Result := 0;
   except
-//    Pg[nCH].SetCyclicTimer(true{bEnable});
     Result := 2;
   end;
 

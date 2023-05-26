@@ -4274,6 +4274,10 @@ begin
       Exit; //Auto일 경우 키 입력 무 - 실수로 인한 동작 방지
     end;
 
+    if Common.StatusInfo.AutoMode then begin
+      if btData = $31 then Exit; //Auto일 경우 키 입력 무 - 실수로 인한 동작 방지
+    end;
+
     {
     if btData <> $4E then begin
       Exit; //Auto일 경우 키 입력 무 - 실수로 인한 동작 방지
@@ -4448,7 +4452,7 @@ begin
   sSerialId :=  Edit1.Text;
 //  Common.ReadLGDDLLSummaryLog(sSerialId, 2);
 //  PasScr[0].TestInfo.ApdrData := 'AFM_VRR_OPTIMUM:BARCODE:PB5,AFM_VRR_OPTIMUM:SERIALNUMBER:PB503C7602A3K30044,AFM_VRR_OPTIMUM:BUILD:Band_DOE:2,AFM_VRR_OPTIMUM:CONFIG:##,AFM_VRR_OPTIMUM:EQUIPMENT:H9BMTL413A';
-  PasScr[0].TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog(sSerialId, 0);
+  PasScr[0].TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog(sSerialId,FormatDateTime('yymmdd',PasScr[0].TestInfo.StartTime), 0);
 //  DongaGmes.MesData[0].ApdrData := PasScr[0].TestInfo.ApdrData;
   PasScr[0].TestInfo.SerialNo := sSerialId;
   DongaGmes.MesData[0].ApdrData  := PasScr[0].TestInfo.ApdrData;
@@ -4714,6 +4718,8 @@ begin
           frmTest4ChOC[0].SetIonizer(i,True);
         end;
       end;
+      for I := DefCommon.CH1 to DefCommon.MAX_CH do
+        frmTest4ChOC[0].chkChannelUse[i].Enabled := False;
 
       StartAutoProcess; //자동 모드 시작
     end
@@ -4742,6 +4748,8 @@ begin
       Common.StatusInfo.AutoMode:= False;
       ShowSysLog('Manual Mode');
       ControlDio.Set_TowerLampState(LAMP_STATE_MANUAL);
+      for I := DefCommon.CH1 to DefCommon.MAX_CH do
+        frmTest4ChOC[0].chkChannelUse[i].Enabled := True;
       if common.PLCInfo.InlineGIB then begin
         g_CommPLC.ITC_AllChNormalStatusOnOff(0);
       end

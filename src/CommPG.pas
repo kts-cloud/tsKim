@@ -4691,9 +4691,9 @@ begin
               begin
           			Result := DP860_SendDutDetect(1000{nWaitMS},1{Retry});
               end;
-              //TBD? if Result = WAIT_OBJECT_0 then begin
+              if Result = WAIT_OBJECT_0 then begin
           			Result := DP860_SendPowerBistOn(nWaitMS,nRetry);
-              //TBD? end;
+              end;
               //TBD? if Result = WAIT_OBJECT_0 then begin
           			DP860_SendTconInfo(1000{nWaitMS},0{Retry});
               //TBD? end;

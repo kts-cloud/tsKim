@@ -1308,87 +1308,87 @@ begin
   // Return ==> 0 : OK. 1 ==> NG.
   // for forward.
 
-     SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'MoveProbe forward Start - CH = '+ IntToStr(nCh));
-     ClearOutDioSig(DefDio.OUT_CH_1_PROBE_BACKWARD_SOL + nCh*16);
-     ClearOutDioSig(DefDio.OUT_CH_1_PROBE_UP_SOL + nCh*16);
+   SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'MoveProbe forward Start - CH = '+ IntToStr(nCh));
+   ClearOutDioSig(DefDio.OUT_CH_1_PROBE_BACKWARD_SOL + nCh*16);
+   ClearOutDioSig(DefDio.OUT_CH_1_PROBE_UP_SOL + nCh*16);
 
 
-     bRet := True;
+   bRet := True;
 
-     if  ( ReadInSig(DefDio.IN_CH_1_PROBE_FORWARD_SENSOR +nCh*16)) or
-         ( ReadInSig(DefDio.IN_CH_1_PROBE_DOWN_SENSOR +nCh*16)) then
-      bRet := False;
+   if  ( ReadInSig(DefDio.IN_CH_1_PROBE_FORWARD_SENSOR +nCh*16)) or
+       ( ReadInSig(DefDio.IN_CH_1_PROBE_DOWN_SENSOR +nCh*16)) then
+    bRet := False;
 
 
-     if bRet then begin
-       SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'MoveProbe forward Finish CH = '+ IntToStr(nCh)+ ' - Already');
+   if bRet then begin
+     SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'MoveProbe forward Finish CH = '+ IntToStr(nCh)+ ' - Already');
+     Exit(0);
+   end;
+
+
+   // for forward.
+   bRet := True;
+
+   if  (not ReadInSig(DefDio.IN_CH_1_PROBE_FORWARD_SENSOR +nCh*16)) then begin
+     if (not ReadInSig(DefDio.IN_CH_1_PROBE_DOWN_SENSOR +nCh*16)) then  begin
        Exit(0);
-     end;
-
-
-     // for forward.
-     bRet := True;
-
-     if  (not ReadInSig(DefDio.IN_CH_1_PROBE_FORWARD_SENSOR +nCh*16)) then begin
-       if (not ReadInSig(DefDio.IN_CH_1_PROBE_DOWN_SENSOR +nCh*16)) then  begin
-         Exit(0);
-       end
-       else begin
-         WriteDioSig(DefDio.OUT_CH_1_PROBE_DOWN_SOL + nCh*16,false);
-
-         for i := 0 to nWaitingCount do begin
-           Sleep(100);
-           if (not ReadInSig(DefDio.IN_CH_1_PROBE_DOWN_SENSOR +nCh*16)) then Break;
-         end;
-         if  (ReadInSig(DefDio.IN_CH_1_PROBE_DOWN_SENSOR +nCh*16)) then begin
-           SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_CH_1_PROBE_DOWN_SENSOR + nCh*16, 1, '');
-           Exit(1);
-         end;
-
-       end;
-
      end
      else begin
-       if (ReadInSig(DefDio.IN_CH_1_PROBE_UP_SENSOR +nCh*16)) then begin
-         WriteDioSig(DefDio.OUT_CH_1_PROBE_UP_SOL + nCh*16,false);
-
-         for i := 0 to nWaitingCount do begin
-           Sleep(100);
-           if (not ReadInSig(DefDio.IN_CH_1_PROBE_UP_SENSOR +nCh*16)) then Break;
-         end;
-         if  (ReadInSig(DefDio.IN_CH_1_PROBE_UP_SENSOR +nCh*16)) then begin
-           SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_CH_1_PROBE_UP_SENSOR + nCh*16, 1, '');
-           Exit(1);
-         end;
-
-       end;
-
-       WriteDioSig(DefDio.OUT_CH_1_PROBE_FORWARD_SOL + nCh*16,false);
-
-       for i := 0 to nWaitingCount do begin
-           Sleep(100);
-           if (not ReadInSig(DefDio.IN_CH_1_PROBE_FORWARD_SENSOR +nCh*16)) then Break;
-       end;
-       if  (ReadInSig(DefDio.IN_CH_1_PROBE_FORWARD_SENSOR +nCh*16)) then begin
-           SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_CH_1_PROBE_FORWARD_SENSOR + nCh*16, 1, '');
-           Exit(1);
-       end;
-
        WriteDioSig(DefDio.OUT_CH_1_PROBE_DOWN_SOL + nCh*16,false);
 
-
        for i := 0 to nWaitingCount do begin
-           Sleep(100);
-           if (not ReadInSig(DefDio.IN_CH_1_PROBE_DOWN_SENSOR +nCh*16)) then Break;
+         Sleep(100);
+         if (not ReadInSig(DefDio.IN_CH_1_PROBE_DOWN_SENSOR +nCh*16)) then Break;
        end;
        if  (ReadInSig(DefDio.IN_CH_1_PROBE_DOWN_SENSOR +nCh*16)) then begin
-           SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_CH_1_PROBE_DOWN_SENSOR + nCh*16, 1, '');
-           Exit(1);
+         SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_CH_1_PROBE_DOWN_SENSOR + nCh*16, 1, '');
+         Exit(1);
        end;
 
      end;
 
-     SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'MoveProbe forward Finish CH = '+ IntToStr(nCh));
+   end
+   else begin
+     if (ReadInSig(DefDio.IN_CH_1_PROBE_UP_SENSOR +nCh*16)) then begin
+       WriteDioSig(DefDio.OUT_CH_1_PROBE_UP_SOL + nCh*16,false);
+
+       for i := 0 to nWaitingCount do begin
+         Sleep(100);
+         if (not ReadInSig(DefDio.IN_CH_1_PROBE_UP_SENSOR +nCh*16)) then Break;
+       end;
+       if  (ReadInSig(DefDio.IN_CH_1_PROBE_UP_SENSOR +nCh*16)) then begin
+         SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_CH_1_PROBE_UP_SENSOR + nCh*16, 1, '');
+         Exit(1);
+       end;
+
+     end;
+
+     WriteDioSig(DefDio.OUT_CH_1_PROBE_FORWARD_SOL + nCh*16,false);
+
+     for i := 0 to nWaitingCount do begin
+         Sleep(100);
+         if (not ReadInSig(DefDio.IN_CH_1_PROBE_FORWARD_SENSOR +nCh*16)) then Break;
+     end;
+     if  (ReadInSig(DefDio.IN_CH_1_PROBE_FORWARD_SENSOR +nCh*16)) then begin
+         SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_CH_1_PROBE_FORWARD_SENSOR + nCh*16, 1, '');
+         Exit(1);
+     end;
+
+     WriteDioSig(DefDio.OUT_CH_1_PROBE_DOWN_SOL + nCh*16,false);
+
+
+     for i := 0 to nWaitingCount do begin
+         Sleep(100);
+         if (not ReadInSig(DefDio.IN_CH_1_PROBE_DOWN_SENSOR +nCh*16)) then Break;
+     end;
+     if  (ReadInSig(DefDio.IN_CH_1_PROBE_DOWN_SENSOR +nCh*16)) then begin
+         SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_CH_1_PROBE_DOWN_SENSOR + nCh*16, 1, '');
+         Exit(1);
+     end;
+
+   end;
+
+   SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'MoveProbe forward Finish CH = '+ IntToStr(nCh));
 
   Result := 0;
 end;
@@ -2395,7 +2395,9 @@ function TControlDio.IsPreOCInterlockPROBE(nCH : Integer): Integer;
 begin
   Result:= 0;
   if Common.SystemInfo.OCType <> DefCommon.OCType  then begin
-    if not ControlDio.ReadInSig(IN_GIB_CH_12_PROBE_UP_SENSOR + nCH * 4) then
+    if not ControlDio.ReadInSig(IN_GIB_CH_12_PROBE_UP_SENSOR + nCH * 4) and
+     not ControlDio.ReadInSig(IN_GIB_CH_1_TILTING_SENSOR + nCH *16) and
+     not ControlDio.ReadInSig(IN_GIB_CH_1_TILTING_SENSOR + nCH *16 + 8) then
     begin
       Result:= 1;
     end;

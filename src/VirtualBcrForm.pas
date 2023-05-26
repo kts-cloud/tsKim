@@ -129,10 +129,18 @@ begin
     DongaGmes.MesData[3].Rwk := Common.GmesInfo[PasScr[0].m_nNgCode ].MES_Code;
 //  PasScr[0].RunSeq(DefScript.SEQ_Finish);
 //  PasScr[0].m_bIsProbeBackSig := False;
-   PasScr[3].CheckSyncCmdAck(procedure begin
-            SendMainGuiDisplay(3,DefGmes.MES_EICR,1);
-            SendTestGuiDisplay(3,DefGmes.MES_EICR, '','', 0);
-  end,5000,1);
+  if Common.PLCInfo.InlineGIB then begin
+    PasScr[3].CheckSyncCmdAck(procedure begin
+              SendMainGuiDisplay(3,DefGmes.MES_RPR_EIJR,1);
+              SendTestGuiDisplay(3,DefGmes.MES_RPR_EIJR, '','', 0);
+    end,5000,1);
+  end
+  else begin
+     PasScr[3].CheckSyncCmdAck(procedure begin
+              SendMainGuiDisplay(3,DefGmes.MES_EICR,1);
+              SendTestGuiDisplay(3,DefGmes.MES_EICR, '','', 0);
+    end,5000,1);
+  end;
 end;
 
 procedure TVirtualBcr.Button12Click(Sender: TObject);
@@ -175,34 +183,37 @@ end;
 
 procedure TVirtualBcr.Button17Click(Sender: TObject);
 begin
-  if Length(edtVirtualBcr1.Text) > 0 then begin
-    PasScr[0].TestInfo.SerialNo := edtVirtualBcr1.Text;
-    PasScr[0].CheckSyncCmdAck(procedure begin
-            SendMainGuiDisplay(0,DefGmes.MES_LPIR,1);
-            SendTestGuiDisplay(0,DefGmes.MES_LPIR, '','', 0);
-  end,5000,1);
+  if Common.PLCInfo.InlineGIB then begin
+    if DongaGmes = nil then Exit;
+    if Length(edtVirtualBcr1.Text) > 0 then begin
+      PasScr[0].TestInfo.SerialNo := edtVirtualBcr1.Text;
+        PasScr[0].CheckSyncCmdAck(procedure begin
+                SendMainGuiDisplay(0,DefGmes.MES_LPIR,1);
+                SendTestGuiDisplay(0,DefGmes.MES_LPIR, '','', 0);
+      end,5000,1);
+    end;
+    if Length(edtVirtualBcr2.Text) > 0 then begin
+      PasScr[1].TestInfo.SerialNo := edtVirtualBcr2.Text;
+        PasScr[1].CheckSyncCmdAck(procedure begin
+                SendMainGuiDisplay(1,DefGmes.MES_LPIR,1);
+                SendTestGuiDisplay(1,DefGmes.MES_LPIR, '','', 0);
+      end,5000,1);
+    end;
+    if Length(edtVirtualBcr3.Text) > 0 then begin
+      PasScr[2].TestInfo.SerialNo := edtVirtualBcr3.Text;
+      PasScr[2].CheckSyncCmdAck(procedure begin
+                SendMainGuiDisplay(2,DefGmes.MES_LPIR,1);
+                SendTestGuiDisplay(2,DefGmes.MES_LPIR, '','', 0);
+      end,5000,1);
+    end;
+    if Length(edtVirtualBcr4.Text) > 0 then begin
+      PasScr[3].TestInfo.SerialNo := edtVirtualBcr4.Text;
+      PasScr[3].CheckSyncCmdAck(procedure begin
+                SendMainGuiDisplay(3,DefGmes.MES_LPIR,1);
+                SendTestGuiDisplay(3,DefGmes.MES_LPIR, '','', 0);
+      end,5000,1);
+    end;
   end;
-  if Length(edtVirtualBcr2.Text) > 0 then begin
-    PasScr[1].TestInfo.SerialNo := edtVirtualBcr2.Text;
-    PasScr[1].CheckSyncCmdAck(procedure begin
-            SendMainGuiDisplay(1,DefGmes.MES_LPIR,1);
-            SendTestGuiDisplay(1,DefGmes.MES_LPIR, '','', 0);
-  end,5000,1);
-  end;
-  if Length(edtVirtualBcr3.Text) > 0 then begin
-    PasScr[2].TestInfo.SerialNo := edtVirtualBcr3.Text;
-    PasScr[2].CheckSyncCmdAck(procedure begin
-            SendMainGuiDisplay(2,DefGmes.MES_LPIR,1);
-            SendTestGuiDisplay(2,DefGmes.MES_LPIR, '','', 0);
-  end,5000,1);
-   end;
-  if Length(edtVirtualBcr4.Text) > 0 then begin
-    PasScr[3].TestInfo.SerialNo := edtVirtualBcr4.Text;
-    PasScr[3].CheckSyncCmdAck(procedure begin
-            SendMainGuiDisplay(3,DefGmes.MES_LPIR,1);
-            SendTestGuiDisplay(3,DefGmes.MES_LPIR, '','', 0);
-  end,5000,1);
-   end;
 end;
 
 procedure TVirtualBcr.Button1Click(Sender: TObject);
@@ -267,10 +278,18 @@ begin
     DongaGmes.MesData[0].Rwk := Common.GmesInfo[PasScr[0].m_nNgCode ].MES_Code;
 //  PasScr[0].RunSeq(DefScript.SEQ_Finish);
 //  PasScr[0].m_bIsProbeBackSig := False;
-   PasScr[0].CheckSyncCmdAck(procedure begin
-            SendMainGuiDisplay(0,DefGmes.MES_EICR,1);
-            SendTestGuiDisplay(0,DefGmes.MES_EICR, '','', 0);
-  end,5000,1);
+  if Common.PLCInfo.InlineGIB then begin
+    PasScr[0].CheckSyncCmdAck(procedure begin
+              SendMainGuiDisplay(0,DefGmes.MES_RPR_EIJR,1);
+              SendTestGuiDisplay(0,DefGmes.MES_RPR_EIJR, '','', 0);
+    end,5000,1);
+  end
+  else begin
+     PasScr[0].CheckSyncCmdAck(procedure begin
+              SendMainGuiDisplay(0,DefGmes.MES_EICR,1);
+              SendTestGuiDisplay(0,DefGmes.MES_EICR, '','', 0);
+    end,5000,1);
+  end;
 end;
 
 procedure TVirtualBcr.Button6Click(Sender: TObject);
@@ -296,10 +315,18 @@ begin
         DongaGmes.MesData[1].Rwk := Common.GmesInfo[PasScr[0].m_nNgCode ].MES_Code;
 //  PasScr[0].RunSeq(DefScript.SEQ_Finish);
 //  PasScr[0].m_bIsProbeBackSig := False;
-   PasScr[1].CheckSyncCmdAck(procedure begin
-            SendMainGuiDisplay(1,DefGmes.MES_EICR,1);
-            SendTestGuiDisplay(1,DefGmes.MES_EICR, '','', 0);
-  end,5000,1);
+  if Common.PLCInfo.InlineGIB then begin
+    PasScr[1].CheckSyncCmdAck(procedure begin
+              SendMainGuiDisplay(1,DefGmes.MES_RPR_EIJR,1);
+              SendTestGuiDisplay(1,DefGmes.MES_RPR_EIJR, '','', 0);
+    end,5000,1);
+  end
+  else begin
+     PasScr[1].CheckSyncCmdAck(procedure begin
+              SendMainGuiDisplay(1,DefGmes.MES_EICR,1);
+              SendTestGuiDisplay(1,DefGmes.MES_EICR, '','', 0);
+    end,5000,1);
+  end;
 //  PasScr[1].RunSeq(DefScript.SEQ_Finish);
 //  PasScr[1].m_bIsProbeBackSig := False;
 end;
@@ -311,10 +338,18 @@ begin
         DongaGmes.MesData[1].Rwk := Common.GmesInfo[PasScr[0].m_nNgCode ].MES_Code;
 //  PasScr[0].RunSeq(DefScript.SEQ_Finish);
 //  PasScr[0].m_bIsProbeBackSig := False;
-   PasScr[1].CheckSyncCmdAck(procedure begin
-            SendMainGuiDisplay(1,DefGmes.MES_EICR,1);
-            SendTestGuiDisplay(1,DefGmes.MES_EICR, '','', 0);
-  end,5000,1);
+  if Common.PLCInfo.InlineGIB then begin
+    PasScr[0].CheckSyncCmdAck(procedure begin
+              SendMainGuiDisplay(0,DefGmes.MES_RPR_EIJR,1);
+              SendTestGuiDisplay(0,DefGmes.MES_RPR_EIJR, '','', 0);
+    end,5000,1);
+  end
+  else begin
+     PasScr[0].CheckSyncCmdAck(procedure begin
+              SendMainGuiDisplay(0,DefGmes.MES_EICR,1);
+              SendTestGuiDisplay(0,DefGmes.MES_EICR, '','', 0);
+    end,5000,1);
+  end;
 //  PasScr[1].RunSeq(DefScript.SEQ_Finish);
 //  PasScr[1].m_bIsProbeBackSig := False;
 end;
@@ -326,10 +361,18 @@ begin
       DongaGmes.MesData[2].Rwk := Common.GmesInfo[PasScr[0].m_nNgCode ].MES_Code;
 //  PasScr[0].RunSeq(DefScript.SEQ_Finish);
 //  PasScr[0].m_bIsProbeBackSig := False;
-   PasScr[2].CheckSyncCmdAck(procedure begin
-            SendMainGuiDisplay(2,DefGmes.MES_EICR,1);
-            SendTestGuiDisplay(2,DefGmes.MES_EICR, '','', 0);
-  end,5000,1);
+  if Common.PLCInfo.InlineGIB then begin
+    PasScr[2].CheckSyncCmdAck(procedure begin
+              SendMainGuiDisplay(2,DefGmes.MES_RPR_EIJR,1);
+              SendTestGuiDisplay(2,DefGmes.MES_RPR_EIJR, '','', 0);
+    end,5000,1);
+  end
+  else begin
+     PasScr[2].CheckSyncCmdAck(procedure begin
+              SendMainGuiDisplay(2,DefGmes.MES_EICR,1);
+              SendTestGuiDisplay(2,DefGmes.MES_EICR, '','', 0);
+    end,5000,1);
+  end;
 //  PasScr[2].RunSeq(DefScript.SEQ_Finish);
 //  PasScr[2].m_bIsProbeBackSig := False;
 end;

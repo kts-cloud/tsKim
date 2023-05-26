@@ -33,7 +33,7 @@ const
 
 	PG_PWRMEASURE_INTERVAL_DEF = 2000; //msec //TBD:DP860?
 	PG_PWRMEASURE_INTERVAL_MIN = 1000; //msec //TBD:DP860?
-	PG_PWRMEASURE_WAITACK_DEF  = 500;  //msec //TBD:DP860?
+	PG_PWRMEASURE_WAITACK_DEF  = 1000;  //msec //TBD:DP860? // 500 -> 1000
 
 
 	//-------------------------------------------------------- PG Command Paratemer

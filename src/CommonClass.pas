@@ -11,7 +11,7 @@ uses
 {$I Common.inc}
 
 const
-  BandDBV: array[0..31] of Integer = (2047, 1085, 1644, 1461,1301,1158,1071,989,915,845,775,711,651,
+  BandDBV: array[0..31] of Integer = (2047, 1850, 1644, 1461,1301,1158,1071,989,915,845,775,711,651,
                                      598,553,513,489,443,400,362,328,296,268,243,219,198,180,168,157,146,136,119);
 
 
@@ -685,7 +685,7 @@ type
     procedure ReadSystemInfo;
     function ReadPGSettingInfo : Boolean;
     procedure ReadOpticInfo;
-    function ReadLGDDLLSummaryLog(sSn : string; nCh : Integer) : string;
+    function ReadLGDDLLSummaryLog(sSn,sDate : string; nCh : Integer) : string;
     function CheckFileAccess(const Path: string; Mode: Word): Boolean;
     function CanOpenFile(const FilePath: string; FileMode: Word = fmOpenRead): Boolean;
     function FindLGDSummaryCsvFile(sFolderPath : String; sData : string):String;
@@ -3646,12 +3646,14 @@ begin
   FreeMem(pmc);
 end;
 
-function TCommon.ReadLGDDLLSummaryLog(sSn : string; nCh : Integer) : string;
+
+
+function TCommon.ReadLGDDLLSummaryLog(sSn,sDate : string; nCh : Integer) : string;
 var
   asSummaryHeader,asSummaryGroupHeader,asSummaryData: TArray<String>;
   sComputerName: String;
   sFileName , sCopyFileName: String;
-  sLine,sDate,sResult: String;
+  sLine,sResult: String;
   txtFile: TEXTFILE;
   i,nlineCount: Integer;
   nStartTick, nEndTick : Cardinal;
@@ -3660,7 +3662,7 @@ const
   GroupName = 'OC';
 begin
 //  m_csReadCsvLog.Acquire; // 동시 접근 방지
-  sDate := FormatDateTime('yyyy_mm_dd', Now);
+//  sDate := FormatDateTime('yymmdd', PasScr[nCh].TestInfo);
 
   sFileName:= Common.Path.LGDDLL +format('Oclog\SummaryLog\%s_Summary_Log_',[Common.SystemInfo.EQPId]) + sDate +'.csv';
   if not FileExists(sFileName) then begin
@@ -3709,12 +3711,15 @@ begin
     for I := 0 to Length(asSummaryData) do begin
       if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
         if Length(asSummaryGroupHeader[i]) = 0 then asSummaryGroupHeader[i] := GroupName;
+        if i = Length(asSummaryData)  then sResult := sResult + asSummaryGroupHeader[i] + ':' + asSummaryHeader[i] + ':' + asSummaryData[i]
+        else sResult := sResult + asSummaryGroupHeader[i] + ':' + asSummaryHeader[i] + ':' + asSummaryData[i]+ ',';
       end
       else begin
-        asSummaryGroupHeader[i] := GroupName
+        asSummaryGroupHeader[i] := GroupName;
+        if i = Length(asSummaryData)  then sResult := sResult + GroupName + ':' + asSummaryHeader[i] + ':' + asSummaryData[i]
+        else sResult := sResult + GroupName + ':' + asSummaryHeader[i] + ':' + asSummaryData[i]+ ',';
       end;
-      if i = Length(asSummaryData)  then sResult := sResult + asSummaryGroupHeader[i] + ':' + asSummaryHeader[i] + ':' + asSummaryData[i]
-      else sResult := sResult + asSummaryGroupHeader[i] + ':' + asSummaryHeader[i] + ':' + asSummaryData[i]+ ',';
+
     end;
     Result := sResult;
   finally
@@ -3755,8 +3760,8 @@ begin
   else begin
    fSys := TIniFile.Create(Path.PGInfo);
     try
-      SystemInfo.DebugLogLevelConfig := fSys.ReadInteger('DEBUG', 'DEBUG_LOG_LEVEL_PG', 0); //TBD:DP860?
-      m_nDebugLogLevelActive := SystemInfo.DebugLogLevelConfig;
+//      SystemInfo.DebugLogLevelConfig := fSys.ReadInteger('DEBUG', 'DEBUG_LOG_LEVEL_PG', 0); //TBD:DP860?
+//      m_nDebugLogLevelActive := SystemInfo.DebugLogLevelConfig;
 
       //2023-03-30 jhhwang (for T/T Test)
       SystemInfo.PG_TconWriteLogDisplay    := fSys.ReadBool   ('DEBUG', 'PG_TconWriteLogDisplay', False); //2023-03-28 jhhwang (for T/T Test)

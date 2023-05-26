@@ -1525,7 +1525,7 @@ begin
     edPwrLimit_VDD2_L.SetFocus;
     Exit(bRet);
   end;
-  if (Common.EdModelInfoPG.PgPwrData.PWR_VOL_LL[DefPG.PWR_VDD3] > 1800)  then begin
+  if (Common.EdModelInfoPG.PgPwrData.PWR_VOL_LL[DefPG.PWR_VDD3] > 3000)  then begin
     ShowMessage(Format('VDD3 low limit Range is 0 ~ 1.8 V : Input (%s)',[edPwrLimit_VDD3_L.Text]));
     edPwrLimit_VDD3_L.SetFocus;
     Exit(bRet);
@@ -1556,7 +1556,7 @@ begin
     edPwrLimit_VDD2_H.SetFocus;
     Exit(bRet);
   end;
-  if (Common.EdModelInfoPG.PgPwrData.PWR_VOL_HL[DefPG.PWR_VDD3] > 1800) or
+  if (Common.EdModelInfoPG.PgPwrData.PWR_VOL_HL[DefPG.PWR_VDD3] > 3000) or
      (Common.EdModelInfoPG.PgPwrData.PWR_VOL_HL[DefPG.PWR_VDD3] < Common.EdModelInfoPG.PgPwrData.PWR_VOL_LL[DefPG.PWR_VDD3])  then begin
     ShowMessage(Format('VDD3 high limit Range is %s ~ 1.8 V : Input (%s)',[edPwrLimit_VDD3_L.Text,edPwrLimit_VDD3_H.Text]));
     edPwrLimit_VDD3_H.SetFocus;

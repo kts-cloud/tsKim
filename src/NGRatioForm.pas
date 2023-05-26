@@ -133,7 +133,7 @@ begin
 
   sQuery := sQuery + Format(' WHERE INSP_DATE BETWEEN ''%s'' AND ''%s'' ;',[sStartDate,sEndDate]);
 
-//  modDB.SendQueryExec(sQuery);
+  modDB.SendQueryExec(sQuery);
 
   ViewGridQuery;
 end;

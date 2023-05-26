@@ -8,7 +8,7 @@ uses
   RzEdit, RzCmboBx, RzButton, RzPanel, ALed, Vcl.ExtCtrls, RzTabs, {UdpServerClient,}CommPG, DefDio, RzCommon,
   HandBCR, IdGlobal, System.IniFiles, Ezi_Servo, CommDIO_DAE, NGMsg,LogicVh,DefScript,
   CommonClass, RzShellDialogs, DefCommon, DefPG, RzLstBox, ScrMemo, ScrMps, pasScriptClass, CommIonizer,
-  AdvUtil, Vcl.Grids, AdvObj, BaseGrid, AdvGrid,{, system.threading}  ControlDio_OC, DoorOpenAlarmMsg, ECSStatusForm,
+  AdvUtil, Vcl.Grids, AdvObj, BaseGrid,SyncObjs, AdvGrid,{, system.threading}  ControlDio_OC, DoorOpenAlarmMsg, ECSStatusForm,
 {$IFDEF AXDIO_USE}
   AXDioLib,
 {$ENDIF}
@@ -270,7 +270,8 @@ type
     RzPanel12: TRzPanel;
     btnStop: TRzBitBtn;
     btnMeasure: TRzBitBtn;
-    advstrngrdDataView: TAdvStringGrid;
+    pnlDataView: TPanel;
+    chkOddMeasurement: TCheckBox;
 
     procedure btnCloseClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
@@ -378,6 +379,10 @@ type
 
     m_bStopCa310Cal : boolean;
 
+    Mutex: TMutex;
+
+    advstrngrdDataView : array[DefCommon.CH1 ..DefCommon.MAX_CH] of TAdvStringGrid;
+
 {$IFDEF  AXDIO_USE}
     m_PreInIo, m_PreOutIo         : AxIoStatus;
 {$ENDIF}
@@ -409,8 +414,9 @@ type
     procedure Ca310CalControlPnl(bEnable : Boolean);
 
     procedure ThreadTask(task : TProc; btnObj : TRzBitBtn);
+    procedure ThreadTaskTracking(task: TProc; btnObj : TRzBitBtn);
 
-    procedure SaveCsvMeasureLog(nCh: Integer; sDataHeader,sData : string);
+    procedure SaveCsvMeasureLog(nCh: Integer; sSerialNo,sDataHeader,sData : string);
     procedure PowerOffSeq(nCh : Integer);
     procedure PowerOnSeq(nCh : Integer);
 //    procedure CmdThread(nCh : Integer);
@@ -436,8 +442,11 @@ type
     procedure LoadZAsixValue;
     procedure SaveZAsixValue;
 
+    procedure ShowNgMessage(sMessage: string);
+
     procedure Run_GrayScale(nFPgNo,mBand_Count : Integer);
     procedure Run_DBVtracking(nFPgNo,nRGBIdx: Integer);
+    function ReadFlashSerialNo(nPgNo: Integer): string;
 {$IFDEF CA410_USE}
     procedure CA410Calibration(Lth : TThread; GetAllxy, Getlmt: TAllLvXy);
     procedure wRgb_Measure(thMain : TThread);
@@ -1301,6 +1310,8 @@ procedure TfrmMainter.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 var
   nCh : integer;
 begin
+  if Mutex <> nil then
+    Mutex.Free;
 //  if DaeIonizer[0] <> nil then begin
 //    DaeIonizer[0].IsIgnoreNg:= True;
 //    DaeIonizer[0].OnRevIonizerData:= nil;
@@ -1315,10 +1326,17 @@ begin
     end;
 
   end;
-  if CtrlCa410 <> nil then begin
-    CtrlCa410.Free;
-    CtrlCa410 := nil;
+  for nCh := DefCommon.CH1 to DefCommon.MAX_CH do begin
+    if advstrngrdDataView[nCh] <> nil then begin
+      advstrngrdDataView[nCh].Free;
+      advstrngrdDataView[nCh] := nil;
+    end;
   end;
+
+//  if CtrlCa410 <> nil then begin
+//    CtrlCa410.Free;
+//    CtrlCa410 := nil;
+//  end;
 end;
 
 procedure TfrmMainter.AddItemsInCbo;
@@ -1454,8 +1472,15 @@ begin
 end;
 
 
+procedure TfrmMainter.ShowNgMessage(sMessage: string);
+begin
+  if frmNgMsg = nil then begin
+    frmNgMsg  := TfrmNgMsg.Create(nil);
+  end;
 
-
+  frmNgMsg.lblShow.Caption := sMessage;
+  frmNgMsg.Show; //ShowModal;
+end;
 
 procedure TfrmMainter.ShowUsercalItems;
 begin
@@ -1502,7 +1527,7 @@ begin
   cboScriptCh.Items.clear;
   cboChannelFrobe.Items.Clear;
 
-  CtrlCa410 := TControlCa410.Create(self.Handle,Self.Handle,Common.TestModelInfoFLOW.Ca410MemCh+1);
+//  CtrlCa410 := TControlCa410.Create(self.Handle,Self.Handle,Common.TestModelInfoFLOW.Ca410MemCh+1);
   cboCa310Channel.Items.Clear;
   for i := 1 to 99 do begin
     sTemp := Format('%d',[i]);
@@ -1642,9 +1667,23 @@ begin
    //Set Auto Display Range to arEnabled
 //   AdvChartView1.Panes[0].Series[0].Autorange := AutoRange.arEnabled;
 // end;
-
-
-
+  Mutex := TMutex.Create;
+  for I := DefCommon.CH1 to DefCommon.CH4 do begin
+    advstrngrdDataView[i] := TAdvStringGrid.Create(Self);
+    advstrngrdDataView[i].Clear;
+    advstrngrdDataView[i].Parent := pnlDataView;
+    advstrngrdDataView[i].Font.Name := 'Tahoma';
+    advstrngrdDataView[i].Top := 0;
+    advstrngrdDataView[i].Left := i * 360;
+    advstrngrdDataView[i].Width  := 360;
+    advstrngrdDataView[i].Height := 708;
+    advstrngrdDataView[i].Align := TAlign.alNone;
+    advstrngrdDataView[i].ColCount := 5;
+    advstrngrdDataView[i].RowCount := 2048;
+    advstrngrdDataView[i].FixedCols := 0;
+    advstrngrdDataView[i].ScrollBars := TScrollStyle.ssBoth;
+//    advstrngrdDataView[i].AutoSizeColumns(true);
+  end;
 
   //frmTemp:= TfrmMainter_PLC.Create(self);
   frmTemp:= TfrmECSStatus.Create(self);
@@ -2543,6 +2582,8 @@ begin
   EziMotor.StopMove;
 end;
 
+
+
 procedure TfrmMainter.POcbIpList;
 begin
   lstIpInformation.Clear;
@@ -3045,47 +3086,60 @@ end;
 procedure TfrmMainter.Run_DBVtracking(nFPgNo,nRGBIdx: Integer);
 var
 i,nDBVValue,nWaitMS,nRetry,wdRet : Integer;
-m_Ca410Data: TBrightValue;
+m_Ca410Data: TBrightValue ;
 sFilePath : string;
-sDataHeader, sData : string;
+sDataHeader, sData,sSerialNo : string;
 nSX,nSy,nEX,nEY : Integer;
 
 begin
-  PasScr[nFPgNo].m_sFileCsv :=  format('CH%d_DBVtracking_',[nFPgNo+1]) + formatDateTime('yyMMddHHmmss',now) + '.csv';
-  sDataHeader := 'DBV,x,y,LV,';
+  PasScr[nFPgNo].m_sFileCsv :=  format('%s_CH%d_Gray_%d_DBVtracking_',[Common.SystemInfo.EQPId,nFPgNo+1,nRGBIdx]) + formatDateTime('yyMMddHHmmss',now) + '.csv';
+  sSerialNo := ReadFlashSerialNo(nFPgNo);
+  sSerialNo := Format('sSerialNo : %s',[sSerialNo]);
+  sDataHeader := 'Gray,DBV,x,y,LV,';
+
+  advstrngrdDataView[nFPgNo].Cells[0, 0] := 'Gray';
+  advstrngrdDataView[nFPgNo].Cells[1, 0] := 'DBV';
+  advstrngrdDataView[nFPgNo].Cells[2, 0] := 'x';
+  advstrngrdDataView[nFPgNo].Cells[3, 0] := 'y';
+  advstrngrdDataView[nFPgNo].Cells[4, 0] := 'Lv';
 
   nWaitMS := 3000;
   nRetry  := 0;  // No Retry
   for I := 2047 downto 1 do begin
-    if bIs_Stop then Break;
-    case i of
-      1851..2047 :   //APL 40%  1Band
-      begin
-        GetBoxPtnSizeinfo(Common.TestModelInfoFLOW.ModelType,1,nSX,nSy,nEX,nEY);
-        wdRet := Pg[nFPgNo].DP860_SendBistAPL(nRGBIdx,nRGBIdx,nRGBIdx,nSX,nSy,nEX,nEY,nWaitMS,nRetry);
-      end;                             -
-      1645..1850 :  //APL 60%
-      begin
-        GetBoxPtnSizeinfo(Common.TestModelInfoFLOW.ModelType,2,nSX,nSy,nEX,nEY);
-        wdRet := Pg[nFPgNo].DP860_SendBistAPL(nRGBIdx,nRGBIdx,nRGBIdx,nSX,nSy,nEX,nEY,nWaitMS,nRetry);
-      end;
-      else begin
-        wdRet := Pg[nFPgNo].SendDisplayPatBistRGB_9Bit(nRGBIdx,nRGBIdx,nRGBIdx,nWaitMS,nRetry);
-      end;
-
+    if bIs_Stop then Exit;
+    if i = 2047 then       //APL 40%  1Band
+    begin
+      GetBoxPtnSizeinfo(Common.TestModelInfoFLOW.ModelType,1,nSX,nSy,nEX,nEY);
+      wdRet := Pg[nFPgNo].DP860_SendBistAPL(nRGBIdx,nRGBIdx,nRGBIdx,nSX,nSy,nEX,nEY,nWaitMS,nRetry);
+    end
+    else if i = 1850 then //APL 60% 2Band
+    begin
+      GetBoxPtnSizeinfo(Common.TestModelInfoFLOW.ModelType,2,nSX,nSy,nEX,nEY);
+      wdRet := Pg[nFPgNo].DP860_SendBistAPL(nRGBIdx,nRGBIdx,nRGBIdx,nSX,nSy,nEX,nEY,nWaitMS,nRetry);
+    end
+    else if i = 1644 then
+    begin
+      wdRet := Pg[nFPgNo].SendDisplayPatBistRGB_9Bit(nRGBIdx,nRGBIdx,nRGBIdx,nWaitMS,nRetry);
     end;
     Sleep(100);
 
     wdRet := Pg[nFPgNo].SendDimmingBist(i, nWaitMS,nRetry);
     Sleep(100);
     wdRet := CaSdk2.Measure(nFPgNo, m_Ca410Data);
-    sData := Format('%d,%3.f,%3.f,%3.f,',[i,m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
-    SaveCsvMeasureLog(nFPgNo,sDataHeader,sData);
+    advstrngrdDataView[nFPgNo].DisableAlign;
+    advstrngrdDataView[nFPgNo].Cells[0, Abs(2048-i)] := IntToStr(nRGBIdx);
+    advstrngrdDataView[nFPgNo].Cells[1, Abs(2048-i)] := IntToStr(i);
+    advstrngrdDataView[nFPgNo].Cells[2, Abs(2048-i)] := FloatToStr(m_Ca410Data.xVal);
+    advstrngrdDataView[nFPgNo].Cells[3, Abs(2048-i)] := FloatToStr(m_Ca410Data.yVal);
+    advstrngrdDataView[nFPgNo].Cells[4, Abs(2048-i)] := FloatToStr(m_Ca410Data.LvVal);
+    advstrngrdDataView[nFPgNo].EnableAlign;
+    sData := Format('%d,%d,%4.4f,%4.4f,%4.4f,',[nRGBIdx,i,m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
+    SaveCsvMeasureLog(nFPgNo,sSerialNo,sDataHeader,sData);
   end;
 end;
 
 
-procedure TfrmMainter.SaveCsvMeasureLog(nCh: Integer; sDataHeader,sData : string);
+procedure TfrmMainter.SaveCsvMeasureLog(nCh: Integer; sSerialNo,sDataHeader,sData : string);
 var
   sFilePath, sFileName : String;
   sLine: String;
@@ -3093,7 +3147,7 @@ var
   i : integer;
 begin
 //  m_csWriteCsvLog.Acquire; // 메인에서 sync 처리 되어서 들어옴
-  sFilePath := Common.Path.Gamma + FormatDateTime('yyyymm',now) + '\';
+  sFilePath := Common.Path.Gamma + FormatDateTime('yymmdd',now) + '\';
   sFileName := sFilePath + PasScr[nCh].m_sFileCsv;
   if Common.CheckDir(sFilePath) then Exit;
   try
@@ -3104,7 +3158,7 @@ begin
         if not FileExists(sFileName) then begin
           //Header 생성
           Rewrite(txtF);
-
+          WriteLn(txtF, sSerialNo);
           WriteLn(txtF, sDataHeader);
         end;
 
@@ -3125,22 +3179,45 @@ end;
 
 
 
+function TfrmMainter.ReadFlashSerialNo(nPgNo: Integer): string;
+var
+nStartAddr,nLength : integer;
+SerialNoBuf : TIdBytes;
+wdRet : integer;
+sAnsiStr : string;
+
+begin
+  nStartAddr := Common.TestModelInfoFLOW.SerialNoFlashInfo.nAddr;
+  nLength :=  Common.TestModelInfoFLOW.SerialNoFlashInfo.nLength;
+  Common.MLog(nPgNo,format('OCThreadFlash_READ_Proc nStartAddr : %d nLength : %d ',[nStartAddr,nLength]));
+
+  SetLength(SerialNoBuf,nLength);
+  wdRet :=  Pg[nPgNo].SendFlashRead(nStartAddr,nLength, @SerialNoBuf[0]);
+  SetString(sAnsiStr, PAnsiChar(@SerialNoBuf[0]), nLength);
+  sAnsiStr := Copy(sAnsiStr,1,nLength);
+  Result := string(Trim(sAnsiStr));
+end;
+
+
+
 procedure TfrmMainter.Run_GrayScale(nFPgNo,mBand_Count : Integer);
 var
 i,nDBVValue,nWaitMS,nRetry,wdRet : Integer;
 m_Ca410Data: TBrightValue;
 sFilePath : string;
-sDataHeader, sData : string;
+sDataHeader, sData,sSerialNo : string;
 nSX,nSy,nEX,nEY : Integer;
 
 begin
-  PasScr[nFPgNo].m_sFileCsv :=  format('CH%d_%dband_GrayScale_',[nFPgNo+1,mBand_Count]) + formatDateTime('yyMMddHHmmss',now) + '.csv';
-  sDataHeader := 'BAND,GRAY,x,y,LV,';
-  advstrngrdDataView.Cells[0, 0] := '';
-  advstrngrdDataView.Cells[1, 0] := 'Gray';
-  advstrngrdDataView.Cells[2, 0] := 'x';
-  advstrngrdDataView.Cells[3, 0] := 'y';
-  advstrngrdDataView.Cells[4, 0] := 'Lv';
+  PasScr[nFPgNo].m_sFileCsv :=  format('%s_CH%d_%dband_GrayScale_',[Common.SystemInfo.EQPId,nFPgNo+1,mBand_Count]) + formatDateTime('yyMMddHHmmss',now) + '.csv';
+  sSerialNo := ReadFlashSerialNo(nFPgNo);
+  sSerialNo := Format('sSerialNo : %s',[sSerialNo]);
+  sDataHeader := 'DBV,GRAY,x,y,LV,';
+  advstrngrdDataView[nFPgNo].Cells[0, 0] := 'DBV';
+  advstrngrdDataView[nFPgNo].Cells[1, 0] := 'Gray';
+  advstrngrdDataView[nFPgNo].Cells[2, 0] := 'x';
+  advstrngrdDataView[nFPgNo].Cells[3, 0] := 'y';
+  advstrngrdDataView[nFPgNo].Cells[4, 0] := 'Lv';
   nWaitMS := 3000;
   nRetry  := 0;  // No Retry
 //  Sleep(1000);
@@ -3148,7 +3225,11 @@ begin
 //  wdRet := Pg[nFPgNo].SendDimmingBist(BandDBV[mBand_Count-1], nWaitMS,nRetry);  //2019-10-11 DIMMING (SendDisplayPat -> SendDisplayPWMPat)
   Sleep(1000);
   for I := 511 downto 1 do begin
-    if bIs_Stop then Break;
+    if bIs_Stop then exit;
+    if chkOddMeasurement.Checked then begin
+      if i mod 2 = 0 then Continue;
+    end;
+
     if (mBand_Count = 1) or (mBand_Count = 2) then begin
       GetBoxPtnSizeinfo(Common.TestModelInfoFLOW.ModelType,mBand_Count,nSX,nSy,nEX,nEY);
       wdRet := Pg[nFPgNo].DP860_SendBistAPL(i,i,i,nSX,nSy,nEX,nEY,nWaitMS,nRetry);
@@ -3167,24 +3248,29 @@ begin
     Sleep(100);
     wdRet := CaSdk2.Measure(nFPgNo, m_Ca410Data);
 //    AdvChartView1.Panes[0].Series[0].AddSinglePoint(m_Ca410Data.LvVal);
-    advstrngrdDataView.DisableAlign;
-    advstrngrdDataView.Cells[1, Abs(512-i)] := IntToStr(i);
-    advstrngrdDataView.Cells[2, Abs(512-i)] := FloatToStr(m_Ca410Data.xVal);
-    advstrngrdDataView.Cells[3, Abs(512-i)] := FloatToStr(m_Ca410Data.yVal);
-    advstrngrdDataView.Cells[4, Abs(512-i)] := FloatToStr(m_Ca410Data.LvVal);
-    advstrngrdDataView.EnableAlign;
-    sData := Format('%d,%d,%3.f,%3.f,%3.f,',[mBand_Count,i,m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
-    SaveCsvMeasureLog(nFPgNo,sDataHeader,sData);
+    advstrngrdDataView[nFPgNo].DisableAlign;
+
+    advstrngrdDataView[nFPgNo].Cells[0, Abs(512-i)] := IntToStr(BandDBV[mBand_Count-1]);
+    advstrngrdDataView[nFPgNo].Cells[1, Abs(512-i)] := IntToStr(i);
+    advstrngrdDataView[nFPgNo].Cells[2, Abs(512-i)] := FloatToStr(m_Ca410Data.xVal);
+    advstrngrdDataView[nFPgNo].Cells[3, Abs(512-i)] := FloatToStr(m_Ca410Data.yVal);
+    advstrngrdDataView[nFPgNo].Cells[4, Abs(512-i)] := FloatToStr(m_Ca410Data.LvVal);
+    advstrngrdDataView[nFPgNo].EnableAlign;
+    sData := Format('%d,%d,%4.4f,%4.4f,%4.4f,',[BandDBV[mBand_Count-1],i,m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
+    SaveCsvMeasureLog(nFPgNo,sSerialNo,sDataHeader,sData);
   end;
 end;
 
 procedure TfrmMainter.btnMeasureClick(Sender: TObject);
 var
   nBandIdx, wdRet,nRGBIdx,j: integer;
+  sRGB : string;
+
 begin
   bIs_Stop := false;
+
   if cboMeasureCH.ItemIndex <> 4 then begin
-      ThreadTask( procedure var i : Integer; begin
+    ThreadTaskTracking( procedure var i : Integer; begin
       ControlDio.lockCarrier(cboMeasureCH.ItemIndex,true);
       ControlDio.ProbeForward(cboMeasureCH.ItemIndex);
       wdRet := Pg[cboMeasureCH.ItemIndex].SendPowerBistOn(1{On},False,3000,0);
@@ -3193,60 +3279,217 @@ begin
         if cboBandCount.Text = 'ALLBamd' then begin
           for I := 1 to 32 do begin
             if bIs_Stop then Break;
-            advstrngrdDataView.ClearAll;
+            advstrngrdDataView[cboMeasureCH.ItemIndex].ClearAll;
             Run_GrayScale(cboMeasureCH.ItemIndex,i);
           end;
         end
         else begin
-          advstrngrdDataView.ClearAll;
+          advstrngrdDataView[cboMeasureCH.ItemIndex].ClearAll;
 
           nBandIdx := cboBandCount.ItemIndex;
           Run_GrayScale(cboMeasureCH.ItemIndex,nBandIdx);
         end;
       end
       else if rbDBVTracking.Checked then begin
-        nRGBIdx := cboGrayRGB.ItemIndex;
-        Run_DBVtracking(cboMeasureCH.ItemIndex,nRGBIdx);
+        Sleep(500);
+        sRGB := cboGrayRGB.Text;
+        advstrngrdDataView[cboMeasureCH.ItemIndex].ClearAll;
+        Run_DBVtracking(cboMeasureCH.ItemIndex,StrToIntDef(sRGB,0));
       end;
       wdRet := Pg[cboMeasureCH.ItemIndex].SendPowerBistOn(0{Off},False,3000,0); //TBD:DP860?
       ControlDio.ProbeBackward(cboMeasureCH.ItemIndex);
       ControlDio.UnlockCarrier(cboMeasureCH.ItemIndex,true);
+
     end,btnMeasure);
 
   end
   else begin
+
     for j := DefCommon.CH1 to DefCommon.CH4 do begin
-      ThreadTask( procedure var i : Integer; begin
-        ControlDio.lockCarrier(j,true);
-        ControlDio.ProbeForward(j);
-        wdRet := Pg[j].SendPowerBistOn(1{On},False,3000,0);
-        if rbGrayScale.Checked then begin
-          Sleep(500);
-          if cboBandCount.Text = 'ALLBamd' then begin
-            for I := 1 to 32 do begin
-              if bIs_Stop then Break;
-              advstrngrdDataView.ClearAll;
-              Run_GrayScale(j,i);
+      if j = DefCommon.CH1 then begin
+        ThreadTaskTracking( procedure var i : Integer; begin
+
+          Mutex.Acquire; // 뮤텍스 획득
+          try
+            ControlDio.lockCarrier(0,true);
+            ControlDio.ProbeForward(0);
+          finally
+            Mutex.Release; // 뮤텍스 반환
+          end;
+
+          wdRet := Pg[0].SendPowerBistOn(1{On},False,3000,0);
+          if rbGrayScale.Checked then begin
+            Sleep(500);
+            if cboBandCount.Text = 'ALLBamd' then begin
+              for I := 1 to 32 do begin
+                if bIs_Stop then Break;
+                advstrngrdDataView[0].ClearAll;
+                Run_GrayScale(0,i);
+              end;
+            end
+            else begin
+              advstrngrdDataView[0].ClearAll;
+              nBandIdx := cboBandCount.ItemIndex;
+              Run_GrayScale(0,nBandIdx);
             end;
           end
-          else begin
-            advstrngrdDataView.ClearAll;
-
-            nBandIdx := cboBandCount.ItemIndex;
-            Run_GrayScale(j,nBandIdx);
+          else if rbDBVTracking.Checked then begin
+            nRGBIdx := StrToIntDef(cboGrayRGB.text,0);
+            advstrngrdDataView[0].ClearAll;
+            Run_DBVtracking(0,nRGBIdx);
           end;
-        end
-        else if rbDBVTracking.Checked then begin
-          nRGBIdx := cboGrayRGB.ItemIndex;
-          Run_DBVtracking(j,nRGBIdx);
-        end;
-        wdRet := Pg[j].SendPowerBistOn(0{Off},False,3000,0); //TBD:DP860?
-        ControlDio.ProbeBackward(j);
-        ControlDio.UnlockCarrier(j,true);
-      end,btnMeasure);
+          wdRet := Pg[0].SendPowerBistOn(0{Off},False,3000,0); //TBD:DP860?
+
+          Mutex.Acquire; // 뮤텍스 획득
+          try
+            ControlDio.ProbeBackward(0);
+            ControlDio.UnlockCarrier(0,true);
+          finally
+            Mutex.Release; // 뮤텍스 반환
+          end;
+
+        end,btnMeasure);
+
+      end
+      else if j = DefCommon.CH2 then begin
+        ThreadTaskTracking( procedure var i : Integer; begin
+
+          Mutex.Acquire; // 뮤텍스 획득
+          try
+            ControlDio.lockCarrier(1,true);
+            ControlDio.ProbeForward(1);
+          finally
+            Mutex.Release; // 뮤텍스 반환
+          end;
+
+          wdRet := Pg[1].SendPowerBistOn(1{On},False,3000,0);
+          if rbGrayScale.Checked then begin
+            Sleep(500);
+            if cboBandCount.Text = 'ALLBamd' then begin
+              for I := 1 to 32 do begin
+                if bIs_Stop then Break;
+                advstrngrdDataView[1].ClearAll;
+                Run_GrayScale(1,i);
+              end;
+            end
+            else begin
+              advstrngrdDataView[1].ClearAll;
+              nBandIdx := cboBandCount.ItemIndex;
+              Run_GrayScale(1,nBandIdx);
+            end;
+          end
+          else if rbDBVTracking.Checked then begin
+            nRGBIdx := StrToIntDef(cboGrayRGB.text,0);
+            advstrngrdDataView[1].ClearAll;
+            Run_DBVtracking(1,nRGBIdx);
+          end;
+          wdRet := Pg[1].SendPowerBistOn(0{Off},False,3000,0); //TBD:DP860?
+
+          Mutex.Acquire; // 뮤텍스 획득
+          try
+            ControlDio.ProbeBackward(1);
+            ControlDio.UnlockCarrier(1,true);
+          finally
+            Mutex.Release; // 뮤텍스 반환
+          end;
+
+        end,btnMeasure);
+
+      end
+      else if j = DefCommon.CH3 then begin
+        ThreadTaskTracking( procedure var i : Integer; begin
+
+          Mutex.Acquire; // 뮤텍스 획득
+          try
+            ControlDio.lockCarrier(2,true);
+            ControlDio.ProbeForward(2);
+          finally
+            Mutex.Release; // 뮤텍스 반환
+          end;
+
+          wdRet := Pg[2].SendPowerBistOn(1{On},False,3000,0);
+          if rbGrayScale.Checked then begin
+            Sleep(500);
+            if cboBandCount.Text = 'ALLBamd' then begin
+              for I := 1 to 32 do begin
+                if bIs_Stop then Break;
+                advstrngrdDataView[2].ClearAll;
+                Run_GrayScale(2,i);
+              end;
+            end
+            else begin
+              advstrngrdDataView[2].ClearAll;
+              nBandIdx := cboBandCount.ItemIndex;
+              Run_GrayScale(2,nBandIdx);
+            end;
+          end
+          else if rbDBVTracking.Checked then begin
+            nRGBIdx := StrToIntDef(cboGrayRGB.text,0);
+            advstrngrdDataView[2].ClearAll;
+            Run_DBVtracking(2,nRGBIdx);
+          end;
+          wdRet := Pg[2].SendPowerBistOn(0{Off},False,3000,0); //TBD:DP860?
+
+          Mutex.Acquire; // 뮤텍스 획득
+          try
+            ControlDio.ProbeBackward(2);
+            ControlDio.UnlockCarrier(2,true);
+          finally
+            Mutex.Release; // 뮤텍스 반환
+          end;
+
+        end,btnMeasure);
+
+      end
+      else if j = DefCommon.CH4 then begin
+        ThreadTaskTracking( procedure var i : Integer; begin
+
+          Mutex.Acquire; // 뮤텍스 획득
+          try
+            ControlDio.lockCarrier(3,true);
+            ControlDio.ProbeForward(3);
+          finally
+            Mutex.Release; // 뮤텍스 반환
+          end;
+
+          wdRet := Pg[3].SendPowerBistOn(1{On},False,3000,0);
+          if rbGrayScale.Checked then begin
+            Sleep(500);
+            if cboBandCount.Text = 'ALLBamd' then begin
+              for I := 1 to 32 do begin
+                if bIs_Stop then Break;
+                advstrngrdDataView[3].ClearAll;
+                Run_GrayScale(3,i);
+              end;
+            end
+            else begin
+              advstrngrdDataView[3].ClearAll;
+              nBandIdx := cboBandCount.ItemIndex;
+              Run_GrayScale(3,nBandIdx);
+            end;
+          end
+          else if rbDBVTracking.Checked then begin
+            nRGBIdx := StrToIntDef(cboGrayRGB.text,0);
+            advstrngrdDataView[3].ClearAll;
+            Run_DBVtracking(3,nRGBIdx);
+          end;
+          wdRet := Pg[3].SendPowerBistOn(0{Off},False,3000,0); //TBD:DP860?
+
+          Mutex.Acquire; // 뮤텍스 획득
+          try
+            ControlDio.ProbeBackward(3);
+            ControlDio.UnlockCarrier(3,true);
+          finally
+            Mutex.Release; // 뮤텍스 반환
+          end;
+
+        end,btnMeasure);
+
+      end
     end;
   end;
 end;
+
 
 procedure TfrmMainter.btnMemChInfoClick(Sender: TObject);
 var
@@ -3689,14 +3932,14 @@ begin
     end);
   end);
   Ca310CalControlPnl(False);
-  thAutoCal.Start;
+  thAutoCal.Start;                                        
 {$ENDIF}
 end;
 
 procedure TfrmMainter.PowerOffSeq(nCh: Integer);
 begin
   ThreadTask( procedure begin
-    SendGuiDisplay(nCh,'Power OFF');
+    SendGuiDisplay(nCh,'Power OFF');                   
     Pg[nCh].SendPowerOn(0);
     Pg[nCh].SetPwrMeasureTimer(False);
   end, btnPowerOff);
@@ -4773,6 +5016,21 @@ begin
     task;
     th.Synchronize(nil,procedure begin
       btnObj.Enabled := True;
+    end);
+  end);
+  th.Start;
+end;
+
+procedure TfrmMainter.ThreadTaskTracking(task: TProc; btnObj : TRzBitBtn);
+var
+  th : TThread;
+begin
+  btnObj.Enabled := False;
+  th := TThread.CreateAnonymousThread(procedure begin
+    task;
+    th.Synchronize(nil,procedure begin
+      btnObj.Enabled := True;
+      ShowNgMessage('GrayScale or DBVtracking Done');
     end);
   end);
   th.Start;
