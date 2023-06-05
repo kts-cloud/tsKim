@@ -121,6 +121,7 @@ type
     ZAxis_Current : Integer;
     CarrierId     : string;
     SerialNo      : string;
+    MateriID      : string;
     PID           : string;
     RTN_PID       : string;
     RTN_MODEL     : string;
@@ -2011,6 +2012,7 @@ begin
   TestInfo.CarrierId:= '';
   TestInfo.RTN_PID:= '';
   TestInfo.LCM_ID:= '';
+  TestInfo.MateriID := '';   // Added by KTS 2023-06-01 오전 7:35:35
   TestInfo.ApdrData := '';
   TestInfo.PowerOn   := False;
   TestInfo.CanSendApdr := False;
@@ -3708,47 +3710,46 @@ var
   sSN : string;
 begin
   With AMachine do begin
-    wdRet := 1;
-		Case InputArgCount of
-      1 : begin
-        sSN := GetInputArgAsString(0);
-        if Length(sSN) = 0 then begin
-          ReturnOutputArg(0);
-          Exit;
-        end;
-        if not Common.StatusInfo.LogIn then begin
-          Common.MLog(self.FPgNo, 'APDR_EAS SKIP - OFF');
-          ReturnOutputArg(0);
-          Exit;
-        end;
-        //if TestInfo.CanSendApdr then begin
-//          TestInfo.ApdrData := ExecExtraFunction('MakeApdrData_EAS');
-        TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog(sSN,FormatDateTime('yymmdd',PasScr[FPgNo].TestInfo.StartTime), self.FPgNo);
+    try
+      wdRet := 1;
+      Case InputArgCount of
+        1 : begin
+          sSN := GetInputArgAsString(0);
+          if Length(sSN) = 0 then begin
+            ReturnOutputArg(0);
+            Exit;
+          end;
+          if not Common.StatusInfo.LogIn then begin
+            Common.MLog(self.FPgNo, 'APDR_EAS SKIP - OFF');
+            ReturnOutputArg(0);
+            Exit;
+          end;
+//          if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
+//            sSN := Format('%s_PCB_ID_CH_%d',[sSN,Self.FPgNo+1]);
+//            PasScr[Self.FPgNo].TestInfo.SerialNo := sSN;
+//          end;
+          //if TestInfo.CanSendApdr then begin
+  //          TestInfo.ApdrData := ExecExtraFunction('MakeApdrData_EAS');
+//          Common.MLog(self.FPgNo, 'ReadLGDDLLSummaryLog - Start');
+//          TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog(sSN,FormatDateTime('yymmdd',PasScr[FPgNo].TestInfo.StartTime), self.FPgNo);
+//          Common.MLog(self.FPgNo, 'ReadLGDDLLSummaryLog - End');
 
-
-        //Common.MLog(Self.FPgNo,TestInfo.ApdrData);
-        if DongaGmes <> nil then begin
-          //EAS ADPR은 응답을 기다리지 않는다.
-          SendMainGuiDisplay(DefGmes.EAS_APDR);
-          SendTestGuiDisplay(DefGmes.EAS_APDR, '','', 0);
-          wdRet := WAIT_OBJECT_0;
-          (*
-          wdRet := CheckSyncCmdAck(procedure begin
+          //Common.MLog(Self.FPgNo,TestInfo.ApdrData);
+          if DongaGmes <> nil then begin
+            //EAS ADPR은 응답을 기다리지 않는다.
             SendMainGuiDisplay(DefGmes.EAS_APDR);
             SendTestGuiDisplay(DefGmes.EAS_APDR, '','', 0);
-          end,5000,1);
-          *)
-        end
-        else begin
-          wdRet := WAIT_OBJECT_0;
+            wdRet := WAIT_OBJECT_0;
+          end
+          else begin
+            wdRet := WAIT_OBJECT_0;
+          end;
         end;
-       // end
-       // else begin
-       //   wdRet := WAIT_OBJECT_0;
-       // end;
-      end;
-    End;
-    ReturnOutputArg( wdRet);
+      End;
+      ReturnOutputArg(wdRet);
+    finally
+      ReturnOutputArg(wdRet);
+    end;
   end;
 end;
 
@@ -4155,6 +4156,7 @@ begin
         end;
       end;
       if Common.SystemInfo.Use_GIB then begin //GIB구분- Auto이고 GIB 모드이면 Inline GIB
+        g_CommPLC.SetGlassData_CheckRLogistics(g_CommPLC.GlassData[FPgNo],1);
         g_CommPLC.SetGlassData_Previous_Unit_Processing_GIB(g_CommPLC.GlassData[FPgNo],FPgNo,nSeq);
       end
       else begin
@@ -5182,39 +5184,6 @@ begin
     if InputArgCount = 3 then nSkipResult := GetInputArgAsInteger(2);
 
     m_InsStatus := isStop;
-    //TestInfo.EndTime := now;
-
-//    if nSkipResult = 0 then begin
-//      //최근 결과 업데이트
-//      m_lstPrevRet.Insert(0,nResult);
-//      if m_lstPrevRet.Count > 7 then m_lstPrevRet.Delete(7);
-//
-//      if (nResult <> 0 ) and  Common.StatusInfo.AutoMode then begin
-//        if nResult = 5 then begin
-//          //카메라 통신 이상 알람 - //1=NAK, 3=Time out, 100=Send Fail, 101=ERROR
-//          TestInfo.AlarmNGCode:= 5;
-//        end
-//        else if (Common.SystemInfo.NGAlarmCount > 0) then begin
-//          //연속 NG 검사
-//          sParam:= format('%d,%d', [TestInfo.NGAlarmCount, m_lstPrevRet.Items[0]]);
-//          for i := 1 to 4 do begin
-//            if i < m_lstPrevRet.Count  then begin
-//              sParam:= sParam + format(',%d', [m_lstPrevRet.Items[i]]);
-//            end
-//            else begin
-//              sParam:= sParam + ',0';
-//            end;
-//          end;
-//
-//          //Demura 연속 NG 시 알람
-//          sRet:= ExecExtraFunction('Callback_ContinuousNG ' + sParam);
-//          if sRet <> '0' then begin
-//            //알람 발생 - 1=Contact NG, 2=Camera NG
-//            TestInfo.AlarmNGCode:= nResult;
-//          end;
-//        end;
-//      end;  //if (nResult <> 0 ) and Common.StatusInfo.AutoMode then begin
-//    end;
 
 
     TestInfo.NgCode:= nResult;

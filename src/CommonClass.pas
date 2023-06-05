@@ -3572,9 +3572,9 @@ begin
       WriteLn(_infile, sInputData);
     except
       on E: Exception do  begin
-        Sleep(10); //MLog 충돌 방지- IO 103
+//        Sleep(10); //MLog 충돌 방지- IO 103
         if nCh <> MAX_SYSTEM_LOG then begin
-          MLog(MAX_SYSTEM_LOG, format('Exception On Mlog Ch=%d, Err=%s', [nCh, E.Message]));
+//          MLog(MAX_SYSTEM_LOG, format('Exception On Mlog Ch=%d, Err=%s', [nCh, E.Message]));
         end;
       end;
     end;
@@ -3663,7 +3663,7 @@ const
 begin
 //  m_csReadCsvLog.Acquire; // 동시 접근 방지
 //  sDate := FormatDateTime('yymmdd', PasScr[nCh].TestInfo);
-
+  Result := '';
   sFileName:= Common.Path.LGDDLL +format('Oclog\SummaryLog\%s_Summary_Log_',[Common.SystemInfo.EQPId]) + sDate +'.csv';
   if not FileExists(sFileName) then begin
     //File not Found
@@ -4615,3 +4615,4 @@ end;
 
 
 end.
+

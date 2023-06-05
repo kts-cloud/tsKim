@@ -508,6 +508,7 @@ type
     function SetGlassData_Processing_Status(var GlassData: TECSGlassData; nSeq: Integer; nBitCount: Integer = 4): Integer;
     function SetGlassData_Processing_Status_GIB(var GlassData: TECSGlassData; nCH,nABBCount: Integer): Integer;
     function SetGlassData_ContactNG(var GlassData: TECSGlassData; nValue: Integer): Integer;
+    function SetGlassData_CheckRLogistics(var GlassData: TECSGlassData; nValue: Integer): Integer;
     function SetGlassData_JudgCode(var GlassData: TECSGlassData; nValue: Integer): Integer;
     function GetGlassDataString(var AGlassData: TECSGlassData): String;
     function GetGlassData_Processing_Status(var GlassData: TECSGlassData; var nSeq: Integer; nBitCount: Integer = 4): Integer;
@@ -2137,7 +2138,7 @@ begin
   nIndex := (EQP_ID + 13) mod 16;
   ConvertStrToPLC(sPanelID, 16, naGlassData[0]); //문자는 Word당 2글자
   if Common.PLCInfo.InlineGIB then begin
-    sECSBitAddr := 'B'+IntToHex(StartAddr_ECS+ $10 * $20 + $10 * $0C + $01, 3);
+    sECSBitAddr := 'B'+IntToHex(StartAddr_ECS+ $10 * $20 + $01, 3);
   end
   else begin
     sECSBitAddr := 'B'+IntToHex(StartAddr_ECS+ $200+nIndex, 3);
@@ -3203,12 +3204,12 @@ try
           end;
           $3F: begin //Robot Last Product
             //Process_ROBOT_LastProduct(1, nValue);
-            if InlineGIB = True then begin
-              //Inline GIB - 조립라인은 시작 주소가 5600부터- 궁여지책
-              AddLog(format('Process_ROBOT_LastProduct Index=%d, Value=%d', [nIndex, nValue]));
-              nIndex:= (EQP_ID - 33) div 4; //Zone 구분을 위한 계산  0=A Zone, 1=B Zone, 2=C zone
-              SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, nIndex, COMMPLC_PARAM_LAST_PRODUCT, nValue, 'Process_ROBOT_LastProduct', nil);
-            end;
+//            if InlineGIB = True then begin
+//              //Inline GIB - 조립라인은 시작 주소가 5600부터- 궁여지책
+//              AddLog(format('Process_ROBOT_LastProduct Index=%d, Value=%d', [nIndex, nValue]));
+//              nIndex:= (EQP_ID - 33) div 4; //Zone 구분을 위한 계산  0=A Zone, 1=B Zone, 2=C zone
+//              SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, nIndex, COMMPLC_PARAM_LAST_PRODUCT, nValue, 'Process_ROBOT_LastProduct', nil);
+//            end;
           end;
 
           else begin
@@ -3245,8 +3246,8 @@ begin
 
         case nIndex of
           $06, $07, $08: begin //Last Product - 잔량 처리 6=A Zone, 7=B Zone, 8=C zone
-            AddLog(format('Process_CV_LastProduct Index=%d, Value=%d', [nIndex, nValue]));
-            SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, nIndex-6, COMMPLC_PARAM_LAST_PRODUCT, nValue, 'Process_CV_LastProduct', nil);
+//            AddLog(format('Process_CV_LastProduct Index=%d, Value=%d', [nIndex, nValue]));
+//            SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, nIndex-6, COMMPLC_PARAM_LAST_PRODUCT, nValue, 'Process_CV_LastProduct', nil);
           end;
 
           $20 .. $3D: begin
@@ -4755,6 +4756,18 @@ begin
   //Contact NG
   Set_Bit(GlassData.GlassSpecificData[0], 2, nValue);
 end;
+
+function TCommPLCThread.SetGlassData_CheckRLogistics(var GlassData: TECSGlassData; nValue: Integer): Integer;
+begin
+//2.2.8 특이 운영
+//- 역 물류 존재 (MP0로 부터의 역 물류 - Bit Panel Add Data(2) 2Bit 참고)
+//   - > 해당 Panel 작업 이후 배출 시 해당 Bit Off 하여 배출 한다.
+
+  Result:= 0;
+  Set_Bit(GlassData.GlassSpecificData[2], 2, nValue);
+end;
+
+
 
 function TCommPLCThread.SetGlassData_JudgCode(var GlassData: TECSGlassData; nValue: Integer): Integer;
 begin

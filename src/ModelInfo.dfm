@@ -26,7 +26,7 @@ object frmModelInfo: TfrmModelInfo
     Height = 810
     ParentCustomHint = False
     Align = alClient
-    ActivePage = pgModelSetPG
+    ActivePage = pgModelInfo
     ButtonSettings.CloseButtonPicture.Data = {
       424DA20400000000000036040000280000000900000009000000010008000000
       00006C000000C30E0000C30E00000001000000010000427B8400DEEFEF00FFFF
@@ -5962,7 +5962,7 @@ object frmModelInfo: TfrmModelInfo
           Font.Name = 'Tahoma'
           Font.Style = []
           ParentFont = False
-          TabOrder = 2
+          TabOrder = 0
           Transparent = True
           object btn1: TRzBitBtn
             Left = 1226

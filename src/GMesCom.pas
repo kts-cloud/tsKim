@@ -839,7 +839,7 @@ end;
 
 procedure TGmes.ReadMsgEas(ASender: TObject; const sMessage: WideString);
 begin
-  GetEasData(sMessage);
+//  GetEasData(sMessage);
 end;
 
 procedure TGmes.ReadMsgHost(ASender: TObject; const sMessage: WideString);
@@ -2238,7 +2238,7 @@ begin
       sSendMsg := sSendMsg  + ' START_TIME='+FormatDateTime('yyyymmddhhnnss', PasScr[nPg].TestInfo.StartTime);
       sSendMsg := sSendMsg  + ' END_TIME='+FormatDateTime('yyyymmddhhnnss', PasScr[nPg].TestInfo.EndTime);
       bIsChMsg := True;
-      Common.MLog(nPg,'SEND_MESG2HOST2 : Send Msg :  ' + sSendMsg);
+//      Common.MLog(nPg,'SEND_MESG2HOST2 : Send Msg :  ' + sSendMsg);
     end;
     DefGmes.R2R_EODS : begin
       sSendMsg := 'EODS';

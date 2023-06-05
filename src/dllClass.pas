@@ -1469,6 +1469,7 @@ sParameter : string;
 begin
   try
     sParameter := sPID + ',' + sSerialNumber + ',' + sUser_ID +',' + sEquipment;
+    SendTestGuiDisplay(nCH,defCommon.MSG_MODE_WORKING,sParameter,0);
     m_bIsProcessDone[nCH] := False;
     m_MainOC_START_CH1(nCH,Common.StringToPAnsiChar(sParameter));
     Result := 0;
@@ -1486,6 +1487,7 @@ begin
 //    Pg[nCH].SetCyclicTimer(False{bEnable});
     sParameter := sPID + ',' + sSerialNumber + ',' + sUser_ID +',' + sEquipment;
     m_bIsProcessDone[nCH] := False;
+    SendTestGuiDisplay(nCH,defCommon.MSG_MODE_WORKING,sParameter,0);
     //ThreadTask(procedure begin
       m_MainOC_START_CH2(nCH,Common.StringToPAnsiChar(sParameter));
     //end);
@@ -1504,6 +1506,7 @@ begin
 //    Pg[nCH].SetCyclicTimer(False{bEnable});
     sParameter := sPID + ',' + sSerialNumber + ',' + sUser_ID +',' + sEquipment;
     m_bIsProcessDone[nCH] := False;
+    SendTestGuiDisplay(nCH,defCommon.MSG_MODE_WORKING,sParameter,0);
     //ThreadTask(procedure begin
       m_MainOC_START_CH3(nCH,Common.StringToPAnsiChar(sParameter));
     //end);
@@ -1522,6 +1525,7 @@ begin
 //    Pg[nCH].SetCyclicTimer(False{bEnable});
     sParameter := sPID + ',' + sSerialNumber + ',' + sUser_ID +',' + sEquipment;
     m_bIsProcessDone[nCH] := False;
+    SendTestGuiDisplay(nCH,defCommon.MSG_MODE_WORKING,sParameter,0);
     //ThreadTask(procedure begin
       m_MainOC_START_CH4(nCH,Common.StringToPAnsiChar(sParameter));
     //end);
