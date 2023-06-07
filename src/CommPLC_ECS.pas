@@ -508,7 +508,7 @@ type
     function SetGlassData_Processing_Status(var GlassData: TECSGlassData; nSeq: Integer; nBitCount: Integer = 4): Integer;
     function SetGlassData_Processing_Status_GIB(var GlassData: TECSGlassData; nCH,nABBCount: Integer): Integer;
     function SetGlassData_ContactNG(var GlassData: TECSGlassData; nValue: Integer): Integer;
-    function SetGlassData_CheckRLogistics(var GlassData: TECSGlassData; nValue: Integer): Integer;
+    function SetGlassData_CheckRLogistics(nCH : Integer; var GlassData: TECSGlassData; nValue: Integer): Integer;
     function SetGlassData_JudgCode(var GlassData: TECSGlassData; nValue: Integer): Integer;
     function GetGlassDataString(var AGlassData: TECSGlassData): String;
     function GetGlassData_Processing_Status(var GlassData: TECSGlassData; var nSeq: Integer; nBitCount: Integer = 4): Integer;
@@ -4757,14 +4757,18 @@ begin
   Set_Bit(GlassData.GlassSpecificData[0], 2, nValue);
 end;
 
-function TCommPLCThread.SetGlassData_CheckRLogistics(var GlassData: TECSGlassData; nValue: Integer): Integer;
+function TCommPLCThread.SetGlassData_CheckRLogistics(nCH : Integer; var GlassData: TECSGlassData; nValue: Integer): Integer;
 begin
 //2.2.8 특이 운영
 //- 역 물류 존재 (MP0로 부터의 역 물류 - Bit Panel Add Data(2) 2Bit 참고)
 //   - > 해당 Panel 작업 이후 배출 시 해당 Bit Off 하여 배출 한다.
-
   Result:= 0;
-  Set_Bit(GlassData.GlassSpecificData[2], 2, nValue);
+  if Get_Bit(GlassData.GlassSpecificData[2], 2) > 0 then begin  //역물류 초기화 진행
+    Common.MLog(nCH,Format('CH : %d Reverse Logistics' ,[nCH +1]));
+    GlassData.GlassProcessingStatus[0] := 0;
+    GlassData.PreviousUnitProcessing[0] := 0;
+    Set_Bit(GlassData.GlassSpecificData[2], 2, 0);
+  end;
 end;
 
 

@@ -2653,39 +2653,34 @@ begin
     wdRet := 3;
 //    if not CSharpDll.m_bIsDLLWork[FPgNo] then begin
 
-      PG[Self.FPgNo].DP860_SendOcOnOff(1{start},2000,0); //2023-03-28 jhhwang (for T/T Test)
-      PG[Self.FPgNo].SetCyclicTimer(False); //2023-03-28 jhhwang (for T/T Test)
+    PG[Self.FPgNo].DP860_SendOcOnOff(1{start},2000,0); //2023-03-28 jhhwang (for T/T Test)
+    PG[Self.FPgNo].SetCyclicTimer(False); //2023-03-28 jhhwang (for T/T Test)
 
 //      CSharpDll.m_bIsDLLWork[FPgNo] := true;
-      case InputArgCount of
-        2 : begin
-//        sPID := 'PPP';
-          sPID := GetInputArgAsstring(0);
-          sSerialNumber := GetInputArgAsstring(1);
-          sSerialNumber := Trim(sSerialNumber);
-          if DongaGmes <> nil then
-            sPID :=  DongaGmes.MesData[FPgNo].PchkRtnPID; // Added by KTS 2023-05-19 오후 5:32:48 PCHK 받은 RYN_PID
-          if Length(sPID) = 0 then sPID := Copy(sSerialNumber,1,3);
-          if Common.SystemInfo.OCType = DefCommon.PreOCType then
-            sSerialNumber := Format('%s_PCB_ID_CH_%d',[sSerialNumber,Self.FPgNo+1]);
-//          {$IFDEF SIMULATOR}
-//            sSerialNumber := format('TEST1234567890_%d',[Self.FPgNo]);
-//          {$ENDIF}
-//          sPID := Copy(sSerialNumber,0,3);
-          if Length(sSerialNumber) = 0 then sSerialNumber := 'TEST123456789012345678901';
-          sEquipment := Common.SystemInfo.EQPId;
-          sUSERID := Common.SystemInfo.AutoLoginID;
-          if Length(sEquipment) = 0 then sEquipment :=  Format('Equipment:%d',[Self.FPgNo]);
-          PasScr[FPgNo].TestInfo.StartTime := now;
-          case FPgNo of
-            0:         wdRet := CSharpDll.MainOC_Start_CH1(Self.FPgNo,sPID,sSerialNumber,sUSERID,sEquipment);
-            1:         wdRet := CSharpDll.MainOC_Start_CH2(Self.FPgNo,sPID,sSerialNumber,sUSERID,sEquipment);
-            2:         wdRet := CSharpDll.MainOC_Start_CH3(Self.FPgNo,sPID,sSerialNumber,sUSERID,sEquipment);
-            3:         wdRet := CSharpDll.MainOC_Start_CH4(Self.FPgNo,sPID,sSerialNumber,sUSERID,sEquipment);
-          end;
-
+    case InputArgCount of
+      2 : begin
+        sPID := GetInputArgAsstring(0);
+        sSerialNumber := GetInputArgAsstring(1);
+        sSerialNumber := Trim(sSerialNumber);
+        if DongaGmes <> nil then
+          sPID :=  DongaGmes.MesData[FPgNo].PchkRtnPID; // Added by KTS 2023-05-19 오후 5:32:48 PCHK 받은 RYN_PID
+        if Length(sPID) = 0 then sPID := Copy(sSerialNumber,1,3);
+        if Common.SystemInfo.OCType = DefCommon.PreOCType then
+          sSerialNumber := Format('%s_PCB_ID_CH_%d',[sSerialNumber,Self.FPgNo+1]);
+        if Length(sSerialNumber) = 0 then sSerialNumber := 'TEST123456789012345678901';
+        sEquipment := Common.SystemInfo.EQPId;
+        sUSERID := Common.SystemInfo.AutoLoginID;
+        if Length(sEquipment) = 0 then sEquipment :=  Format('Equipment:%d',[Self.FPgNo]);
+        PasScr[FPgNo].TestInfo.StartTime := now;
+        case FPgNo of
+          0:         wdRet := CSharpDll.MainOC_Start_CH1(Self.FPgNo,sPID,sSerialNumber,sUSERID,sEquipment);
+          1:         wdRet := CSharpDll.MainOC_Start_CH2(Self.FPgNo,sPID,sSerialNumber,sUSERID,sEquipment);
+          2:         wdRet := CSharpDll.MainOC_Start_CH3(Self.FPgNo,sPID,sSerialNumber,sUSERID,sEquipment);
+          3:         wdRet := CSharpDll.MainOC_Start_CH4(Self.FPgNo,sPID,sSerialNumber,sUSERID,sEquipment);
         end;
+
       end;
+    end;
     //CSharpDll.m_bIsDLLWork[Self.FPgNo] := False;
 //    PG[Self.FPgNo].SetCyclicTimer(True); //2023-03-28 jhhwang (for T/T Test)
 //    end
@@ -4133,6 +4128,10 @@ begin
       end;
       nNgCode := GetInputArgAsInteger(0);
       Common.MLog(self.FPgNo, 'ECS_SetGlassData NgCode=' + IntToStr(nNgCode));
+      if Common.SystemInfo.Use_GIB then begin
+        g_CommPLC.SetGlassData_CheckRLogistics(FPgNo,g_CommPLC.GlassData[FPgNo],0);
+      end;
+
       if nNgCode = 0 then begin
         g_CommPLC.SetGlassData_JudgCode(g_CommPLC.GlassData[FPgNo], ord('G'));
       end
@@ -4156,7 +4155,6 @@ begin
         end;
       end;
       if Common.SystemInfo.Use_GIB then begin //GIB구분- Auto이고 GIB 모드이면 Inline GIB
-        g_CommPLC.SetGlassData_CheckRLogistics(g_CommPLC.GlassData[FPgNo],1);
         g_CommPLC.SetGlassData_Previous_Unit_Processing_GIB(g_CommPLC.GlassData[FPgNo],FPgNo,nSeq);
       end
       else begin

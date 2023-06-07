@@ -715,13 +715,13 @@ begin
     end;
     if (common.SystemInfo.OCType = DefCommon.PreOCType) or (not Result)  then begin // 둘중 하나라도 있으면 exchange 배출 할 수 있도록
       if nPair = DefCommon.CH_TOP then begin
-        if not ControlDio.ReadInSig(IN_GIB_CH_1_CARRIER_SENSOR) and not ControlDio.ReadInSig(IN_GIB_CH_2_CARRIER_SENSOR) then begin
+        if (not ControlDio.ReadInSig(IN_GIB_CH_1_CARRIER_SENSOR)) and (not ControlDio.ReadInSig(IN_GIB_CH_2_CARRIER_SENSOR)) then begin
           SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Empty 1,2 Ch(CheckEmpty_Pair)');
           bResult := False;
         end;
       end
       else if nPair = DefCommon.CH_BOTTOM then begin
-        if not ControlDio.ReadInSig(IN_GIB_CH_3_CARRIER_SENSOR) and not ControlDio.ReadInSig(IN_GIB_CH_4_CARRIER_SENSOR) then begin
+        if (not ControlDio.ReadInSig(IN_GIB_CH_3_CARRIER_SENSOR)) and (not ControlDio.ReadInSig(IN_GIB_CH_4_CARRIER_SENSOR)) then begin
           SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Empty 3,4 Ch(CheckEmpty_Pair)');
           bResult := False;
         end;

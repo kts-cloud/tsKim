@@ -5564,11 +5564,12 @@ function TCommPG.SendFlashRead(nAddr,nSize: DWORD; pData: PByte; nWaitMS: Intege
 var
   btApiRtn : Byte;
   nTry : Integer;
-  sFunc, sDebug : string;
-  sRemotePath, sRemoteFile, sLocalPath, sLocalFile, sLocalFullName : string;
+  sFunc, sDebug,sDate,sPID : string;
+  sRemotePath, sRemoteFile, sLocalPath, sLocalFile, sLocalFullName,sRemoteBackupFile, sLocalPathBackUp,sLocalFullBackupName : string;
   //
   mtData : TMemoryStream;
   rxData : array of Byte;
+  fs   : TFileStream;
 begin
   Result := WAIT_FAILED;
   sFunc  := Format('FlashRead(Addr=%d,Size=%d) ',[nAddr,nSize]);
@@ -5624,6 +5625,24 @@ begin
             finally
               mtData.Free;
             end;
+//            if length(PasScr[m_nPg].TestInfo.RTN_PID) > 0 then
+//              sPID := PasScr[m_nPg].TestInfo.RTN_PID
+//            else sPID := FormatDateTime('HHNN\', Now);
+//
+//            sRemoteBackupFile := Format('FlashR_A0x%x_L%d_',[nAddr,nSize]) + FormatDateTime('HHNNSS', Now) + '.bin';
+//            sDate := FormatDateTime('yymmdd', Now);
+//            sLocalPathBackUp := Common.Path.FLASHBackup + sDate + '\' + sPID;
+//            sLocalFullBackupName := sLocalPathBackUp + Format('CH%d_%s',[m_nPG+1,sRemoteBackupFile]) ;
+//
+//            if not Common.CheckDir(sLocalPathBackUp) then begin
+//              fs := TFileStream.Create(sLocalFullBackupName, fmCreate);
+//              try
+//                fs.Write(rxData[0], nSize);
+//              finally
+//                fs.Free;
+//                fs := nil;
+//              end;
+//            end;
             break;
   				end;
   			end;
@@ -5642,14 +5661,15 @@ begin
   end;
 end;
 
+
 function TCommPG.SendFlashWrite(nAddr,nSize: DWORD; pData: PByte; nWaitMS: Integer=100000; nRetry: Integer=0): DWORD; //TBD:DP860?
 var
   btApiRtn : Byte;
   i, nTry  : integer;
   CalcCRC, RxCRC : Word; //Word?
   pTemp : PByte;
-  sFunc, sDebug : string;
-  sRemotePath, sRemoteFile, sLocalPath, sLocalFile, sLocalFullName : string;
+  sFunc, sDebug,sDate,sPID : string;
+  sRemotePath, sRemoteFile, sLocalPath,sLocalPathBackUp, sLocalFile, sLocalFullName, sLocalFullBackupName, sRemoteBackupFile : string;
   bVerifyPG, bErasePG : Boolean;
   {$IFDEF PG_DP860}
   fs   : TFileStream;
@@ -5709,6 +5729,23 @@ begin
               fs.Free;
               fs := nil;
             end;
+//            if length(PasScr[m_nPg].TestInfo.RTN_PID) > 0 then
+//              sPID := PasScr[m_nPg].TestInfo.RTN_PID
+//            else sPID := FormatDateTime('HHNN\', Now);
+//            sRemoteBackupFile := Format('FlashW_A0x%x_L%d_',[nAddr,nSize]) + FormatDateTime('HHNNSS', Now) + '.bin';
+//            sDate := FormatDateTime('yymmdd', Now)  + '\' + sPID;
+//            sLocalPathBackUp := Common.Path.FLASHBackup + sDate;
+//            sLocalFullBackupName := sLocalPathBackUp + Format('CH%d_%s',[m_nPG+1,sRemoteBackupFile]) ;
+//            if not Common.CheckDir(sLocalPathBackUp) then begin
+//              fs := TFileStream.Create(sLocalFullBackupName, fmCreate);
+//              try
+//                fs.Write(arData[0], nSize);
+//              finally
+//                fs.Free;
+//                fs := nil;
+//              end;
+//            end;
+
   					// FTP Put to PG
             Result := DP860_FilePutPC2PG(sLocalFullName, sRemotePath,sRemoteFile, True{bClearBeforePut}, True{nEndDisc} {,nWaitMS,nRetry});
    					if Result <> WAIT_OBJECT_0 then begin

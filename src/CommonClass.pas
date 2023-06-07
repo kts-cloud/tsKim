@@ -468,6 +468,7 @@ type
     ModelCode    : string;
     LOG     		 : string;
     FLASH         : string;
+    FLASHBackup  : string;
     LGDDLL       : string;
     Gamma        : string;
     GMES     		 : string; //Host
@@ -1982,6 +1983,7 @@ begin
   Path.MODEL      	  := Path.RootSW + 'MODEL\';
   Path.LOG        		:= Path.RootSW + 'LOG\';
   Path.FLASH          := Path.LOG + 'FLASH\';
+  Path.FLASHBackup    := Path.FLASH + 'BackUp\';
   Path.IMAGE          := Path.RootSW + 'image\';
   Path.MLOG           := Path.LOG + 'MLog\';
   Path.DebugLog       := Path.LOG + 'DebugLog\'; //2020-09-16 DEBUG_LOG
@@ -2023,6 +2025,7 @@ begin
   CheckDir(Path.PG_FW);
   CheckDir(Path.PG_FPGA);
   CheckDir(Path.FLASH);
+  CheckDir(Path.FLASHBackup);
   CheckDir(Path.Maint);
   CheckDir(Path.MLOG);
   CheckDir(Path.SumCsv);
