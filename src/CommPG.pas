@@ -4559,6 +4559,11 @@ begin
             DP860_SendInterposerOff(nWaitMS,nRetry);
             Sleep(DELAY_POWER_INTERPOSER_OFF);
       			Result := DP860_SendInterposerOn(nWaitMS,nRetry);
+            if Result <> WAIT_OBJECT_0 then begin
+              Result := DP860_SendInterposerOff({nMode}nWaitMS,nRetry);
+              Sleep(100);
+              Result := DP860_SendInterposerOn(nWaitMS,nRetry);
+            end;
             if Result = WAIT_OBJECT_0 then begin
               Sleep(DELAY_POWER_INTERPOSER_ON);
               {$IFDEF INSPECTOR_POCB}
@@ -4569,12 +4574,16 @@ begin
               begin
           			Result := DP860_SendDutDetect(1000{nWaitMS},1{Retry});
               end;
-              //TBD? if Result = WAIT_OBJECT_0 then begin
+              if Result = WAIT_OBJECT_0 then begin
           			Result := DP860_SendPowerOn(nWaitMS,nRetry);
-              //TBD? end;
-              //TBD? if Result = WAIT_OBJECT_0 then begin
+              end
+              else begin
+                Result := DP860_SendPowerOff({nMode}nWaitMS,nRetry);
+                Result := DP860_SendInterposerOff({nMode}nWaitMS,nRetry);
+              end;
+              if Result = WAIT_OBJECT_0 then begin
           			DP860_SendTconInfo(1000{nWaitMS},0{Retry});
-              //TBD? end;
+              end;
             end;
           end
           else begin
@@ -4693,10 +4702,14 @@ begin
               end;
               if Result = WAIT_OBJECT_0 then begin
           			Result := DP860_SendPowerBistOn(nWaitMS,nRetry);
+              end
+              else begin
+                Result := DP860_SendPowerBistOff({nMode}nWaitMS,nRetry);
+                Result := DP860_SendInterposerOff({nMode}nWaitMS,nRetry);
               end;
-              //TBD? if Result = WAIT_OBJECT_0 then begin
+              if Result = WAIT_OBJECT_0 then begin
           			DP860_SendTconInfo(1000{nWaitMS},0{Retry});
-              //TBD? end;
+              end;
             end;
           end
           else begin
