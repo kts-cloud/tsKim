@@ -392,6 +392,8 @@ type
 		function DP860_SendTconRead(nRegAddr,nDataCnt: Integer; var arDataR: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
 		function DP860_SendTconWrite(nRegAddr,nDataCnt: Integer; arDataW: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
     function DP860_SendTconOCWrite(nRegAddr,nDataCnt: Integer; arDataW: TIDBytes; nWaitMS: Integer=0; nRetry: Integer=0): DWORD;
+    function DP860_SendTconMultiWrite(nDataCnt: Integer; arRegAddr : array of integer; arDataW: TIDBytes; nWaitMS: Integer=0; nRetry: Integer=0): DWORD;
+
 
     //------------------------------------------------------ PG_DP860 Command (Flash)
   {$IFDEF FEATURE_FLASH_ACCESS}
@@ -406,8 +408,11 @@ type
 		function DP860_FileGetPG2PC(sRemotePath, sRemoteFile: string; sLocalFullName: string; bClearAfterGet: Boolean=False; bEndDisc: Boolean=True): DWORD;
   {$ENDIF}
       procedure DP860_ClearOcTconRWCnt; //2023-03-28 jhhwang (for T/T Test)
-	  function DP860_SendOcOnOff(nState: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //2023-03-28 jhhwang (for T/T Test)
+    function DP860_SendOcOnOff(nState: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //2023-03-28 jhhwang (for T/T Test)
+	  function DP860_SendSendNvmInit(nMode: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //2023-03-28 jhhwang (for T/T Test)
     function DP860_SendGpioRead(sGpio: string; nWaitMS: Integer=5000; nRetry: Integer=0): DWORD; //2023-03-28 jhhwang (for T/T Test)
+    function DP860_SendGpioPanel_IRQ(var nData : integer; nWaitMS: Integer=5000; nRetry: Integer=0): DWORD; //2023-03-28 jhhwang (for T/T Test)
+
     //------------------------------------------------------ PG_DP860 System
 	//TBD:DP860?	bmp
 	//TBD:DP860?	delay.ms <ms#>
@@ -437,6 +442,7 @@ type
     function SendI2CRead(nDevAddr,nRegAddr,nDataCnt: Integer; var arDataR: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
 	//{$IFDEF INSPECTOR_POCB}
     function SendI2CWrite(nDevAddr,nRegAddr,nDataCnt: Integer; arDataW: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
+    function SendI2CMultiWrite(nDevAddr,nDataCnt: Integer; arRegAddr : array of integer; arDataW: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
 	//{$ELSE}
   //function SendI2CWrite(nDevAddr,nRegAddr,nDataCnt: Integer; arDataW: array of Integer; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
 	//{$ENDIF}
@@ -632,7 +638,7 @@ begin
 
   bEnd := False;
 	Repeat
-		nPosAck := Pos('RET:',UpperCase(sData));
+  		nPosAck := Pos('RET:',UpperCase(sData));
     //
 		if (nPosAck < 1) then begin
       bEnd := True;
@@ -4008,6 +4014,36 @@ begin
   end;
 end;
 
+function TCommPG.DP860_SendTconMultiWrite(nDataCnt: Integer; arRegAddr : array of integer; arDataW: TIDBytes; nWaitMS: Integer=0; nRetry: Integer=0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+	i : Integer;
+begin
+	nCmdId   := DefPG.PG_CMDID_TCON_MULTIWRITE;
+	sCmdName := DefPG.PG_CMDSTR_TCON_MULTIWRITE;
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName + ' ' + Format('%d',[nDataCnt]); // 'tcon.write <reg_addr> <write_length> <write_data0> <write_data1>…'
+	for i := 0 to Pred(nDataCnt) do begin
+		sCommand := sCommand + ' ' + Format('0x%0.4x 0x%0.2x',[arRegAddr[i],arDataW[i]]);
+	end;
+  Sleep(100);
+	Result := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+  Inc(TconRWCnt.TconOcWriteTX);   //2023-03-28 jhhwang (for T/T Test)
+  Inc(TconRWCnt.ContTConOcWrite); //2023-03-28 jhhwang (for T/T Test)
+
+  if Result <> WAIT_OBJECT_0 then begin
+    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+  end;
+  //
+//if (Common.SystemInfo.DebugLogLevelConfig > 0) or (Result <> 0) then begin
+  if ((Common.SystemInfo.DebugLogLevelConfig > 0) and Common.SystemInfo.PG_TconWriteLogDisplay) or (Result <> 0) then begin
+    sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+  end;
+end;
+
 {$IFDEF FEATURE_FLASH_ACCESS}
 //==============================================================================
 // PG_DP860 Command (NVM/Flash Read)
@@ -4437,6 +4473,27 @@ begin
   ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
 end;
 
+function TCommPG.DP860_SendSendNvmInit(nMode: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+	i : Integer;
+begin
+	nCmdId   := DefPG.PG_CMDID_NVM_INIT;
+	sCmdName := DefPG.PG_CMDSTR_NVM_INIT;
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName + ' ' + Format('%d',[nMode]);
+	Result := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+
+  if Result <> WAIT_OBJECT_0 then begin
+    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+  end;
+  //
+	sDebug := '<PG> ' + sCommand + ':' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+end;
+
 function TCommPG.DP860_SendGpioRead(sGpio: string; nWaitMS: Integer=5000; nRetry: Integer=0): DWORD; //2023-03-28 jhhwang (for T/T Test)
 var
 	nCmdId : Integer;
@@ -4462,6 +4519,39 @@ begin
       Result  := WAIT_FAILED;
     end;
   end;
+  //
+  if ((Common.SystemInfo.DebugLogLevelConfig > 0) and Common.SystemInfo.PG_TconWriteLogDisplay) or (Result <> 0) then begin
+	  sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+  end;
+end;
+
+
+function TCommPG.DP860_SendGpioPanel_IRQ(var nData : Integer; nWaitMS: Integer=5000; nRetry: Integer=0): DWORD; //2023-03-28 jhhwang (for T/T Test)
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+  arCmdAck : TArray<string>;
+begin
+  //
+	nCmdId   := DefPG.PG_CMDID_GPIO_PANEL_IRQ;
+	sCmdName := DefPG.PG_CMDSTR_GPIO_PANEL_IRQ;
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName;
+	Result   := DP860_SendCmd(sCommand, nCmdId,sCmdName,nWaitMS,nRetry); //TBD:DP860? (500ms?)
+
+  sEtcMsg  := '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+  if Result = WAIT_OBJECT_0 then begin
+    try
+      arCmdAck := FTxRxPG.RxAckStr.Split([#$0D]);
+      nData := StrToIntDef(Trim(arCmdAck[0]),0);
+    except
+      sEtcMsg :=  sEtcMsg + '(RxDataParsingError)';
+      Result  := WAIT_FAILED;
+    end;
+  end;
+
   //
   if ((Common.SystemInfo.DebugLogLevelConfig > 0) and Common.SystemInfo.PG_TconWriteLogDisplay) or (Result <> 0) then begin
 	  sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
@@ -4709,6 +4799,8 @@ begin
               end;
               if Result = WAIT_OBJECT_0 then begin
           			DP860_SendTconInfo(1000{nWaitMS},0{Retry});
+                Sleep(100);
+                DP860_SendSendNvmInit(Common.TestModelInfoFLOW.UseNvmInit,nWaitMS,nRetry);
               end;
             end;
           end
@@ -5292,6 +5384,8 @@ begin
 end;
 
 
+
+
 function TCommPG.SendDimmingBist(nDimming: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
 {$IFDEF PG_AF9}
 const
@@ -5557,6 +5651,23 @@ begin
       {$ENDIF}
 		end;
 		{$ENDIF}
+	end;
+end;
+
+function TCommPG.SendI2CMultiWrite(nDevAddr,nDataCnt: Integer; arRegAddr : array of Integer; arDataW: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
+var
+	{$IFDEF PG_AF9}
+  nApiRtn : Integer;
+	{$ENDIF}
+  i : Integer;
+  bWriteSync : Boolean; //2023-03-28 jhhwang (for T/T Test)
+begin
+  Result := WAIT_FAILED;
+  //
+	case PG_TYPE of
+		DefPG.PG_TYPE_DP860 : begin //-------------- DP860
+      Result := DP860_SendTconMultiWrite(nDataCnt,arRegAddr,arDataW, nWaitMS,nRetry);
+		end;
 	end;
 end;
 

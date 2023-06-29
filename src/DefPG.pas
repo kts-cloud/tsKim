@@ -1310,7 +1310,7 @@ const
 	//------------------------------------------ Temporary (for OC T/T Test)
   PG_CMDID_OC_ONOFF             = 130;  PG_CMDSTR_OC_ONOFF             = 'oc.onoff';  //2023-03-30
   PG_CMDID_GPIO_READ            = 131;  PG_CMDSTR_GPIO_READ            = 'gpio.read'; // e.g., "gpio.read HPD" // 2023-03-30 jhhwang (for OC T/T Test)
-
+  PG_CMDID_GPIO_PANEL_IRQ       = 132;  PG_CMDSTR_GPIO_PANEL_IRQ       = 'gpio.read,panel_irq';
   PG_PACKET_SIZE  = 1024; //TBD? DP860?
 
 //##############################################################################

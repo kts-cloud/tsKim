@@ -228,7 +228,7 @@ type
     LastProduct: Boolean; //마지막 Glass 여부
     StageTurnning: Boolean; //Turn 중
     AABMode    : Boolean; //AAB Mode 여부
-    UseChannel : array [0..7] of Boolean; //각 채널 사용 체크 정보
+    UseChannel : array [0..3] of Boolean; //각 채널 사용 체크 정보
     AlarmData: array [0..150] of Byte; //알람 리스트
     AlarmMsg: array [0..150] of String; //알람 메시지
     Test_AutoRepeat: Boolean; //자동 반복테스트 중
@@ -568,6 +568,7 @@ type
     ModelType : Integer;
     ModelTypeName : string;
     Ca410MemCh : Integer;
+    UseNvmInit : integer; // Added by KTS 2023-06-13 오후 12:32:10
 
     UseIonOnOff     : Boolean;  // Added by KTS 2022-03-18 오전 11:10:37 Ionizer On/Off
 {$IFDEF FEATURE_EDID}
@@ -2813,6 +2814,7 @@ begin
           SerialNoFlashInfo.nAddr := Readinteger (sSection, 'SERIALNO_ADDR',0);
           SerialNoFlashInfo.nLength := Readinteger (sSection, 'SERIALNO_LENGTH',0);
           Ca410MemCh :=           Readinteger(sSection, 'Ca410MemCh',0);
+          UseNvmInit :=           Readinteger(sSection, 'NVMINITMODE',2);
           //
         end;
         {$ENDIF}
@@ -4200,6 +4202,7 @@ begin
           WriteInteger(sSection, 'SERIALNO_ADDR',SerialNoFlashInfo.nAddr);
           WriteInteger(sSection, 'SERIALNO_LENGTH',SerialNoFlashInfo.nLength);
           WriteInteger(sSection, 'Ca410MemCh',     Ca410MemCh);
+          WriteInteger(sSection, 'NVMINITMODE',     UseNvmInit);
         end;
 
 //        SetResolution(TempModelInfo.H_Active,TempModelInfo.V_Active);

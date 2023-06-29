@@ -823,7 +823,7 @@ begin
     Exit;
   end;
   cboChannel_Robot.Items.Clear;
-  if Common.PLCInfo.InlineGIB then begin
+  if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
     for i := 0 to 3 do begin
       sTemp := Format('CH %d',[i]);
       cboChannel_Robot.Items.Add(sTemp);
@@ -880,7 +880,7 @@ var
   nAddr: Integer;
   sAddress : string;
 begin
-  if Common.PLCInfo.InlineGIB then
+  if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then
     grdStatus.ColCount := 24
   else   grdStatus.ColCount := 16;
   for i:= 0 to grdStatus.RowCount-1 do  begin
@@ -948,14 +948,14 @@ begin
 
 
   nAddr:= StrToInt('$' + Common.PLCInfo.Address_EQP);
-  if Common.PLCInfo.InlineGIB then
+  if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then
     nAddr:= nAddr + $80
   else begin
     if Common.SystemInfo.OCType = DefCommon.OCType  then
       nAddr:= nAddr + $C0
     else nAddr:= nAddr + $12*$10;
   end;
-  if Common.PLCInfo.InlineGIB then  begin
+  if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
     grdStatus.Cells[4, 0] := 'EQP' + #10#13 + '(B' + IntToHex(nAddr, 4) + ')';
     grdStatus.Cells[4, 1] := 'Load' + sLineBreak + 'Enable';
     grdStatus.Cells[4, 2] := 'Glass Data Request';
@@ -1197,7 +1197,7 @@ begin
   //grdStatus.Cells[12, 14] := 'Inspection Start';
   //grdStatus.Cells[12, 15] := 'Reset Count';
 
-  if Common.PLCInfo.InlineGIB then begin
+  if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
     nAddr:= StrToInt('$' + Common.PLCInfo.Address_ROBOT);
     nAddr:= nAddr + $3F;
     grdStatus.Cells[12, 16] := 'Last Product'  + #10#13 + '(B' + IntToHex(nAddr, 4) + ')';
@@ -1213,7 +1213,7 @@ begin
   end;
 
 
-  if Common.PLCInfo.InlineGIB then begin
+  if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
     nAddr:= StrToInt('$000');
     grdStatus.Cells[20, 0] := 'ECS' + #10#13 + '(B' + IntToHex(nAddr, 4) + ')';
     grdStatus.Cells[20, 1] := 'ECS Restart' + sLineBreak + '(2 sec)' ;
@@ -1547,7 +1547,7 @@ procedure TfrmECSStatus.UpdateStatus;
 var
   i: Integer;
 begin
-  if Common.PLCInfo.InlineGIB then begin
+  if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
       for i := 0 to 15 do begin
       //EQP
       SetCellState(1,  i+1, 0, 0,  i); //Status

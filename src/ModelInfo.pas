@@ -398,6 +398,8 @@ type
     cboModelType: TRzComboBox;
     cboCa310Channel: TRzComboBox;
     RzPanel7: TRzPanel;
+    RzPanel8: TRzPanel;
+    edNvmInitMode: TRzEdit;
     procedure mmProgramAllDragOver(Sender, Source: TObject; X, Y: Integer; State: TDragState; var Accept: Boolean);
     procedure FormCreate(Sender: TObject);
     procedure btnCompileScriptClick(Sender: TObject);
@@ -2013,6 +2015,7 @@ begin
     edSerialNoAddr.Text := format('0x%0.4x',[SerialNoFlashInfo.nAddr]);
     edSerialNoLength.Text := format('%d',[SerialNoFlashInfo.nLength]);
     cboCa310Channel.ItemIndex := Ca410MemCh;
+    edNvmInitMode.Text := IntToStr(UseNvmInit);
     //
 
   end;
@@ -2941,6 +2944,7 @@ begin
     SerialNoFlashInfo.nAddr := StrToIntDef(edSerialNoAddr.Text,0);
     SerialNoFlashInfo.nLength := StrToIntDef(edSerialNoLength.text,0);
     Ca410MemCh := cboCa310Channel.ItemIndex;
+    UseNvmInit := StrToIntDef(edNvmInitMode.Text,0);
   end;
 
 

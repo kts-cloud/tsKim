@@ -117,6 +117,7 @@ type
     Use_StainData : Boolean;
     Use_FTPUpload : Boolean;
     Use_TemplateData  : Boolean;
+    PreOcReStart  : Boolean; // Added by KTS 2023-06-09 오후 4:18:16 PreOc NG  발생 시 재 시작 여부
     ZAxis_Target  : Integer;
     ZAxis_Current : Integer;
     CarrierId     : string;
@@ -273,6 +274,9 @@ type
     m_bIsBCREvent : Boolean;
 
     m_bIsDioEvent : Boolean;
+
+    m_hConfirmHostEvent: HWND; // 2020-06-03 CONFIRM_RESULT_REPORT_TO_HOST
+    m_bIsWaitConfirmHostEvent: Boolean;
 {$IFDEF CA310_USE}
     m_Ca310Data: TBrightValue;
 {$ENDIF}
@@ -314,7 +318,9 @@ type
     procedure PgToComm_Proc(AMachine:TatVirtualMachine);
     procedure PgReset_Proc(AMachine:TatVirtualMachine);
     procedure PowerMeasure_Proc(AMachine:TatVirtualMachine);
+    procedure GpioPanel_IRQ_Proc(AMachine: TatVirtualMachine);
     procedure GPIOSet_Proc(AMachine:TatVirtualMachine);   // Added by KTS 2022-12-14 오전 9:38:56 기능 확인
+    procedure ConfirmHost_Proc(AMachine: TatVirtualMachine); // Added by KTS 2023-06-09 오후 2:01:26 NG 시 EICR 보고 여부
     procedure TactTime_Proc(AMachine:TatVirtualMachine);
     procedure Sleep_Proc(AMachine:TatVirtualMachine);
     procedure NextStep_Proc(AMachine:TatVirtualMachine);
@@ -461,6 +467,7 @@ type
     procedure Convert_VariantToHex_Proc(AMachine: TatVirtualMachine);
     procedure PowerSet_Proc(AMachine: TatVirtualMachine);
     procedure PowerBistSet_Proc(AMachine: TatVirtualMachine);
+    function CheckConfirmHostAck: DWORD;
 
 //    function SendPocbHexFile_D84X_Template(nPacketSize, nFirstAddr, nNormalAddr: Integer; var sHexCS: String): Integer;
 //    procedure SetRxData(const Value: TRxData);
@@ -492,6 +499,7 @@ type
     m_nMesLpirProcessCode : string; // LPIR_R.PROCESS_CODE
     m_bMesPMMode          : Boolean;// TBD JHHWANG-GMES: 2018-06-20
     m_nNgCode    : Integer; // Script내에서 사용.
+    m_nConfirmHostRet: Integer; // Added by KTS 2023-06-21 오전 8:15:30 검사 후 완공보고 여부 재검사 Flow 사용
     m_sNgMsg              : string;
     m_nCamNgCode          : Integer;
     m_InsStatus           : TInsStatus;
@@ -530,6 +538,7 @@ type
     ///</summary>
     function ExecExtraFunction(sScriptFunc: string): string;
     function ExecExtraFunction2(sScriptFunc: string): string;
+    procedure HostEvntConfirm(nRet: Integer);
   {$IFDEF CA310_USE}
     procedure SetCa310Data( Data : TBrightValue);
   {$ENDIF}
@@ -578,7 +587,7 @@ begin
   nSyncMode      := 0;
   m_bTotalTact   := False;
   m_bUnitiTact   := False;
-
+  m_nConfirmHostRet := 0;
   m_sNgMsg := '';
 
   m_nCurPat  := 0;
@@ -687,8 +696,10 @@ begin
   SetPaScript.DefineMethod('f_Flash_Read_Se_NO',      0,tkInteger, nil,OCThreadFlash_READ_Proc,False,0);
   SetPaScript.DefineMethod('f_SetAgingTm',             2, tkNone, nil, SetAgingTm_Proc,False, 2);
   SetPaScript.DefineMethod('f_ReadPairNgCode',         1, tkNone, nil, ReadPairNgCode_Proc,False, 1).SetVarArgs([0]);
+  SetPaScript.DefineMethod('f_ReadGpioPanel_IRQ',      1, tkInteger, nil, GpioPanel_IRQ_Proc,False, 1).SetVarArgs([0]);
 
-
+  SetPaScript.DefineMethod('f_ConfirmHost', 1, tkInteger, nil, ConfirmHost_Proc,
+    False); // 2020-06-03 CONFIRM_RESULT_REPORT_TO_HOST
   with SetPaScript.DefineMethod('f_ReadCa410', 3, tkInteger, nil,
     ReadCA410_Proc, False) do
   begin
@@ -840,6 +851,7 @@ begin
   SetPaScript.AddVariable('c_nRetryCount_WritePOCB', Common.SystemInfo.RetryCount_WritePOCB);
   SetPaScript.AddVariable('c_sMES_Model',m_sMesPchkModel);
   SetPaScript.AddVariable('c_bMesPMMode',m_bMesPMMode);
+  SetPaScript.AddVariable('c_nConfirmHostRet',m_nConfirmHostRet);
 
   SetPaScript.AddVariable('c_nScriptPgNo',m_nScriptPgNo);
   SetPaScript.AddVariable('c_nGibOpticNo',m_nGibOpticNo);
@@ -1248,6 +1260,16 @@ begin
   end;
 end;
 
+procedure TScrCls.HostEvntConfirm(nRet: Integer);
+// 2020-06-03 CONFIRM_RESULT_REPORT_TO_HOST
+begin
+  if m_bIsWaitConfirmHostEvent then
+  begin
+    m_nConfirmHostRet := nRet;
+    SetEvent(m_hConfirmHostEvent);
+  end;
+end;
+
 
 
 function IsValidString(const S: string): Boolean;
@@ -1267,10 +1289,81 @@ begin
     end
     else if nTemp = 1 then begin // Jig ID
       sTempBcr := TestInfo.CarrierId;
+    end
+    else if nTemp = 2 then begin // MateriID
+     sTempBcr := TestInfo.MateriID;
     end;
 
     if sTempBcr <> '' then
       SetInputArg(1,sTempBcr);
+  end;
+end;
+
+function TScrCls.CheckConfirmHostAck: DWORD;
+
+var
+  nRet: DWORD;
+  i: Integer;
+  sEvnt: WideString;
+begin
+  try
+    nRet := 1;
+    sEvnt := format('WAIT_EVENT_%d', [FPgNo]);
+    ScriptLog('CheckConfirmHostAck Check wait');
+    m_bIsWaitConfirmHostEvent := True; // Create Event 했는지 확인 하는 Flag.
+    m_hConfirmHostEvent := CreateEvent(nil, False, False, PWideChar(sEvnt));
+    nRet := WaitForSingleObject(m_hConfirmHostEvent, INFINITE);
+    ScriptLog('CheckConfirmHostAck Check Done');
+  finally
+    CloseHandle(m_hConfirmHostEvent);
+    m_bIsWaitConfirmHostEvent := False;
+  end;
+  Result := nRet
+end;
+
+
+procedure TScrCls.ConfirmHost_Proc(AMachine: TatVirtualMachine);
+// 2020-06-03 CONFIRM_RESULT_REPORT_TO_HOST
+var
+  nRet: Integer;
+begin
+  With AMachine do
+  begin
+    nRet := 1; // Return NG.
+    if InputArgCount = 1 then
+    begin
+      nRet := GetInputArgAsInteger(0);
+{$ifdef SIMULATOR}
+      if True then
+{$ELSE}
+      if DongaGmes <> nil then
+{$ENDIF}
+
+      begin // CONFIRM_RESULT_REPORT_TO_HOST ??/
+        if nRet = 0 then
+        begin
+          SendTestGuiDisplay(DefCommon.MSG_MODE_SHOW_CONFIRM_EICR, '', '', 0,
+            m_nNgCode);
+        end
+        else if nRet = 1 then
+        begin
+          SendTestGuiDisplay(DefCommon.MSG_MODE_SHOW_CONFIRM_EICR, '', '', 1,
+            m_nNgCode);
+          CheckConfirmHostAck;
+          SendTestGuiDisplay(DefCommon.MSG_MODE_SHOW_CONFIRM_EICR, '', '', 0,
+            m_nNgCode);
+          nRet := m_nConfirmHostRet;
+        end
+        else begin
+          m_nConfirmHostRet := nRet;
+        end;
+      end
+      else
+      begin
+        nRet := 0;
+      end;
+    end;
+    ReturnOutputArg(nRet);
   end;
 end;
 
@@ -1959,6 +2052,7 @@ begin
     DongaGmes.MesData[Self.FPgNo].bLPIR       := False;
     DongaGmes.MesData[Self.FPgNo].PchkRtnCode := '';
     DongaGmes.MesData[Self.FPgNo].PchkRtnPID  := '';
+    DongaGmes.MesData[Self.FPgNo].PchkRtnZig_ID  := '';
     DongaGmes.MesData[Self.FPgNo].PchkRtnSerialNo := '';
     DongaGmes.MesData[Self.FPgNo].Model       := '';
     DongaGmes.MesData[Self.FPgNo].EicrRtnCode := '';
@@ -2025,11 +2119,13 @@ begin
   TestInfo.RetryValue:= 0;
   TestInfo.Test_Repeat:= Common.SystemInfo.Test_Repeat;
   TestInfo.OCDllCall := False;
+  TestInfo.PreOcReStart := False;
 
   if g_CommPLC <> nil then  begin
     TestInfo.CarrierId:= g_CommPLC.GlassData[FPgNo].CarrierID; //GlassData에서 CarrierID를 LOT_ID에 설정
     TestInfo.RTN_PID:= Trim(g_CommPLC.GlassData[FPgNo].GlassID);
     TestInfo.LCM_ID:= g_CommPLC.GlassData[FPgNo].LCM_ID;
+    TestInfo.MateriID := g_CommPLC.GlassData[FPgNo].MateriID;
   end;
 
   // BCR Set.
@@ -2671,7 +2767,8 @@ begin
         sEquipment := Common.SystemInfo.EQPId;
         sUSERID := Common.SystemInfo.AutoLoginID;
         if Length(sEquipment) = 0 then sEquipment :=  Format('Equipment:%d',[Self.FPgNo]);
-        PasScr[FPgNo].TestInfo.StartTime := now;
+        TestInfo.StartTime := now;
+        TestInfo.PreOcReStart := False; // Added by KTS 2023-06-09 오후 4:20:10 ReStart 초기화
         case FPgNo of
           0:         wdRet := CSharpDll.MainOC_Start_CH1(Self.FPgNo,sPID,sSerialNumber,sUSERID,sEquipment);
           1:         wdRet := CSharpDll.MainOC_Start_CH2(Self.FPgNo,sPID,sSerialNumber,sUSERID,sEquipment);
@@ -3102,6 +3199,21 @@ begin
   end;
 end;
 
+procedure TScrCls.GpioPanel_IRQ_Proc(AMachine: TatVirtualMachine);
+var
+  wdRet,nData   : Integer;
+  PwrData : PPwrData;
+  Wrapper : TGenericRecordWrapper;
+begin
+  With AMachine do begin
+    nData:= GetInputArgAsInteger(0);
+    wdRet   := Pg[Self.FPgNo].DP860_SendGpioPanel_IRQ(nData);
+
+    SetInputArg(0,nData);
+    ReturnOutputArg(wdRet);
+  end;
+end;
+
 
 
 
@@ -3118,8 +3230,6 @@ begin
       nSet:= GetInputArgAsInteger(0);
       if nSet = 1 then       dwRet := Pg[FPgNo].SendPowerBistOn(DefPG.CMD_POWER_ON) // power on
       else   dwRet := Pg[FPgNo].SendPowerBistOn(DefPG.CMD_POWER_OFF); // power on
-
-
 
       if dwRet = WAIT_OBJECT_0 then begin
         sDebug := Format('PowerSet OK, Set:%d', [nSet]);
@@ -3615,7 +3725,12 @@ begin
   //Auto Mode일 경우 Load 요청을위한 알림
   //if Common.StatusInfo.AutoMode then begin
     if CurrentSEQ in [SEQ_KEY_START,SEQ_UNLOAD_ZONE] then begin
-      SendTestGuiDisplay(DefCommon.MSG_MODE_SYNC_WORK,'','', 3, CurrentSEQ);
+      if not TestInfo.PreOcReStart then begin
+        SendTestGuiDisplay(DefCommon.MSG_MODE_SYNC_WORK,'','', 3, CurrentSEQ);
+      end
+      else begin
+        Common.MLog(self.FPgNo, 'SEQ_UNLOAD_ZONE Done - PreOcReStart');
+      end;
     end;
 //    if CurrentSEQ in [SEQ_Finish] then begin
 //      SendTestGuiDisplay(DefCommon.MSG_MODE_SYNC_WORK,'','', 4, CurrentSEQ);
@@ -3943,6 +4058,7 @@ begin
             //TestInfo.RTN_PID:= m_sMesPchkRtnPID;
             TestInfo.RTN_PID:= DongaGMes.MesData[Self.FPgNo].PchkRtnPID;
             TestInfo.RTN_MODEL:= DongaGMes.MesData[Self.FPgNo].Model;
+            TestInfo.CarrierId := DongaGMes.MesData[Self.FPgNo].PchkRtnZig_ID;
           end;
 
         end

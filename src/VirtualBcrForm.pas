@@ -129,7 +129,7 @@ begin
     DongaGmes.MesData[3].Rwk := Common.GmesInfo[PasScr[0].m_nNgCode ].MES_Code;
 //  PasScr[0].RunSeq(DefScript.SEQ_Finish);
 //  PasScr[0].m_bIsProbeBackSig := False;
-  if Common.PLCInfo.InlineGIB then begin
+  if Common.PLCInfo.InlineGIB  then begin
     PasScr[3].CheckSyncCmdAck(procedure begin
               SendMainGuiDisplay(3,DefGmes.MES_RPR_EIJR,1);
               SendTestGuiDisplay(3,DefGmes.MES_RPR_EIJR, '','', 0);
@@ -183,7 +183,7 @@ end;
 
 procedure TVirtualBcr.Button17Click(Sender: TObject);
 begin
-  if Common.PLCInfo.InlineGIB then begin
+  if Common.PLCInfo.InlineGIB  then begin
     if DongaGmes = nil then Exit;
     if Length(edtVirtualBcr1.Text) > 0 then begin
       PasScr[0].TestInfo.SerialNo := edtVirtualBcr1.Text;

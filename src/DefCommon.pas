@@ -246,7 +246,7 @@ Const
   MSG_MODE_LOG_CSV_SUMMARY        = 64;
   MSG_MODE_LOG_CSV_APDR           = 65;
   MSG_MODE_CAX10_MEM_CH_NO        = 66;
-
+  MSG_MODE_SHOW_CONFIRM_EICR      = 67;
 //
 //	MSG_CHANNEL_ALL                 = $ff;
 //

@@ -332,25 +332,25 @@ begin
     else begin
       SendAlarm(MSG_MODE_SYSTEM_ALARAM, nAlarmNo, 0);
     end;
+    if Common.StatusInfo.AutoMode then begin
+      nAlarmNo := DefDio.IN_GIB_CH_12_LIGHTCURTAIN;
+      if (not CheckDi(DefDio.IN_GIB_CH_12_LIGHTCURTAIN)) and (not CheckDi(DefDio.IN_GIB_CH_12_MUTING_LAMP)) then begin
+        nRet := nAlarmNo;
+        SendAlarm(MSG_MODE_DISPLAY_ALARAM, nAlarmNo, 1);
+      end
+      else begin
+        SendAlarm(MSG_MODE_DISPLAY_ALARAM, nAlarmNo, 0);
+      end;
 
-    nAlarmNo := DefDio.IN_GIB_CH_12_LIGHTCURTAIN;
-    if (not CheckDi(DefDio.IN_GIB_CH_12_LIGHTCURTAIN)) and (not CheckDi(DefDio.IN_GIB_CH_12_MUTING_LAMP)) then begin
-      nRet := nAlarmNo;
-      SendAlarm(MSG_MODE_DISPLAY_ALARAM, nAlarmNo, 1);
-    end
-    else begin
-      SendAlarm(MSG_MODE_DISPLAY_ALARAM, nAlarmNo, 0);
+      nAlarmNo := DefDio.IN_GIB_CH_34_LIGHTCURTAIN;
+      if not CheckDi(DefDio.IN_GIB_CH_34_LIGHTCURTAIN) and (not CheckDi(DefDio.IN_GIB_CH_34_MUTING_LAMP)) then begin
+        nRet := nAlarmNo;
+        SendAlarm(MSG_MODE_DISPLAY_ALARAM, nAlarmNo, 1);
+      end
+      else begin
+        SendAlarm(MSG_MODE_DISPLAY_ALARAM, nAlarmNo, 0);
+      end;
     end;
-
-    nAlarmNo := DefDio.IN_GIB_CH_34_LIGHTCURTAIN;
-    if not CheckDi(DefDio.IN_GIB_CH_34_LIGHTCURTAIN) and (not CheckDi(DefDio.IN_GIB_CH_34_MUTING_LAMP)) then begin
-      nRet := nAlarmNo;
-      SendAlarm(MSG_MODE_DISPLAY_ALARAM, nAlarmNo, 1);
-    end
-    else begin
-      SendAlarm(MSG_MODE_DISPLAY_ALARAM, nAlarmNo, 0);
-    end;
-
 
     nAlarmNo:= DefDio.IN_GIB_CH_12_MC_MONITORING;
     if not CheckDi(nAlarmNo) then begin
@@ -2347,7 +2347,7 @@ end;
 function TControlDio.IsDetected(nCH: Integer): Boolean;
 begin
   Result:= False;
-  if Common.PLCInfo.InlineGIB then begin
+  if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
     if ControlDio.ReadInSig(IN_CH_1_CARRIER_SENSOR + nCH * 16)then
     begin
       Result:= True;
@@ -2456,6 +2456,10 @@ begin
     SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Probe UP Finish ' + sCH);
   end
   else begin
+    if ReadInSig(DefDio.IN_GIB_CH_12_ROBOT_SENSOR + nGroup) then begin
+      SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Do not MovingProbe - Sensing ROBOT_SENSOR ' + sCH);
+      Exit(3);
+    end;
     if g_CommPLC.IsBusy_Robot(nGroup) then begin
       SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Do not MovingProbe - Robot Busy ' + sCH);
       Exit(3);
@@ -2530,8 +2534,13 @@ begin
         SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Shutter UP Finish ' + sCH);
       end
       else begin
+        if ReadInSig(DefDio.IN_GIB_CH_12_ROBOT_SENSOR + nGroup) then begin
+          SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Do not MovingShutter - Sensing ROBOT_SENSOR ' + sCH);
+          Exit(3);
+        end;
+
         if g_CommPLC.IsBusy_Robot(nGroup) then begin
-          SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Do not MovingProbe - Robot Busy ' + sCH);
+          SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Do not MovingShutter - Robot Busy ' + sCH);
           Exit(3);
         end;
         SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Shutter DN Start ' + SCH);
@@ -2587,8 +2596,12 @@ begin
         SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Shutter UP Finish ' + sCH);
       end
       else begin
+        if ReadInSig(DefDio.IN_GIB_CH_12_ROBOT_SENSOR + nGroup) then begin
+          SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Do not MovingShutter - Sensing ROBOT_SENSOR ' + sCH);
+          Exit(3);
+        end;
         if g_CommPLC.IsBusy_Robot(nGroup) then begin
-          SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Do not MovingProbe - Robot Busy ' + sCH);
+          SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Do not MovingShutter - Robot Busy ' + sCH);
           Exit(3);
         end;
         SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Shutter DN Start ' + sCH);

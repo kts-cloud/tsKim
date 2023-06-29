@@ -122,7 +122,7 @@ var
   bRet : boolean;
 begin
   bRet := False;
-  for nCh := DefCommon.CH1 to DefCommon.MAX_CH do begin
+  for nCh := nGroup * 2 to nGroup * 2 + 1 do begin
     if not PasScr[nCh].m_bUse then Continue;
     if Pg[nCh].StatusPg in [pgReady] then begin
       bRet := True;
@@ -139,7 +139,6 @@ var
   bRet : boolean;
 begin
   bRet := False;
-
 
   for nCh := DefCommon.CH1 + nGroup * 2 to DefCommon.CH2 + nGroup * 2 do begin
     if PasScr[nCh].ScriptRunning(nKeyIdx) then begin
@@ -381,6 +380,12 @@ begin
 //      if ( ControlDio.ReadInSig(DefDio.IN_CH_1_CARRIER_SENSOR+16*i)) and ControlDio.Connected then Continue;
 //    end;
     //if not Pg[nCh].CheckFWVersion then Continue;
+//    if pos('PASS',PasScr[i].TestInfo.Result)  > 0 then begin
+    if COmmon.SystemInfo.OCType = DefCommon.PreOCType then begin
+       if PasScr[i].m_nConfirmHostRet  = 1 then begin  // Added by KTS 2023-06-13 오후 10:41:01 EICR 이후 재시작 안되게
+        Continue;
+      end;
+    end;
     PasScr[i].TestInfo.NgCode := 0;
     PasScr[i].RunSeq(nSeq);
     PasScr[i].m_bIsProbeBackSig := False;
@@ -397,6 +402,7 @@ begin
     if PasScr[i] <> nil  then begin
       PasScr[i].m_bIsSyncSeq := False;  // 동기화시 Stop 되지 않는 이슈 때문.
       PasScr[i].RunSeq(DefScript.SEQ_KEY_STOP);
+      PasScr[i].m_nConfirmHostRet := 0;
     end;
   end;
 end;
@@ -447,6 +453,11 @@ begin
 //      if ( ControlDio.ReadInSig(DefDio.IN_CH_1_CARRIER_SENSOR+16*i)) and ControlDio.Connected then Continue;
 //    end;
     //if not Pg[nCh].CheckFWVersion then Continue;
+    if COmmon.SystemInfo.OCType = DefCommon.PreOCType then begin
+       if PasScr[i].m_nConfirmHostRet  = 1 then begin  // Added by KTS 2023-06-13 오후 10:41:01 EICR 이후 재시작 안되게
+        Continue;
+      end;
+    end;
     PasScr[i].TestInfo.NgCode := 0;
     PasScr[i].RunSeq(nSeq);
     PasScr[i].m_bIsProbeBackSig := False;
@@ -460,6 +471,7 @@ begin
   if PasScr[nCh] <> nil  then begin
     PasScr[nCh].m_bIsSyncSeq := False;  // 동기화시 Stop 되지 않는 이슈 때문.
     PasScr[nCh].RunSeq(DefScript.SEQ_KEY_STOP);
+    PasScr[nCh].m_nConfirmHostRet := 0;
   end;
 end;
 
@@ -471,6 +483,7 @@ begin
     if PasScr[i] <> nil  then begin
       PasScr[i].m_bIsSyncSeq := False;  // 동기화시 Stop 되지 않는 이슈 때문.
       PasScr[i].RunSeq(DefScript.SEQ_KEY_STOP);
+      PasScr[i].m_nConfirmHostRet := 0;
     end;
   end;
 end;

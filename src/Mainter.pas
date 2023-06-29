@@ -272,6 +272,7 @@ type
     btnMeasure: TRzBitBtn;
     pnlDataView: TPanel;
     chkOddMeasurement: TCheckBox;
+    chkReversal: TCheckBox;
 
     procedure btnCloseClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
@@ -3224,40 +3225,79 @@ begin
 //  nDBVValue := BandDBV[mBand_Count-1];
 //  wdRet := Pg[nFPgNo].SendDimmingBist(BandDBV[mBand_Count-1], nWaitMS,nRetry);  //2019-10-11 DIMMING (SendDisplayPat -> SendDisplayPWMPat)
   Sleep(1000);
-  for I := 511 downto 1 do begin
-    if bIs_Stop then exit;
-    if chkOddMeasurement.Checked then begin
-      if i mod 2 = 0 then Continue;
-    end;
-
-    if (mBand_Count = 1) or (mBand_Count = 2) then begin
-      GetBoxPtnSizeinfo(Common.TestModelInfoFLOW.ModelType,mBand_Count,nSX,nSy,nEX,nEY);
-      wdRet := Pg[nFPgNo].DP860_SendBistAPL(i,i,i,nSX,nSy,nEX,nEY,nWaitMS,nRetry);
-      if i = 511 then begin
-         wdRet := Pg[nFPgNo].SendDimmingBist(BandDBV[mBand_Count-1], nWaitMS,nRetry);
-         Sleep(100);
+  if not chkReversal.Checked then begin
+    for I := 511 downto 1 do begin
+      if bIs_Stop then exit;
+      if chkOddMeasurement.Checked then begin
+        if i mod 2 = 0 then Continue;
       end;
-    end
-    else begin
-     wdRet := Pg[nFPgNo].SendDisplayPatBistRGB_9Bit(i,i,i,nWaitMS,nRetry);
-     if i = 511 then begin
-         wdRet := Pg[nFPgNo].SendDimmingBist(BandDBV[mBand_Count-1], nWaitMS,nRetry);
-         Sleep(100);
-     end;
-    end;
-    Sleep(100);
-    wdRet := CaSdk2.Measure(nFPgNo, m_Ca410Data);
-//    AdvChartView1.Panes[0].Series[0].AddSinglePoint(m_Ca410Data.LvVal);
-    advstrngrdDataView[nFPgNo].DisableAlign;
 
-    advstrngrdDataView[nFPgNo].Cells[0, Abs(512-i)] := IntToStr(BandDBV[mBand_Count-1]);
-    advstrngrdDataView[nFPgNo].Cells[1, Abs(512-i)] := IntToStr(i);
-    advstrngrdDataView[nFPgNo].Cells[2, Abs(512-i)] := FloatToStr(m_Ca410Data.xVal);
-    advstrngrdDataView[nFPgNo].Cells[3, Abs(512-i)] := FloatToStr(m_Ca410Data.yVal);
-    advstrngrdDataView[nFPgNo].Cells[4, Abs(512-i)] := FloatToStr(m_Ca410Data.LvVal);
-    advstrngrdDataView[nFPgNo].EnableAlign;
-    sData := Format('%d,%d,%4.4f,%4.4f,%4.4f,',[BandDBV[mBand_Count-1],i,m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
-    SaveCsvMeasureLog(nFPgNo,sSerialNo,sDataHeader,sData);
+      if (mBand_Count = 1) or (mBand_Count = 2) then begin
+        GetBoxPtnSizeinfo(Common.TestModelInfoFLOW.ModelType,mBand_Count,nSX,nSy,nEX,nEY);
+        wdRet := Pg[nFPgNo].DP860_SendBistAPL(i,i,i,nSX,nSy,nEX,nEY,nWaitMS,nRetry);
+        if i = 511 then begin
+           wdRet := Pg[nFPgNo].SendDimmingBist(BandDBV[mBand_Count-1], nWaitMS,nRetry);
+           Sleep(100);
+        end;
+      end
+      else begin
+       wdRet := Pg[nFPgNo].SendDisplayPatBistRGB_9Bit(i,i,i,nWaitMS,nRetry);
+       if i = 511 then begin
+           wdRet := Pg[nFPgNo].SendDimmingBist(BandDBV[mBand_Count-1], nWaitMS,nRetry);
+           Sleep(100);
+       end;
+      end;
+      Sleep(100);
+      wdRet := CaSdk2.Measure(nFPgNo, m_Ca410Data);
+  //    AdvChartView1.Panes[0].Series[0].AddSinglePoint(m_Ca410Data.LvVal);
+      advstrngrdDataView[nFPgNo].DisableAlign;
+
+      advstrngrdDataView[nFPgNo].Cells[0, Abs(512-i)] := IntToStr(BandDBV[mBand_Count-1]);
+      advstrngrdDataView[nFPgNo].Cells[1, Abs(512-i)] := IntToStr(i);
+      advstrngrdDataView[nFPgNo].Cells[2, Abs(512-i)] := FloatToStr(m_Ca410Data.xVal);
+      advstrngrdDataView[nFPgNo].Cells[3, Abs(512-i)] := FloatToStr(m_Ca410Data.yVal);
+      advstrngrdDataView[nFPgNo].Cells[4, Abs(512-i)] := FloatToStr(m_Ca410Data.LvVal);
+      advstrngrdDataView[nFPgNo].EnableAlign;
+      sData := Format('%d,%d,%4.4f,%4.4f,%4.4f,',[BandDBV[mBand_Count-1],i,m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
+      SaveCsvMeasureLog(nFPgNo,sSerialNo,sDataHeader,sData);
+    end;
+  end
+  else begin
+    for I := 1 to 511 do begin
+      if bIs_Stop then exit;
+      if chkOddMeasurement.Checked then begin
+        if i mod 2 = 0 then Continue;
+      end;
+
+      if (mBand_Count = 1) or (mBand_Count = 2) then begin
+        GetBoxPtnSizeinfo(Common.TestModelInfoFLOW.ModelType,mBand_Count,nSX,nSy,nEX,nEY);
+        wdRet := Pg[nFPgNo].DP860_SendBistAPL(i,i,i,nSX,nSy,nEX,nEY,nWaitMS,nRetry);
+        if i = 1 then begin
+           wdRet := Pg[nFPgNo].SendDimmingBist(BandDBV[mBand_Count-1], nWaitMS,nRetry);
+           Sleep(100);
+        end;
+      end
+      else begin
+      wdRet := Pg[nFPgNo].SendDisplayPatBistRGB_9Bit(i,i,i,nWaitMS,nRetry);
+        if i = 1 then begin
+           wdRet := Pg[nFPgNo].SendDimmingBist(BandDBV[mBand_Count-1], nWaitMS,nRetry);
+           Sleep(100);
+        end;
+      end;
+      Sleep(100);
+      wdRet := CaSdk2.Measure(nFPgNo, m_Ca410Data);
+  //    AdvChartView1.Panes[0].Series[0].AddSinglePoint(m_Ca410Data.LvVal);
+      advstrngrdDataView[nFPgNo].DisableAlign;
+
+      advstrngrdDataView[nFPgNo].Cells[0, Abs(i)] := IntToStr(BandDBV[mBand_Count-1]);
+      advstrngrdDataView[nFPgNo].Cells[1, Abs(i)] := IntToStr(i);
+      advstrngrdDataView[nFPgNo].Cells[2, Abs(i)] := FloatToStr(m_Ca410Data.xVal);
+      advstrngrdDataView[nFPgNo].Cells[3, Abs(i)] := FloatToStr(m_Ca410Data.yVal);
+      advstrngrdDataView[nFPgNo].Cells[4, Abs(i)] := FloatToStr(m_Ca410Data.LvVal);
+      advstrngrdDataView[nFPgNo].EnableAlign;
+      sData := Format('%d,%d,%4.4f,%4.4f,%4.4f,',[BandDBV[mBand_Count-1],i,m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
+      SaveCsvMeasureLog(nFPgNo,sSerialNo,sDataHeader,sData);
+    end;
   end;
 end;
 

@@ -556,7 +556,6 @@ var
   sErrMsg : string;
 begin
   if not m_bConnection[nCh] then Exit(DefCaSdk.DISCONNECTION_CODE);
-  // CA Driver Channel : 0 ~ 1, But  SelectIdx includes 'NONE' so, 1 ~ 2
   nRet := set_Measure(FSetupCnt.SetupList[nCh].Ca410Ch);
   if nRet = 0 then begin
     nRet := get_sXylvVal(FSetupCnt.SetupList[nCh].Ca410Ch, dX, dY, dLv);
@@ -566,7 +565,12 @@ begin
   end
   else begin
     sErrMsg := Format('Ca410 Measure NG - NG Code :%0.2d',[nRet]);  // Measure Error 발생 시 Error code 확인
-    ShowTestForm(DefCommon.MSG_MODE_WORKING,nCh,False,sErrMsg);
+    ShowTestForm(DefCommon.MSG_MODE_WORKING,nCh,True,sErrMsg);
+    sErrMsg := Format('Cannel %d CA410 Connection NG',[nCh+1]);
+    ShowMainForm(DefCommon.MSG_MODE_CA310_STATUS,nCh,True,sErrMsg);
+    ShowTestForm(DefCommon.MSG_MODE_WORKING,nCh,True,sErrMsg);
+    m_bConnection[nCh] := False;
+
     MeasRet.xVal   :=  0.0;
     MeasRet.yVal   :=  0.0;
     MeasRet.LvVal  :=  0.0;

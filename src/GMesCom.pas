@@ -44,6 +44,7 @@ type
     PchkSendNg      : Boolean;// JHHWANG-GMES 2018-06-26
     PchkRtnCode     : String; // PCHK_R.RTN_CD
     PchkRtnPID      : String; // PCHK_R.RTN_PID
+    PchkRtnZig_ID   : String; // PCHK_R.RTN_ZIG_ID
     PchkRtnSerialNo : String; // PCHK_R.RTN_SERIAL_NO
     EicrSendNg      : Boolean;// JHHWANG-GMES 2018-06-26
     EicrRtnCode     : String; // EICR_R.RTN_CD
@@ -88,6 +89,7 @@ type
     FMesRtnCd      : string;
     FMesRtnPID     : string;
     FMesErrMsgLc   : string;
+    FMesZig_ID        : string;
 
     //LPIR
     FMesProsessCode : string;
@@ -611,7 +613,7 @@ begin
     MesData[nPgNo].bLPIR := True;
     OnGmsEvent(DefGmes.MES_LPIR,0,False,'');
     ReturnDataToTestForm(DefGmes.MES_LPIR, nPgNo, False, LPIR_OK_MSG);
-    SendHostIns_Pchk(sSerialNo, nCh);
+//    SendHostIns_Pchk(sSerialNo, nCh);
 	end
 	else begin
 		MesData[nPgNo].bLPIR := False;
@@ -657,7 +659,7 @@ begin
   else begin
     nPgNo := nCh;
   end;
-  
+
   if nPgNo in [DefCommon.CH1 .. DefCommon.MAX_CH] then begin
     Common.MLog(nPgNo,'MES REV : ' + sMsg);
   end;
@@ -665,6 +667,8 @@ begin
   MesData[nPgNo].PchkRtnCode     := FMesRtnCd;     // PCHK_R.RTN_CD
   MesData[nPgNo].PchkRtnSerialNo := FMesSerialNo;  // PCHK_R.RTN_SERIAL_NO
   MesData[nPgNo].PchkRtnPID := FMesRtnPID;  // PCHK_R.RTN_PID
+  MesData[nPgNo].PchkRtnZig_ID := FMesZig_ID;  // Zig  ID 추카
+
 
   // LH588WF1-SD02
   nPos    := Pos('-',FMesModel);
@@ -1512,9 +1516,11 @@ var
   sMode   : string;
   sDebug  : string;
   nCh     : Integer;
+  sTEST : string;
 begin
   if Length(sMsg) < 6 then Exit;
   sMode := Copy(sMsg,1,6);
+
   SeperateData(sMsg,nCh);
 
   sDebug := StringReplace(sMsg,#$0a, #$24, [rfReplaceAll]);
@@ -1789,9 +1795,9 @@ begin
       sSendMsg := 'PCHK';
 			sSendMsg := sSendMsg  + ' ADDR=' + m_sLocal + ',' + m_sLocal;
       if Common.PLCInfo.InlineGIB then begin
-        if FMesProsessCode = Common.SystemInfo.EQPId_MGIB_Process_Code then
+        if MesData[nPg].LpirProcessCode = Common.SystemInfo.EQPId_MGIB_Process_Code then
           sSendMsg := sSendMsg  + ' EQP=' + Common.SystemInfo.EQPId_MGIB
-        else if FMesProsessCode = Common.SystemInfo.EQPId_PGIB_Process_Code then
+        else if MesData[nPg].LpirProcessCode = Common.SystemInfo.EQPId_PGIB_Process_Code then
           sSendMsg := sSendMsg  + ' EQP=' + Common.SystemInfo.EQPId_PGIB
         else  sSendMsg := sSendMsg  + ' EQP=' + FSystemNo;
       end
@@ -1896,9 +1902,10 @@ begin
       sSendMsg := 'INS_PCHK';
       sSendMsg := sSendMsg  + ' ADDR=' + m_sLocal + ',' + m_sLocal;
       if Common.PLCInfo.InlineGIB then begin
-        if FMesProsessCode = Common.SystemInfo.EQPId_MGIB_Process_Code then
+        Common.MLog(nPg,format('LpirProcessCode : %s EQPId_MGIB : %s EQPId_PGIB : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_PGIB]));
+        if MesData[nPg].LpirProcessCode = Common.SystemInfo.EQPId_MGIB_Process_Code then
           sSendMsg := sSendMsg  + ' EQP=' + Common.SystemInfo.EQPId_MGIB
-        else if FMesProsessCode = Common.SystemInfo.EQPId_PGIB_Process_Code then
+        else if MesData[nPg].LpirProcessCode = Common.SystemInfo.EQPId_PGIB_Process_Code then
           sSendMsg := sSendMsg  + ' EQP=' + Common.SystemInfo.EQPId_PGIB
         else  sSendMsg := sSendMsg  + ' EQP=' + FSystemNo;
       end
@@ -2102,7 +2109,17 @@ begin
     DefGmes.MES_EIJR : begin
       sSendMsg := 'EIJR';
 			sSendMsg := sSendMsg  + ' ADDR=' + m_sLocal + ',' + m_sLocal;
-			sSendMsg := sSendMsg  + ' EQP=' + FSystemNo;
+      if Common.PLCInfo.InlineGIB then begin
+        Common.MLog(nPg,format('LpirProcessCode : %s EQPId_MGIB : %s EQPId_PGIB : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_PGIB]));
+        if MesData[nPg].LpirProcessCode = Common.SystemInfo.EQPId_MGIB_Process_Code then
+          sSendMsg := sSendMsg  + ' EQP=' + Common.SystemInfo.EQPId_MGIB
+        else if MesData[nPg].LpirProcessCode = Common.SystemInfo.EQPId_PGIB_Process_Code then
+          sSendMsg := sSendMsg  + ' EQP=' + Common.SystemInfo.EQPId_PGIB
+        else  sSendMsg := sSendMsg  + ' EQP=' + FSystemNo;
+      end
+      else begin
+  			sSendMsg := sSendMsg  + ' EQP=' + FSystemNo;
+      end;
 //      if Length(sSerialNo) = 46 then begin
 //        sSendMsg := sSendMsg  + ' PID=' ;
 //        sSendMsg := sSendMsg  + ' SERIAL_NO='+ sSerialNo;
@@ -2111,7 +2128,13 @@ begin
 //        sSendMsg := sSendMsg  + ' PID=' + sSerialNo;
 //        sSendMsg := sSendMsg  + ' SERIAL_NO=';
 //      end;
-      sSendMsg := sSendMsg  + ' SERIAL_NO='+ sSerialNo;
+      if Common.SystemInfo.OCType = DefCommon.OCType then begin
+        sSendMsg := sSendMsg  + ' SERIAL_NO='+sSerialNo;
+      end
+      else begin
+        sSendMsg := sSendMsg  + ' PID=';
+        sSendMsg := sSendMsg  + ' PCB_ID='+sSerialNo;
+      end;
 			sSendMsg := sSendMsg  + ' LCM_ID=';
 			sSendMsg := sSendMsg  + ' FOG_ID=';
 			sSendMsg := sSendMsg  + ' BLID=[]';
@@ -2142,17 +2165,23 @@ begin
       sSendMsg := 'RPR_EIJR';
 			sSendMsg := sSendMsg  + ' ADDR=' + m_sLocal + ',' + m_sLocal;
       if Common.PLCInfo.InlineGIB then begin
-        if FMesProsessCode = Common.SystemInfo.EQPId_MGIB_Process_Code then
+        Common.MLog(nPg,format('LpirProcessCode : %s EQPId_MGIB : %s EQPId_PGIB : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_PGIB]));
+        if MesData[nPg].LpirProcessCode = Common.SystemInfo.EQPId_MGIB_Process_Code then
           sSendMsg := sSendMsg  + ' EQP=' + Common.SystemInfo.EQPId_MGIB
-        else if FMesProsessCode = Common.SystemInfo.EQPId_PGIB_Process_Code then
+        else if MesData[nPg].LpirProcessCode = Common.SystemInfo.EQPId_PGIB_Process_Code then
           sSendMsg := sSendMsg  + ' EQP=' + Common.SystemInfo.EQPId_PGIB
         else  sSendMsg := sSendMsg  + ' EQP=' + FSystemNo;
       end
       else begin
   			sSendMsg := sSendMsg  + ' EQP=' + FSystemNo;
       end;
-      sSendMsg := sSendMsg  + ' PID=';
-      sSendMsg := sSendMsg  + ' SERIAL_NO='+ sSerialNo;
+      if Common.SystemInfo.OCType = DefCommon.OCType then begin
+        sSendMsg := sSendMsg  + ' SERIAL_NO='+sSerialNo;
+      end
+      else begin
+        sSendMsg := sSendMsg  + ' PID=';
+        sSendMsg := sSendMsg  + ' PCB_ID='+sSerialNo;
+      end;
       //sSendMsg := sSendMsg  + ' FOG_ID=' + sSerialNo;
       sSendMsg := sSendMsg  + ' FOG_ID=';
 			sSendMsg := sSendMsg  + ' LCM_ID=';
@@ -2222,12 +2251,22 @@ begin
       //Common.Mlog(nPg, Format('[HOST] EAS_APDR MsgType: %d, PG : %d, Serial: %s', [nMsgType, nPg, sSerialNo]));
       sSendMsg := 'APDR';
       sSendMsg := sSendMsg  + ' ADDR=' + m_sEasLocal + ',' + m_sEasLocal;
-      sSendMsg := sSendMsg  + ' EQP=' + FSystemNo;
+      if Common.PLCInfo.InlineGIB then begin
+        Common.MLog(nPg,format('LpirProcessCode : %s EQPId_MGIB : %s EQPId_PGIB : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_PGIB]));
+        if MesData[nPg].LpirProcessCode = Common.SystemInfo.EQPId_MGIB_Process_Code then
+          sSendMsg := sSendMsg  + ' EQP=' + Common.SystemInfo.EQPId_MGIB
+        else if MesData[nPg].LpirProcessCode = Common.SystemInfo.EQPId_PGIB_Process_Code then
+          sSendMsg := sSendMsg  + ' EQP=' + Common.SystemInfo.EQPId_PGIB
+        else  sSendMsg := sSendMsg  + ' EQP=' + FSystemNo;
+      end
+      else begin
+  			sSendMsg := sSendMsg  + ' EQP=' + FSystemNo;
+      end;
       if Common.SystemInfo.OCType = DefCommon.OCType then
         sSendMsg := sSendMsg  + ' SERIAL_NO='+ sSerialNo
       else sSendMsg := sSendMsg  + ' PCB_ID='+ sSerialNo;
       //sSendMsg := sSendMsg  + ' FOG_ID='+sSerialNo;
-      sSendMsg := sSendMsg  + format(' INSPCHANEL_A=%d',[nPg]);
+      sSendMsg := sSendMsg  + format(' PATH=%d',[nPg]);
       //sSendMsg := sSendMsg  + ' MODEL='+MesData[FMesApdrPg].Model; //' MODEL=LH542WF1-EDA1-VM1-S';
 
       sSendMsg := sSendMsg  + ' APD_INFO=['+ MesData[FMesApdrPg].ApdrData+']';
@@ -2567,6 +2606,7 @@ begin
     else if Uppercase(string(sMsgId))= 'MMC_TXN_ID'     then FR2RMmcTxnID     := Trim(string(sMsgCont))
     else if Uppercase(string(sMsgId))= 'DATAINFO'       then FR2RDatainfo     := Trim(string(sMsgCont))
     else if Uppercase(string(sMsgId))= 'PROCESS_CODE'   then FMesProsessCode  := Trim(string(sMsgCont)) //LPIR 추가m-GIB p-GIB 구분 코드
+    else if Uppercase(string(sMsgId))= 'ZIG_ID'         then FMesZig_ID       := Trim(string(sMsgCont)) //Zig_ID 추가
 
     //    else if CompareStr(Uppercase(sMsgId), 'RWK_PID')  = 0     then begin
 //      RtnLotID[StrToInt(m_sGetUID)-1]       := sMsgCont;

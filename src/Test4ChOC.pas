@@ -105,6 +105,8 @@ type
     procedure btnRepeatClick(Sender: TObject);
     procedure btnCh4Click(Sender: TObject);
     procedure FormKeyPress(Sender: TObject; var Key: Char);
+    procedure btnSendHostClick(Sender : TObject);   //2020-06-03 CONFIRM_RESULT_REPORT_TO_HOST
+    procedure btnCancelHostClick(Sender : TObject);
 
   private
     { Private declarations }
@@ -163,6 +165,10 @@ type
     pnlSerials2    : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TRzPanel;
     pnlMESResults  : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TPanel;
     pnlAging       : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TPanel;
+    pnlMesConfirm  : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TPanel;
+    btnSendHost    : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TRzBitBtn; //2020-06-03 CONFIRM_RESULT_REPORT_TO_HOST
+    btnCancelHost  : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TRzBitBtn; //2020-06-03 CONFIRM_RESULT_REPORT_TO_HOST
+
     pnlPGStatuses  : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TPanel;
     pnlTimeNResult : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TRzPanel;
     btnTakeOutReport : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TRzBitBtn;
@@ -230,7 +236,7 @@ type
     procedure ScriptLog(nCh : Integer;sDebug : string; isNg : Boolean = False);
     procedure SendMessageMain(nMsgMode, nCh, nParam, nParam2: Integer;
       sMsg: String; pData: Pointer);
-    function GetNGCode_ByErroCode(sErrorCode: string): Integer;
+
     procedure OnAgingTimer(Sender: TObject);
     procedure DisplayPGStatuses(nCH,nResult :Integer);
   public
@@ -303,6 +309,7 @@ type
     procedure ClearPreviousResult;
     procedure getBcrData(sScanData: string);
     procedure getBcrData2(sScanData: string);
+    function GetNGCode_ByErroCode(sErrorCode: string): Integer;
 //    procedure SetLanguage(nIdx : Integer);
   end;
 
@@ -425,7 +432,7 @@ begin
     Exit;
   end;
 
-  if Common.PLCInfo.InlineGIB then begin
+  if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
     SendMessageMain(STAGE_MODE_TEST_START, nCH, 0, 0, '', nil);
     if nCH = Defcommon.CH_TOP then begin
       btnChAutoStart[0].Click;
@@ -688,13 +695,13 @@ begin
     if Sender = chkChannelUse[i] then begin
       if chkChannelUse[i].Checked then  chkChannelUse[i].Font.Color := clGreen
       else                              chkChannelUse[i].Font.Color := clRed;
-      PasScr[i+self.Tag*4].m_bUse := chkChannelUse[i].Checked;
-      if PasScr[i].m_bUse THEN 
-       AddLog(Format('m_bUse CH: %d' ,[I]),i)
-      else AddLog(Format('m_bUse no CH: %d' ,[I]),i); 
-      
+      PasScr[i].m_bUse := chkChannelUse[i].Checked;
+      if PasScr[i].m_bUse THEN
+        AddLog(Format('m_bUse CH: %d' ,[I]),i)
+      else AddLog(Format('m_bUse no CH: %d' ,[I]),i);
 
-      Common.StatusInfo.UseChannel[i+self.Tag*4]:= chkChannelUse[i].Checked;
+
+      Common.StatusInfo.UseChannel[i]:= chkChannelUse[i].Checked;
       Break;
     end;
   end;
@@ -1211,6 +1218,52 @@ begin
     pnlTimeNResult[i].Align := alTop;
     pnlTimeNResult[i].BorderOuter := TframeStyleEx(fsFlat);
 
+        pnlMesConfirm[i] := TPanel.Create(Self);    //2020-06-03 CONFIRM_RESULT_REPORT_TO_HOST
+//    pnlMesConfirm[i].Parent := pnlGrpDio[i];
+    pnlMesConfirm[i].Parent := pnlChGrp[i];
+    pnlMesConfirm[i].BringToFront();
+    pnlMesConfirm[i].Align  := alTop;
+    pnlMesConfirm[i].Top    := 275;
+    pnlMesConfirm[i].Height := 70;
+//    pnlMesConfirm[i].Align  := alTop;
+//    pnlMesConfirm[i].Top    := pnlGrpDio[i].Top;
+//    pnlMesConfirm[i].Height := pnlGrpDio[i].Height;
+//    pnlMesConfirm[i].Width  := pnlGrpDio[i].Width;
+    pnlMesConfirm[i].Font.Size := 20;
+    pnlMesConfirm[i].Font.Color := clWhite;
+    pnlMesConfirm[i].Color   := clFuchsia;
+    pnlMesConfirm[i].Visible := false;
+    pnlMesConfirm[i].Caption := '';
+    pnlMesConfirm[i].StyleElements := [];
+
+    btnSendHost[i] := TRzBitBtn.Create(self);   //2020-06-03 CONFIRM_RESULT_REPORT_TO_HOST
+    btnSendHost[i].Parent := pnlMesConfirm[i];
+    btnSendHost[i].Top := 10;
+    btnSendHost[i].Left := 10;
+    btnSendHost[i].Height := pnlMesConfirm[i].Height div 2 + 15;
+    btnSendHost[i].Width := pnlMesConfirm[i].Width div 3;
+    btnSendHost[i].Font.Size := 16;
+    btnSendHost[i].Font.Style := [fsBold];
+    btnSendHost[i].Cursor := crHandPoint;
+    btnSendHost[i].Tag := i;
+    btnSendHost[i].HotTrack := True;
+    btnSendHost[i].Caption := 'Send EICR';
+    btnSendHost[i].OnClick := btnSendHostClick;
+
+    btnCancelHost[i] := TRzBitBtn.Create(self);  //2020-06-03 CONFIRM_RESULT_REPORT_TO_HOST
+    btnCancelHost[i].Parent := pnlMesConfirm[i];
+    btnCancelHost[i].Top := 10;
+    btnCancelHost[i].Height := pnlMesConfirm[i].Height div 2 + 15;
+    btnCancelHost[i].Width := pnlMesConfirm[i].Width div 3;
+    btnCancelHost[i].Left := pnlMesConfirm[i].Width - 10 - btnCancelHost[i].Width;
+    btnCancelHost[i].Font.Size := 16;
+    btnCancelHost[i].Cursor := crHandPoint;
+    btnCancelHost[i].Tag := i;
+    btnCancelHost[i].HotTrack := True;
+    btnCancelHost[i].Caption := 'Restart';
+    btnCancelHost[i].Font.Style := [fsBold];
+    btnCancelHost[i].OnClick := btnCancelHostClick;
+
     nFontSize := 12;
 
     pnlTotalNames[i] := TPanel.Create(self);
@@ -1278,7 +1331,7 @@ begin
     pnlNGValues[i].Font.Color := clRed;
     pnlNGValues[i].StyleElements := [];
 
-    if Common.PLCInfo.InlineGIB then begin
+    if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
       btnChAutoStart[i] := TButton.Create(self);
       btnChAutoStart[i].Parent := pnlTimeNResult[i];
       btnChAutoStart[i].Align := alRight;
@@ -1881,6 +1934,16 @@ begin
 
   pnlSwitch.Visible := False;
   pnlTestMain.Visible := True;
+end;
+
+procedure TfrmTest4ChOC.btnSendHostClick(Sender: TObject);  //2020-06-03 CONFIRM_RESULT_REPORT_TO_HOST
+begin
+  PasScr[(Sender as TRzBitBtn).Tag].HostEvntConfirm(1);
+end;
+
+procedure TfrmTest4ChOC.btnCancelHostClick(Sender: TObject); //2020-06-03 CONFIRM_RESULT_REPORT_TO_HOST
+begin
+  PasScr[(Sender as TRzBitBtn).Tag].HostEvntConfirm(2);
 end;
 
 
@@ -2782,6 +2845,14 @@ begin
             sDebug := Format('<HAND-BCR> Send PCHK Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
             Common.MLog(nJigCh,sDebug);
             Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+
+            if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.PreOCType)  then begin
+              DongaGmes.SendHostLpir(sRemoveCr, nJigCh);
+              pnlMESResults[nJigCh].Color      := clBtnFace;
+              pnlMESResults[nJigCh].Font.Color := clBlack;
+              pnlMESResults[nJigCh].Caption    := 'SEND LPIR';
+            end;
+
             DongaGmes.SendHostPchk(sRemoveCr, nJigCh);
             pnlMESResults[nJigCh].Color      := clBtnFace;
             pnlMESResults[nJigCh].Font.Color := clBlack;
@@ -2832,6 +2903,13 @@ begin
             sDebug := Format('<HAND-BCR> Send PCHK Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
             Common.MLog(nJigCh,sDebug);
             Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+            if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.PreOCType)  then begin
+              DongaGmes.SendHostLpir(sRemoveCr, nJigCh);
+              pnlMESResults[nJigCh].Color      := clBtnFace;
+              pnlMESResults[nJigCh].Font.Color := clBlack;
+              pnlMESResults[nJigCh].Caption    := 'SEND LPIR';
+            end;
+
             DongaGmes.SendHostPchk(sRemoveCr, nJigCh);
             pnlMESResults[nJigCh].Color      := clBtnFace;
             pnlMESResults[nJigCh].Font.Color := clBlack;
@@ -2862,7 +2940,7 @@ var
   i: Integer;
 begin
   nCount := Length(Common.GmesInfo);
-  Result:= 60; //없을 경우 Other로 처리
+  Result:= 3181; //없을 경우 Other로 처리
   for i := 0 to Pred(nCount) do begin
     if Common.GmesInfo[i].sErrCode = sErrorCode then begin
       Result:= i;
@@ -3173,7 +3251,7 @@ var
   i: Integer;
 begin
   common.MLog(4,Format('AutoLogicStart CH : %d',[nCH]));
-  if Common.PLCInfo.InlineGIB then begin
+  if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
     ClearChData(nCH);
     PasScr[nCH].TestInfo.StartTime := now;
     common.MLog(nCH,Format('AutoLogicStart Process : %d',[nCH]));
@@ -3705,7 +3783,7 @@ end;
 
 procedure TfrmTest4ChOC.UnloadScriptStart(nCH : Integer);
 begin
-  if Common.PLCInfo.InlineGIB then  begin
+  if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then  begin
     CSharpDll.m_bIsProcessDone[nCH] := False;
     frmTest4ChOC[0].SetIonizer(nCH div 2,false);  //// 검사 종료 시 SetIonizer ON
     EndtScript(nCH,DefScript.SEQ_UNLOAD_ZONE);
@@ -3796,15 +3874,15 @@ begin
       DisplayPwrData(nCh, PGuiPg2Test(PCopyDataStruct(CopyMsg.LParam)^.lpData)^.PwrData);
     end;
     DefCommon.MSG_MODE_DISPLAY_ALARM: begin
-      if nCh = DefCommon.CH1 then begin
-        pnlErrAlramMsg.Caption := Format('CH%d, %s',[nCh+1,Trim(sMsg)]);
-      end
-      else begin
-        pnlErrAlramMsg.Caption := Format('CH%d, %s',[nCh+1,Trim(sMsg)]);
-      end;
-      pnlErrAlram.Left := 300;
-      pnlErrAlram.Top := 410;
-      pnlErrAlram.Visible := True;
+//      if nCh = DefCommon.CH1 then begin
+//        pnlErrAlramMsg.Caption := Format('CH%d, %s',[nCh+1,Trim(sMsg)]);
+//      end
+//      else begin
+//        pnlErrAlramMsg.Caption := Format('CH%d, %s',[nCh+1,Trim(sMsg)]);
+//      end;
+//      pnlErrAlram.Left := 300;
+//      pnlErrAlram.Top := 410;
+//      pnlErrAlram.Visible := True;
       pnlPGStatuses[nCh].Font.Size := 24;
       pnlPGStatuses[nCh].Color := clMaroon;
       pnlPGStatuses[nCh].Font.Name := 'Verdana';
@@ -3877,7 +3955,7 @@ begin
           end;
           if ContainsText(sMsg,'Please Check Bin File Version') then begin
             if PasScr[nCh].m_nNgCode = 0 then begin
-              PasScr[nCh].m_nNgCode:= 60; //Other
+              PasScr[nCh].m_nNgCode:= 3181; //Other
             end;
           end;
           if (Pos('Total OC Tact Time',sMsg) > 0)
@@ -3887,7 +3965,7 @@ begin
             //[OCException] : PreSet NG
             if (Pos('Total OC Tact Time : 0 min 0 sec', sMsg) > 0) or (Pos('Total OC Tact Time : 0 min 1 sec', sMsg) > 0) then begin
               if PasScr[nCh].m_nNgCode = 0 then begin
-                PasScr[nCh].m_nNgCode:= 60; //Other
+                PasScr[nCh].m_nNgCode:= 3181; //Other
               end;
             end
             else if (Pos('Total OC Tact Time',sMsg) > 0) then begin
@@ -3895,7 +3973,7 @@ begin
             end
             else if Pos('[OCException]',sMsg) > 0 then begin
               if PasScr[nCh].m_nNgCode = 0 then begin
-                PasScr[nCh].m_nNgCode:= 60; //Other
+                PasScr[nCh].m_nNgCode:= 3181; //Other
               end;
             end;
             PasScr[nCH].TestInfo.EndTime := now;  // Added by KTS 2023-05-19 오후 1:09:57 End Time
@@ -3911,7 +3989,7 @@ begin
             case nCH of
               0,1 :
               begin
-                if Common.PLCInfo.InlineGIB then begin
+                if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
                   SendMessageMain(STAGE_MODE_UNLOAD,nCH, 2,0, 'OC Flow Process_Finish',nil);
                   CSharpDll.m_bIsProcessDone[nCH] := false;
                 end
@@ -3942,7 +4020,7 @@ begin
               end;
               2,3 :
               begin
-                if Common.PLCInfo.InlineGIB then begin
+                if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
                   SendMessageMain(STAGE_MODE_UNLOAD, nCH, 2,0, 'OC Flow Process_Finish',nil);
                   CSharpDll.m_bIsProcessDone[nCH] := false;
                 end
@@ -3989,6 +4067,20 @@ begin
       case nMode of
         DefCommon.MSG_MODE_CH_CLEAR : begin
           ClearChData(nCh);
+        end;
+
+        DefCommon.MSG_MODE_SHOW_CONFIRM_EICR : begin
+          nTemp := PGuiScript(PCopyDataStruct(Msg.LParam)^.lpData)^.nParam;
+          Common.MLog(nCh+self.Tag*4,format('MSG_MODE_SHOW_CONFIRM_EICR : %d',[nTemp]));
+          if nTemp > 0 then begin
+            pnlMesConfirm[nCh].Visible := True;
+            Common.MLog(nCh+self.Tag*4,format('pnlMesConfirm[%d].Visible : True',[nCh]));
+          end
+          else begin
+            pnlMesConfirm[nCh].Visible := False;
+            Common.MLog(nCh+self.Tag*4,format('pnlMesConfirm[%d].Visible : false',[nCh]));
+            PasScr[nCh].HostEvntConfirm(2);
+          end;
         end;
 
         DefCommon.MSG_MODE_ANGING_TIME : begin
@@ -4213,7 +4305,7 @@ begin
 //                  end;
                     if  PasScr[nCh].TestInfo.NgCode <> 0 then begin
                       CSharpDll.m_bIsProcessDone[nCh] := True;
-                      if Common.PLCInfo.InlineGIB then  begin
+                      if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
                         Common.MLog(DefCommon.MAX_SYSTEM_LOG, '<TestForm> GIB MSG_MODE_SYNC_WORK(SEQ_KEY_START) ' + inttostr(nCh));
                         SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, nCh , nCh , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
                         CSharpDll.m_bIsProcessDone[nCH] := false;
@@ -4224,7 +4316,7 @@ begin
                           begin
                             if CSharpDll.m_bIsProcessDone[DefCommon.CH1] and CSharpDll.m_bIsProcessDone[DefCommon.CH2] then  begin
   //                        SendMessageMain(STAGE_MODE_UNLOAD,0, 2,0, 'OC Flow Process_Finish',nil);
-                              SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, nCh div 2 , nCh div 2 , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
+                              SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, 0 , 0 , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
 
                               CSharpDll.m_bIsProcessDone[DefCommon.CH1] := false;
                               CSharpDll.m_bIsProcessDone[DefCommon.CH2] := false;
@@ -4234,7 +4326,7 @@ begin
                           begin
                             if CSharpDll.m_bIsProcessDone[DefCommon.CH3] and CSharpDll.m_bIsProcessDone[DefCommon.CH4] then begin
       //                        SendMessageMain(STAGE_MODE_UNLOAD, 1, 2,0, 'OC Flow Process_Finish',nil);
-                              SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, nCh div 2 , nCh div 2 , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
+                              SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, 1 , 1 , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
 
                               CSharpDll.m_bIsProcessDone[DefCommon.CH3] := false;
                               CSharpDll.m_bIsProcessDone[DefCommon.CH4] := false;
@@ -4252,8 +4344,9 @@ begin
                     end;
                   end;
                   DefScript.SEQ_UNLOAD_ZONE: begin
+                    CSharpDll.m_bIsProcessDone[nCh] := True;
                     //Exchange 요청(Unload/Load)
-                    if Common.PLCInfo.InlineGIB then  begin
+                    if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then  begin
                       Common.MLog(DefCommon.MAX_SYSTEM_LOG, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) ' + inttostr(nCh));
                       if PasScr[nCh].m_bIsScriptWork then Exit;
                       SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, nCh , nCh , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
@@ -4264,7 +4357,31 @@ begin
                           Exit;
                         end;
                       end;
-                      SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, nCh div 2 , nCh div 2 , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
+                      case nCH of
+                        0, 1 :
+                        begin
+                          if CSharpDll.m_bIsProcessDone[DefCommon.CH1] and CSharpDll.m_bIsProcessDone[DefCommon.CH2] then  begin
+//                        SendMessageMain(STAGE_MODE_UNLOAD,0, 2,0, 'OC Flow Process_Finish',nil);
+                            SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, 0 , 0 , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
+
+                            CSharpDll.m_bIsProcessDone[DefCommon.CH1] := false;
+                            CSharpDll.m_bIsProcessDone[DefCommon.CH2] := false;
+                          end;
+                        end;
+                        2,3 :
+                        begin
+                          if CSharpDll.m_bIsProcessDone[DefCommon.CH3] and CSharpDll.m_bIsProcessDone[DefCommon.CH4] then begin
+    //                        SendMessageMain(STAGE_MODE_UNLOAD, 1, 2,0, 'OC Flow Process_Finish',nil);
+                            SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, 1 , 1 , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
+
+                            CSharpDll.m_bIsProcessDone[DefCommon.CH3] := false;
+                            CSharpDll.m_bIsProcessDone[DefCommon.CH4] := false;
+                          end;
+
+                        end;
+                      end;
+
+//                      SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, nCh div 2 , nCh div 2 , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
                     end;
                   end
                 end;

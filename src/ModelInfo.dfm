@@ -692,7 +692,7 @@ object frmModelInfo: TfrmModelInfo
         Left = 376
         Top = 279
         Width = 289
-        Height = 135
+        Height = 177
         Caption = 'ETC'
         Color = clWhite
         Font.Charset = DEFAULT_CHARSET
@@ -747,7 +747,7 @@ object frmModelInfo: TfrmModelInfo
         end
         object cbFlowOptIonizerOnOff: TRzCheckBox
           Left = 14
-          Top = 80
+          Top = 104
           Width = 106
           Height = 17
           AlignmentVertical = avCenter
@@ -892,7 +892,7 @@ object frmModelInfo: TfrmModelInfo
         end
         object cbFlowOptUseDutDetect: TRzCheckBox
           Left = 12
-          Top = 103
+          Top = 127
           Width = 184
           Height = 17
           AlignmentVertical = avCenter
@@ -1072,6 +1072,45 @@ object frmModelInfo: TfrmModelInfo
           ImeName = 'Microsoft Office IME 2007'
           ParentFont = False
           TabOrder = 5
+        end
+        object RzPanel8: TRzPanel
+          Left = 0
+          Top = 79
+          Width = 104
+          Height = 22
+          BorderOuter = fsFlat
+          BorderHighlight = clWhite
+          BorderShadow = 6080734
+          Caption = 'Nvm Init Mode'
+          Color = 11921137
+          FlatColorAdjustment = 0
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Verdana'
+          Font.Style = []
+          GradientColorStyle = gcsCustom
+          GradientColorStop = clLime
+          ParentFont = False
+          TabOrder = 6
+        end
+        object edNvmInitMode: TRzEdit
+          Left = 110
+          Top = 79
+          Width = 50
+          Height = 22
+          Text = '2'
+          Alignment = taRightJustify
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clBlack
+          Font.Height = -12
+          Font.Name = 'Tahoma'
+          Font.Style = []
+          FrameHotTrack = True
+          FrameVisible = True
+          ImeName = 'Microsoft Office IME 2007'
+          ParentFont = False
+          TabOrder = 7
         end
       end
       object RzGroupBox5: TRzGroupBox
@@ -5962,7 +6001,7 @@ object frmModelInfo: TfrmModelInfo
           Font.Name = 'Tahoma'
           Font.Style = []
           ParentFont = False
-          TabOrder = 0
+          TabOrder = 2
           Transparent = True
           object btn1: TRzBitBtn
             Left = 1226

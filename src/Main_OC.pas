@@ -252,6 +252,7 @@ type
     function IsStageWorking(nStage: Integer=2): Boolean;
     procedure AddLog_AllCh(sLog: String);
     procedure WMSyscommandBroadcast(var Msg: TMessage);
+    procedure chkCH;
   public
     { Public declarations }
     function CheckEmpty_Pair(nStage, nPair: Integer): Boolean;
@@ -600,6 +601,7 @@ begin
   nJig := nCh;
   SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Check Empty Pair Carrier or Panel(CheckDetect_Loaded)');
   for i := (nCh*2) to (nCh*2 + 1) do begin
+    Common.StatusInfo.UseChannel[i]:= frmTest4ChOC[0].chkChannelUse[i].Checked;
     if Common.StatusInfo.UseChannel[i] then begin
       if Common.SystemInfo.OCType = DefCommon.OCType then begin
         if not ControlDio.ReadInSig(IN_CH_1_CARRIER_SENSOR + (i*16)) then begin
@@ -650,7 +652,7 @@ end;
 function TfrmMain_OC.CheckDetect_Loaded_Each(nCH: Integer): Boolean;
 begin
   Result:= True;
-
+  Common.StatusInfo.UseChannel[nCH]:= frmTest4ChOC[0].chkChannelUse[nCH].Checked;
   if Common.StatusInfo.UseChannel[nCH] then begin
     if Common.SystemInfo.OCType = DefCommon.OCType then begin
       if not ControlDio.ReadInSig(IN_CH_1_CARRIER_SENSOR + (nCH*16)) then begin
@@ -676,7 +678,7 @@ begin
   Result:= True;
   bResult := true;
   SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Check Empty Pair Carrier or Panel(CheckEmpty_Pair)');
-  if Common.PLCInfo.InlineGIB then begin
+  if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
       if Common.SystemInfo.OCType = DefCommon.OCType  then  begin
       if not ControlDio.ReadInSig(IN_CH_1_CARRIER_SENSOR + (nPair*16)) then begin
         Result:= False;
@@ -742,7 +744,7 @@ var
   i: Integer;
 begin
   Result:= False;
-  if Common.PLCInfo.InlineGIB then begin
+  if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
     if PasScr[nPair].m_bIsScriptWork then begin
       Result:= True;
       Exit;
@@ -809,7 +811,9 @@ var
 begin
   //채널 사용 여부에 따른 Load 요청 여부 - Pair 중에 하나라도 사용 안할 경우 로드 안함
   Result:= True;
-  if Common.PLCInfo.InlineGIB then begin
+  for I := 0 to DefCommon.MAX_CH do
+    Common.StatusInfo.UseChannel[i]:= frmTest4ChOC[0].chkChannelUse[i].Checked;
+  if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
     if not Common.StatusInfo.UseChannel[nPair] then begin
       Result:= False;
     end;
@@ -848,6 +852,7 @@ i : integer;
 begin
   Result := True;
   for I := DefCommon.CH1 to DefCommon.MAX_CH do  begin
+    Common.StatusInfo.UseChannel[i]:= frmTest4ChOC[0].chkChannelUse[i].Checked;
 
     if Common.StatusInfo.UseChannel[i]  then begin
       if Pg[i] <> nil then begin
@@ -884,7 +889,7 @@ var
 i : Integer;
 begin
   Result := True;
-  if Common.PLCInfo.InlineGIB then begin
+  if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
     if Common.SystemInfo.OCType = DefCommon.OCType  then  begin
       if  ( ControlDio.ReadInSig(DefDio.IN_CH_1_PROBE_BACKWARD_SENSOR +nCH*16)) or
            ( ControlDio.ReadInSig(DefDio.IN_CH_1_PROBE_UP_SENSOR +nCH*16)) then begin
@@ -942,7 +947,9 @@ begin
   SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Check Empty Pair Carrier or Panel(CheckReadyToAutoStart)');
   Result:= True;
   bResult := True;
-  if Common.PLCInfo.InlineGIB then begin
+  for I := 0 to DefCommon.MAX_CH do
+    Common.StatusInfo.UseChannel[i]:= frmTest4ChOC[0].chkChannelUse[i].Checked;
+  if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
     if Common.StatusInfo.UseChannel[nPair] then begin
       if Common.SystemInfo.OCType = DefCommon.OCType then begin
         if not ControlDio.ReadInSig(IN_CH_1_CARRIER_SENSOR + (nPair*16)) then begin
@@ -961,6 +968,7 @@ begin
   end
   else begin
     for i := (nPair*2) to (nPair*2 + 1) do begin
+      Common.StatusInfo.UseChannel[i]:= frmTest4ChOC[0].chkChannelUse[i].Checked;
       if Common.StatusInfo.UseChannel[i] then begin
         if Common.SystemInfo.OCType = DefCommon.OCType then begin
           if not ControlDio.ReadInSig(IN_CH_1_CARRIER_SENSOR + (i*16)) then begin
@@ -1123,6 +1131,7 @@ begin
   nExistsCount:= 0;
 
   for i := 0 to MAX_CH do begin
+    Common.StatusInfo.UseChannel[i]:= frmTest4ChOC[0].chkChannelUse[i].Checked;
     if Common.StatusInfo.UseChannel[i] then begin
       Inc(nUseCount); //전체 사용 채널 개수
       if ControlDio.ReadInSig(i*16 + IN_CH_1_CARRIER_SENSOR) then begin
@@ -1152,7 +1161,7 @@ var
 begin
   if g_CommPLC = nil then Exit;
   //Dectect Flag에 따른 보고
-  if Common.PLCInfo.InlineGIB then begin
+  if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
     bExist1:= ControlDio.ReadInSig(IN_CH_1_CARRIER_SENSOR + nPair*16);
     ShowSysLog(format('UpdateECS_Glass_Position_Pair Station=%d, Pair=%d : Exists=%d', [nStage, nPair, Ord(bExist1)]));
     g_CommPLC.ECS_Glass_Position(nPair, bExist1);
@@ -1177,6 +1186,7 @@ begin
   nExistsCount:= 0;
 
   for i := 0 to MAX_CH do begin
+    Common.StatusInfo.UseChannel[i]:= frmTest4ChOC[0].chkChannelUse[i].Checked;
     if Common.StatusInfo.UseChannel[i] then begin
       Inc(nUseCount); //전체 사용 채널 개수
       if Common.SystemInfo.OCType = DefCommon.OCType then begin
@@ -1492,6 +1502,25 @@ begin
   ledHandBcr.Value   := bConnected;
 end;
 
+procedure TfrmMain_OC.chkCH;
+var
+  i : integer;
+begin
+
+  for i := DefCommon.CH1 to DefCommon.MAX_JIG_CH do begin
+    if frmTest4ChOC[0].chkChannelUse[i].Checked then  frmTest4ChOC[0].chkChannelUse[i].Font.Color := clGreen
+    else                              frmTest4ChOC[0].chkChannelUse[i].Font.Color := clRed;
+    PasScr[i].m_bUse := frmTest4ChOC[0].chkChannelUse[i].Checked;
+    if PasScr[i].m_bUse THEN
+      ShowSysLog(Format('m_bUse CH: %d' ,[I]))
+    else ShowSysLog(Format('m_bUse no CH: %d' ,[I]));
+
+
+    Common.StatusInfo.UseChannel[i]:= frmTest4ChOC[0].chkChannelUse[i].Checked;
+
+  end;
+end;
+
 
 function TfrmMain_OC.GetStageNo_LoadZone: Integer;
 begin
@@ -1616,6 +1645,7 @@ begin
 
     //임시 검사 skip 원복
     for i := 0 to MAX_JIG_CH do begin
+      Common.StatusInfo.UseChannel[i]:= frmTest4ChOC[0].chkChannelUse[i].Checked;
       if (not PasScr[i + nStage*4].m_bUse) and Common.StatusInfo.UseChannel[i + nStage*4] then begin
         frmTest4ChOC[nStage].AddLog('AABMode Skip', i);
       end;
@@ -1883,7 +1913,7 @@ begin
 
   if g_CommPLC <> nil then begin
     g_CommPLC.SaveGlassData(Common.Path.Ini + 'GlassData.dat');
-    if Common.PLCInfo.InlineGIB then begin
+    if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
     end
     else begin
       g_CommPLC.ECS_Unit_Status(COMMPLC_UNIT_STATE_DOWN, 201); //프로그램 초기화down
@@ -2697,7 +2727,7 @@ begin
       case pGUIMsg.Param of  //Robot 이벤트 종류
         COMMPLC_PARAM_GALSSDATA_REPORT: begin
           ShowSysLog(format('GlassData Report: Pair=%d, %s', [pGUIMsg.Channel, pGUIMsg.Msg]));
-          if Common.PLCInfo.InlineGIB then begin
+          if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
             frmTest4ChOC[nStage].DisplayResult(pGUIMsg.Channel, -3, 0, 'GlassData Report');
             PasScr[pGUIMsg.Channel].TestInfo.GlassID:=  g_CommPLC.GlassData[pGUIMsg.Channel].GlassID;
           end
@@ -2712,11 +2742,12 @@ begin
         COMMPLC_PARAM_LOADCOMPLETE: begin
           if pGUIMsg.Param2 <> 0 then begin
             ShowSysLog(format('Load Complete On: Pair=%d, %s', [pGUIMsg.Channel, pGUIMsg.Msg]));
-            if Common.PLCInfo.InlineGIB then begin
+            if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
               frmTest4ChOC[nStage].DisplayResult(pGUIMsg.Channel, -3, 0, 'Load Complete');
               sMsg:= '[LOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[pGUIMsg.Channel]);
               frmTest4ChOC[nStage].AddLog(sMsg, pGUIMsg.Channel);
               PasScr[pGUIMsg.Channel].TestInfo.MateriID := g_CommPLC.GlassData[pGUIMsg.Channel].MateriID;
+              PasScr[pGUIMsg.Channel].m_nConfirmHostRet := 0;
             end
             else begin
               frmTest4ChOC[nStage].DisplayResult(pGUIMsg.Channel*2 + 0, -3, 0, 'Load Complete');
@@ -2726,9 +2757,11 @@ begin
               sMsg:= '[LOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[pGUIMsg.Channel*2 + 0 + nStage*4]);
               frmTest4ChOC[nStage].AddLog(sMsg, pGUIMsg.Channel*2 + 0);
               PasScr[pGUIMsg.Channel * 2 + 0].TestInfo.MateriID := g_CommPLC.GlassData[pGUIMsg.Channel *2 + 0].MateriID;
+              PasScr[pGUIMsg.Channel * 2 + 0].m_nConfirmHostRet := 0;
               sMsg:= '[LOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[pGUIMsg.Channel*2 + 1 + nStage*4]);
               frmTest4ChOC[nStage].AddLog(sMsg, pGUIMsg.Channel*2 + 1);
               PasScr[pGUIMsg.Channel * 2 + 1].TestInfo.MateriID := g_CommPLC.GlassData[pGUIMsg.Channel *2 + 1].MateriID;
+              PasScr[pGUIMsg.Channel * 2 + 1].m_nConfirmHostRet := 0;
             end;
 
           end
@@ -2777,7 +2810,7 @@ begin
             ShowSysLog(format('CheckDetect_Loaded CH=%d', [pGUIMsg.Channel]));
 
             //일반 처리
-            if Common.PLCInfo.InlineGIB then begin
+            if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
               if not CheckDetect_Loaded_Each(pGUIMsg.Channel) then begin
                 //로드 이상 - Detect NG는  Pair로 처리
                 Set_AlarmData(IN_CH_1_CARRIER_SENSOR + pGUIMsg.Channel*16 , 1, 1);
@@ -2833,7 +2866,7 @@ begin
           //Exchange에서 요청 된 것이 아닐 경우 Load 요청
           if pGUIMsg.Param2 <> 0 then begin
             ShowSysLog(format('Unload Complete On: Pair=%d, %s', [pGUIMsg.Channel, pGUIMsg.Msg]));
-            if Common.PLCInfo.InlineGIB then
+            if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then
               frmTest4ChOC[nStage].DisplayResult(pGUIMsg.Channel, -3, 0, 'Unload Complete')
             else begin
               frmTest4ChOC[nStage].DisplayResult(pGUIMsg.Channel*2 + 0, -3, 0, 'Unload Complete');
@@ -2845,7 +2878,7 @@ begin
           end
           else begin
             ShowSysLog(format('Unload Complete Off: Pair=%d, %s', [pGUIMsg.Channel, pGUIMsg.Msg]));
-            if Common.PLCInfo.InlineGIB then
+            if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then
               UpdateECS_Glass_Position_Pair(0,pGUIMsg.Channel); //
           end;
         end; //COMMPLC_PARAM_UNLOADCOMPLETE: begin
@@ -2856,7 +2889,7 @@ begin
           end
           else begin
             ShowSysLog(format('Unload Busy Off: Pair=%d, %s', [pGUIMsg.Channel, pGUIMsg.Msg]));
-            if common.PLCInfo.InlineGIB then begin
+            if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
               UpdateECS_Glass_Position_Pair(pGUIMsg.Channel, pGUIMsg.Channel); //ECS_Glass_Postion   // Added by KTS 2023-03-23 오후 4:51:33
             end
             else begin
@@ -2898,7 +2931,7 @@ begin
 //              end;
 //              Exit;
 //            end;
-            if Common.PLCInfo.InlineGIB then begin
+            if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
               if not CheckEmpty_Pair(0,pGUIMsg.Channel) then
                 Robot_Request_Exchange_Load(pGUIMsg.Channel);
             end
@@ -3111,7 +3144,7 @@ begin
       ShowSysLog(format('Stage Script UnloadZone Done Stage=%d, Ch=%d, Step=%d', [pGUIMsg.Channel, pGUIMsg.Param, pGUIMsg.Param2]));
 
       if Common.StatusInfo.AutoMode then begin
-        if Common.PLCInfo.InlineGIB then begin
+        if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
           Robot_Request_Exchange_UnLoad(pGUIMsg.Channel);
         end
         else begin
@@ -3278,7 +3311,7 @@ try
 //      exit;
 //    end; // if Common.StatusInfo.LastProduct then begin
 {$ENDREGION}
-    if Common.PLCInfo.InlineGIB then begin
+    if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
         if not CheckLoad_Used(nStage, nCh) then begin
           //사용 안할 경우
           SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0,Format( 'Not Used Pair= %d',[nCh]));
@@ -3883,7 +3916,7 @@ begin
   ThreadTask(procedure begin
     try
 
-      if Common.PLCInfo.InlineGIB then begin
+      if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
         if not CheckLoad_Used(nStage, nCh) then begin
           //사용 안할 경우
           SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0,Format( 'Not Used Pair= %d',[nCh]));
@@ -4193,7 +4226,7 @@ begin
     //ContactDown 때문에 쓰레드 필요
 try
 
-    if Common.PLCInfo.InlineGIB then begin
+    if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
         if not CheckLoad_Used(nStage, nCh) then begin
           //사용 안할 경우
           SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0,Format( 'Not Used Pair= %d',[nCh]));
@@ -4539,7 +4572,7 @@ begin
 
   ThreadTask(procedure begin
 try
-    if not Common.PLCInfo.InlineGIB then begin
+    if not(Common.PLCInfo.InlineGIB)  then begin
       if nCh = CH_TOP then begin
 
         if not CheckLoad_Used(nStage, COMMPLC_CH_12) then begin
@@ -4694,7 +4727,7 @@ begin
 
   ThreadTask(procedure begin
 try
-    if not Common.PLCInfo.InlineGIB then begin
+    if not (Common.PLCInfo.InlineGIB) then begin
 
   {$REGION 'Last Product'}
 //      if Common.StatusInfo.LastProduct then begin
@@ -5110,7 +5143,7 @@ begin
 
   ThreadTask(procedure begin
 try
-    if not Common.PLCInfo.InlineGIB then begin
+    if not (Common.PLCInfo.InlineGIB)then begin
       if nCh = CH_TOP then begin
 
         if not CheckLoad_Used(nStage, COMMPLC_CH_12) then begin
@@ -5486,11 +5519,15 @@ var
   sFileName : string;
   sSerialId : String;
 begin
+
+
 //  sFileName := 'D:\Project\ITOLED\IT_OLED_OC\LGDDLL\OCLog\SummaryLog\12345_Summary_Log_2023_05_03.csv';
 //  sSerialId := 'TEST1234567890_1';
 //  sSerialId := 'PPPGU500011EEEEEEE000000ABNAA00000S00B12C00000000000000000003XA000000C43GQA0009R00000EL+3+T32LL1GM750D7R00000EN+1GJ6GLL0022B00000EPGJ6GPE0014M00000EQTHAGPG000MT00000EKF3111111112C1LY1GTS255720000273J1LLL3125AJY043010304T0MHU0S00ML341WL013L';
 //  sSerialId := '340600164';
   sSerialId :=  Edit1.Text;
+
+  frmTest4ChOC[0].GetNGCode_ByErroCode(sSerialId);
 //  Common.ReadLGDDLLSummaryLog(sSerialId, 2);
 //  PasScr[0].TestInfo.ApdrData := 'AFM_VRR_OPTIMUM:BARCODE:PB5,AFM_VRR_OPTIMUM:SERIALNUMBER:PB503C7602A3K30044,AFM_VRR_OPTIMUM:BUILD:Band_DOE:2,AFM_VRR_OPTIMUM:CONFIG:##,AFM_VRR_OPTIMUM:EQUIPMENT:H9BMTL413A';
   PasScr[0].TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog(sSerialId,FormatDateTime('yymmdd',PasScr[0].TestInfo.StartTime), 0);
@@ -5609,6 +5646,7 @@ procedure TfrmMain_OC.Set_AlarmData(nIndex, nValue, nType: Integer);
 var
   i : Integer;
   bAlarm: Boolean;
+  bTEST : Boolean;
 begin
   if Common.StatusInfo.AlarmData[nIndex] = nValue then Exit;
 
@@ -5618,7 +5656,8 @@ begin
     //Heavy Alarm
     if nValue <> 0 then begin
       ShowSysLog('[ALARM ON] ' + Common.StatusInfo.AlarmMsg[nIndex], 1);
-
+      for I := 0 to DefCommon.MAX_CH do
+        bTEST :=  Common.StatusInfo.UseChannel[i];
       Set_AutoMode(False); //매뉴얼 모드로 전환
 
       g_CommPLC.ECS_Alarm_Add(1, nIndex, 1); //알람 보고    // Added by KTS 2022-08-04 오후 4:30:33
@@ -5710,6 +5749,7 @@ begin
         Exit;
       end;
 
+
 //      for I := 0 to 1 do begin
 //        frmTest4ChOC[0].SetIonizer(i,True);
 //      end;
@@ -5759,8 +5799,10 @@ begin
           frmTest4ChOC[0].SetIonizer(i,True);
         end;
       end;
+      chkCH;
       for I := DefCommon.CH1 to DefCommon.MAX_CH do
         frmTest4ChOC[0].chkChannelUse[i].Enabled := False;
+//      frmTest4ChOC[0].DisplaySysInfo;
 
       StartAutoProcess; //자동 모드 시작
     end
@@ -5772,7 +5814,7 @@ begin
       end;
       Common.StatusInfo.Loading:= False;
       g_CommPLC.IgnoreConnect:= True;
-      if Common.PLCInfo.InlineGIB then begin
+      if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
         for I := 0 to MAX_CH do
           g_CommPLC.EQP_Clear_ROBOT_Request(i);
       end
@@ -5791,7 +5833,8 @@ begin
       ControlDio.Set_TowerLampState(LAMP_STATE_MANUAL);
       for I := DefCommon.CH1 to DefCommon.MAX_CH do
         frmTest4ChOC[0].chkChannelUse[i].Enabled := True;
-      if common.PLCInfo.InlineGIB then begin
+//      frmTest4ChOC[0].DisplaySysInfo;
+      if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
         g_CommPLC.ITC_AllChNormalStatusOnOff(0);
       end
       else begin
@@ -5935,7 +5978,7 @@ begin
   g_CommPLC.ECS_Unit_Status(COMMPLC_UNIT_STATE_IDLE, 0);
   Sleep(50);
   //UpdateECS_Glass_Position(0);
-  if Common.PLCInfo.InlineGIB then nMax_Count := 3
+  if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then nMax_Count := 3
   else nMax_Count := 1;
 
 
@@ -5957,6 +6000,8 @@ begin
       else begin
         nJig := DefCommon.CH_BOTTOM;
       end;
+
+      Common.StatusInfo.UseChannel[i]:= frmTest4ChOC[0].chkChannelUse[i].Checked;
       if Common.StatusInfo.UseChannel[i] then begin
         g_CommPLC.EQP_SkipCh(nJig, i , 0); // 사용하면 Off
       end
@@ -5966,7 +6011,7 @@ begin
     end;
   end;
 
-  if Common.PLCInfo.InlineGIB then begin
+  if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
     if ControlDio.IsDetected(CH1) or ControlDio.IsDetected(CH2) or ControlDio.IsDetected(CH3) or ControlDio.IsDetected(CH4)  then
     begin
       frmSelectDetect:= TfrmSelectDetect.Create(nil);

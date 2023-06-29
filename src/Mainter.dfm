@@ -11163,6 +11163,20 @@ object frmMainter: TfrmMainter
         ParentFont = False
         TabOrder = 11
       end
+      object chkReversal: TCheckBox
+        Left = 119
+        Top = 67
+        Width = 89
+        Height = 23
+        Caption = '++++'
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -16
+        Font.Name = 'Tahoma'
+        Font.Style = []
+        ParentFont = False
+        TabOrder = 12
+      end
     end
   end
   object btnClose: TRzBitBtn
