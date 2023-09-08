@@ -225,6 +225,9 @@ type
     m_szDevice : string;
     m_nSize: Integer;
     m_lplData : Integer;
+    m_nStatus : integer;
+    m_nStatus_ONLINE : integer;
+
 
 //    m_ActUtl: TActUtlType64;
     //m_ActUtl :TDLLActUtlType64;
@@ -303,6 +306,7 @@ type
     MessageHandle: THandle;
     MessageHandleTest1: THandle;
     MessageHandleTest2: THandle;
+    m_nLastCode : integer;
     /// <summary> SendMessage에서 사용할 MsgType</summary>
     MessageType: Int64;
     /// <summary> 폴링 간격. Runtime 변경 가능</summary>
@@ -326,6 +330,8 @@ type
     PollingCVPre: array of Integer;
     /// <summary> Robot Door Opend 검사 </summary>
     PollingDoorOpened: Int64;
+
+    PollingAABMode : Integer;
     /// <summary> 실제 PLC 대신 내분 Simulation 창을 이용한 데이터 처리</summary>
     UseSimulator: Boolean;
 
@@ -372,7 +378,7 @@ type
     LogAccumulateSecond : Integer;
     /// <summary>Stage 번호로  Main에서 Turn 완료 후 설정 </summary>
 
-
+    RobotLoadingStatus : array [0 .. 3] of  Boolean; // 로봇으로 LOAD 했는지 확인
     StageNo: Integer;
     GlassData: array [0..8] of TECSGlassData;
     ECS_GlassData: array [0..8] of TECSGlassData; //채널별 GlassData 저장
@@ -498,7 +504,7 @@ type
     /// <summary> 각 장비의 처리 후 검사 채널 번호와 호기 번호를 갱신
     /// </summary>
     function SetGlassData_Previous_Unit_Processing(var GlassData: TECSGlassData; nValue: Integer): Integer;
-    function SetGlassData_Previous_Unit_Processing_GIB(var GlassData: TECSGlassData; nCH,nABBCount: Integer): Integer;
+    function SetGlassData_Previous_Unit_Processing_GIB(var GlassData: TECSGlassData; nEQP_ID, nCH,nABBCount: Integer): Integer;
 
     /// <summary> 각 장비의 처리 결과를 나타내는 것으로 처리 결과가 NG일 경우 상태 Bit를 ‘On’시킨다.
     /// Bit ~ 8 Bit : 진행 EQP No. (Bit 4개 조합 : 1~15)
@@ -506,12 +512,13 @@ type
     ///  nSeq: 1차검사, 2차검사, 3차검사
     /// </summary>
     function SetGlassData_Processing_Status(var GlassData: TECSGlassData; nSeq: Integer; nBitCount: Integer = 4): Integer;
-    function SetGlassData_Processing_Status_GIB(var GlassData: TECSGlassData; nCH,nABBCount: Integer): Integer;
+    function SetGlassData_Processing_Status_GIB(var GlassData: TECSGlassData; nEQP_ID, nCH,nABBCount: Integer): Integer;
     function SetGlassData_ContactNG(var GlassData: TECSGlassData; nValue: Integer): Integer;
     function SetGlassData_CheckRLogistics(nCH : Integer; var GlassData: TECSGlassData; nValue: Integer): Integer;
     function SetGlassData_JudgCode(var GlassData: TECSGlassData; nValue: Integer): Integer;
     function GetGlassDataString(var AGlassData: TECSGlassData): String;
-    function GetGlassData_Processing_Status(var GlassData: TECSGlassData; var nSeq: Integer; nBitCount: Integer = 4): Integer;
+    function GetGlassData_Processing_Status(var GlassData: TECSGlassData; nEQP_ID : Integer; var nSeq: Integer; nBitCount: Integer = 4): Integer;
+    function GetGlassData_PreviousUnitProcessing(var GlassData: TECSGlassData; nEQP_ID : integer; var nSeq: Integer; nBitCount: Integer = 4): Integer;
     function IsBitOn(var nData: Integer; nLoc: Integer): Boolean; overload;
     function IsBitOn(nDivision, nIndex, nBitLoc: Integer): Boolean; overload;
 
@@ -606,6 +613,7 @@ constructor TCommPLCThread.Create(hMsgHandle: THandle; nMsgType, nStationNumber:
 var
   nRet,ntest: Integer;
   sEventName : WideString;
+  I: Integer;
 begin
   MessageHandle:= hMsgHandle;
   MessageType:= nMsgType;
@@ -659,6 +667,8 @@ begin
   Logined:= False;
   IgnoreConnect:= False;
   InlineGIB:= False;
+  for I := DefCommon.CH1 to DefCommon.CH4 do
+    RobotLoadingStatus[I] := false;
 
   AddLog('========================================');
   AddLog(format('[Create] nStationNumber=%d, UseSimulator=%d', [nStationNumber, ord(bUseSimulator)]));
@@ -1022,11 +1032,15 @@ var
 begin
 
   if not Connected then Exit(1);
+  if (m_nStatus  = 3) and (nOnOff = 1) then Exit;
   AddLog(format('ECS_MES_AddItem nAlarmType=%d, nAlarmCode=%d OnOff=%d', [nAlarmType, nAlarmCode, nOnOff ]));
-  item.AlarmType:= nAlarmType;
-  item.AlarmCode:= nAlarmCode;
-  item.AlarmValue:= nOnOff;
-  m_AlarmQue.Enqueue(item);
+//  item.AlarmType:= nAlarmType;
+//  item.AlarmCode:= nAlarmCode;
+//  item.AlarmValue:= nOnOff;
+//  m_AlarmQue.Enqueue(item);
+
+  ECS_Alarm_Report(nAlarmType,nAlarmCode, nOnOff);
+  m_nLastCode := nAlarmCode;
   Result:= 0;
 end;
 
@@ -1438,7 +1452,7 @@ end;
 
 function TCommPLCThread.ECS_Unit_Status(nMode: Integer; nValue: Integer): Integer;
 var
-  nEqpAlarmCode : Integer;
+  nEqpAlarmCode,nVal : Integer;
   nEqpOnlineMode : Integer;
   nCh : integer;
 begin
@@ -1459,8 +1473,13 @@ begin
           Exit;
         end;
       end;
-      WriteDevice('W' + IntToHex(StartAddr_EQP_W+$10*$00+$0, 3), nValue); //Online State
-      PulseDeviceBit('B' + IntToHex(StartAddr_EQP+$10*$00+$2, 3), $2, 1000); //Online State
+      if m_nStatus_ONLINE <> nValue then  begin
+
+        WriteDevice('W' + IntToHex(StartAddr_EQP_W+$10*$00+$0, 3), nValue); //Online State
+        m_nStatus_ONLINE := nValue;
+        PulseDeviceBit('B' + IntToHex(StartAddr_EQP+$10*$00+$2, 3), $2, 1000); //Online State
+
+      end;
       if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
         WriteDevice('W' + IntToHex(StartAddr_EQP_W+$10*$00+$D, 3), 0);
         WriteDevice('W' + IntToHex(StartAddr_EQP_W+$10*$00+$F, 3), 0);
@@ -1471,10 +1490,13 @@ begin
 //    6: WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$00+$6, 3), nValue); //OCR(BCR) Status
 //    7: WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$00+$7, 3), nValue); //Operation Cycle Stop
     8: begin //COMMPLC_UNIT_STATE_RUN
-      WriteDevice('W' + IntToHex(StartAddr_EQP_W+$10*$00+$3, 3), 1); //Run
-      WriteDevice('W' + IntToHex(StartAddr_EQP_W+$10*$00+$4, 3), 0); //Down Alarm Code
-      PulseDeviceBit('B' + IntToHex(StartAddr_EQP+$10*$00+$3, 3), $3, 1000); //EQP Status Change Report
-//      if Common.PLCInfo.InlineGIB then begin
+      if m_nStatus <> 1 then begin
+        WriteDevice('W' + IntToHex(StartAddr_EQP_W+$10*$00+$3, 3), 1); //Run
+        WriteDevice('W' + IntToHex(StartAddr_EQP_W+$10*$00+$4, 3), 0); //Down Alarm Code
+        PulseDeviceBit('B' + IntToHex(StartAddr_EQP+$10*$00+$3, 3), $3, 1000); //EQP Status Change Report
+      end;
+      m_nStatus := 1;
+//  if Common.PLCInfo.InlineGIB then begin
 //        if nValue = 0 then begin
 //          for nch := DefCommon.CH1 to Defcommon.MAX_CH do begin
 //            WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$09+$4 + (nCh*$20), 3), 0); //Unload Normal Status off
@@ -1485,9 +1507,12 @@ begin
 //      end;
     end;
     9: begin //COMMPLC_UNIT_STATE_IDLE
-      WriteDevice('W' + IntToHex(StartAddr_EQP_W+$10*$00+$3, 3), 2); //Idle
-      WriteDevice('W' + IntToHex(StartAddr_EQP_W+$10*$00+$4, 3), 0); //Down Alarm Code
-      PulseDeviceBit('B' + IntToHex(StartAddr_EQP+$10*$00+$3, 3), $3, 1000); //EQP Status Change Report
+      if m_nStatus <> 2 then begin
+        WriteDevice('W' + IntToHex(StartAddr_EQP_W+$10*$00+$3, 3), 2); //Idle
+        WriteDevice('W' + IntToHex(StartAddr_EQP_W+$10*$00+$4, 3), 0); //Down Alarm Code
+        PulseDeviceBit('B' + IntToHex(StartAddr_EQP+$10*$00+$3, 3), $3, 1000); //EQP Status Change Report
+      end;
+      m_nStatus := 2;
     end;
     10: begin   //COMMPLC_UNIT_STATE_DOWN
       if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
@@ -1498,9 +1523,14 @@ begin
           Exit;
         end;
       end;
-      WriteDevice('W' + IntToHex(StartAddr_EQP_W+$10*$00+$3, 3), 3); //Down
-      WriteDevice('W' + IntToHex(StartAddr_EQP_W+$10*$00+$4, 3), nValue); //Down Alarm Code
-      PulseDeviceBit('B' + IntToHex(StartAddr_EQP+$10*$00+$3, 3), $3, 1000); //EQP Status Change Report
+
+      if m_nStatus <> 3 then begin
+        WriteDevice('W' + IntToHex(StartAddr_EQP_W+$10*$00+$3, 3), 3); //Down
+        WriteDevice('W' + IntToHex(StartAddr_EQP_W+$10*$00+$4, 3), nValue); //Down Alarm Code
+
+        PulseDeviceBit('B' + IntToHex(StartAddr_EQP+$10*$00+$3, 3), $3, 1000); //EQP Status Change Report
+      end;
+      m_nStatus := 3;
     end;
     11: WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$00+$B, 3), nValue); //Glass In Processing  //COMMPLC_UNIT_STATE_GLASS_PROCESS
     12: WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$00+$C, 3), nValue); //Glass Exist In Unit   //COMMPLC_UNIT_STATE_GLASS_EXIST
@@ -2517,7 +2547,7 @@ begin
   //참조 Interlock 사양3.5.1
   //참조 Interlock 사양3.10.2 Type 10 Unload Only
   Result:= 0;
-  if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
+  if not (Common.PLCInfo.InlineGIB)  then begin
     if Common.SystemInfo.OCType = DefCommon.OCType then begin
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$4 + (nCh*$20), 3), 1); //UnLoad Normal Status
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$4 + (nCh*$20), 3), 1); //Load Normal Status - 상태 설정에서....
@@ -2793,6 +2823,11 @@ begin
 //  if nRet <> 0 then begin
 //    AddLog('Polling Door Open ReadDevice Fail');
 //  end;
+  if InlineGIB then begin
+    nRet := ReadDevice('B030', nValue , False);
+    PollingAABMode := nValue;
+  end;
+
   if Common.SystemInfo.OCType = DefCommon.OCType then begin
     nRet := ReadDevice('B' + IntToHex(StartAddr_ROBOT_DOOR_BIT,3), nValue , False);
     if nRet <> 0 then begin
@@ -3080,6 +3115,7 @@ try
   for i := 0 to Pred(m_nRobotDataSize) do begin
 //    AddLog(format('<< COMMPLC_ROBOT_DATASIZE  %d', [ i]),True);
     if  PollingData[i] = PollingDataPre[i] then continue;
+    if not Common.StatusInfo.AutoMode then Exit;
 
     for k := 0 to 15 do begin
       nValue:= Get_Bit(PollingData[i], k);
@@ -3270,16 +3306,16 @@ var
 begin
   if m_AlarmQue.IsEmpty then Exit;
   nTick:= GetTickCount;
-  if nTick - m_nLastAlarmTick < 1000 then Exit;
+//  if nTick - m_nLastAlarmTick < 1000 then Exit;
 
-  item:= m_AlarmQue.Dequeue;
-  Synchronize(nil,
-  procedure
-  begin
-    ECS_Alarm_Report(item.AlarmType, item.AlarmCode, item.AlarmValue);
-  end
-  );
-//  ECS_Alarm_Report(item.AlarmType, item.AlarmCode, item.AlarmValue);
+//  item:= m_AlarmQue.Dequeue;
+//  Synchronize(nil,
+//  procedure
+//  begin
+//    ECS_Alarm_Report(item.AlarmType, item.AlarmCode, item.AlarmValue);
+//  end
+//  );
+  ECS_Alarm_Report(item.AlarmType, item.AlarmCode, item.AlarmValue);
   m_nLastAlarmTick:= nTick;
 end;
 
@@ -3734,6 +3770,8 @@ begin
     else begin
       if ControlDio.IsDetected(nCh) then
         SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, nCh, COMMPLC_PARAM_LOADBUSY, 0, 'Process_ROBOT_LoadBusy_Off ' + IntToStr(nCh), nil);
+
+
     end;
   end;
 //  AddLog('SendMessageMain COMMPLC_PARAM_LOADBUSY SendMessageMain Done ' + IntToStr(nCh), True);
@@ -4789,37 +4827,47 @@ begin
   Result:= 0;
   if Common.SystemInfo.Use_GIB then begin //GIB구분- Auto이고 GIB 모드이면 Inline GIB
       GlassData.PreviousUnitProcessing[0]:= nValue;
-      end
+  end
   else begin
-      GlassData.PreviousUnitProcessing[1]:= nValue;
+    if Common.SystemInfo.OCType = DefCommon.OCType then
+      GlassData.PreviousUnitProcessing[1]:= nValue
+    else if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
+      Set_Bit(GlassData.PreviousUnitProcessing[1], nValue * 2 ,1);
+    end;
   end;
+
 //  Set_Bit(GlassData.PreviousUnitProcessing[1], 2, 1);
 end;
 
-function TCommPLCThread.SetGlassData_Previous_Unit_Processing_GIB(var GlassData: TECSGlassData; nCH,nABBCount: Integer): Integer;
+function TCommPLCThread.SetGlassData_Previous_Unit_Processing_GIB(var GlassData: TECSGlassData; nEQP_ID,nCH,nABBCount: Integer): Integer;
+var
+nValue : integer;
 begin
   Result:= 0;
+  nValue := nCH + 1;
+  if (not RobotLoadingStatus[nCH]) and (nABBCount <> 0) then
+    nABBCount := nABBCount - 1;
 
-  case nCH of
-    DefCommon.CH1 :
-    begin
-      Set_Bit(GlassData.PreviousUnitProcessing[0], 0 + 6 *nABBCount,1);
-    end;
-    DefCommon.CH2 :
-    begin
-      Set_Bit(GlassData.PreviousUnitProcessing[0], 1 + 6 *nABBCount,1);
-    end;
-    DefCommon.CH3 :
-    begin
-      Set_Bit(GlassData.PreviousUnitProcessing[0], 2 + 6 *nABBCount,1);
-    end;
-    DefCommon.CH4 :
-    begin
-      Set_Bit(GlassData.PreviousUnitProcessing[0], 3 + 6 *nABBCount,1);
+  if nEQP_ID = 1 then begin
+    Set_Bit(GlassData.PreviousUnitProcessing[0], 0 + 3 * nABBCount, Get_Bit(nValue, 0));
+    Set_Bit(GlassData.PreviousUnitProcessing[0], 1 + 3 * nABBCount, Get_Bit(nValue, 1));
+    Set_Bit(GlassData.PreviousUnitProcessing[0], 2 + 3 * nABBCount, Get_Bit(nValue, 2));
+  end
+  else begin
+    if nABBCount = 2 then begin
+      Set_Bit(GlassData.PreviousUnitProcessing[1], 0, Get_Bit(nValue, 0));
+      Set_Bit(GlassData.PreviousUnitProcessing[1], 1, Get_Bit(nValue, 1));
+      Set_Bit(GlassData.PreviousUnitProcessing[1], 2, Get_Bit(nValue, 2));
+    end
+    else begin
+      Set_Bit(GlassData.PreviousUnitProcessing[0], 10 + 3 * nABBCount, Get_Bit(nValue, 0));
+      Set_Bit(GlassData.PreviousUnitProcessing[0], 11 + 3 * nABBCount, Get_Bit(nValue, 1));
+      Set_Bit(GlassData.PreviousUnitProcessing[0], 12 + 3 * nABBCount, Get_Bit(nValue, 2));
     end;
   end;
 
-//  Set_Bit(GlassData.PreviousUnitProcessing[1], 2, 1);
+//  Set_Bit(GlassData.PreviousUnitProcessing[0], nCH + 6 *nABBCount,1);
+
 end;
 
 function TCommPLCThread.SetGlassData_Processing_Status(var GlassData: TECSGlassData; nSeq, nBitCount: Integer): Integer;
@@ -4834,7 +4882,10 @@ begin
     nStation:= EQP_ID-6;
   end
   else begin
-    nStation:= EQP_ID-10;
+    if Common.SystemInfo.OCType = DefCommon.OCType then
+      nStation:= EQP_ID-10
+    else if Common.SystemInfo.OCType = DefCommon.PreOCType then
+      nStation:= EQP_ID-13;
   end;
 
   if nBitCount = 4 then begin
@@ -4843,7 +4894,11 @@ begin
     Set_Bit(GlassData.GlassProcessingStatus[nSeq], 7, Get_Bit(nStation, 2));
     Set_Bit(GlassData.GlassProcessingStatus[nSeq], 8, Get_Bit(nStation, 3));
   end
-  else if nBitCount = 6 then begin
+  else if nBitCount = 5 then begin     //Pre OC
+    Set_Bit(GlassData.GlassProcessingStatus[nSeq], nStation * 2,1);
+  end
+
+  else if nBitCount = 6 then begin  //OC
     Set_Bit(GlassData.GlassProcessingStatus[nSeq], 0, Get_Bit(nStation, 0));
     Set_Bit(GlassData.GlassProcessingStatus[nSeq], 1, Get_Bit(nStation, 1));
     Set_Bit(GlassData.GlassProcessingStatus[nSeq], 2, Get_Bit(nStation, 2));
@@ -4860,37 +4915,63 @@ begin
   end;
 end;
 
-function TCommPLCThread.SetGlassData_Processing_Status_GIB(var GlassData: TECSGlassData; nCH,nABBCount: Integer): Integer;
+function TCommPLCThread.SetGlassData_Processing_Status_GIB(var GlassData: TECSGlassData; nEQP_ID, nCH,nABBCount: Integer): Integer;
 var
   nStation: Integer;
 begin
   //HN-M-ECS-AN03-장비운영사양서(조립 Inline)_v0.2.pdf
   //2.1.7. Glass Processing Status
   Result:= 0;
-  case nCH of
-    DefCommon.CH1 :
-    begin
-      Set_Bit(GlassData.GlassProcessingStatus[0], 0 + 6 *nABBCount,1);
+  nStation := nCH + 1;
+  if (not RobotLoadingStatus[nCH]) and (nABBCount <> 0)  then
+    nABBCount := nABBCount - 1;
+  if nEQP_ID = 1 then begin
+    Set_Bit(GlassData.GlassProcessingStatus[0], 0 + 3 * nABBCount, Get_Bit(nStation, 0));
+    Set_Bit(GlassData.GlassProcessingStatus[0], 1 + 3 * nABBCount, Get_Bit(nStation, 1));
+    Set_Bit(GlassData.GlassProcessingStatus[0], 2 + 3 * nABBCount, Get_Bit(nStation, 2));
+  end
+  else begin
+    if nABBCount = 2 then begin
+      Set_Bit(GlassData.GlassProcessingStatus[1], 0, Get_Bit(nStation, 0));
+      Set_Bit(GlassData.GlassProcessingStatus[1], 1, Get_Bit(nStation, 1));
+      Set_Bit(GlassData.GlassProcessingStatus[1], 2, Get_Bit(nStation, 2));
+    end
+    else begin
+      Set_Bit(GlassData.GlassProcessingStatus[0], 10 + 3 * nABBCount, Get_Bit(nStation, 0));
+      Set_Bit(GlassData.GlassProcessingStatus[0], 11 + 3 * nABBCount, Get_Bit(nStation, 1));
+      Set_Bit(GlassData.GlassProcessingStatus[0], 12 + 3 * nABBCount, Get_Bit(nStation, 2));
     end;
-    DefCommon.CH2 :
-    begin
-      Set_Bit(GlassData.GlassProcessingStatus[0], 1 + 6 *nABBCount,1);
-    end;
-    DefCommon.CH3 :
-    begin
-      Set_Bit(GlassData.GlassProcessingStatus[0], 2 + 6 *nABBCount,1);
-    end;
-    DefCommon.CH4 :
-    begin
-      Set_Bit(GlassData.GlassProcessingStatus[0], 3 + 6 *nABBCount,1);
-    end;
-
   end;
+//  Set_Bit(GlassData.GlassProcessingStatus[0], nCH + 6 *nABBCount,1);
+
 end;
 
-function TCommPLCThread.GetGlassData_Processing_Status(var GlassData: TECSGlassData; var nSeq: Integer; nBitCount: Integer): Integer;
+function TCommPLCThread.GetGlassData_PreviousUnitProcessing(var GlassData: TECSGlassData; nEQP_ID : Integer;  var nSeq: Integer; nBitCount: Integer): Integer;
 var
-  nStation, nValue: Integer;
+  nStation, nValue,nValue2: Integer;
+  i: Integer;
+begin
+  Result:= 0;
+  nStation:= 0;
+  nValue := GlassData.PreviousUnitProcessing[0];
+  nValue2 := GlassData.PreviousUnitProcessing[1];
+  if nEQP_ID = 1 then begin
+    if nValue and $1C0 = 0 then nSeq := 2;
+    if nValue and $38 = 0 then nSeq := 1;
+    if nValue and $7 = 0 then nSeq := 0;
+  end
+  else begin
+    if nValue2 and $7 = 0 then nSeq := 2;
+    if nValue and $E000 = 0 then nSeq := 1;
+    if nValue and $1C00 = 0 then nSeq := 0;
+  end;
+  Result:= nValue;
+
+end;
+
+function TCommPLCThread.GetGlassData_Processing_Status(var GlassData: TECSGlassData; nEQP_ID : integer; var nSeq: Integer; nBitCount: Integer): Integer;
+var
+  nStation, nValue,nValue2: Integer;
   i: Integer;
 begin
   Result:= 0;
@@ -4909,10 +4990,17 @@ begin
     end
     else if nBitCount = 16 then begin
       nValue:= GlassData.GlassProcessingStatus[0];
-
-      if nValue and $F000 = 0 then nSeq := 2;
-      if nValue and $3C0 = 0 then nSeq := 1;
-      if nValue and $F = 0 then nSeq := 0;
+      nValue2:= GlassData.GlassProcessingStatus[1];
+      if nEQP_ID = 1 then begin
+        if nValue and $1C0 = 0 then nSeq := 2;
+        if nValue and $38 = 0 then nSeq := 1;
+        if nValue and $7 = 0 then nSeq := 0;
+      end
+      else begin
+        if nValue2 and $7 = 0 then nSeq := 2;
+        if nValue and $E000 = 0 then nSeq := 1;
+        if nValue and $1C00 = 0 then nSeq := 0;
+      end;
       Result:= nValue;
       Exit;
 

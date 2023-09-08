@@ -342,6 +342,15 @@ object frmMain_OC: TfrmMain_OC
         Blink = False
         LEDStyle = LEDSqLarge
       end
+      object ledTempIr: ThhALed
+        Left = 78
+        Top = 140
+        Width = 22
+        Height = 22
+        FalseColor = clRed
+        Blink = False
+        LEDStyle = LEDSqLarge
+      end
       object RzPanel21: TRzPanel
         Left = 1
         Top = 19
@@ -488,6 +497,24 @@ object frmMain_OC: TfrmMain_OC
         Caption = 'COM1'
         TabOrder = 15
       end
+      object RzPanel17: TRzPanel
+        Left = 1
+        Top = 140
+        Width = 78
+        Height = 22
+        BorderOuter = fsFlat
+        Caption = 'IR Temp Sensor'
+        TabOrder = 16
+      end
+      object pnlCommTempIr: TRzPanel
+        Left = 101
+        Top = 140
+        Width = 142
+        Height = 22
+        BorderOuter = fsFlat
+        Caption = 'CH1'
+        TabOrder = 17
+      end
     end
     object RzGroupBox5: TRzGroupBox
       Left = 1
@@ -604,13 +631,14 @@ object frmMain_OC: TfrmMain_OC
       Left = 1
       Top = 371
       Width = 245
+      Height = 126
       Align = alTop
       Caption = ' Script Information.'
       GroupStyle = gsUnderline
       TabOrder = 2
       object pnlPsuVer: TRzPanel
         Left = 78
-        Top = 59
+        Top = 81
         Width = 165
         Height = 22
         BorderOuter = fsFlat
@@ -619,7 +647,7 @@ object frmMain_OC: TfrmMain_OC
       end
       object RzPanel18: TRzPanel
         Left = 1
-        Top = 59
+        Top = 81
         Width = 78
         Height = 22
         BorderOuter = fsFlat
@@ -648,27 +676,25 @@ object frmMain_OC: TfrmMain_OC
       end
       object RzPanel14: TRzPanel
         Left = 1
-        Top = 80
+        Top = 38
         Width = 78
         Height = 22
         BorderOuter = fsFlat
-        Caption = 'ISU VER'
+        Caption = 'OC_CON VER'
         TabOrder = 4
-        Visible = False
       end
-      object pnlIsuVer: TRzPanel
+      object pnlOC_conVer: TRzPanel
         Left = 78
-        Top = 80
+        Top = 38
         Width = 165
         Height = 22
         BorderOuter = fsFlat
         Color = clWhite
         TabOrder = 5
-        Visible = False
       end
       object RzPanel13: TRzPanel
         Left = 1
-        Top = 38
+        Top = 60
         Width = 78
         Height = 22
         BorderOuter = fsFlat
@@ -677,7 +703,7 @@ object frmMain_OC: TfrmMain_OC
       end
       object pnlModelConfig: TRzPanel
         Left = 78
-        Top = 38
+        Top = 60
         Width = 165
         Height = 22
         BorderOuter = fsFlat
@@ -703,12 +729,32 @@ object frmMain_OC: TfrmMain_OC
         Caption = 'LGD DLL Name'
         TabOrder = 9
       end
+      object RzPanel16: TRzPanel
+        Left = -6
+        Top = 102
+        Width = 78
+        Height = 22
+        BorderOuter = fsFlat
+        Caption = 'Bin Name'
+        TabOrder = 10
+        Visible = False
+      end
+      object pnlLGDBinName: TRzPanel
+        Left = 78
+        Top = 101
+        Width = 165
+        Height = 23
+        BorderOuter = fsFlat
+        Color = clWhite
+        TabOrder = 11
+        Visible = False
+      end
     end
     object grpDIO: TRzGroupBox
       Left = 1
-      Top = 476
+      Top = 497
       Width = 245
-      Height = 321
+      Height = 303
       Align = alTop
       Caption = ' DIO Status'
       Font.Charset = DEFAULT_CHARSET
@@ -722,7 +768,7 @@ object frmMain_OC: TfrmMain_OC
     end
     object grpPwrInfo: TRzGroupBox
       Left = 1
-      Top = 797
+      Top = 800
       Width = 245
       Height = 20
       Align = alClient
@@ -1499,8 +1545,8 @@ object frmMain_OC: TfrmMain_OC
     TabOrder = 4
   end
   object Button1: TButton
-    Left = 51
-    Top = 552
+    Left = 8
+    Top = 559
     Width = 75
     Height = 25
     Caption = 'Button1'

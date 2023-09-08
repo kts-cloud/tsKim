@@ -400,6 +400,8 @@ type
     RzPanel7: TRzPanel;
     RzPanel8: TRzPanel;
     edNvmInitMode: TRzEdit;
+    cbCheckVer: TRzCheckBox;
+    cbReProgramming: TRzCheckBox;
     procedure mmProgramAllDragOver(Sender, Source: TObject; X, Y: Integer; State: TDragState; var Accept: Boolean);
     procedure FormCreate(Sender: TObject);
     procedure btnCompileScriptClick(Sender: TObject);
@@ -2016,6 +2018,8 @@ begin
     edSerialNoLength.Text := format('%d',[SerialNoFlashInfo.nLength]);
     cboCa310Channel.ItemIndex := Ca410MemCh;
     edNvmInitMode.Text := IntToStr(UseNvmInit);
+    cbCheckVer.Checked := UseCheckVer;
+    cbReProgramming.Checked := UseCheckReProgramming;
     //
 
   end;
@@ -2945,6 +2949,8 @@ begin
     SerialNoFlashInfo.nLength := StrToIntDef(edSerialNoLength.text,0);
     Ca410MemCh := cboCa310Channel.ItemIndex;
     UseNvmInit := StrToIntDef(edNvmInitMode.Text,0);
+    UseCheckVer := cbCheckVer.Checked;
+    UseCheckReProgramming := cbReProgramming.Checked;
   end;
 
 

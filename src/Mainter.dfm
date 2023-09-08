@@ -540,6 +540,7 @@ object frmMainter: TfrmMainter
           ParentCtl3D = False
           ParentFont = False
           TabOrder = 10
+          OnChange = cmbxPgCmdChange
           Items.Strings = (
             'Power ON '
             'Power Off'
@@ -555,7 +556,8 @@ object frmMainter: TfrmMainter
             'Flash ALL Read'
             'Flash ALL Write'
             'PG Power Reset'
-            'DP860 PG Command')
+            'DP860 PG Command'
+            'PG_REPROGRARMING')
           Values.Strings = (
             '0'
             '1'
@@ -613,7 +615,7 @@ object frmMainter: TfrmMainter
           TabOrder = 12
         end
         object btnPgFileOpen: TRzBitBtn
-          Left = 438
+          Left = 434
           Top = 93
           Width = 87
           Height = 26
@@ -698,7 +700,7 @@ object frmMainter: TfrmMainter
           TabOrder = 14
         end
         object btnPgSendCmd: TRzBitBtn
-          Left = 248
+          Left = 254
           Top = 90
           Width = 174
           Height = 37
@@ -10348,15 +10350,16 @@ object frmMainter: TfrmMainter
         Left = 0
         Top = 0
         Width = 1466
-        Height = 225
+        Height = 289
         Align = alTop
         TabOrder = 0
+        OnDblClick = Panel1DblClick
         object Label1: TLabel
-          Left = 40
+          Left = 15
           Top = 56
-          Width = 69
+          Width = 100
           Height = 19
-          Caption = 'White_X'
+          Caption = 'OC_W600_X'
           Font.Charset = DEFAULT_CHARSET
           Font.Color = clWindowText
           Font.Height = -16
@@ -10365,11 +10368,12 @@ object frmMainter: TfrmMainter
           ParentFont = False
         end
         object Label2: TLabel
-          Left = 40
+          Tag = 1
+          Left = 15
           Top = 82
-          Width = 69
+          Width = 100
           Height = 19
-          Caption = 'White_Y'
+          Caption = 'OC_W600_Y'
           Font.Charset = DEFAULT_CHARSET
           Font.Color = clWindowText
           Font.Height = -16
@@ -10378,11 +10382,12 @@ object frmMainter: TfrmMainter
           ParentFont = False
         end
         object Label3: TLabel
-          Left = 40
+          Tag = 2
+          Left = 16
           Top = 110
-          Width = 68
+          Width = 99
           Height = 19
-          Caption = 'White_Z'
+          Caption = 'OC_W600_Z'
           Font.Charset = DEFAULT_CHARSET
           Font.Color = clWindowText
           Font.Height = -16
@@ -10391,11 +10396,12 @@ object frmMainter: TfrmMainter
           ParentFont = False
         end
         object Label4: TLabel
-          Left = 40
+          Tag = 12
+          Left = 5
           Top = 138
-          Width = 68
+          Width = 112
           Height = 19
-          Caption = 'White_x'
+          Caption = 'MPO_W600_L'
           Font.Charset = DEFAULT_CHARSET
           Font.Color = clWindowText
           Font.Height = -16
@@ -10404,11 +10410,12 @@ object frmMainter: TfrmMainter
           ParentFont = False
         end
         object Label5: TLabel
-          Left = 40
+          Tag = 13
+          Left = 3
           Top = 165
-          Width = 67
+          Width = 114
           Height = 19
-          Caption = 'White_y'
+          Caption = 'MPO_W600_X'
           Font.Charset = DEFAULT_CHARSET
           Font.Color = clWindowText
           Font.Height = -16
@@ -10417,11 +10424,12 @@ object frmMainter: TfrmMainter
           ParentFont = False
         end
         object Label6: TLabel
-          Left = 39
+          Tag = 14
+          Left = 3
           Top = 192
-          Width = 76
+          Width = 114
           Height = 19
-          Caption = 'White_Lv'
+          Caption = 'MPO_W600_Y'
           Font.Charset = DEFAULT_CHARSET
           Font.Color = clWindowText
           Font.Height = -16
@@ -10430,11 +10438,12 @@ object frmMainter: TfrmMainter
           ParentFont = False
         end
         object Label7: TLabel
-          Left = 296
+          Tag = 3
+          Left = 275
           Top = 56
-          Width = 53
+          Width = 96
           Height = 19
-          Caption = 'Red_X'
+          Caption = 'OC_R600_X'
           Font.Charset = DEFAULT_CHARSET
           Font.Color = clWindowText
           Font.Height = -16
@@ -10443,11 +10452,12 @@ object frmMainter: TfrmMainter
           ParentFont = False
         end
         object Label8: TLabel
-          Left = 296
+          Tag = 4
+          Left = 275
           Top = 82
-          Width = 53
+          Width = 96
           Height = 19
-          Caption = 'Red_Y'
+          Caption = 'OC_R600_Y'
           Font.Charset = DEFAULT_CHARSET
           Font.Color = clWindowText
           Font.Height = -16
@@ -10456,11 +10466,12 @@ object frmMainter: TfrmMainter
           ParentFont = False
         end
         object Label9: TLabel
-          Left = 296
+          Tag = 5
+          Left = 276
           Top = 110
-          Width = 52
+          Width = 95
           Height = 19
-          Caption = 'Red_Z'
+          Caption = 'OC_R600_Z'
           Font.Charset = DEFAULT_CHARSET
           Font.Color = clWindowText
           Font.Height = -16
@@ -10469,11 +10480,12 @@ object frmMainter: TfrmMainter
           ParentFont = False
         end
         object Label10: TLabel
-          Left = 296
+          Tag = 15
+          Left = 268
           Top = 138
-          Width = 52
+          Width = 108
           Height = 19
-          Caption = 'Red_x'
+          Caption = 'MPO_R600_L'
           Font.Charset = DEFAULT_CHARSET
           Font.Color = clWindowText
           Font.Height = -16
@@ -10482,11 +10494,12 @@ object frmMainter: TfrmMainter
           ParentFont = False
         end
         object Label11: TLabel
-          Left = 296
+          Tag = 16
+          Left = 266
           Top = 165
-          Width = 51
+          Width = 110
           Height = 19
-          Caption = 'Red_y'
+          Caption = 'MPO_R600_X'
           Font.Charset = DEFAULT_CHARSET
           Font.Color = clWindowText
           Font.Height = -16
@@ -10495,11 +10508,12 @@ object frmMainter: TfrmMainter
           ParentFont = False
         end
         object Label12: TLabel
-          Left = 295
+          Tag = 17
+          Left = 266
           Top = 192
-          Width = 60
+          Width = 110
           Height = 19
-          Caption = 'Red_Lv'
+          Caption = 'MPO_R600_Y'
           Font.Charset = DEFAULT_CHARSET
           Font.Color = clWindowText
           Font.Height = -16
@@ -10508,11 +10522,12 @@ object frmMainter: TfrmMainter
           ParentFont = False
         end
         object Label13: TLabel
-          Left = 550
+          Tag = 6
+          Left = 532
           Top = 56
-          Width = 70
+          Width = 96
           Height = 19
-          Caption = 'Green_X'
+          Caption = 'OC_G600_X'
           Font.Charset = DEFAULT_CHARSET
           Font.Color = clWindowText
           Font.Height = -16
@@ -10521,11 +10536,12 @@ object frmMainter: TfrmMainter
           ParentFont = False
         end
         object Label14: TLabel
-          Left = 551
+          Tag = 7
+          Left = 532
           Top = 82
-          Width = 70
+          Width = 96
           Height = 19
-          Caption = 'Green_Y'
+          Caption = 'OC_G600_Y'
           Font.Charset = DEFAULT_CHARSET
           Font.Color = clWindowText
           Font.Height = -16
@@ -10534,11 +10550,12 @@ object frmMainter: TfrmMainter
           ParentFont = False
         end
         object Label15: TLabel
-          Left = 551
+          Tag = 8
+          Left = 533
           Top = 110
-          Width = 69
+          Width = 95
           Height = 19
-          Caption = 'Green_Z'
+          Caption = 'OC_G600_Z'
           Font.Charset = DEFAULT_CHARSET
           Font.Color = clWindowText
           Font.Height = -16
@@ -10547,11 +10564,12 @@ object frmMainter: TfrmMainter
           ParentFont = False
         end
         object Label16: TLabel
-          Left = 552
+          Tag = 18
+          Left = 526
           Top = 138
-          Width = 69
+          Width = 108
           Height = 19
-          Caption = 'Green_x'
+          Caption = 'MPO_G600_L'
           Font.Charset = DEFAULT_CHARSET
           Font.Color = clWindowText
           Font.Height = -16
@@ -10560,11 +10578,12 @@ object frmMainter: TfrmMainter
           ParentFont = False
         end
         object Label17: TLabel
-          Left = 553
+          Tag = 19
+          Left = 526
           Top = 165
-          Width = 68
+          Width = 110
           Height = 19
-          Caption = 'Green_y'
+          Caption = 'MPO_G600_X'
           Font.Charset = DEFAULT_CHARSET
           Font.Color = clWindowText
           Font.Height = -16
@@ -10573,11 +10592,12 @@ object frmMainter: TfrmMainter
           ParentFont = False
         end
         object Label18: TLabel
-          Left = 551
+          Tag = 20
+          Left = 526
           Top = 192
-          Width = 77
+          Width = 110
           Height = 19
-          Caption = 'Green_Lv'
+          Caption = 'MPO_G600_Y'
           Font.Charset = DEFAULT_CHARSET
           Font.Color = clWindowText
           Font.Height = -16
@@ -10586,11 +10606,12 @@ object frmMainter: TfrmMainter
           ParentFont = False
         end
         object Label19: TLabel
-          Left = 799
+          Tag = 9
+          Left = 783
           Top = 56
-          Width = 57
+          Width = 95
           Height = 19
-          Caption = 'Blue_X'
+          Caption = 'OC_B600_X'
           Font.Charset = DEFAULT_CHARSET
           Font.Color = clWindowText
           Font.Height = -16
@@ -10599,11 +10620,12 @@ object frmMainter: TfrmMainter
           ParentFont = False
         end
         object Label20: TLabel
-          Left = 799
+          Tag = 10
+          Left = 783
           Top = 82
-          Width = 57
+          Width = 95
           Height = 19
-          Caption = 'Blue_Y'
+          Caption = 'OC_B600_Y'
           Font.Charset = DEFAULT_CHARSET
           Font.Color = clWindowText
           Font.Height = -16
@@ -10612,11 +10634,12 @@ object frmMainter: TfrmMainter
           ParentFont = False
         end
         object Label21: TLabel
-          Left = 801
+          Tag = 11
+          Left = 784
           Top = 110
-          Width = 56
+          Width = 94
           Height = 19
-          Caption = 'Blue_Z'
+          Caption = 'OC_B600_Z'
           Font.Charset = DEFAULT_CHARSET
           Font.Color = clWindowText
           Font.Height = -16
@@ -10625,11 +10648,12 @@ object frmMainter: TfrmMainter
           ParentFont = False
         end
         object Label22: TLabel
-          Left = 800
+          Tag = 21
+          Left = 781
           Top = 138
-          Width = 56
+          Width = 107
           Height = 19
-          Caption = 'Blue_x'
+          Caption = 'MPO_B600_L'
           Font.Charset = DEFAULT_CHARSET
           Font.Color = clWindowText
           Font.Height = -16
@@ -10638,11 +10662,12 @@ object frmMainter: TfrmMainter
           ParentFont = False
         end
         object Label23: TLabel
-          Left = 801
+          Tag = 22
+          Left = 779
           Top = 165
-          Width = 55
+          Width = 109
           Height = 19
-          Caption = 'Blue_y'
+          Caption = 'MPO_B600_X'
           Font.Charset = DEFAULT_CHARSET
           Font.Color = clWindowText
           Font.Height = -16
@@ -10651,11 +10676,12 @@ object frmMainter: TfrmMainter
           ParentFont = False
         end
         object Label24: TLabel
-          Left = 799
+          Tag = 23
+          Left = 779
           Top = 192
-          Width = 64
+          Width = 109
           Height = 19
-          Caption = 'Blue_Lv'
+          Caption = 'MPO_B600_Y'
           Font.Charset = DEFAULT_CHARSET
           Font.Color = clWindowText
           Font.Height = -16
@@ -10670,6 +10696,7 @@ object frmMainter: TfrmMainter
           Height = 27
           TabOrder = 1
           Text = '716.7414'
+          Visible = False
         end
         object edtW_Z: TEdit
           Left = 137
@@ -10678,6 +10705,7 @@ object frmMainter: TfrmMainter
           Height = 27
           TabOrder = 2
           Text = '769.7799'
+          Visible = False
         end
         object edtW_LV: TEdit
           Left = 137
@@ -10686,6 +10714,7 @@ object frmMainter: TfrmMainter
           Height = 27
           TabOrder = 5
           Text = '730.1678'
+          Visible = False
         end
         object edtW_YY: TEdit
           Left = 137
@@ -10694,6 +10723,7 @@ object frmMainter: TfrmMainter
           Height = 27
           TabOrder = 4
           Text = '0.3309'
+          Visible = False
         end
         object edtW_XX: TEdit
           Left = 137
@@ -10702,6 +10732,7 @@ object frmMainter: TfrmMainter
           Height = 27
           TabOrder = 3
           Text = '0.3120'
+          Visible = False
         end
         object edtR_LV: TEdit
           Left = 391
@@ -10710,6 +10741,7 @@ object frmMainter: TfrmMainter
           Height = 27
           TabOrder = 11
           Text = '195.1299'
+          Visible = False
         end
         object edtR_YY: TEdit
           Left = 391
@@ -10718,6 +10750,7 @@ object frmMainter: TfrmMainter
           Height = 27
           TabOrder = 10
           Text = '0.3142'
+          Visible = False
         end
         object edtR_XX: TEdit
           Left = 391
@@ -10726,6 +10759,7 @@ object frmMainter: TfrmMainter
           Height = 27
           TabOrder = 9
           Text = '0.6853'
+          Visible = False
         end
         object edtR_Z: TEdit
           Left = 391
@@ -10734,6 +10768,7 @@ object frmMainter: TfrmMainter
           Height = 27
           TabOrder = 8
           Text = '0.3449'
+          Visible = False
         end
         object edtR_Y: TEdit
           Left = 391
@@ -10742,6 +10777,7 @@ object frmMainter: TfrmMainter
           Height = 27
           TabOrder = 7
           Text = '192.6249'
+          Visible = False
         end
         object edtW_X: TEdit
           Left = 137
@@ -10750,6 +10786,7 @@ object frmMainter: TfrmMainter
           Height = 27
           TabOrder = 0
           Text = '677.2256'
+          Visible = False
         end
         object edtR_X: TEdit
           Left = 391
@@ -10758,6 +10795,7 @@ object frmMainter: TfrmMainter
           Height = 27
           TabOrder = 6
           Text = '420.4322'
+          Visible = False
         end
         object edtG_X: TEdit
           Left = 647
@@ -10766,6 +10804,7 @@ object frmMainter: TfrmMainter
           Height = 27
           TabOrder = 12
           Text = '183.3479'
+          Visible = False
         end
         object edtG_Y: TEdit
           Left = 647
@@ -10774,6 +10813,7 @@ object frmMainter: TfrmMainter
           Height = 27
           TabOrder = 13
           Text = '553.7119'
+          Visible = False
         end
         object edtG_Z: TEdit
           Left = 647
@@ -10782,6 +10822,7 @@ object frmMainter: TfrmMainter
           Height = 27
           TabOrder = 14
           Text = '27.5488'
+          Visible = False
         end
         object edtG_XX: TEdit
           Left = 647
@@ -10790,6 +10831,7 @@ object frmMainter: TfrmMainter
           Height = 27
           TabOrder = 15
           Text = '0.2401'
+          Visible = False
         end
         object edtG_YY: TEdit
           Left = 647
@@ -10798,6 +10840,7 @@ object frmMainter: TfrmMainter
           Height = 27
           TabOrder = 16
           Text = '0.7239'
+          Visible = False
         end
         object edtG_LV: TEdit
           Left = 647
@@ -10806,6 +10849,7 @@ object frmMainter: TfrmMainter
           Height = 27
           TabOrder = 17
           Text = '564.8961'
+          Visible = False
         end
         object edtB_X: TEdit
           Left = 895
@@ -10814,6 +10858,7 @@ object frmMainter: TfrmMainter
           Height = 27
           TabOrder = 18
           Text = '133.9259'
+          Visible = False
         end
         object edtB_Y: TEdit
           Left = 895
@@ -10822,6 +10867,7 @@ object frmMainter: TfrmMainter
           Height = 27
           TabOrder = 19
           Text = '46.0480'
+          Visible = False
         end
         object edtB_Z: TEdit
           Left = 895
@@ -10830,6 +10876,7 @@ object frmMainter: TfrmMainter
           Height = 27
           TabOrder = 20
           Text = '795.0201'
+          Visible = False
         end
         object edtB_xx: TEdit
           Left = 895
@@ -10838,6 +10885,7 @@ object frmMainter: TfrmMainter
           Height = 27
           TabOrder = 21
           Text = '0.1373'
+          Visible = False
         end
         object edtB_yy: TEdit
           Left = 895
@@ -10846,6 +10894,7 @@ object frmMainter: TfrmMainter
           Height = 27
           TabOrder = 22
           Text = '0.0472'
+          Visible = False
         end
         object edtB_LV: TEdit
           Left = 895
@@ -10854,6 +10903,7 @@ object frmMainter: TfrmMainter
           Height = 27
           TabOrder = 23
           Text = '47.1118'
+          Visible = False
         end
         object Button3: TButton
           Left = 1077
@@ -10928,7 +10978,7 @@ object frmMainter: TfrmMainter
         end
         object cboCa310Channel: TRzComboBox
           Left = 535
-          Top = 27
+          Top = 28
           Width = 152
           Height = 22
           Style = csDropDownList
@@ -10964,12 +11014,49 @@ object frmMainter: TfrmMainter
         end
         object Button1: TButton
           Left = 1077
-          Top = 127
+          Top = 124
           Width = 108
           Height = 44
           Caption = 'write'
           TabOrder = 29
           OnClick = Button1Click
+        end
+        object btnSendEods_R: TButton
+          Left = 93
+          Top = 222
+          Width = 108
+          Height = 44
+          Caption = 'EODS_R'
+          TabOrder = 30
+          OnClick = btnSendEods_RClick
+        end
+        object btnSendEoda: TButton
+          Left = 263
+          Top = 222
+          Width = 108
+          Height = 44
+          Caption = 'EODA'
+          TabOrder = 31
+          OnClick = btnSendEodaClick
+        end
+        object Button2: TButton
+          Left = 1077
+          Top = 216
+          Width = 129
+          Height = 57
+          Caption = 'EODS_TEST'
+          TabOrder = 32
+          Visible = False
+          OnClick = Button2Click
+        end
+        object cboSaveCa410Channel: TButton
+          Left = 693
+          Top = 6
+          Width = 156
+          Height = 44
+          Caption = 'Save Memory CH'
+          TabOrder = 33
+          OnClick = cboSaveCa410ChannelClick
         end
       end
       object mmoLog: TRzRichEdit
@@ -10994,7 +11081,7 @@ object frmMainter: TfrmMainter
       object cboBandCount: TRzComboBox
         Left = 424
         Top = 41
-        Width = 234
+        Width = 137
         Height = 26
         Style = csDropDownList
         DropDownCount = 10
@@ -11030,7 +11117,7 @@ object frmMainter: TfrmMainter
         TabOrder = 1
       end
       object RzPanel11: TRzPanel
-        Left = 855
+        Left = 711
         Top = 40
         Width = 101
         Height = 26
@@ -11046,9 +11133,9 @@ object frmMainter: TfrmMainter
         TabOrder = 2
       end
       object cboGrayRGB: TRzComboBox
-        Left = 955
+        Left = 811
         Top = 41
-        Width = 234
+        Width = 110
         Height = 26
         Style = csDropDownList
         DropDownCount = 10
@@ -11076,7 +11163,7 @@ object frmMainter: TfrmMainter
         TabOrder = 4
       end
       object rbDBVTracking: TRadioButton
-        Left = 728
+        Left = 584
         Top = 41
         Width = 121
         Height = 25
@@ -11176,6 +11263,14 @@ object frmMainter: TfrmMainter
         Font.Style = []
         ParentFont = False
         TabOrder = 12
+      end
+      object rbCEL_Yufeng: TRadioButton
+        Left = 960
+        Top = 41
+        Width = 121
+        Height = 25
+        Caption = 'CEL_Yufeng'
+        TabOrder = 13
       end
     end
   end

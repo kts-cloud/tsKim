@@ -82,6 +82,8 @@ type
 //    function PogoDown(nCh : Integer) : Integer;
 //    function PogoUp(nCh : Integer) : Integer;
 
+
+    function SetFanOnOff(bCH : Integer; bIsOnOff : Boolean) : Boolean;
     function UnlockCarrier(nCh: Integer; bMainter : Boolean): Integer; // Added by KTS 2022-10-26 오전 10:17:58   OC UnlockCarrier Flow
     function LockCarrier(nCh: Integer; bMainter : Boolean): Integer;   // Added by KTS 2022-10-26 오전 10:33:47   OC LockCarrier Flow
     function ProbeForward(nCh: Integer): Integer; // Added by KTS 2022-10-28 오전 11:41:06    OC ProbeForward FLow
@@ -751,11 +753,11 @@ begin
       //Clamp Down
       WriteDioSig(DefDio.OUT_CH_1_CARRIER_LOCK_SOL + nCh*16,false);
 
-      if  (not ReadInSig(DefDio.IN_CH_1_CARRIER_SENSOR +nCh*16)) and
+      if  (not ReadInSig(DefDio.IN_CH_1_CARRIER_SENSOR +nCh*16)) or(
           (not ReadInSig(DefDio.IN_CH_1_CARRIER_LOCK_1 +nCh*16)) and
           (not ReadInSig(DefDio.IN_CH_1_CARRIER_LOCK_2 +nCh*16)) and
           (not ReadInSig(DefDio.IN_CH_1_CARRIER_LOCK_3 +nCh*16)) and
-          (not ReadInSig(DefDio.IN_CH_1_CARRIER_LOCK_4 +nCh*16)) then begin
+          (not ReadInSig(DefDio.IN_CH_1_CARRIER_LOCK_4 +nCh*16))) then begin
         for i := 0 to nWaitingCount do begin
           Sleep(100);
           if  (ReadInSig(DefDio.IN_CH_1_CARRIER_SENSOR +nCh*16)) and
@@ -2372,7 +2374,9 @@ begin
       end;
     end
     else begin
-        if nCH = 0 then begin
+      if  PasScr[nCh].m_bIDLE then Result:= True;
+
+      if nCH = 0 then begin
         if ControlDio.ReadInSig(IN_GIB_CH_1_CARRIER_SENSOR)
           or ControlDio.ReadInSig(IN_GIB_CH_1_CARRIER_SENSOR+8) then
         begin
@@ -2423,6 +2427,7 @@ var
   sCH : string;
 begin
   if Common.SystemInfo.OCType <> DefCommon.PreOCType  then Exit(2);
+  if not CheckDi(DefDio.IN_GIB_CH_12_MC_MONITORING + nGroup) then Exit(2);
   if nGroup = DefCommon.CH_TOP  then sCH := ' CH 1,2 '
                                 else sCH := 'CH 3,4 ';
 
@@ -2457,11 +2462,16 @@ begin
   end
   else begin
     if ReadInSig(DefDio.IN_GIB_CH_12_ROBOT_SENSOR + nGroup) then begin
-      SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Do not MovingProbe - Sensing ROBOT_SENSOR ' + sCH);
+      SendMsgMain(COMMDIO_MSG_LOG, 0, 1, 'Do not MovingProbe - Sensing ROBOT_SENSOR ' + sCH);
+      Exit(3);
+    end;
+
+    if (ReadInSig(DefDio.IN_GIB_CH_1_TILTING_SENSOR +16 * nGroup)) or (ReadInSig(DefDio.IN_GIB_CH_2_TILTING_SENSOR + 16 * nGroup)) then begin
+      SendMsgMain(COMMDIO_MSG_LOG, 0, 1, 'Do not MovingProbe - Sensing TILTING_SENSOR ' + sCH);
       Exit(3);
     end;
     if g_CommPLC.IsBusy_Robot(nGroup) then begin
-      SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Do not MovingProbe - Robot Busy ' + sCH);
+      SendMsgMain(COMMDIO_MSG_LOG, 0, 1, 'Do not MovingProbe - Robot Busy ' + sCH);
       Exit(3);
     end;
     SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Probe DN Start ' + sCH);
@@ -2499,7 +2509,11 @@ var
   nWaitingCount: Integer;
   sCH : string;
 begin
+
   if Common.SystemInfo.OCType <> DefCommon.PreOCType  then Exit(2);
+  if not CheckDi(DefDio.IN_GIB_CH_12_MC_MONITORING + nGroup) then Exit(2);
+
+
   if nGroup = DefCommon.CH_TOP then sCH := 'CH 1,2'
   else                              sCH := 'CH 3,4';
   //if ErrorCheck > 0 then Exit(1);
@@ -2509,6 +2523,10 @@ begin
   case nGroup of
     DefCommon.CH_TOP : begin
       if bIsUp then begin
+        if ReadInSig(DefDio.IN_GIB_CH_12_ROBOT_SENSOR + nGroup) then begin
+          SendMsgMain(COMMDIO_MSG_LOG, 0, 1, 'Do not MovingShutter - Sensing ROBOT_SENSOR ' + sCH);
+          Exit(3);
+        end;
         SendMsgMain(COMMDIO_MSG_LOG, 0, 0,'Shutter UP Start '+ sCH);
         ClearOutDioSig(DefDio.OUT_GIB_CH_12_SHUTTER_DN_SOL);
         if not ReadInSig(DefDio.IN_GIB_CH_12_SHUTTER_UP_SENSOR) then begin
@@ -2535,12 +2553,12 @@ begin
       end
       else begin
         if ReadInSig(DefDio.IN_GIB_CH_12_ROBOT_SENSOR + nGroup) then begin
-          SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Do not MovingShutter - Sensing ROBOT_SENSOR ' + sCH);
+          SendMsgMain(COMMDIO_MSG_LOG, 0, 1, 'Do not MovingShutter - Sensing ROBOT_SENSOR ' + sCH);
           Exit(3);
         end;
 
         if g_CommPLC.IsBusy_Robot(nGroup) then begin
-          SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Do not MovingShutter - Robot Busy ' + sCH);
+          SendMsgMain(COMMDIO_MSG_LOG, 0, 1, 'Do not MovingShutter - Robot Busy ' + sCH);
           Exit(3);
         end;
         SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Shutter DN Start ' + SCH);
@@ -2571,6 +2589,10 @@ begin
     end;
     DefCommon.CH_BOTTOM : begin
       if bIsUp then begin
+        if ReadInSig(DefDio.IN_GIB_CH_34_ROBOT_SENSOR + nGroup) then begin
+          SendMsgMain(COMMDIO_MSG_LOG, 0, 1, 'Do not MovingShutter - Sensing ROBOT_SENSOR ' + sCH);
+          Exit(3);
+        end;
         SendMsgMain(COMMDIO_MSG_LOG, 0, 0,'Shutter UP Start ' + sCH);
         ClearOutDioSig(DefDio.OUT_GIB_CH_34_SHUTTER_DN_SOL);
         if not ReadInSig(DefDio.IN_GIB_CH_34_SHUTTER_UP_SENSOR) then begin
@@ -2596,12 +2618,12 @@ begin
         SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Shutter UP Finish ' + sCH);
       end
       else begin
-        if ReadInSig(DefDio.IN_GIB_CH_12_ROBOT_SENSOR + nGroup) then begin
-          SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Do not MovingShutter - Sensing ROBOT_SENSOR ' + sCH);
+        if ReadInSig(DefDio.IN_GIB_CH_34_ROBOT_SENSOR + nGroup) then begin
+          SendMsgMain(COMMDIO_MSG_LOG, 0, 1, 'Do not MovingShutter - Sensing ROBOT_SENSOR ' + sCH);
           Exit(3);
         end;
         if g_CommPLC.IsBusy_Robot(nGroup) then begin
-          SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Do not MovingShutter - Robot Busy ' + sCH);
+          SendMsgMain(COMMDIO_MSG_LOG, 0, 1, 'Do not MovingShutter - Robot Busy ' + sCH);
           Exit(3);
         end;
         SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Shutter DN Start ' + sCH);
@@ -3021,6 +3043,12 @@ begin
       SendMsgMain(ControlDio_OC.MSG_MODE_DISPLAY_ALARAM, nIdx,0,'');
     end;
   end;
+end;
+
+function TControlDio.SetFanOnOff(bCH: Integer; bIsOnOff: Boolean): Boolean;
+begin
+  if Common.SystemInfo.OCType = DefCommon.OCType then
+    WriteDioSig(DefDio.OUT_CH1_PMIC_FAN_ON + bCH * 16,bIsOnOff);
 end;
 
 function TControlDio.SetIonizer(nGroup: Integer; bIsOnOff: Boolean): Boolean;

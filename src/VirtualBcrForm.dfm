@@ -114,7 +114,7 @@ object VirtualBcr: TVirtualBcr
     Top = 24
     Width = 53
     Height = 25
-    Caption = 'Random'
+    Caption = 'SEND'
     TabOrder = 5
     OnClick = Button1Click
   end
@@ -123,7 +123,7 @@ object VirtualBcr: TVirtualBcr
     Top = 53
     Width = 53
     Height = 25
-    Caption = 'Random'
+    Caption = 'SEND'
     TabOrder = 6
     OnClick = Button2Click
   end
@@ -132,7 +132,7 @@ object VirtualBcr: TVirtualBcr
     Top = 84
     Width = 53
     Height = 25
-    Caption = 'Random'
+    Caption = 'SEND'
     TabOrder = 7
     OnClick = Button3Click
   end
@@ -141,7 +141,7 @@ object VirtualBcr: TVirtualBcr
     Top = 115
     Width = 53
     Height = 25
-    Caption = 'Random'
+    Caption = 'SEND'
     TabOrder = 8
     OnClick = Button4Click
   end

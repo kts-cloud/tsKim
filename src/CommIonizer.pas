@@ -195,7 +195,7 @@ begin
         sTemp := slTemp[6];
         if sTemp[1] = '0' then begin
           sRetStr := sRetStr + 'Stop Status';
-          bRet := False;
+          bRet := True;
         end;
       end
       else begin
@@ -212,7 +212,7 @@ begin
         sTemp := slTemp[9];
         if sTemp[1] = '0' then begin
           sRetStr := sRetStr + 'Stop Status';
-          bRet := False;
+          bRet := True;
         end;
       end
       else begin

@@ -215,7 +215,13 @@ type
     //================================================================= ETC
     FThreadLock    : Boolean; //TBD:DP860?
     FForceStop     : Boolean; //TBD:DP860?
-		
+
+
+    bIsReProgramming : Boolean;  // ReProgramming OKNG 여부
+
+    m_HWCID :array[0..4] of string;
+
+
     //================================================================= COMMON
     //------------------------------------------------------ General
     constructor Create(nPg: Integer; hMain: THandle); virtual;
@@ -393,7 +399,8 @@ type
 		function DP860_SendTconWrite(nRegAddr,nDataCnt: Integer; arDataW: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
     function DP860_SendTconOCWrite(nRegAddr,nDataCnt: Integer; arDataW: TIDBytes; nWaitMS: Integer=0; nRetry: Integer=0): DWORD;
     function DP860_SendTconMultiWrite(nDataCnt: Integer; arRegAddr : array of integer; arDataW: TIDBytes; nWaitMS: Integer=0; nRetry: Integer=0): DWORD;
-
+    function DP860_SendTconSeqWrite(nMode,nSeqIdx,nDataCnt: Integer; arRegAddr : array of integer; arDataW: TIDBytes; nWaitMS: Integer=0; nRetry: Integer=0): DWORD;
+    function DP860_SendProgrammingWrite(nDevaddr,nRegAddr,nDataCnt: Integer; arDataW: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
 
     //------------------------------------------------------ PG_DP860 Command (Flash)
   {$IFDEF FEATURE_FLASH_ACCESS}
@@ -407,11 +414,12 @@ type
 		function DP860_FilePutPC2PG(sLocalFullName: string; sRemotePath, sRemoteFile: string; bClearBeforePut: Boolean=True; bEndDisc: Boolean=True): DWORD;
 		function DP860_FileGetPG2PC(sRemotePath, sRemoteFile: string; sLocalFullName: string; bClearAfterGet: Boolean=False; bEndDisc: Boolean=True): DWORD;
   {$ENDIF}
-      procedure DP860_ClearOcTconRWCnt; //2023-03-28 jhhwang (for T/T Test)
+    procedure DP860_ClearOcTconRWCnt; //2023-03-28 jhhwang (for T/T Test)
     function DP860_SendOcOnOff(nState: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //2023-03-28 jhhwang (for T/T Test)
 	  function DP860_SendSendNvmInit(nMode: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //2023-03-28 jhhwang (for T/T Test)
     function DP860_SendGpioRead(sGpio: string; nWaitMS: Integer=5000; nRetry: Integer=0): DWORD; //2023-03-28 jhhwang (for T/T Test)
     function DP860_SendGpioPanel_IRQ(var nData : integer; nWaitMS: Integer=5000; nRetry: Integer=0): DWORD; //2023-03-28 jhhwang (for T/T Test)
+
 
     //------------------------------------------------------ PG_DP860 System
 	//TBD:DP860?	bmp
@@ -443,6 +451,10 @@ type
 	//{$IFDEF INSPECTOR_POCB}
     function SendI2CWrite(nDevAddr,nRegAddr,nDataCnt: Integer; arDataW: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
     function SendI2CMultiWrite(nDevAddr,nDataCnt: Integer; arRegAddr : array of integer; arDataW: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
+    function SendI2CSeqWrite(nMode,nSeqIdx,nDataCnt: Integer; arRegAddr : array of integer; arDataW: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
+
+    function SendReProgramming(nDevAddr,nRegAddr,nDataCnt :Integer; arDataW: TIdBytes; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+
 	//{$ELSE}
   //function SendI2CWrite(nDevAddr,nRegAddr,nDataCnt: Integer; arDataW: array of Integer; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
 	//{$ENDIF}
@@ -779,6 +791,8 @@ end;
 //		- destructor TCommPG.Destroy;
 //
 constructor TCommPG.Create(nPg: Integer; hMain: THandle);
+var
+  I: Integer;
 {$IFDEF SIMULATOR_PANEL}
 var
   i : integer;
@@ -794,6 +808,9 @@ begin
   m_nCh := nPg;
   //
   FIsMainter := False;
+
+  for I := 0 to 4 do
+    m_HWCID[i] := '';
   {$IFDEF PG_DP860}
   OnTxMaintEventPG := nil;
   OnRxMaintEventPG := nil;
@@ -1211,7 +1228,7 @@ begin
     begin
       for nCnt := 1 to nDisableSec do begin
         if m_bCyclicTimer then Exit;
-        Sleep(1000);
+        Sleep(3000);
       end;
       // Enable after nDisableSec expired
       m_bCyclicTimer       := True;
@@ -3447,7 +3464,22 @@ begin
     except
     end;
   end;
-  //
+
+  //전  ChipID_0x 875_ChipRev_0x A00_BoardID_0_BundleID_0x9700_OtpID_1
+  //후  ChipID_0x 875_ChipRev_0x A00_BoardID_0x0_BundleID_0x7401_OtpID_0_HWCID_0x 8_0xE8_0x 2
+
+  arCmdAck := arCmdAck[0].Split(['_']);
+  if Length(arCmdAck) > 9 then begin
+    m_HWCID[0] := arCmdAck[5];
+    m_HWCID[1] := arCmdAck[7];
+    if Length(arCmdAck) > 13 then begin
+      m_HWCID[2] := arCmdAck[11];
+      m_HWCID[3] := arCmdAck[12];
+      m_HWCID[4] := arCmdAck[13];
+    end;
+  end;
+
+
 	sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
   ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
 end;
@@ -3952,7 +3984,7 @@ begin
     end;
   end;
   //
-  if (Common.SystemInfo.DebugLogLevelConfig > 0) or (Result <> 0) then begin
+  if {(Common.SystemInfo.DebugLogLevelConfig > 0) or} (Result <> 0) then begin
 	  sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
     ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
   end;
@@ -3979,10 +4011,33 @@ begin
     sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
   end;
   //
-  if (Common.SystemInfo.DebugLogLevelConfig > 0) or (Result <> 0) then begin
+  if {(Common.SystemInfo.DebugLogLevelConfig > 0) or} (Result <> 0) then begin
     sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
     ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
   end;
+end;
+
+function TCommPG.DP860_SendProgrammingWrite(nDevaddr,nRegAddr,nDataCnt: Integer; arDataW: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+	i : Integer;
+begin
+	nCmdId   := DefPG.PG_CMDID_REPROGRAMING;
+	sCmdName := DefPG.PG_CMDSTR_REPROGRAMING;
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName + ' ' + Format('0x%0.2x 0x%0.4x %d',[nDevaddr,nRegAddr,nDataCnt]); // 'programming.write <dev_addr> <reg_addr> <write_length> <write_data0> <write_data1>…'
+	for i := 0 to Pred(nDataCnt) do begin
+		sCommand := sCommand + ' ' + Format('%0.2x',[arDataW[i]]);
+	end;
+	Result := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+
+  sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr +'-' + FTxRxPG.RxPrevStr)+']';
+
+  sDebug := '<PG> ' + sCommand + #13#10 + DP860_GetStrCmdResult(Result) + sEtcMsg;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+
 end;
 
 function TCommPG.DP860_SendTconOCWrite(nRegAddr,nDataCnt: Integer; arDataW: TIDBytes; nWaitMS: Integer=0; nRetry: Integer=0): DWORD;
@@ -4028,7 +4083,42 @@ begin
 	for i := 0 to Pred(nDataCnt) do begin
 		sCommand := sCommand + ' ' + Format('0x%0.4x 0x%0.2x',[arRegAddr[i],arDataW[i]]);
 	end;
-  Sleep(100);
+	Result := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+  Inc(TconRWCnt.TconOcWriteTX);   //2023-03-28 jhhwang (for T/T Test)
+  Inc(TconRWCnt.ContTConOcWrite); //2023-03-28 jhhwang (for T/T Test)
+
+  if Result <> WAIT_OBJECT_0 then begin
+    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+  end;
+  //
+//if (Common.SystemInfo.DebugLogLevelConfig > 0) or (Result <> 0) then begin
+  if ((Common.SystemInfo.DebugLogLevelConfig > 0) and Common.SystemInfo.PG_TconWriteLogDisplay) or (Result <> 0) then begin
+    sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+  end;
+end;
+
+function TCommPG.DP860_SendTconSeqWrite(nMode,nSeqIdx, nDataCnt: Integer; arRegAddr : array of integer; arDataW: TIDBytes; nWaitMS: Integer=0; nRetry: Integer=0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+	i,CrcAddr,CrcData : Integer;
+begin
+	nCmdId   := DefPG.PG_CMDID_TCON_SEQWRITE;
+	sCmdName := DefPG.PG_CMDSTR_TCON_SEQWRITE;
+	sEtcMsg  := '';
+  CrcAddr := 0;
+  CrcData := 0;
+  sCommand := '';
+	for i := 0 to Pred(nDataCnt) do begin
+		sCommand := sCommand + ' ' + Format('%0.4x %0.2x',[arRegAddr[i],arDataW[i]]);
+    CrcAddr := CrcAddr + arRegAddr[i];
+    CrcData := CrcData + arDataW[i];
+	end;
+  CrcAddr := $FFFF and CrcAddr;
+  CrcData := $FF and CrcData;
+  sCommand := sCmdName + ' ' + Format('%d %d %d %0.4x %0.2x',[nMode,nSeqIdx,nDataCnt,CrcAddr,CrcData]) + ' ' + sCommand;
+
 	Result := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
   Inc(TconRWCnt.TconOcWriteTX);   //2023-03-28 jhhwang (for T/T Test)
   Inc(TconRWCnt.ContTConOcWrite); //2023-03-28 jhhwang (for T/T Test)
@@ -4705,6 +4795,20 @@ begin
   end;
 end;
 
+
+function TCommPG.SendReProgramming(nDevAddr,nRegAddr,nDataCnt :Integer; arDataW: TIdBytes; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+begin
+  Result := WAIT_FAILED;
+  try
+    FIsOnFlashAccess := True;
+    bIsReProgramming := True;
+    Result := DP860_SendProgrammingWrite(nDevAddr,nRegAddr,nDataCnt,arDataW, nWaitMS,nRetry);
+    if Result = 0 then bIsReProgramming := False;
+  finally
+    FIsOnFlashAccess := False;
+  end;
+end;
+
 function TCommPG.SendPowerBistOn(nMode: Integer; bPowerReset: Boolean=False; nWaitMS: Integer=10000; nRetry: Integer=0): DWORD;
 var
   sDebug : string;
@@ -4732,7 +4836,7 @@ begin
             ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG, sDebug);
             Exit;
           end;
-          // DP860 PowerOff : power.off -> interposer.deinit
+          // DP860 PowerbistOff : power.bist.off -> interposer.deinit
     		  Result := DP860_SendPowerBistOff({nMode}nWaitMS,nRetry);
           if (not bPowerReset) then begin
             Sleep(DELAY_POWER_INTERPOSER_OFF);
@@ -4769,7 +4873,7 @@ begin
     		{$ENDIF}
     		{$IFDEF PG_DP860}
     		DefPG.PG_TYPE_DP860 : begin
-          // DP860 PowerOn : interposer.init -> (dut.detect) -> power.on -> (tcon.info)
+          // DP860 PowerbistOn : interposer.init -> (dut.detect) -> power.bist.on -> (tcon.info)
           // DP860 (PowerReset)PowerOn : power.on
           if (not bPowerReset) then begin
       			Result := DP860_SendInterposerOn(nWaitMS,nRetry);
@@ -5667,6 +5771,20 @@ begin
 	case PG_TYPE of
 		DefPG.PG_TYPE_DP860 : begin //-------------- DP860
       Result := DP860_SendTconMultiWrite(nDataCnt,arRegAddr,arDataW, nWaitMS,nRetry);
+		end;
+	end;
+end;
+
+
+function TCommPG.SendI2CSeqWrite(nMode, nSeqIdx,nDataCnt: Integer; arRegAddr : array of Integer; arDataW: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
+var
+  bWriteSync : Boolean; //2023-03-28 jhhwang (for T/T Test)
+begin
+  Result := WAIT_FAILED;
+  //
+	case PG_TYPE of
+		DefPG.PG_TYPE_DP860 : begin //-------------- DP860
+      Result := DP860_SendTconSeqWrite(nMode,nSeqIdx,nDataCnt,arRegAddr,arDataW, nWaitMS,nRetry);
 		end;
 	end;
 end;

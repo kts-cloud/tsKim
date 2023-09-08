@@ -79,27 +79,16 @@ Test4ChOC,pasScriptClass, DefGmes;
 
 {$R *.dfm}
 
-//constructor TVirtualBcr.Create( hMain, hTest: HWND );
-//begin
-//m_MainHandle := hMain;
-// m_TestHandle := hTest;
-//
-//end;
 
-//destructor TVirtualBcr.Destroy;
-//begin
-//
-//  inherited;
-//end;
 
 procedure TVirtualBcr.btnVirtualBcrClick(Sender: TObject);
 var
 i : Integer;
 begin
-  if Length(edtVirtualBcr1.Text) > 0 then frmTest4ChOC[0].getBcrData(edtVirtualBcr1.Text);
-  if Length(edtVirtualBcr2.Text) > 0 then frmTest4ChOC[0].getBcrData(edtVirtualBcr2.Text);
-  if Length(edtVirtualBcr3.Text) > 0 then frmTest4ChOC[0].getBcrData(edtVirtualBcr3.Text);
-  if Length(edtVirtualBcr4.Text) > 0 then frmTest4ChOC[0].getBcrData(edtVirtualBcr4.Text);
+  if Length(edtVirtualBcr1.Text) > 0 then frmTest4ChOC[0].getBcrData2(edtVirtualBcr1.Text);
+  if Length(edtVirtualBcr2.Text) > 0 then frmTest4ChOC[0].getBcrData2(edtVirtualBcr2.Text);
+  if Length(edtVirtualBcr3.Text) > 0 then frmTest4ChOC[0].getBcrData2(edtVirtualBcr3.Text);
+  if Length(edtVirtualBcr4.Text) > 0 then frmTest4ChOC[0].getBcrData2(edtVirtualBcr4.Text);
 //  Close;
 end;
 
@@ -160,10 +149,7 @@ end;
 
 procedure TVirtualBcr.Button13Click(Sender: TObject);
 begin
-
-//    if not PasScr[i].m_bUse then Continue;
-    SendTestGuiDisplay(0,DefCommon.MSG_MODE_BARCODE_READY,'','',1);
-
+  SendTestGuiDisplay(0,DefCommon.MSG_MODE_BARCODE_READY,'','',1);
 end;
 
 procedure TVirtualBcr.Button14Click(Sender: TObject);
@@ -218,22 +204,38 @@ end;
 
 procedure TVirtualBcr.Button1Click(Sender: TObject);
 begin
-  edtVirtualBcr1.Text := Format('%s%.4d',['TEST', Random(10000)]);
+//  edtVirtualBcr1.Text := Format('%s%.4d',['TEST', Random(10000)]);
+  if Length(edtVirtualBcr1.Text) > 0 then begin
+    SendTestGuiDisplay(0,DefCommon.MSG_MODE_BARCODE_READY,'','',1);
+    frmTest4ChOC[0].getBcrData2(edtVirtualBcr1.Text)
+  end;
 end;
 
 procedure TVirtualBcr.Button2Click(Sender: TObject);
 begin
-  edtVirtualBcr2.Text := Format('%s%.4d',['TEST', Random(10000)]);
+  if Length(edtVirtualBcr2.Text) > 0 then begin
+    SendTestGuiDisplay(1,DefCommon.MSG_MODE_BARCODE_READY,'','',1);
+    frmTest4ChOC[0].getBcrData2(edtVirtualBcr2.Text)
+  end;
+//  edtVirtualBcr2.Text := Format('%s%.4d',['TEST', Random(10000)]);
 end;
 
 procedure TVirtualBcr.Button3Click(Sender: TObject);
 begin
-  edtVirtualBcr3.Text := Format('%s%.4d',['TEST', Random(10000)]);
+  if Length(edtVirtualBcr3.Text) > 0 then begin
+    SendTestGuiDisplay(2,DefCommon.MSG_MODE_BARCODE_READY,'','',1);
+    frmTest4ChOC[0].getBcrData2(edtVirtualBcr3.Text)
+  end;
+//  edtVirtualBcr3.Text := Format('%s%.4d',['TEST', Random(10000)]);
 end;
 
 procedure TVirtualBcr.Button4Click(Sender: TObject);
 begin
-  edtVirtualBcr4.Text := Format('%s%.4d',['TEST', Random(10000)]);
+  if Length(edtVirtualBcr4.Text) > 0 then begin
+    SendTestGuiDisplay(3,DefCommon.MSG_MODE_BARCODE_READY,'','',1);
+    frmTest4ChOC[0].getBcrData2(edtVirtualBcr4.Text)
+  end;
+//  edtVirtualBcr4.Text := Format('%s%.4d',['TEST', Random(10000)]);
 end;
 
 

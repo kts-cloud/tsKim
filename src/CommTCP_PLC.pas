@@ -183,9 +183,13 @@ begin
       sAddress:= sAddress + Chr(pHeader.Device[i]);
     end;
     sAddress:= Trim(sAddress);
-    if pHeader.Command > $80 then begin
+    if pHeader.Command > $90 then begin
+      ReturnCommand:= pHeader.Command - $90;
+      m_nAck:= 1; //연결 안됨
+    end
+    else if pHeader.Command > $80 then begin
       ReturnCommand:= pHeader.Command - $80;
-      m_nAck:= 1; //오류
+      m_nAck:= 2; //명령 실해오류
     end
     else begin
       ReturnCommand:= pHeader.Command;
@@ -204,6 +208,9 @@ begin
         SetEvent(m_hEventCommand);
       end;
       4: begin  //WriteDeviceBlock
+        SetEvent(m_hEventCommand);
+      end;
+      else begin
         SetEvent(m_hEventCommand);
       end;
     end;
@@ -469,14 +476,18 @@ begin
         WAIT_OBJECT_0 : begin
           //정상
           if m_nAck <> 0 then begin
-            nRet:= 1000; //NG - NACK, ERROR
+            case m_nAck of
+              1: nRet:= 1000; //Not Connected //연결 안됨
+            else
+              nRet:= 1001; //NG - NACK, ERROR //명령 실패
+            end;
           end;
         end;
         WAIT_TIMEOUT  : begin
-          m_nAck:= 2;
+          m_nAck:= 3;
         end
         else begin
-          m_nAck:= 3;
+          m_nAck:= 4;
         end;
       end;
       Result:= nRet;

@@ -257,6 +257,17 @@ type
     RzPanel47: TRzPanel;
     edPRCS_CD_MGIB: TRzEdit;
     edPRCS_CD_PGIB: TRzEdit;
+    RzPanel48: TRzPanel;
+    cboIrTempSensor: TRzComboBox;
+    RzPanel49: TRzPanel;
+    Label2: TLabel;
+    edSetTemperature: TRzNumericEdit;
+    edNGAlarmCnt: TRzEdit;
+    RzPanel50: TRzPanel;
+    RzGroupBox9: TRzGroupBox;
+    edVerInterlock: TRzEdit;
+    RzBitBtn2: TRzBitBtn;
+    chkVerInterlock: TRzCheckBox;
 
     procedure FormCreate(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -297,6 +308,7 @@ type
     procedure cboCa310_4Click(Sender: TObject);
     procedure btnPgFwDownloadClick(Sender: TObject);
     procedure btnFileOpenClick(Sender: TObject);
+    procedure RzBitBtn2Click(Sender: TObject);
   private
     edProbeSerial : array[DefCommon.CH1 .. DefCommon.MAX_CH] of TRzEdit;
     edProbeDevice : array[DefCommon.CH1 .. DefCommon.MAX_CH] of TRzEdit;
@@ -779,6 +791,9 @@ begin
 
     SaveEnergy      := StrToIntDef(edSaveEnergy.Text,0);
 
+    Com_IrTempSensor := cboIrTempSensor.ItemIndex;
+    SetTemperature := StrToIntDef(edSetTemperature.Text,0);
+
     Com_HandBCR[0]   := cboBCR.ItemIndex;
     Com_HandBCR[1]   := cboBCR2.ItemIndex;
 
@@ -848,13 +863,16 @@ begin
     //FwVer           := Trim(edFwVer.Text);
     //FpgaVer           := Trim(edFpgaVer.Text);
 
-    UseCh[0]      := chkCh1.Checked and chkCh2.Checked;
-    UseCh[1]      := chkCh1.Checked and chkCh2.Checked;
-    UseCh[2]      := chkCh3.Checked and chkCh4.Checked;
-    UseCh[3]      := chkCh3.Checked and chkCh4.Checked;
+    UseCh[0]      := chkCh1.Checked;
+    UseCh[1]      := chkCh2.Checked;
+    UseCh[2]      := chkCh3.Checked;
+    UseCh[3]      := chkCh4.Checked;
 
     AutoBackupUse := chkAutoBackup.Checked;
     AutoBackupList := edAutoBackup.Text;
+
+    DLLVerInterlock := chkVerInterlock.Checked;
+    DLLVerInterlockList := edVerInterlock.Text;
     UseEQCC       := chkEQCC.Checked;
     MIPILog       := chkMIPILog.Checked;
     NGAlarmCount  := cboNGAlarmCount.ItemIndex;
@@ -1233,6 +1251,8 @@ begin
     cboBCR.ItemIndex    := Com_HandBCR[0];
     cboBCR2.ItemIndex    := Com_HandBCR[1];
 
+    cboIrTempSensor.ItemIndex    := Com_IrTempSensor;
+    edSetTemperature.Text        := IntToStr(SetTemperature);
     edSaveEnergy.Text := Format('%d',[SaveEnergy]);
     chkITOBmpMode.Checked          := UseITOMode; // Added by KTS 2022-03-25 ¿ÀÈÄ 1:30:55
     edFileName.Text                := DAELoadWizardPath;
@@ -1277,6 +1297,9 @@ begin
     chkCh4.Checked      := UseCh[3];
 
     edtLoginID.Text := AutoLoginID;
+
+    chkVerInterlock.Checked := DLLVerInterlock;
+    edVerInterlock.Text := DLLVerInterlockList;
 
 (*
     edRobotARev.Text  := RobotRevA;
@@ -1608,6 +1631,13 @@ begin
 end;
 
 
+
+procedure TfrmSystemSetup.RzBitBtn2Click(Sender: TObject);
+begin
+  if dlgOpenGmes.Execute then begin
+    edVerInterlock.Text := dlgOpenGmes.FileName;
+  end;
+end;
 
 procedure TfrmSystemSetup.RzBitBtn3Click(Sender: TObject);
 var

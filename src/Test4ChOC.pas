@@ -7,7 +7,7 @@ uses
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, RzPanel, ALed, RzButton, Vcl.ExtCtrls, RzRadChk, CommDIO_DAE,
   Vcl.StdCtrls, Vcl.Grids, AdvObj, BaseGrid, AdvGrid, RzCommon, SwitchBtn, JigControl, Vcl.Mask, RzEdit, AdvPanel,
   {UdpServerClient,} CommonClass, ScriptClass, DefScript, DefPG, DefCommon, ControlDio_OC, //PlcTcpPocb, defPlc,
-  CodeSiteLogging, Vcl.ComCtrls, AdvListV, DongaPattern, RzGrids, AdvUtil, RzLine,
+  CodeSiteLogging, Vcl.ComCtrls, AdvListV, DongaPattern, RzGrids, AdvUtil, RzLine,LibCa410Option,NgMsg,
   HandBCR, GMesCom, pasScriptClass, AdvGlassButton, DefGmes, CommCameraRadiant, TILed, DefDio, CommPLC_ECS,DBModule
   ,CA_SDK2,dllClass,CommPG,LogicVh,VirtualBcrForm,CommIonizer,ECSRequestForm,System.SyncObjs, System.StrUtils;
 const
@@ -22,6 +22,7 @@ const
   STAGE_MODE_LOAD                = STAGE_MODE_NONE + 7;
   STAGE_MODE_UNLOAD              = STAGE_MODE_NONE + 8;
   STAGE_MODE_EXCHANGE            = STAGE_MODE_NONE + 9;
+  STAGE_MODE_DISPLAY_ALARAM      = STAGE_MODE_NONE + 10;
 
 type
   {$IFNDEF GUIMESSAGE}
@@ -112,10 +113,12 @@ type
     { Private declarations }
 
     m_nCurStatus   : Integer;
+    m_NGAlarmCount : Integer;
     m_nOkCnt, m_nNgCnt,m_LLCnt : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of integer;
     m_nTotalTact, m_nUnitTact   :array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of   Integer;
     tmTotalTactTime  : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of  TTimer;
     tmUnitTactTime   : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of  TTimer;
+
     m_bAutoPlcProbeBack : Boolean;
 //    pnlJigInform   :  TRzPanel;
 
@@ -176,7 +179,8 @@ type
     pnlGrpDio      : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TPanel;
 
 
-    pnlPrevResult  : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH,0..DefCommon.MAX_PREVIOUS_RESULT] of TPanel;
+//    pnlPrevResult  : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH,0..DefCommon.MAX_PREVIOUS_RESULT] of TPanel;
+    pnlPrevResult  : array of array of TPanel;
 //    pnlPlcSupply   : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TPanel;
 //    pnlPlcOut      : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TPanel;
 
@@ -186,8 +190,15 @@ type
     m_bInitGetAvr  : boolean;
     m_csBcrRead    : TCriticalSection;
 
+    FTempIr: array[DefCommon.CH1 .. DefCommon.MAX_PG_CNT * 2 - 1] of Double;
+
 
     procedure CreateGui;
+
+    procedure OntmCheckIRTemp1(Sender : TObject);
+    procedure OntmCheckIRTemp2(Sender : TObject);
+    procedure OntmCheckIRTemp3(Sender : TObject);
+    procedure OntmCheckIRTemp4(Sender : TObject);
     procedure OnTotalTimer(Sender : TObject);
     procedure OnUnitTimer(Sender : TObject);
     procedure OnTotal2Timer(Sender : TObject);
@@ -239,11 +250,16 @@ type
 
     procedure OnAgingTimer(Sender: TObject);
     procedure DisplayPGStatuses(nCH,nResult :Integer);
+    function WriteR2RData(nCh : Integer): Integer;
+    procedure ShowNgMessage(sMessage: string);
   public
     { Public declarations }
     /// <summary> Main 폼 Handle - WM_COPYDATA</summary>
     MessageHandle: THandle;
     m_nJigTact      : Integer;
+    m_bFanOnOff : array [DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of Boolean;
+    m_nTempIrTact : array [DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of integer;
+    tmCheckIRTemp    : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of  TTimer;
     pnlJigTitle    :  array [DefCommon.CH1..DefCommon.MAX_JIG_CNT] of TPanel;
 //    pnlPlcClampDn  : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TPanel;
     chkChannelUse  : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TRzCheckBox;
@@ -268,6 +284,9 @@ type
     ledDoVaccumOFF  : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TTILed;
 
     ledDiDetect  : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TTILed;
+
+    pnlTempPanel  : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TPanel;
+    pnlTempPanelVal  : array[DefCommon.CH1 .. DefCommon.MAX_PG_CNT *2 - 1] of TPanel;
 
     //Carrier Sensor In signal
     ledDiCarrierUnlock1 : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TTILed;
@@ -310,6 +329,9 @@ type
     procedure getBcrData(sScanData: string);
     procedure getBcrData2(sScanData: string);
     function GetNGCode_ByErroCode(sErrorCode: string): Integer;
+
+    procedure ShowIrTempData(nCh, nData: Integer);
+    procedure SaveCsvTempStatus(nCH : integer;sMemo : string; bFanOnOff : Boolean);
 //    procedure SetLanguage(nIdx : Integer);
   end;
 
@@ -320,7 +342,7 @@ implementation
 
 {$R *.dfm}
 
-uses Main_OC;
+uses Main_OC,Mainter;
 {$R+}
 
 { TfrmTest4Ch }
@@ -333,39 +355,39 @@ begin
   if Common.StatusInfo.Closing then Exit;
 
   try
-  if mmChannelLog[nCh].Lines.count > 200 then
-    mmChannelLog[nCh].Lines.Clear;
-  case nType of
-    1: begin
-      //Alarm 등 강조
-      mmChannelLog[nCh].SelAttributes.Color := clRed;
-      mmChannelLog[nCh].SelAttributes.Style := [fsBold];
+    if mmChannelLog[nCh].Lines.count > 200 then
+      mmChannelLog[nCh].Lines.Clear;
+    case nType of
+      1: begin
+        //Alarm 등 강조
+        mmChannelLog[nCh].SelAttributes.Color := clRed;
+        mmChannelLog[nCh].SelAttributes.Style := [fsBold];
+      end;
+      10: begin
+        //저장만 한다.
+        Common.MLog(nCh+self.Tag*4, sMsg);
+        Exit;
+      end
+    else begin
+        if Common.SystemInfo.UIType = DefCommon.UI_WIN10_BLACK then begin
+           mmChannelLog[nCh].SelAttributes.Color := clWhite;
+        end
+        else begin
+          mmChannelLog[nCh].SelAttributes.Color := clBlack;
+        end;
+        mmChannelLog[nCh].SelAttributes.Style := [];
+      end;
+
     end;
-    10: begin
-      //저장만 한다.
-      Common.MLog(nCh+self.Tag*4, sMsg);
-      Exit;
-    end
-  else begin
-    if Common.SystemInfo.UIType = DefCommon.UI_WIN10_BLACK then begin
-       mmChannelLog[nCh].SelAttributes.Color := clWhite;
+
+    Common.MLog(nCh+self.Tag*4, sMsg);
+
+    if Length(sMsg) > 600 then begin
+      sLog := FormatDateTime('[HH:MM:SS.zzz] ',now) + Copy(sMsg,1,600);
     end
     else begin
-      mmChannelLog[nCh].SelAttributes.Color := clBlack;
+      sLog := FormatDateTime('[HH:MM:SS.zzz] ',now) + sMsg
     end;
-      mmChannelLog[nCh].SelAttributes.Style := [];
-  end;
-
-  end;
-
-  Common.MLog(nCh+self.Tag*4, sMsg);
-
-  if Length(sMsg) > 600 then begin
-    sLog := FormatDateTime('[HH:MM:SS.zzz] ',now) + Copy(sMsg,1,600);
-  end
-  else begin
-    sLog := FormatDateTime('[HH:MM:SS.zzz] ',now) + sMsg
-  end;
 
   except
     //유효하지 않은 문자열일 경우 오류(madException) 방지: RichEdit line insertion error.
@@ -410,6 +432,75 @@ begin
   edSerial1.Text := '';
   edSerial2.Text := '';
   edSerial3.Text := '';
+end;
+
+procedure TfrmTest4ChOC.SaveCsvTempStatus(nCH : integer; sMemo : string; bFanOnOff : Boolean);
+var
+  sFilePath, sFileName : String;
+  sLine,sFanOnOff: String;
+  txtF                 : Textfile;
+  i,nSec,nMin: Integer;
+begin
+  Common.CheckDir(Common.Path.TempCsv);
+  sFilePath := Common.Path.TempCsv + FormatDateTime('yymmdd',now) + '\';
+  Common.CheckDir(sFilePath);
+  sFileName := sFilePath + Common.SystemInfo.EQPId + Format('_CH%d',[nCH+1])+'.csv';
+  if bFanOnOff then sFanOnOff := 'ON'
+  else              sFanOnOff := 'OFF';
+
+  try
+    try
+      AssignFile(txtF, sFileName);
+      try
+
+        if not FileExists(sFileName) then begin
+          //Header 생성
+          Rewrite(txtF);
+          sLine:=  ',SERIAL NO';
+          sLine:=  sLine + format(',Date,Time,Measurement time,Temp_PMIC,Temp_Center,Fan ON/OFF,',[i+1]);
+
+          WriteLn(txtF, sLine);
+        end;
+
+        //Data
+        Append(txtF);
+        sLine:=  sMemo + ',' + PasScr[nCH].TestInfo.SerialNo;
+        sLine:=  sLine + FormatDateTime(',yyyy-mm-dd',now);
+        sLine:=  sLine + FormatDateTime(',hh:nn:ss.zzz',now);
+
+        nSec := m_nTempIrTact[nCH] mod 60;
+        nMin := (m_nTempIrTact[nCH] div 60) mod 60;
+        sLine:=  sLine + Format(',%0.2d : %0.2d',[nMin,nSec]);
+
+        sLine:=  sLine + format(',%0.1f,%0.1f,%s,,',[FTempIr[2 * nCH],FTempIr[2 * nCH + 1],sFanOnOff]);
+
+        WriteLn(txtF, sLine);
+      except
+      end;
+    finally
+      CloseFile(txtF); // Close the file
+    end;
+  except
+
+  end;
+end;
+
+
+procedure TfrmTest4ChOC.ShowIrTempData(nCh, nData: Integer);
+var
+  nRetCh : Integer;
+  dTempData : double;
+begin
+  nRetCh := nCh - 1;
+  if nRetCh < 0 then Exit;
+  if nRetCh > (DefCommon.MAX_PG_CNT *2) - 1 then Exit;
+  dTempData := nData / 10;
+  if pnlTempPanelVal[nRetCh] <> nil then begin
+    pnlTempPanelVal[nRetCh].Caption := Format('%0.1f °C',[dTempData]);
+    FTempIr[nRetCh] := dTempData;
+  end;
+  //FTempFlate
+  //if chkChannelUse[nCh].Checked then DisplayDataInChart(nCh, 0, dTempData);
 end;
 
 procedure TfrmTest4ChOC.btnRepeatClick(Sender: TObject);
@@ -612,44 +703,12 @@ var
   sTempBcr : string;
   i,nCH : integer;
 begin
-//  nCH := (Sender as TRzButton).Tag;
-//  for I := 0 to 3 do begin
-////    if not PasScr[i].m_bUse then Continue;
-//    pnlSerials[i].Caption := DefCommon.MSG_SCAN_BCR;
-//    pnlSerials[i].Color := clBlue;
-//    pnlSerials[i].Font.Color := clYellow;
-//  end;
   VirtualBcr := TVirtualBcr.Create(Self);
   if VirtualBcr <> nil then   begin
     VirtualBcr.m_MainHandle := MessageHandle;
     VirtualBcr.m_TestHandle  := Self.Handle;
-//    VirtualBcr.ShowModal;
     VirtualBcr.Show;
   end;
-
-//  VirtualBcr := TVirtualBcr.Create(hMain,Self.Handle);
-//    VirtualBcr.Show;
-
-
-//  sTempBcr := '';
-//  for i := DefCommon.CH1 to DefCommon.MAX_CH do begin
-//    if not PasScr[i].m_bUse then Continue;
-//    if (pnlSerials[i].Caption <> 'SCAN BCR') then Continue;
-//    sTempBcr := Format('%s%.4d',['TEST', Random(10000)]);
-//    if i = DefCommon.CH1 then sTempBcr := 'SIMTEST1-' + sTempBcr else sTempBcr := 'SIMTEST2-' + sTempBcr;
-//    Break;
-//  end;
-//
-//
-//  for i := DefCommon.CH1 to DefCommon.MAX_CH do begin
-//    if not PasScr[i].m_bUse then Continue;
-//    if (pnlSerials[i].Caption <> '') then Continue;
-//    Break;
-//  end;
-//
-//
-//  if sTempBcr <> '' then getBcrData(sTempBcr);
-//  Finalize(sTempBcr);
 end;
 
 procedure TfrmTest4ChOC.btnVirtualKeyClick(Sender: TObject);
@@ -688,8 +747,10 @@ end;
 
 procedure TfrmTest4ChOC.chkPgClick(Sender: TObject);
 var
-  i : integer;
+  i,nCH : integer;
 begin
+  nCH := (Sender as TRzCheckBox).Tag;
+  chkChannelUse[nCH].Checked := Common.SystemInfo.UseCh[nCH];
 
   for i := DefCommon.CH1 to DefCommon.MAX_JIG_CH do begin
     if Sender = chkChannelUse[i] then begin
@@ -787,7 +848,7 @@ begin
   for i := DefCommon.CH1 to DefCommon.MAX_JIG_CH do begin
     PasScr[Tag*4 + i].m_lstPrevRet.Clear;
 
-    for k := 0 to Defcommon.MAX_PREVIOUS_RESULT do begin
+    for k := 0 to Common.SystemInfo.NGAlarmCount -1 do begin
       pnlPrevResult[i, k].Caption  := 'Result ' + IntToStr(k+1);
       pnlPrevResult[i, k].Color    := clBtnFace;
       pnlPrevResult[i, k].Font.Color    := clBlack;
@@ -817,24 +878,34 @@ begin
     tmUnitTactTime[i].Interval := 1000;
     tmUnitTactTime[i].OnTimer := OnUnitTimer;
     tmUnitTactTime[i].Enabled := False;
+
+    tmCheckIRTemp[i] := TTimer.Create(Self);
+    tmCheckIRTemp[i].Interval := 1000;
+    tmCheckIRTemp[i].Enabled := False;
+
+
     case i of
     DefCommon.CH1 :
       begin
+        tmCheckIRTemp[i].OnTimer := OntmCheckIRTemp1;
         tmTotalTactTime[i].OnTimer := OnTotalTimer;
         tmUnitTactTime[i].OnTimer := OnUnitTimer;
       end;
     DefCommon.CH2 :
       begin
+        tmCheckIRTemp[i].OnTimer := OntmCheckIRTemp2;
         tmTotalTactTime[i].OnTimer := OnTotal2Timer;
         tmUnitTactTime[i].OnTimer := OnUnit2Timer;
       end;
     DefCommon.CH3 :
       begin
+        tmCheckIRTemp[i].OnTimer := OntmCheckIRTemp3;
         tmTotalTactTime[i].OnTimer := OnTotal3Timer;
         tmUnitTactTime[i].OnTimer := OnUnit3Timer;
       end;
     DefCommon.CH4 :
       begin
+        tmCheckIRTemp[i].OnTimer := OntmCheckIRTemp4;
         tmTotalTactTime[i].OnTimer := OnTotal4Timer;
         tmUnitTactTime[i].OnTimer := OnUnit4Timer;
       end;
@@ -1094,6 +1165,7 @@ begin
     chkChannelUse[i].Parent := pnlChGrp[i];
     chkChannelUse[i].CustomGlyphs.Assign(imgCheckBox.Picture.Bitmap);// := bmp;
     chkChannelUse[i].Top := pnlHwVersion[i].Top + pnlHwVersion[i].Height;
+    chkChannelUse[i].Tag := i;
     chkChannelUse[i].Height := nItemHeight;
     chkChannelUse[i].Align := alTop;
     chkChannelUse[i].AutoSize := False;
@@ -1104,6 +1176,7 @@ begin
 //    chkChannelUse[i].State := cbChecked;
     chkChannelUse[i].Font.Color := clGreen;
     chkChannelUse[i].Cursor := crHandPoint;
+
     //chkChannelUse[i].ReadOnly:= True;
 
     pnlSerials[i] := TPanel.Create(self);
@@ -1330,6 +1403,40 @@ begin
     pnlNGValues[i].Font.Size := nFontSize +2;
     pnlNGValues[i].Font.Color := clRed;
     pnlNGValues[i].StyleElements := [];
+
+    if Common.SystemInfo.OCType = DefCommon.OCType then begin
+      pnlTempPanel[i]  := TPanel.Create(self);
+      pnlTempPanel[i].Parent  := pnlTimeNResult[i];
+      pnlTempPanel[i].Top     := 1;
+      pnlTempPanel[i].Left    := pnlNGValues[i].Left + pnlNGValues[i].Width + 1;
+      pnlTempPanel[i].Height  := pnlTimeNResult[i].Height-2;
+      pnlTempPanel[i].Width   := 80;
+      pnlTempPanel[i].Caption := 'Panel Temp.';
+
+      pnlTempPanelVal[2 * i]  := TPanel.Create(self);
+      pnlTempPanelVal[2 * i].Parent := pnlTimeNResult[i];
+      pnlTempPanelVal[2 * i].Top    := 1;
+      pnlTempPanelVal[2 * i].Left := pnlTempPanel[i].Left + pnlTempPanel[i].Width + 1;
+      pnlTempPanelVal[2 * i].Width  := 70;
+      pnlTempPanelVal[2 * i].Height := pnlTimeNResult[i].Height-2;
+      pnlTempPanelVal[2 * i].Caption := '- -';//Format('%d °C',[25]);
+      pnlTempPanelVal[2 * i].Color := clBlack;
+      pnlTempPanelVal[2 * i].Font.Color := clWhite;
+      pnlTempPanelVal[2 * i].StyleElements := [];
+      pnlTempPanelVal[2 * i].Font.Size := 12;
+
+      pnlTempPanelVal[2*i +1]  := TPanel.Create(self);
+      pnlTempPanelVal[2*i +1].Parent := pnlTimeNResult[i];
+      pnlTempPanelVal[2*i +1].Top    := 1;
+      pnlTempPanelVal[2*i +1].Left := pnlTempPanelVal[2 * i].Left + pnlTempPanelVal[2 * i].Width + 1;
+      pnlTempPanelVal[2*i +1].Width  := 70;
+      pnlTempPanelVal[2*i +1].Height := pnlTimeNResult[i].Height-2;
+      pnlTempPanelVal[2*i +1].Caption := '- -';//Format('%d °C',[25]);
+      pnlTempPanelVal[2*i +1].Color := clBlack;
+      pnlTempPanelVal[2*i +1].Font.Color := clWhite;
+      pnlTempPanelVal[2*i +1].StyleElements := [];
+      pnlTempPanelVal[2*i +1].Font.Size := 12;
+    end;
 
     if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
       btnChAutoStart[i] := TButton.Create(self);
@@ -1752,6 +1859,7 @@ begin
       btnTakeOutReport[i].OnClick := btnTakeOutReportClick;
 
     end;
+
 //    btnTakeOutReport[i] := TRzBitBtn.Create(self);
 //    btnTakeOutReport[i].Parent := pnlGrpDio[i];
 //    btnTakeOutReport[i].Top := ledDiDetect[i].Height;
@@ -1783,43 +1891,37 @@ begin
     //pnlPlcClampDn[i].Visible := True;
     ledDiDetect[i].StyleElements := [];
     ledDiDetect[i].Visible := True;
+    if Common.SystemInfo.NGAlarmCount <> 0 then begin
+      for j := 0 to Common.SystemInfo.NGAlarmCount -1 do begin
+        pnlPrevResult[i,j] := TPanel.Create(Self);
+        pnlPrevResult[i,j].Parent := pnlGrpDio[i];
 
-    for j := 0 to DefCommon.MAX_PREVIOUS_RESULT do begin
-      pnlPrevResult[i,j] := TPanel.Create(Self);
-      pnlPrevResult[i,j].Parent := pnlGrpDio[i];
-//      if j > 2 then begin
-//        pnlPrevResult[i,j].Top := ledDiDetect[i].Top + ledDiDetect[i].Height + 2 + (j-3)*16;
-//        pnlPrevResult[i,j].Left := pnlPrevResult[i,0].Left + pnlPrevResult[i,0].Width + 2 ;
-//      end
-//      else begin
-//        pnlPrevResult[i,j].Top := ledDiDetect[i].Top + ledDiDetect[i].Height + 2 + j*16;
-//        pnlPrevResult[i,j].Left := gridPWRPGs[i].Width + 2 ;
-//      end;
-      pnlPrevResult[i,j].Height := 16;
-      pnlPrevResult[i,j].Width := 90;
-      if j > 2 then begin
-        pnlPrevResult[i,j].Top :=  2 + (j-3)*16;
-        pnlPrevResult[i,j].Left := ledDiDetect[i].Left + ledDiDetect[i].Width + pnlPrevResult[i,j].Width + 2 ;
-      end
-      else begin
-        pnlPrevResult[i,j].Top :=  2 + j*16;
-        pnlPrevResult[i,j].Left := ledDiDetect[i].Left + ledDiDetect[i].Width +  2 ;
-      end;
+        pnlPrevResult[i,j].Height := 16;
+        pnlPrevResult[i,j].Width := 90;
+        if j > 3 then begin
+          pnlPrevResult[i,j].Top :=  2 + (j-3)*16;
+          pnlPrevResult[i,j].Left := ledDiDetect[i].Left + ledDiDetect[i].Width + pnlPrevResult[i,j].Width + 2 ;
+        end
+        else begin
+          pnlPrevResult[i,j].Top :=  2 + j*16;
+          pnlPrevResult[i,j].Left := ledDiDetect[i].Left + ledDiDetect[i].Width +  2 ;
+        end;
 
 
 
-      pnlPrevResult[i,j].Font.Size := nFontSize-2;
-      pnlPrevResult[i,j].Caption := Format('Result %d',[j+1]);
-      pnlPrevResult[i,j].StyleElements := [];
-      pnlPrevResult[i,j].Color   := clBtnFace;
-      pnlPrevResult[i,j].Visible := False;// not common.SystemInfo.OcManualType;
-      if Common.SystemInfo.UIType = DefCommon.UI_WIN10_BLACK then begin
-        pnlPrevResult[i,j].Color   := clBlack;
-        pnlPrevResult[i,j].Font.Color := clWhite;
-      end
-      else begin
+        pnlPrevResult[i,j].Font.Size := nFontSize-2;
+        pnlPrevResult[i,j].Caption := Format('Result %d',[j+1]);
+        pnlPrevResult[i,j].StyleElements := [];
         pnlPrevResult[i,j].Color   := clBtnFace;
-        pnlPrevResult[i,j].Font.Color := clBlack;
+        pnlPrevResult[i,j].Visible := true;// not common.SystemInfo.OcManualType;
+        if Common.SystemInfo.UIType = DefCommon.UI_WIN10_BLACK then begin
+          pnlPrevResult[i,j].Color   := clBlack;
+          pnlPrevResult[i,j].Font.Color := clWhite;
+        end
+        else begin
+          pnlPrevResult[i,j].Color   := clBtnFace;
+          pnlPrevResult[i,j].Font.Color := clBlack;
+        end;
       end;
     end;
     gridPWRPGs[i].ColWidths[0] := 60;
@@ -1966,6 +2068,100 @@ begin
   end;
 end;
 
+
+procedure TfrmTest4ChOC.OntmCheckIRTemp1(Sender: TObject);
+var
+sMemo : string;
+begin
+  sMemo := '';
+  Inc(m_nTempIrTact[0]);
+  if (FTempIr[0] > Common.SystemInfo.SetTemperature) or (FTempIr[1] > Common.SystemInfo.SetTemperature) then begin
+    if (not ControlDio.ReadOutSig(DefDio.OUT_CH1_PMIC_FAN_ON)) then begin
+      AddLog(format('temp Anomaly - FAN ON Temp 1 : %f 2 : %f ',[FTempIr[0],FTempIr[1]]),0,1);
+      ControlDio.WriteDioSig(DefDio.OUT_CH1_PMIC_FAN_ON,false);
+      m_bFanOnOff[0] := True;
+    end
+
+  end
+  else begin
+    if (ControlDio.ReadOutSig(DefDio.OUT_CH1_PMIC_FAN_ON)) then begin
+      AddLog('temp Normal - FAN OFF' ,0,0);
+      ControlDio.WriteDioSig(DefDio.OUT_CH1_PMIC_FAN_ON,True);
+      m_bFanOnOff[0] := False;
+    end
+  end;
+
+  SaveCsvTempStatus(0,sMemo,m_bFanOnOff[0]);
+end;
+
+procedure TfrmTest4ChOC.OntmCheckIRTemp2(Sender: TObject);
+var
+sMemo : string;
+begin
+  sMemo := '';
+  Inc(m_nTempIrTact[1]);
+  if (FTempIr[2] > Common.SystemInfo.SetTemperature) or (FTempIr[3] > Common.SystemInfo.SetTemperature) then begin
+    if (not ControlDio.ReadOutSig(DefDio.OUT_CH2_PMIC_FAN_ON)) then begin
+      AddLog(format('temp Anomaly - FAN ON Temp 1 : %f 2 : %f ',[FTempIr[2],FTempIr[3]]),1,1);
+      ControlDio.WriteDioSig(DefDio.OUT_CH2_PMIC_FAN_ON,false);
+      m_bFanOnOff[1] := True;
+    end
+  end
+  else begin
+    if (ControlDio.ReadOutSig(DefDio.OUT_CH2_PMIC_FAN_ON)) then begin
+      AddLog('temp Normal - FAN OFF' ,0,0);
+      ControlDio.WriteDioSig(DefDio.OUT_CH2_PMIC_FAN_ON,True);
+      m_bFanOnOff[1] := False;
+    end
+  end;
+  SaveCsvTempStatus(1,sMemo,m_bFanOnOff[1]);
+end;
+
+procedure TfrmTest4ChOC.OntmCheckIRTemp3(Sender: TObject);
+var
+sMemo : string;
+begin
+  sMemo := '';
+  Inc(m_nTempIrTact[2]);
+  if (FTempIr[4] > Common.SystemInfo.SetTemperature) or (FTempIr[5] > Common.SystemInfo.SetTemperature) then begin
+    if (not ControlDio.ReadOutSig(DefDio.OUT_CH3_PMIC_FAN_ON)) then begin
+      AddLog(format('temp Anomaly - FAN ON Temp 1 : %f 2 : %f ',[FTempIr[4],FTempIr[5]]),2,1);
+      ControlDio.WriteDioSig(DefDio.OUT_CH3_PMIC_FAN_ON,false);
+      m_bFanOnOff[2] := True;
+    end
+  end
+  else begin
+    if (ControlDio.ReadOutSig(DefDio.OUT_CH3_PMIC_FAN_ON)) then begin
+      AddLog('temp Normal - FAN OFF' ,0,0);
+      ControlDio.WriteDioSig(DefDio.OUT_CH3_PMIC_FAN_ON,True);
+      m_bFanOnOff[2] := False;
+    end
+  end;
+  SaveCsvTempStatus(2,sMemo,m_bFanOnOff[2]);
+end;
+
+procedure TfrmTest4ChOC.OntmCheckIRTemp4(Sender: TObject);
+var
+sMemo : string;
+begin
+  sMemo := '';
+  Inc(m_nTempIrTact[3]);
+  if (FTempIr[6] > Common.SystemInfo.SetTemperature) or (FTempIr[7] > Common.SystemInfo.SetTemperature) then begin
+    if (not ControlDio.ReadOutSig(DefDio.OUT_CH4_PMIC_FAN_ON)) then begin
+      AddLog(format('temp Anomaly - FAN ON Temp 1 : %f 2 : %f ',[FTempIr[6],FTempIr[7]]),3,1);
+      ControlDio.WriteDioSig(DefDio.OUT_CH4_PMIC_FAN_ON,false);
+      m_bFanOnOff[3] := True;
+    end
+  end
+  else begin
+    if (ControlDio.ReadOutSig(DefDio.OUT_CH4_PMIC_FAN_ON)) then begin
+      AddLog('temp Normal - FAN OFF' ,0,0);
+      ControlDio.WriteDioSig(DefDio.OUT_CH4_PMIC_FAN_ON,True);
+      m_bFanOnOff[3] := False;
+    end
+  end;
+  SaveCsvTempStatus(3,sMemo,m_bFanOnOff[3]);
+end;
 
 procedure TfrmTest4ChOC.DioWorkDone(nErrCode: Integer; sErrMsg: string);
 var
@@ -2414,11 +2610,13 @@ end;
 
 procedure TfrmTest4ChOC.DisplayPreviousRet(nCh: Integer);
 var
-  i, nPg : Integer;
+  i, nPg, nSum: Integer;
+  sMsg : string;
 begin
   nPg := nCh+self.Tag*4;
   for i := 0 to pred(PasScr[nPg].m_lstPrevRet.Count) do begin
-    if i > (Defcommon.MAX_PREVIOUS_RESULT) then Continue;
+    if i > (Common.SystemInfo.NGAlarmCount -1) then Continue;
+    nSum := nSum + PasScr[nPg].m_lstPrevRet.Items[i];
     if PasScr[nPg].m_lstPrevRet.Items[i] = 0 then begin
       pnlPrevResult[nCh,i].Caption  := 'Pass';
       pnlPrevResult[nCh,i].Color    := clLime;
@@ -2430,6 +2628,14 @@ begin
       pnlPrevResult[nCh,i].Font.Color    := clBlack;
     end;
   end;
+  if PasScr[nPg].m_lstPrevRet.Count > 0 then begin
+    if (PasScr[nPg].m_lstPrevRet.Items[0] <> 0) and (nSum <> 0) and ((nSum div Common.SystemInfo.NGAlarmCount) = PasScr[nPg].m_lstPrevRet.Items[0])  then begin
+      sMsg := format('Same NG Occurrence : NG CODE : %d',[PasScr[nPg].m_lstPrevRet.Items[0]]);
+      SendMessageMain(STAGE_MODE_DISPLAY_ALARAM,nCh, ERR_LIST_1_NG_CONUT +nCh, 1, sMsg,nil);
+    end;
+  end;
+
+
 end;
 
 procedure TfrmTest4ChOC.DisplayPwrData(nPgNo: Integer; PwrData: TPwrData);
@@ -2449,7 +2655,7 @@ begin
   gridPWRPGs[nPgNo].Cells[4, 2] := Format('%0.3f', [PwrVal.VDD5 / 1000]); // VDD5/IVDD5
   gridPWRPGs[nPgNo].Cells[5, 2] := Format('%d',    [PwrVal.IVDD5]);
   }
-
+  AddLog(format('DisplayPwr VCC : %0.3fV VIN : %0.3fV IVCC : %dmA IVIN : %dmA ',[PwrData.VCC / 1000,PwrData.VIN / 1000,PwrData.IVCC,PwrData.IVIN]),nPgNo);
   gridPWRPGs[nPgNo].EnableAlign;
 
 end;
@@ -2553,13 +2759,19 @@ var
 begin
   m_Rgb_Avr.AvgType := DefCommon.IDX_RGB_AVR_TYPE_NONE;
   m_nCurStatus := DefScript.SEQ_STOP;
+  SetLength(pnlPrevResult,DefCommon.MAX_PG_CNT);
+  m_NGAlarmCount := Common.SystemInfo.NGAlarmCount;
   for i := DefCommon.CH1 to DefCommon.MAX_JIG_CH do begin
     m_nOkCnt[i] := 0;
     m_nNgCnt[i] := 0;
+    SetLength(pnlPrevResult[i],m_NGAlarmCount);
   end;
 //  SetLength(m_nPreSeqFlowIdx,DefCommon.MAX_PG_CNT);
   m_PlcStatus := psReadyPc;
   m_bAutoPlcProbeBack := False;
+
+
+
 
   m_bInitGetAvr := False;
   m_csBcrRead:= TCriticalSection.Create;
@@ -2567,7 +2779,7 @@ end;
 
 procedure TfrmTest4ChOC.FormDestroy(Sender: TObject);
 var
-  i : Integer;
+  i,j : Integer;
 begin
   m_csBcrRead.Free;
 
@@ -2582,6 +2794,12 @@ begin
       tmUnitTactTime[i].Free;
       tmUnitTactTime[i] := nil;
     end;
+    if tmCheckIRTemp[i] <> nil then begin
+      tmCheckIRTemp[i].Enabled := False;
+      tmCheckIRTemp[i].Free;
+      tmCheckIRTemp[i] := nil;
+    end;
+
   end;
 
 //  VirtualBcr.Free;
@@ -2600,6 +2818,13 @@ begin
 //      gridPWRPGs[i].Free;
 //      gridPWRPGs[i] := nil;
 //    end;
+    for j := 0 to m_NGAlarmCount -1 do begin
+      if pnlPrevResult[i][j] <> nil then begin
+        pnlPrevResult[i][j].free;
+        pnlPrevResult[i][j] := nil;
+      end;
+    end;
+
     if mmChannelLog[i] <> nil then begin
       mmChannelLog[i].Free;
       mmChannelLog[i] := nil;
@@ -2636,158 +2861,165 @@ var
   sDebug, sRemoveCr : string;
   sPCB_ID : string;
 begin
-  m_csBcrRead.Acquire; // Hand Bcr Thread event UI 컨트롤 방지
-  Common.MLog(DefCommon.MAX_SYSTEM_LOG, '<HAND-BCR> Read Data ' + sScanData);
-  sRemoveCr := StringReplace(sScanData,#$0a,'',[rfReplaceAll]);
-  sRemoveCr := StringReplace(sRemoveCr,#$0d,'',[rfReplaceAll]);
-  Common.MLog(DefCommon.MAX_SYSTEM_LOG, '<HAND-BCR> Converting Read Data ' + sRemoveCr);
-  for i := Defcommon.CH1 to DefCommon.MAX_CH do begin // 중복 채널 사전 검사 해서 빼기
-    if pnlSerials[i].Caption = sRemoveCr then begin
-      sDebug := Format('<HAND-BCR> Same Data Exsit skip(Ch:%d) data(%s)',[i + 1, sRemoveCr]);
-      Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
-      if PasScr[i] <> nil then begin // 혹시 모르니까 한번더
-        PasScr[i].m_First_Process_DONE := True;
-        PasScr[i].g_bIsBcrReady := True;
-      end;
-      m_csBcrRead.Release;
-      Exit;
-    end;
-  end;
-  if g_CommPLC <> nil then   begin        // GlassData MateriID 비교 하여 해당 CH 로 매칭
-    for nJigCh := DefCommon.CH1 to DefCommon.MAX_CH do begin
-      if (pnlSerials[nJigCh].Caption <> DefCommon.MSG_SCAN_BCR) then begin
-        Continue; // Scan BCR Ready 상태가 아니면 다음 ch로
-      end;
-      if Common.SystemInfo.OCType = DefCommon.PreOCType then  begin
-        sRemoveCr := Copy(sRemoveCr,1,18);
-        sPCB_ID := Copy(g_CommPLC.GlassData[nJigCh].MateriID,1,18);
-      end;
-      sDebug := Format('<HAND-BCR> MateriID Matching sRemoveCr : %s Length : %d sPCB_ID : %s Length : %d ',[sRemoveCr,Length(sRemoveCr),sPCB_ID,Length(sPCB_ID)]);
-      Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
-
-      if Pos(sRemoveCr,sPCB_ID) > 0 then begin   // GlassData MateriID 비교 하여 해당 CH 로 매칭
-        if PasScr[nJigCh] <> nil then begin
-          sDebug := Format('<HAND-BCR> input Data MateriID  Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
-          Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
-          PasScr[nJigCh].TestInfo.SerialNo  := sRemoveCr;
-        end
-        else begin
-          sDebug := Format('<HAND-BCR> Cant not input Data Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
-          Common.MLog(nJigCh,sDebug);
-        end;
-
-        sDebug := Format('<HAND-BCR> Ui display Data MateriID Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
-        Common.MLog(nJigCh,sDebug);
+  try
+    m_csBcrRead.Acquire; // Hand Bcr Thread event UI 컨트롤 방지
+    Common.MLog(DefCommon.MAX_SYSTEM_LOG, '<HAND-BCR> Read Data ' + sScanData);
+    sRemoveCr := StringReplace(sScanData,#$0a,'',[rfReplaceAll]);
+    sRemoveCr := StringReplace(sRemoveCr,#$0d,'',[rfReplaceAll]);
+    Common.MLog(DefCommon.MAX_SYSTEM_LOG, '<HAND-BCR> Converting Read Data ' + sRemoveCr);
+    for i := Defcommon.CH1 to DefCommon.MAX_CH do begin // 중복 채널 사전 검사 해서 빼기
+      if pnlSerials[i].Caption = sRemoveCr then begin
+        sDebug := Format('<HAND-BCR> Same Data Exsit skip(Ch:%d) data(%s)',[i + 1, sRemoveCr]);
         Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
-
-        pnlSerials[nJigCh].Caption := sRemoveCr;
-        pnlSerials[nJigCh].Color := $0088AEFF;
-        pnlSerials[nJigCh].Font.Color := clBlack;
-
-        if DongaGmes <> nil then begin
-          sDebug := Format('<HAND-BCR> Send PCHK Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
-          Common.MLog(nJigCh,sDebug);
-          Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
-          DongaGmes.SendHostPchk(sRemoveCr, nJigCh);
-          pnlMESResults[nJigCh].Color      := clBtnFace;
-          pnlMESResults[nJigCh].Font.Color := clBlack;
-          pnlMESResults[nJigCh].Caption    := 'SEND PCHK';
+        if PasScr[i] <> nil then begin // 혹시 모르니까 한번더
+          PasScr[i].m_First_Process_DONE := True;
+          PasScr[i].g_bIsBcrReady := True;
         end;
-        sDebug := Format('<HAND-BCR> Bcr Data flow End Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
-        Common.MLog(nJigCh,sDebug);
-        Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
-
-        bIsDone := True;
-        if (UpperCase(Common.m_sUserId) = 'PM') then begin
-          bIsDone := True;
-        end;
-
-        if bIsDone then begin
-          if PasScr[nJigCh] <> nil then begin
-            PasScr[nJigCh].m_First_Process_DONE := True;
-            PasScr[nJigCh].g_bIsBcrReady := True;
-          end;
-        end;
-        sDebug := Format('<HAND-BCR> Bcr Data input pasScr Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
-        Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
         m_csBcrRead.Release;
         Exit;
       end;
     end;
-  end;
-
-  for nJigCh := DefCommon.CH1 to DefCommon.MAX_CH do begin
-//    if pnlSerials[nJigCh].Caption = sRemoveCr then begin
-//      sDebug := Format('<HAND-BCR> Same Data Exsit skip(Ch:%d) data(%s)',[nJigCh + 1, sRemoveCr]);
-//      Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
-//      break;
+//    if g_CommPLC <> nil then   begin        // GlassData MateriID 비교 하여 해당 CH 로 매칭
+//      for nJigCh := DefCommon.CH1 to DefCommon.MAX_CH do begin
+//        if (pnlSerials[nJigCh].Caption <> DefCommon.MSG_SCAN_BCR) then begin
+//          Continue; // Scan BCR Ready 상태가 아니면 다음 ch로
+//        end;
+//        if Common.SystemInfo.OCType = DefCommon.PreOCType then  begin
+//          sRemoveCr := Copy(sRemoveCr,1,18);
+//          sPCB_ID := Copy(g_CommPLC.GlassData[nJigCh].MateriID,1,18);
+//        end;
+//        sDebug := Format('<HAND-BCR> MateriID Matching sRemoveCr : %s Length : %d sPCB_ID : %s Length : %d ',[sRemoveCr,Length(sRemoveCr),sPCB_ID,Length(sPCB_ID)]);
+//        Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+//
+//        if Pos(sRemoveCr,sPCB_ID) > 0 then begin   // GlassData MateriID 비교 하여 해당 CH 로 매칭
+//          if PasScr[nJigCh] <> nil then begin
+//            sDebug := Format('<HAND-BCR> input Data MateriID  Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
+//            Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+//            PasScr[nJigCh].TestInfo.SerialNo  := sRemoveCr;
+//          end
+//          else begin
+//            sDebug := Format('<HAND-BCR> Cant not input Data Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
+//            Common.MLog(nJigCh,sDebug);
+//          end;
+//
+//          sDebug := Format('<HAND-BCR> Ui display Data MateriID Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
+//          Common.MLog(nJigCh,sDebug);
+//          Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+//
+//          pnlSerials[nJigCh].Caption := sRemoveCr;
+//          pnlSerials[nJigCh].Color := $0088AEFF;
+//          pnlSerials[nJigCh].Font.Color := clBlack;
+//
+//          if DongaGmes <> nil then begin
+//            sDebug := Format('<HAND-BCR> Send PCHK Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
+//            Common.MLog(nJigCh,sDebug);
+//            Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+//            DongaGmes.SendHostPchk(sRemoveCr, nJigCh);
+//            pnlMESResults[nJigCh].Color      := clBtnFace;
+//            pnlMESResults[nJigCh].Font.Color := clBlack;
+//            pnlMESResults[nJigCh].Caption    := 'SEND PCHK';
+//          end;
+//          sDebug := Format('<HAND-BCR> Bcr Data flow End Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
+//          Common.MLog(nJigCh,sDebug);
+//          Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+//
+//          bIsDone := True;
+//          if (UpperCase(Common.m_sUserId) = 'PM') then begin
+//            bIsDone := True;
+//          end;
+//
+//          if bIsDone then begin
+//            if PasScr[nJigCh] <> nil then begin
+//              PasScr[nJigCh].m_First_Process_DONE := True;
+//              PasScr[nJigCh].g_bIsBcrReady := True;
+//            end;
+//          end;
+//          sDebug := Format('<HAND-BCR> Bcr Data input pasScr Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
+//          Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+//          m_csBcrRead.Release;
+//          Exit;
+//        end;
+//      end;
 //    end;
-    if (pnlSerials[nJigCh].Caption <> DefCommon.MSG_SCAN_BCR) then begin
-      Continue; // Scan BCR Ready 상태가 아니면 다음 ch로
-    end;
-    {
-    sDebug := 'HandBCR: ' + sRemoveCr;
-    Common.MLog(DefCommon.MAX_SYSTEM_LOG, '<HAND-BCR 1> ' + sDebug);
-    if pnlSerials[nJigCh].Caption = sRemoveCr then Break;
-    Common.MLog(DefCommon.MAX_SYSTEM_LOG, '<HAND-BCR 2> ' + sDebug);
-    if (pnlSerials[nJigCh].Caption <> DefCommon.MSG_SCAN_BCR)  then Continue;
-    }
-    if PasScr[nJigCh] <> nil then begin
-      sDebug := Format('<HAND-BCR> input Data Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
+
+    for nJigCh := DefCommon.CH1 to DefCommon.MAX_CH do begin
+
+      if (pnlSerials[nJigCh].Caption <> DefCommon.MSG_SCAN_BCR) then begin
+        Continue; // Scan BCR Ready 상태가 아니면 다음 ch로
+      end;
+
+      if PasScr[nJigCh] <> nil then begin
+        sDebug := Format('<HAND-BCR> input Data Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
+        Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+        PasScr[nJigCh].TestInfo.SerialNo  := sRemoveCr;
+      end
+      else begin
+        sDebug := Format('<HAND-BCR> Cant not input Data Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
+        Common.MLog(nJigCh,sDebug);
+      end;
+
+      if (g_CommPLC <> nil) and (Common.StatusInfo.AutoMode) then begin
+        if Common.SystemInfo.OCType = DefCommon.PreOCType then  begin
+          sRemoveCr := Copy(sRemoveCr,1,18);
+          sPCB_ID := Copy(g_CommPLC.GlassData[nJigCh].MateriID,1,18);
+        end;
+
+        sDebug := Format('<HAND-BCR> MateriID Matching sRemoveCr : %s Length : %d sPCB_ID : %s Length : %d ',[sRemoveCr,Length(sRemoveCr),sPCB_ID,Length(sPCB_ID)]);
+        Common.MLog(nJigCh, sDebug);
+        if Pos(sRemoveCr,sPCB_ID) = 0 then begin
+
+        end;
+      end;
+
+
+      sDebug := Format('<HAND-BCR> Ui display Data Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
+      Common.MLog(nJigCh,sDebug);
       Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
-      PasScr[nJigCh].TestInfo.SerialNo  := sRemoveCr;
+
+      pnlSerials[nJigCh].Caption := sRemoveCr;
+      pnlSerials[nJigCh].Color := $0088AEFF;
+      pnlSerials[nJigCh].Font.Color := clBlack;
+
+      if DongaGmes <> nil then begin
+        sDebug := Format('<HAND-BCR> Send PCHK Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
+        Common.MLog(nJigCh,sDebug);
+        Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+        DongaGmes.SendHostPchk(sRemoveCr, nJigCh);
+        pnlMESResults[nJigCh].Color      := clBtnFace;
+        pnlMESResults[nJigCh].Font.Color := clBlack;
+        pnlMESResults[nJigCh].Caption    := 'SEND PCHK';
+      end;
+      sDebug := Format('<HAND-BCR> Bcr Data flow End Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
+      Common.MLog(nJigCh,sDebug);
+      Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+      Break;
+    end;
+    if nJigCh = 4 then begin
+      sDebug := Format('<HAND-BCR> NO have to Any Ready Ch BcrData:%s Exit',[sRemoveCr]);
+      Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+      m_csBcrRead.Release;
+      Exit;
     end
-    else begin
-      sDebug := Format('<HAND-BCR> Cant not input Data Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
-      Common.MLog(nJigCh,sDebug);
+    else if nJigCh > 4 then begin
+      m_csBcrRead.Release;
+      Exit;
     end;
-
-    sDebug := Format('<HAND-BCR> Ui display Data Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
-    Common.MLog(nJigCh,sDebug);
-    Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
-
-    pnlSerials[nJigCh].Caption := sRemoveCr;
-    pnlSerials[nJigCh].Color := $0088AEFF;
-    pnlSerials[nJigCh].Font.Color := clBlack;
-
-    if DongaGmes <> nil then begin
-      sDebug := Format('<HAND-BCR> Send PCHK Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
-      Common.MLog(nJigCh,sDebug);
-      Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
-      DongaGmes.SendHostPchk(sRemoveCr, nJigCh);
-      pnlMESResults[nJigCh].Color      := clBtnFace;
-      pnlMESResults[nJigCh].Font.Color := clBlack;
-      pnlMESResults[nJigCh].Caption    := 'SEND PCHK';
-    end;
-    sDebug := Format('<HAND-BCR> Bcr Data flow End Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
-    Common.MLog(nJigCh,sDebug);
-    Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
-    Break;
-  end;
-  if nJigCh = 4 then begin
-    sDebug := Format('<HAND-BCR> NO have to Any Ready Ch BcrData:%s Exit',[sRemoveCr]);
-    Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
-    m_csBcrRead.Release;
-    Exit;
-  end
-  else if nJigCh > 4 then begin
-    m_csBcrRead.Release;
-    Exit;
-  end;
-  bIsDone := True;
-  if (UpperCase(Common.m_sUserId) = 'PM') then begin
     bIsDone := True;
-  end;
-
-  if bIsDone then begin
-    if PasScr[nJigCh] <> nil then begin
-      PasScr[nJigCh].m_First_Process_DONE := True;
-      PasScr[nJigCh].g_bIsBcrReady := True;
+    if (UpperCase(Common.m_sUserId) = 'PM') then begin
+      bIsDone := True;
     end;
+
+    if bIsDone then begin
+      if PasScr[nJigCh] <> nil then begin
+        PasScr[nJigCh].m_First_Process_DONE := True;
+        PasScr[nJigCh].g_bIsBcrReady := True;
+      end;
+    end;
+    sDebug := Format('<HAND-BCR> Bcr Data input pasScr Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
+    Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+  finally
+    m_csBcrRead.Release;
   end;
-  sDebug := Format('<HAND-BCR> Bcr Data input pasScr Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
-  Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
-  m_csBcrRead.Release;
 end;
 
 procedure TfrmTest4ChOC.getBcrData2(sScanData: string);
@@ -2810,76 +3042,7 @@ begin
         Exit;
       end;
     end;
-    if g_CommPLC <> nil then   begin        // GlassData MateriID 비교 하여 해당 CH 로 매칭
-      for nJigCh := DefCommon.CH1 to DefCommon.MAX_CH do begin
-        if (pnlSerials[nJigCh].Caption <> DefCommon.MSG_SCAN_BCR) then begin
-          Continue; // Scan BCR Ready 상태가 아니면 다음 ch로
-        end;
-        if Common.SystemInfo.OCType = DefCommon.PreOCType then  begin
-          sRemoveCr := Copy(sRemoveCr,1,18);
-          sPCB_ID := Copy(g_CommPLC.GlassData[nJigCh].MateriID,1,18);
-        end;
-        sDebug := Format('<HAND-BCR> MateriID Matching sRemoveCr : %s Length : %d sPCB_ID : %s Length : %d ',[sRemoveCr,Length(sRemoveCr),sPCB_ID,Length(sPCB_ID)]);
-        Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
 
-        if Pos(sRemoveCr,sPCB_ID) > 0 then begin   // GlassData MateriID 비교 하여 해당 CH 로 매칭
-          if PasScr[nJigCh] <> nil then begin
-            sDebug := Format('<HAND-BCR> input Data MateriID  Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
-            Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
-            PasScr[nJigCh].TestInfo.SerialNo  := sRemoveCr;
-          end
-          else begin
-            sDebug := Format('<HAND-BCR> Cant not input Data Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
-            Common.MLog(nJigCh,sDebug);
-          end;
-
-          sDebug := Format('<HAND-BCR> Ui display Data MateriID Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
-          Common.MLog(nJigCh,sDebug);
-          Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
-
-          pnlSerials[nJigCh].Caption := sRemoveCr;
-          pnlSerials[nJigCh].Color := $0088AEFF;
-          pnlSerials[nJigCh].Font.Color := clBlack;
-
-          if DongaGmes <> nil then begin
-            sDebug := Format('<HAND-BCR> Send PCHK Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
-            Common.MLog(nJigCh,sDebug);
-            Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
-
-            if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.PreOCType)  then begin
-              DongaGmes.SendHostLpir(sRemoveCr, nJigCh);
-              pnlMESResults[nJigCh].Color      := clBtnFace;
-              pnlMESResults[nJigCh].Font.Color := clBlack;
-              pnlMESResults[nJigCh].Caption    := 'SEND LPIR';
-            end;
-
-            DongaGmes.SendHostPchk(sRemoveCr, nJigCh);
-            pnlMESResults[nJigCh].Color      := clBtnFace;
-            pnlMESResults[nJigCh].Font.Color := clBlack;
-            pnlMESResults[nJigCh].Caption    := 'SEND PCHK';
-          end;
-          sDebug := Format('<HAND-BCR> Bcr Data flow End Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
-          Common.MLog(nJigCh,sDebug);
-          Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
-
-          bIsDone := True;
-          if (UpperCase(Common.m_sUserId) = 'PM') then begin
-            bIsDone := True;
-          end;
-
-          if bIsDone then begin
-            if PasScr[nJigCh] <> nil then begin
-              PasScr[nJigCh].m_First_Process_DONE := True;
-              PasScr[nJigCh].g_bIsBcrReady := True;
-            end;
-          end;
-          sDebug := Format('<HAND-BCR> Bcr Data input pasScr Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
-          Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
-          m_csBcrRead.Release;
-          Exit;
-        end;
-      end;
-    end;
 
     for nJigCh := DefCommon.CH1 to DefCommon.MAX_CH do begin
       //To-do: Carrier Detect 확인 추가 필요
@@ -2890,6 +3053,25 @@ begin
           PasScr[nJigCh].TestInfo.SerialNo  := sRemoveCr;
           PasScr[nJigCh].m_First_Process_DONE := True;
           PasScr[nJigCh].g_bIsBcrReady := True;
+
+          if (g_CommPLC <> nil) and (Common.StatusInfo.AutoMode) then begin   // ECC MateriID 와 BCR data 비교 하여 다르면 NG
+            if Common.SystemInfo.OCType = DefCommon.PreOCType then  begin
+              sRemoveCr := Copy(sRemoveCr,1,18);
+              sPCB_ID := Copy(g_CommPLC.GlassData[nJigCh].MateriID,1,18);
+            end;
+
+            sDebug := Format('<HAND-BCR> MateriID Matching sRemoveCr : %s Length : %d sPCB_ID : %s Length : %d ',[sRemoveCr,Length(sRemoveCr),sPCB_ID,Length(sPCB_ID)]);
+            Common.MLog(nJigCh, sDebug);
+            if Pos(sRemoveCr,sPCB_ID) = 0 then begin
+              pnlSerials[nJigCh].Caption := sRemoveCr;
+              pnlSerials[nJigCh].Color := clRed;
+              pnlSerials[nJigCh].Font.Color := clBlack;
+              sDebug := Format('<HAND-BCR> MateriID and ECRDATA DIFFERENT!! MateriID : %s BCR_Data : %s ',[sPCB_ID,sRemoveCr]);
+              Common.MLog(nJigCh, sDebug);
+              ShowNgMessage(Format('CH : %d MateriID(%s) and EcrData(%s) DIFFERENT!!',[nJigCh + 1,sPCB_ID,sRemoveCr]));
+              Exit;
+            end;
+          end;
 
           sDebug := Format('<HAND-BCR> Ui display Data Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
           Common.MLog(nJigCh,sDebug);
@@ -3584,11 +3766,11 @@ begin
   CsharpDll := TCSharpDll.Create(hMain,Self.Handle,Common.Path.LGDDLL,'OC_Converter.dll');
   CsharpDll.Create_Test;
   for i := DefCommon.CH1 to DefCommon.MAX_CH do begin
-    PG[i].m_hTest := Self.Handle
+    PG[i].m_hTest := Self.Handle;
   end;
-
+  Common.MLog(DefCommon.MAX_SYSTEM_LOG,'Initialize- Start');
   CsharpDll.Initialize(Common.TestModelInfoFLOW.ModelTypeName); // Added by KTS 2022-11-23 오후 1:34:17  DLL 설정
-
+  Common.MLog(DefCommon.MAX_SYSTEM_LOG,'Initialize- End');
   CaSdk2 := TCA_SDK2.Create(hMain,Self.Handle, Common.TestModelInfoFLOW.Ca410MemCh+1,True);
   for i := DefCommon.CH1 to DefCommon.MAX_CH do begin
     CaSetupInfo.SelectIdx     := Common.SystemInfo.Com_Ca310[i];// CaSetupInfo;
@@ -3598,6 +3780,8 @@ begin
   end;
 
   CaSdk2.ManualConnect;
+
+  CtrlCa410 := TControlCa410.Create(hMain,Self.Handle,Common.TestModelInfoFLOW.Ca410MemCh+1);
 
   SetConfig;
   if Common.SystemInfo.OCType = DefCommon.OCType then begin
@@ -3628,6 +3812,16 @@ begin
 //    mmChannelLog[nJigCh].Perform(EM_SCROLL,SB_LINEDOWN,0);
   CalcLogScroll(nJigCh,Length(sDebug));
   Common.MLog(nJigCh+self.Tag*4,'Carrier Detact NG NG : '+sErrMsg);
+end;
+
+procedure TfrmTest4ChOC.ShowNgMessage(sMessage: string);
+begin
+  if frmNgMsg = nil then begin
+    frmNgMsg  := TfrmNgMsg.Create(nil);
+  end;
+
+  frmNgMsg.lblShow.Caption := sMessage;
+  frmNgMsg.Show; //ShowModal;
 end;
 
 procedure TfrmTest4ChOC.StopTotalTimer(Sender: TObject; nJigCh, nTimerType : Integer);
@@ -3703,6 +3897,8 @@ begin
     Common.MLog(DefCommon.MAX_SYSTEM_LOG,sDebug);
   end;
 end;
+
+
 
 procedure TfrmTest4ChOC.SyncProbeBack(nJigCh, nParam1, nNgCode: Integer);
 var
@@ -3894,6 +4090,7 @@ begin
       mmChannelLog[nCh].Lines.Add(sDebug);
       mmChannelLog[nCh].Perform(EM_SCROLL, SB_LINEDOWN, 0);
       Common.MLog(nCh, 'POWER LIMIT NG : ' + sMsg);
+      SendMessageMain(STAGE_MODE_DISPLAY_ALARAM,nCh, ERR_LIST_1_POWER_LIMIT_NG +nCh, 1, sMsg,nil);
 
     end;
     DefCommon.MSG_MODE_DISPLAY_CONNECTION : begin
@@ -3923,6 +4120,58 @@ begin
   end;
 end;
 
+function TfrmTest4ChOC.WriteR2RData(nCh : Integer): integer;
+var
+  cdCal : LibCa410Option.TCalValue;
+  sRet,sReturn : string;
+  saReturn : TArray<String>;
+begin
+  Result := 1;
+  AddLog('CA410 CAL START',nCh);
+  cdCal.W_X := StrToFloatDef(PasScr[nCH].FR2ROC_Data[0],0);
+  cdCal.W_Y := StrToFloatDef(PasScr[nCH].FR2ROC_Data[1],0);
+  cdCal.W_Z := StrToFloatDef(PasScr[nCH].FR2ROC_Data[2],0);
+  cdCal.W_Lv := StrToFloatDef(PasScr[nCH].FR2ROC_Data[12],0);
+  cdCal.W_xx := StrToFloatDef(PasScr[nCH].FR2ROC_Data[13],0);
+  cdCal.W_yy := StrToFloatDef(PasScr[nCH].FR2ROC_Data[14],0);
+
+  cdCal.R_X := StrToFloatDef(PasScr[nCH].FR2ROC_Data[3],0);
+  cdCal.R_Y := StrToFloatDef(PasScr[nCH].FR2ROC_Data[4],0);
+  cdCal.R_Z := StrToFloatDef(PasScr[nCH].FR2ROC_Data[5],0);
+  cdCal.R_Lv := StrToFloatDef(PasScr[nCH].FR2ROC_Data[15],0);
+  cdCal.R_xx := StrToFloatDef(PasScr[nCH].FR2ROC_Data[16],0);
+  cdCal.R_yy := StrToFloatDef(PasScr[nCH].FR2ROC_Data[17],0);
+
+  cdCal.G_X := StrToFloatDef(PasScr[nCH].FR2ROC_Data[6],0);
+  cdCal.G_Y := StrToFloatDef(PasScr[nCH].FR2ROC_Data[7],0);
+  cdCal.G_Z := StrToFloatDef(PasScr[nCH].FR2ROC_Data[8],0);
+  cdCal.G_Lv := StrToFloatDef(PasScr[nCH].FR2ROC_Data[18],0);
+  cdCal.G_xx := StrToFloatDef(PasScr[nCH].FR2ROC_Data[19],0);
+  cdCal.G_yy := StrToFloatDef(PasScr[nCH].FR2ROC_Data[20],0);
+
+  cdCal.B_X := StrToFloatDef(PasScr[nCH].FR2ROC_Data[9],0);
+  cdCal.B_Y := StrToFloatDef(PasScr[nCH].FR2ROC_Data[10],0);
+  cdCal.B_Z := StrToFloatDef(PasScr[nCH].FR2ROC_Data[11],0);
+  cdCal.B_Lv := StrToFloatDef(PasScr[nCH].FR2ROC_Data[21],0);
+  cdCal.B_xx := StrToFloatDef(PasScr[nCH].FR2ROC_Data[22],0);
+  cdCal.B_yy := StrToFloatDef(PasScr[nCH].FR2ROC_Data[23],0);
+  CtrlCa410.CDCal := cdCal;
+
+  sReturn := CtrlCa410.TestExample(nCh,Common.SystemInfo.R2RCa410MemCh,sRet); // 0 is channel num.
+
+  saReturn:= sReturn.Split([',']);
+  if Length(saReturn) > 4 then  begin
+    if saReturn[5] = 'OK00' then
+      Result := 0;
+  end;
+  AddLog('----------------',nCh);
+  AddLog('CA410 CAL END',nCh);
+
+
+
+end;
+
+
 procedure TfrmTest4ChOC.WMCopyData(var Msg: TMessage);
 var
   nType, nMode, nCh, i, nTemp, nTemp2, nPgNo, nLines, nPair : Integer;
@@ -3939,6 +4188,23 @@ begin
       nCh   := PGuiDLL(PCopyDataStruct(Msg.LParam)^.lpData)^.Channel;
       nTemp := PGuiDLL(PCopyDataStruct(Msg.LParam)^.lpData)^.nParam;
       case nMode of
+        DefCommon.MSG_MODE_LOG_REPGM : begin
+          sSerialNumber := PasScr[nCh].TestInfo.SerialNo;
+          if DongaGmes <> nil then
+            sPID :=  DongaGmes.MesData[nCh].PchkRtnPID
+          else sPID := 'NULL';
+          Common.RePGMLog(nCh,sPID,sSerialNumber);
+        end;
+
+        DefCommon.MSG_MODE_LOG_HWCID : begin
+          sSerialNumber := PasScr[nCh].TestInfo.SerialNo;
+          if DongaGmes <> nil then
+            sPID :=  DongaGmes.MesData[nCh].PchkRtnPID
+          else sPID := 'NULL';
+          sMsg := Trim(PGuiDLL(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
+          Common.HWCIDLogLog(nCh,sPID,sSerialNumber,sMsg);
+        end;
+
         DefCommon.MSG_MODE_WORKING : begin
           sMsg := Trim(PGuiDLL(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
           if nTemp = 10 then begin
@@ -3976,15 +4242,30 @@ begin
                 PasScr[nCh].m_nNgCode:= 3181; //Other
               end;
             end;
+
+          end;
+
+          if Pos('OKFLOW_END',sMsg) > 0 then begin
+            if DongaGmes <> nil then begin
+              if DongaGmes.m_bDoneEODS[nCH] then begin   // R2R Data Down 확인 후
+                DongaGmes.SendR2REoda(nCh,WriteR2RData(nCH));
+              end;
+            end;
+
             PasScr[nCH].TestInfo.EndTime := now;  // Added by KTS 2023-05-19 오후 1:09:57 End Time
             PG[nCH].DP860_SendOcOnOff(0{end},2000,0); //2023-03-28 jhhwang (for T/T Test)
             PG[nCH].SetCyclicTimer(True); //2023-03-28 jhhwang (for T/T Test)
-            CSharpDll.m_bIsProcessDone[nCH] := true;
-            PasScr[nCH].m_First_Process_DONE := false;
+            CSharpDll.m_bIsProcessDone[nCH] := true;    // CH 종료 확인
+            PasScr[nCH].m_First_Process_DONE := false;  //Pre OC First_Process 진행 여부 확인 초기화
             AddLog(format('DLL DONE : %d, NG Code=%d', [nCH +1, PasScr[nCh].m_nNgCode]), nCH, 0);
             // Added by sam81 2023-04-24 오후 3:40:07 oc 보상 종료 시 Tact time stop
             StopTotalTimer(tmUnitTactTime[nCh],nCh,2);
             tmUnitTactTime[nCh].Enabled := False;
+            if (Common.SystemInfo.OCType = DefCommon.OCType) then begin
+              tmCheckIRTemp[nCh].Enabled := False;   // IR 센서 저장 종료
+              ControlDio.WriteDioSig(DefDio.OUT_CH1_PMIC_FAN_ON + 16 * nCH,True); // FAN DIO OFF
+              SaveCsvTempStatus(nCh,'END',m_bFanOnOff[nCh]);
+            end;
             DisplayPGStatuses(nCh,PasScr[nCh].m_nNgCode); // 종료 시 바로 결과 Display
             case nCH of
               0,1 :
@@ -4069,6 +4350,49 @@ begin
           ClearChData(nCh);
         end;
 
+        DefCommon.MSG_MODE_VIRTUAL_CAPTION : begin   //VIRTUAL Key Caption 변경
+          sMsg := Trim(PGuiScript(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
+          case nTemp of
+            1 : begin
+              btnAuto.Caption := sMsg;
+              btnAuto_2.Caption := sMsg;
+            end;
+            2 : begin
+              btnSWCancel1.Caption := sMsg;
+              btnSWCancel1_2.Caption := sMsg;
+            end;
+            3 : begin
+              btnRepeat.Caption := sMsg;
+              btnRepeat_2.Caption := sMsg;
+            end;
+            4 : begin
+              RzBitBtn2.Caption := sMsg;
+              RzBitBtn2_2.Caption := sMsg;
+            end;
+            5 : begin
+              RzBitBtn7.Caption := sMsg;
+              RzBitBtn7_2.Caption := sMsg;
+            end;
+            6 : begin
+              RzBitBtn8.Caption := sMsg;
+              RzBitBtn8_2.Caption := sMsg;
+            end;
+            7 : begin
+              btnCh4.Caption := sMsg;
+              btnCh4_2.Caption := sMsg;
+            end;
+            8 : begin
+              btnCh2.Caption := sMsg;
+              btnCh2_2.Caption := sMsg;
+            end;
+            9 : begin
+              btnSWNext1.Caption := sMsg;
+              btnSWNext1_2.Caption := sMsg;
+            end;
+          end;
+
+        end;
+
         DefCommon.MSG_MODE_SHOW_CONFIRM_EICR : begin
           nTemp := PGuiScript(PCopyDataStruct(Msg.LParam)^.lpData)^.nParam;
           Common.MLog(nCh+self.Tag*4,format('MSG_MODE_SHOW_CONFIRM_EICR : %d',[nTemp]));
@@ -4142,6 +4466,14 @@ begin
           end;
 
         end;
+
+        DefCommon.MSG_MODE_LOG_REPGM : begin
+          sPID := Trim(PGuiScript(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
+          sSerialNumber := Trim(PGuiScript(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg2);
+
+          Common.RePGMLog(nCh,sPID,sSerialNumber);
+
+        end;
         DefCommon.MSG_MODE_TACT_START : begin
           m_nTotalTact[nCh] := 0;
           tmTotalTactTime[nCh].Enabled := True;
@@ -4177,7 +4509,7 @@ begin
           pnlMESResults[nCh].Color      := clBtnFace;
           pnlMESResults[nCh].Font.Color := clBlack;
           pnlMESResults[nCh].Caption    := 'SEND LPIR';
-		end;
+		    end;
         DefGmes.MES_INS_PCHK : begin
           pnlMESResults[nCh].Color      := clBtnFace;
           pnlMESResults[nCh].Font.Color := clBlack;
@@ -4295,7 +4627,7 @@ begin
                 case nTemp2 of
 
                   DefScript.SEQ_KEY_START: begin
-                    Common.MLog(DefCommon.MAX_SYSTEM_LOG, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_KEY_START) ' + inttostr(nCh));
+                    Common.MLog(nCh, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_KEY_START) ' + inttostr(nCh));
                     //모든 스크립트가 종료 시 Turn 처리
                     //모든 채널이 종료 검사
 //                    for i := (nCh div 2) *2 to (nCh div 2) *2 + 1 do begin
@@ -4306,7 +4638,7 @@ begin
                     if  PasScr[nCh].TestInfo.NgCode <> 0 then begin
                       CSharpDll.m_bIsProcessDone[nCh] := True;
                       if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
-                        Common.MLog(DefCommon.MAX_SYSTEM_LOG, '<TestForm> GIB MSG_MODE_SYNC_WORK(SEQ_KEY_START) ' + inttostr(nCh));
+                        Common.MLog(nCh, '<TestForm> GIB MSG_MODE_SYNC_WORK(SEQ_KEY_START) ' + inttostr(nCh));
                         SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, nCh , nCh , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
                         CSharpDll.m_bIsProcessDone[nCH] := false;
                       end
@@ -4345,21 +4677,23 @@ begin
                   end;
                   DefScript.SEQ_UNLOAD_ZONE: begin
                     CSharpDll.m_bIsProcessDone[nCh] := True;
+                    Common.MLog(nCh, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) ' + inttostr(nCh));
                     //Exchange 요청(Unload/Load)
                     if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then  begin
-                      Common.MLog(DefCommon.MAX_SYSTEM_LOG, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) ' + inttostr(nCh));
                       if PasScr[nCh].m_bIsScriptWork then Exit;
                       SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, nCh , nCh , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
                     end
                     else begin
-                      for i := (nCh div 2) *2 to (nCh div 2) *2 + 1 do begin
-                        if PasScr[i].m_bIsScriptWork then begin
-                          Exit;
-                        end;
-                      end;
+
                       case nCH of
                         0, 1 :
                         begin
+                          for i := DefCommon.CH1 to DefCommon.CH2 do begin
+                            if PasScr[i].m_bIsScriptWork then begin
+                              Common.MLog(i, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(nCh));
+                              Exit;
+                            end;
+                          end;
                           if CSharpDll.m_bIsProcessDone[DefCommon.CH1] and CSharpDll.m_bIsProcessDone[DefCommon.CH2] then  begin
 //                        SendMessageMain(STAGE_MODE_UNLOAD,0, 2,0, 'OC Flow Process_Finish',nil);
                             SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, 0 , 0 , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
@@ -4370,6 +4704,12 @@ begin
                         end;
                         2,3 :
                         begin
+                          for i := DefCommon.CH3 to DefCommon.CH4 do begin
+                            if PasScr[i].m_bIsScriptWork then begin
+                              Common.MLog(i, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(nCh));
+                              Exit;
+                            end;
+                          end;
                           if CSharpDll.m_bIsProcessDone[DefCommon.CH3] and CSharpDll.m_bIsProcessDone[DefCommon.CH4] then begin
     //                        SendMessageMain(STAGE_MODE_UNLOAD, 1, 2,0, 'OC Flow Process_Finish',nil);
                             SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, 1 , 1 , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
@@ -4438,6 +4778,17 @@ begin
           end;
         end;
 
+        DefCommon.MSG_MODE_WORKING : begin
+          sMsg := Trim(PGuiScript(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
+          if nTemp = 10 then begin
+            Common.MLog(nCh+self.Tag*4,sMsg);
+            Exit;
+          end;
+
+          AddLog(sMsg, nCh, nTemp);
+
+        end;
+
 //        DefCommon.MSG_TYPE_MODE_AGING_DISP : begin
 //          nTemp := PGuiJigData(PCopyDataStruct(Msg.LParam)^.lpData)^.nParam;
 //          ShowAgingTime(nTemp);
@@ -4504,6 +4855,20 @@ begin
     			finally
       			//TBD
     			end;
+				end;
+
+        DefGmes.R2R_EODS : begin
+          if frmMainter <> nil then
+            frmMainter.GetR2RData(nCh);
+				end;
+
+        DefGmes.R2R_EODA : begin
+          AddLog(format('R2R_EODA START!! DLL IsAlive : %d',[CSharpDll.MainOC_GetOCFlowIsAlive(nCh)]),nCh);
+          if (CSharpDll.MainOC_GetOCFlowIsAlive(nCh) = 0) or (CSharpDll.MainOC_GetOCFlowIsAlive(nCh) = 2)  then begin
+            if DongaGmes <> nil then
+              DongaGmes.SendR2REoda(nCh,WriteR2RData(nCh));
+          end;
+
 				end;
 
         DefGmes.MES_LPIR : begin

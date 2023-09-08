@@ -6,14 +6,14 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   System.UITypes, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, RzRadChk, Vcl.StdCtrls, RzLabel, Vcl.Mask,
   RzEdit, RzCmboBx, RzButton, RzPanel, ALed, Vcl.ExtCtrls, RzTabs, {UdpServerClient,}CommPG, DefDio, RzCommon,
-  HandBCR, IdGlobal, System.IniFiles, Ezi_Servo, CommDIO_DAE, NGMsg,LogicVh,DefScript,
-  CommonClass, RzShellDialogs, DefCommon, DefPG, RzLstBox, ScrMemo, ScrMps, pasScriptClass, CommIonizer,
+  HandBCR, IdGlobal, System.IniFiles, Ezi_Servo, CommDIO_DAE, NGMsg,LogicVh,DefScript,dllClass,UserUtils,
+  CommonClass, RzShellDialogs, DefCommon, DefPG, RzLstBox, ScrMemo, ScrMps, pasScriptClass, CommIonizer,Math,
   AdvUtil, Vcl.Grids, AdvObj, BaseGrid,SyncObjs, AdvGrid,{, system.threading}  ControlDio_OC, DoorOpenAlarmMsg, ECSStatusForm,
 {$IFDEF AXDIO_USE}
   AXDioLib,
 {$ENDIF}
   Winapi.WinSock, Vcl.Imaging.pngimage, AdvPanel, AdvSmoothListBox, AdvSmoothComboBox, CommPLC_ECS
-  ,CA_SDK2, Vcl.ComCtrls,LibCa410Option, VclTee.TeeGDIPlus, AdvChartView
+  ,CA_SDK2, Vcl.ComCtrls,LibCa410Option, VclTee.TeeGDIPlus, AdvChartView,GMesCom
   ;
   const
 
@@ -33,6 +33,7 @@ uses
   MAINT_PG_CMD_FLASH_ALL_WRITE      = 12;
   MAINT_PG_CMD_POWER_RESET          = 13;
   MAINT_PG_CMD_DP860                = 14;
+  MAINT_PG_REPROGRARMING            = 15;
 //MAINT_PG_CMD_DIMMING              = xx;
 //MAINT_PG_CMD_DBV_READ             = xx;
 //MAINT_PG_CMD_DBV_WRITE            = xx;
@@ -273,6 +274,11 @@ type
     pnlDataView: TPanel;
     chkOddMeasurement: TCheckBox;
     chkReversal: TCheckBox;
+    btnSendEods_R: TButton;
+    btnSendEoda: TButton;
+    Button2: TButton;
+    cboSaveCa410Channel: TButton;
+    rbCEL_Yufeng: TRadioButton;
 
     procedure btnCloseClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
@@ -357,12 +363,17 @@ type
     procedure btnSaveCalResultClick(Sender: TObject);
     procedure cboModelTypeClick(Sender: TObject);
     procedure cboCalDataClick(Sender: TObject);
-    procedure Button2Click(Sender: TObject);
+    procedure btnSendEods_RClick(Sender: TObject);
     procedure Button3Click(Sender: TObject);
     procedure Button1Click(Sender: TObject);
     procedure btnMeasureClick(Sender: TObject);
     procedure btnStopClick(Sender: TObject);
     procedure Button211Click(Sender: TObject);
+    procedure btnSendEodaClick(Sender: TObject);
+    procedure cmbxPgCmdChange(Sender: TObject);
+    procedure Button2Click(Sender: TObject);
+    procedure Panel1DblClick(Sender: TObject);
+    procedure cboSaveCa410ChannelClick(Sender: TObject);
 
   private
     { Private declarations }
@@ -383,6 +394,9 @@ type
     Mutex: TMutex;
 
     advstrngrdDataView : array[DefCommon.CH1 ..DefCommon.MAX_CH] of TAdvStringGrid;
+
+    pnlR2RName : array [0..23] of TRzPanel;
+    pnlR2RData : array [0..23] of TEdit;
 
 {$IFDEF  AXDIO_USE}
     m_PreInIo, m_PreOutIo         : AxIoStatus;
@@ -445,8 +459,11 @@ type
 
     procedure ShowNgMessage(sMessage: string);
 
+    function Make_reference_All_DBV_Gray_Data(fDBV : double) :  TArray<Double>;
+    function Find_Gray_index_Near_Target_1(fDBV,Target_Lv : Double) : TArray<Double>;
     procedure Run_GrayScale(nFPgNo,mBand_Count : Integer);
     procedure Run_DBVtracking(nFPgNo,nRGBIdx: Integer);
+    procedure Run_Measure_CEL_NY(nFPgNo: Integer; fSearch_Lv : Double);
     function ReadFlashSerialNo(nPgNo: Integer): string;
 {$IFDEF CA410_USE}
     procedure CA410Calibration(Lth : TThread; GetAllxy, Getlmt: TAllLvXy);
@@ -462,6 +479,8 @@ type
   public
     m_hMain : HWND;
     procedure DisplayDio( bIn : Boolean );
+    procedure GetR2RData(nCH : Integer);
+
     procedure IonizerReadData(bConnect : Boolean; sReadData : String);
   end;
 
@@ -509,6 +528,11 @@ end;
 
 
 
+
+procedure TfrmMainter.cmbxPgCmdChange(Sender: TObject);
+begin
+
+end;
 
 {$IFDEF CA410_USE}
 procedure TfrmMainter.CA410Calibration(Lth: TThread; GetAllxy, Getlmt: TAllLvXy);
@@ -1307,6 +1331,42 @@ begin
 end;
 {$ENDIF}
 
+function TfrmMainter.Find_Gray_index_Near_Target_1(fDBV, Target_Lv: Double): TArray<Double>;
+var
+ output : TArray<Double>;
+Lv_Gray_per_band: TArray<Double>;
+fTop_diff, fBottom_diff: double;
+nGray,nIndex_gray: Integer;
+begin
+  SetLength(Lv_Gray_per_band,512);
+  SetLength(output,2);
+
+  Lv_Gray_per_band := Make_reference_All_DBV_Gray_Data(fDBV);
+
+//  CopyMemory(@Lv_Gray_per_band,Make_reference_All_DBV_Gray_Data(fDBV),512*sizeof(Lv_Gray_per_band[0]));
+  for nIndex_gray := 0 to 511 do begin
+    if Lv_Gray_per_band[nIndex_gray] < Target_Lv then Break;
+  end;
+
+  if (nIndex_gray > 0) or (nIndex_gray <= 511) then begin
+    fTop_diff := Abs(Lv_Gray_per_band[nIndex_gray - 1] - Target_Lv);
+    fBottom_diff := Abs(Target_Lv - Lv_Gray_per_band[nIndex_gray]);
+    if fTop_diff >= fBottom_diff then
+    else  nIndex_gray := nIndex_gray -1;
+
+    output[0] := nIndex_gray;
+    output[1] := Lv_Gray_per_band[nIndex_gray];
+
+    Result := output;
+
+  end
+  else begin
+    output[0] := 0;
+    output[1] := -1;
+    Result := output;
+  end;
+end;
+
 procedure TfrmMainter.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 var
   nCh : integer;
@@ -1527,14 +1587,15 @@ begin
   cboChannelPg.Items.clear;
   cboScriptCh.Items.clear;
   cboChannelFrobe.Items.Clear;
+  Button2.Visible := False;
 
 //  CtrlCa410 := TControlCa410.Create(self.Handle,Self.Handle,Common.TestModelInfoFLOW.Ca410MemCh+1);
   cboCa310Channel.Items.Clear;
-  for i := 1 to 99 do begin
+  for i := 0 to 99 do begin
     sTemp := Format('%d',[i]);
     cboCa310Channel.Items.Add(sTemp);
   end;
-  cboCa310Channel.ItemIndex := Common.TestModelInfoFLOW.Ca410MemCh;
+  cboCa310Channel.ItemIndex := Common.SystemInfo.R2RCa410MemCh;
 
   cboBandCount.Items.Clear;
   cboBandCount.Items.Add('ALLBamd');
@@ -1679,11 +1740,33 @@ begin
     advstrngrdDataView[i].Width  := 360;
     advstrngrdDataView[i].Height := 708;
     advstrngrdDataView[i].Align := TAlign.alNone;
-    advstrngrdDataView[i].ColCount := 5;
+    advstrngrdDataView[i].ColCount := 6;
     advstrngrdDataView[i].RowCount := 2048;
     advstrngrdDataView[i].FixedCols := 0;
     advstrngrdDataView[i].ScrollBars := TScrollStyle.ssBoth;
 //    advstrngrdDataView[i].AutoSizeColumns(true);
+  end;
+
+  for I := 0 to 23 do begin
+    pnlR2RData[i] := TEdit.Create(self);
+    pnlR2RData[i].Parent := Panel1;
+    pnlR2RData[i].Name := format('pnlR2RData%d',[i +1]);
+    if i < 12 then begin
+      pnlR2RData[i].Left := 137 + (255 *(i div 3));
+      pnlR2RData[i].Top := 53 + (27 *(i mod 3));
+    end
+    else begin
+      pnlR2RData[i].Left := 137 + (255 *((i-12) div 3));
+      pnlR2RData[i].Top := 135 + (27 *(i mod 3));
+    end;
+
+    pnlR2RData[i].Height := 27;
+    pnlR2RData[i].Width := 120;
+    pnlR2RData[i].Font.Size := 12;
+    pnlR2RData[i].Tag := i;
+    pnlR2RData[i].Font.Color  := clBlack;
+    pnlR2RData[i].Text := '';
+    pnlR2RData[i].StyleElements := [];
   end;
 
   //frmTemp:= TfrmMainter_PLC.Create(self);
@@ -1765,6 +1848,24 @@ begin
   else if (rdoProbe3.Checked) then Result := 2
   else if (rdoProbe4.Checked) then Result := 3;
 
+end;
+
+
+
+procedure TfrmMainter.GetR2RData(nCH : Integer);
+var
+i,j : Integer;
+begin
+  if DongaGmes <> nil then begin
+    for I := 0 to 23 do begin
+      for j := 0 to 23 do begin
+        if R2REODSNAME[i] = PasScr[nCH].FR2ROC_EODSname[j] then begin
+          pnlR2RData[i].Text := PasScr[nCH].FR2ROC_EODSData[j];
+          Break;
+        end;
+      end;
+    end;
+  end;
 end;
 
 procedure TfrmMainter.gridTargetKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
@@ -1970,8 +2071,8 @@ begin
         DefDio.IN_GIB_CH_12_MC_MONITORING  : sTemp := 'CH 1,2 MC MONITORING';
         DefDio.IN_GIB_CH_34_MC_MONITORING  : sTemp := 'CH 3,4 MC MONITORING';
         DefDio.IN_GIB_TEMPERATURE_ALARM    : sTemp := 'TEMPERATURE ALARM';
-        13                                 : sTemp := '';
-        DefDio.IN_UNDEFINED_14             : sTemp := '';
+        DefDio.IN_GIB_CH_12_ROBOT_SENSOR   : sTemp := 'CH 1,2 ROBOT Sensing';
+        DefDio.IN_GIB_CH_34_ROBOT_SENSOR   : sTemp := 'CH 3,4 ROBOT Sensing';
         DefDio.IN_UNDEFINED_15             : sTemp := '';
 
         DefDio.IN_GIB_CYL_PRESSURE_GAUGE   : sTemp := 'CYL PRESSURE GAUGE';
@@ -2128,9 +2229,9 @@ begin
             6 : sTemp := '';
             7 : sTemp := '';
 
-            8 : sTemp := '';
-            9 : sTemp := '';
-            10 : sTemp := '';
+            8 : sTemp := Format('CH %d PMIC_LASER_POINT',[nCh + 1]);
+            9 : sTemp := Format('CH %d CENTER_LASER_POINT',[nCh + 1]);
+            10 : sTemp := Format('CH %d PMIC_FAN_ON',[nCh + 1]);
             11 : sTemp := '';
             12 : sTemp := '';
             13 : sTemp := '';
@@ -2223,6 +2324,10 @@ begin
     btnOutSig[i].Caption       := 'On';
     btnOutSig[i].Tag           := i;
     btnOutSig[i].OnClick       := OnEvtOutBtn;
+    if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
+      if (i = OUT_GIB_CH_12_SHUTTER_UP_SOL) or (i = OUT_GIB_CH_12_SHUTTER_DN_SOL) or (i = OUT_GIB_CH_34_SHUTTER_UP_SOL) or (i = OUT_GIB_CH_34_SHUTTER_DN_SOL)  then
+        btnOutSig[i].Enabled := false;
+    end;
 //    if  i in [28 .. 31] then begin // -1 : Range Error 발생... 아예 쓰지 말짜.
 //      ledOut[i].Visible      := False;
 //      pnlDioOut[i].Visible      := False;
@@ -2537,16 +2642,16 @@ begin
 //      Exit;
 //    end;
 
-  if Common.SystemInfo.OCType = DefCommon.OCType then begin
+  if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
 
 
-//    if not ControlDio.ReadInSig(DefDio.IN_CH_1_2_DOOR_LEFT_OPEN) then begin
-//      Application.MessageBox('CH_1_2_DOOR_LEFT ', 'Confirm', MB_OK+ MB_ICONSTOP);
+//    if nSig = OUT_GIB_CH_12_SHUTTER_DN_SOL  then begin
+//      Application.MessageBox('CH_12_SHUTTER Down', 'Confirm', MB_OK+ MB_ICONSTOP);
 //      Exit;
 //    end;
 //
-//    if not ControlDio.ReadInSig(DefDio.IN_CH_1_2_DOOR_RIGHT_OPEN) then begin
-//      Application.MessageBox('CH_1_2_DOOR_RIGH ', 'Confirm', MB_OK+ MB_ICONSTOP);
+//    if nSig = OUT_GIB_CH_34_SHUTTER_DN_SOL  then begin
+//      Application.MessageBox('CH_34_SHUTTER Down ', 'Confirm', MB_OK+ MB_ICONSTOP);
 //      Exit;
 //    end;
 //    if not ControlDio.ReadInSig(DefDio.IN_CH_3_4_DOOR_LEFT_OPEN) then begin
@@ -2913,33 +3018,33 @@ var
   i,nRet : Integer;
 begin
   if MessageDlg(#13#10 + format('Do you want to change to the following data on Memory Channel %d on CA410 CH %d??',[cboCa310Channel.ItemIndex +1,RzComboBox1.ItemIndex + 1]), mtConfirmation, [mbYes, mbNo], 0) = mrYes then begin
-    cdCal.W_X := StrToFloatDef(edtW_X.text,0);
-    cdCal.W_Y := StrToFloatDef(edtW_Y.text,0);
-    cdCal.W_Z := StrToFloatDef(edtW_Z.text,0);
-    cdCal.W_xx := StrToFloatDef(edtW_xx.text,0);
-    cdCal.W_yy := StrToFloatDef(edtW_yy.text,0);
-    cdCal.W_Lv := StrToFloatDef(edtW_LV.text,0);
+    cdCal.W_X := StrToFloatDef(pnlR2RData[0].text,0);
+    cdCal.W_Y := StrToFloatDef(pnlR2RData[1].text,0);
+    cdCal.W_Z := StrToFloatDef(pnlR2RData[2].text,0);
+    cdCal.W_Lv := StrToFloatDef(pnlR2RData[12].text,0);
+    cdCal.W_xx := StrToFloatDef(pnlR2RData[13].text,0);
+    cdCal.W_yy := StrToFloatDef(pnlR2RData[14].text,0);
 
-    cdCal.R_X := StrToFloatDef(edtR_X.Text,0);
-    cdCal.R_Y := StrToFloatDef(edtR_X.Text,0);
-    cdCal.R_Z := StrToFloatDef(edtR_Z.Text,0);
-    cdCal.R_xx := StrToFloatDef(edtR_xx.Text,0);
-    cdCal.R_yy := StrToFloatDef(edtR_yy.Text,0);
-    cdCal.R_Lv := StrToFloatDef(edtR_LV.Text,0);
+    cdCal.R_X := StrToFloatDef(pnlR2RData[3].Text,0);
+    cdCal.R_Y := StrToFloatDef(pnlR2RData[4].Text,0);
+    cdCal.R_Z := StrToFloatDef(pnlR2RData[5].Text,0);
+    cdCal.R_Lv := StrToFloatDef(pnlR2RData[15].Text,0);
+    cdCal.R_xx := StrToFloatDef(pnlR2RData[16].Text,0);
+    cdCal.R_yy := StrToFloatDef(pnlR2RData[17].Text,0);
 
-    cdCal.G_X := StrToFloatDef(edtG_X.Text,0);
-    cdCal.G_Y := StrToFloatDef(edtG_Y.Text,0);
-    cdCal.G_Z := StrToFloatDef(edtG_Z.Text,0);
-    cdCal.G_xx := StrToFloatDef(edtG_xx.Text,0);
-    cdCal.G_yy := StrToFloatDef(edtG_yy.Text,0);
-    cdCal.G_Lv := StrToFloatDef(edtG_LV.Text,0);
+    cdCal.G_X := StrToFloatDef(pnlR2RData[6].Text,0);
+    cdCal.G_Y := StrToFloatDef(pnlR2RData[7].Text,0);
+    cdCal.G_Z := StrToFloatDef(pnlR2RData[8].Text,0);
+    cdCal.G_Lv := StrToFloatDef(pnlR2RData[18].Text,0);
+    cdCal.G_xx := StrToFloatDef(pnlR2RData[19].Text,0);
+    cdCal.G_yy := StrToFloatDef(pnlR2RData[20].Text,0);
 
-    cdCal.B_X := StrToFloatDef(edtB_X.Text,0);
-    cdCal.B_Y := StrToFloatDef(edtB_Y.Text,0);
-    cdCal.B_Z := StrToFloatDef(edtB_Z.Text,0);
-    cdCal.B_xx := StrToFloatDef(edtB_xx.Text,0);
-    cdCal.B_yy := StrToFloatDef(edtB_yy.Text,0);
-    cdCal.B_Lv := StrToFloatDef(edtB_LV.Text,0);
+    cdCal.B_X := StrToFloatDef(pnlR2RData[9].Text,0);
+    cdCal.B_Y := StrToFloatDef(pnlR2RData[10].Text,0);
+    cdCal.B_Z := StrToFloatDef(pnlR2RData[11].Text,0);
+    cdCal.B_Lv := StrToFloatDef(pnlR2RData[21].Text,0);
+    cdCal.B_xx := StrToFloatDef(pnlR2RData[22].Text,0);
+    cdCal.B_yy := StrToFloatDef(pnlR2RData[23].Text,0);
     CtrlCa410.CDCal := cdCal;
 
     CtrlCa410.TestExample(RzComboBox1.ItemIndex,cboCa310Channel.ItemIndex,sRet); // 0 is channel num.
@@ -2959,6 +3064,49 @@ begin
 end;
 
 procedure TfrmMainter.Button2Click(Sender: TObject);
+begin
+//  if DongaGmes <> nil then
+//   DongaGmes.SendR2REodsTest;
+  pnlR2RData[0].text := edtW_X.Text;
+  pnlR2RData[1].text := edtW_Y.Text;
+  pnlR2RData[2].text := edtW_Z.Text;
+
+  pnlR2RData[3].text := edtR_X.Text;
+  pnlR2RData[4].text := edtR_Y.Text;
+  pnlR2RData[5].text := edtR_Z.Text;
+
+  pnlR2RData[6].text := edtG_X.Text;
+  pnlR2RData[7].text := edtG_Y.Text;
+  pnlR2RData[8].text := edtG_Z.Text;
+
+  pnlR2RData[9].text := edtB_X.Text;
+  pnlR2RData[10].text := edtB_Y.Text;
+  pnlR2RData[11].text := edtB_Z.Text;
+
+  pnlR2RData[12].text := edtW_LV.Text;
+  pnlR2RData[13].text := edtW_XX.Text;
+  pnlR2RData[14].text := edtW_YY.Text;
+
+  pnlR2RData[15].text := edtR_LV.Text;
+  pnlR2RData[16].text := edtR_XX.Text;
+  pnlR2RData[17].text := edtR_YY.Text;
+
+  pnlR2RData[18].text := edtG_LV.Text;
+  pnlR2RData[19].text := edtG_XX.Text;
+  pnlR2RData[20].text := edtG_YY.Text;
+
+  pnlR2RData[21].text := edtB_LV.Text;
+  pnlR2RData[22].text := edtB_XX.Text;
+  pnlR2RData[23].text := edtB_YY.Text;
+end;
+
+procedure TfrmMainter.btnSendEodaClick(Sender: TObject);
+begin
+  if DongaGmes <> nil then
+    DongaGmes.SendR2REoda(RzComboBox1.ItemIndex,0);
+end;
+
+procedure TfrmMainter.btnSendEods_RClick(Sender: TObject);
 
 var
   sSendCmd, sTemp, sRet : string;
@@ -2966,77 +3114,79 @@ var
   i : Integer;
   cdCal : LibCa410Option.TCalValue;
 begin
-  Exit;
-  cdCal.W_X := 677.2256;
-  cdCal.W_Y := 716.7414;
-  cdCal.W_Z := 769.7799;
-  cdCal.W_xx := 0.3120;
-  cdCal.W_yy := 0.3309;
-  cdCal.W_Lv := 730.1678;
-
-  cdCal.R_X := 420.4322;
-  cdCal.R_Y := 192.6249;
-  cdCal.R_Z := 0.3449;
-  cdCal.R_xx := 0.6853;
-  cdCal.R_yy := 0.3142;
-  cdCal.R_Lv := 195.1299;
-
-  cdCal.G_X := 183.3479;
-  cdCal.G_Y := 553.7119;
-  cdCal.G_Z := 27.5488;
-  cdCal.G_xx := 0.2401;
-  cdCal.G_yy := 0.7239;
-  cdCal.G_Lv := 564.8961;
-
-  cdCal.B_X := 133.9259;
-  cdCal.B_Y := 46.0480;
-  cdCal.B_Z := 795.0201;
-  cdCal.B_xx := 0.1373;
-  cdCal.B_yy := 0.0472;
-  cdCal.B_Lv := 47.1118;
-  CtrlCa410.CDCal := cdCal;
-  sSendCmd :=  'AppDllCaller.exe 7 1 02';
-  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.W_X]);
-  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.W_Y]);
-  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.W_Z]);
-  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.W_xx]);
-  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.W_yy]);
-  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.W_Lv]);
-
-  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.R_X]);
-  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.R_Y]);
-  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.R_Z]);
-  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.R_xx]);
-  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.R_yy]);
-  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.R_Lv]);
-
-  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.G_X]);
-  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.G_Y]);
-  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.G_Z]);
-  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.G_xx]);
-  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.G_yy]);
-  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.G_Lv]);
-
-  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.B_X]);
-  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.B_Y]);
-  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.B_Z]);
-  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.B_xx]);
-  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.B_yy]);
-  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.B_Lv]);
-
-  sTemp := ' 42BE175842C8000042D9CFC23F8000003F8000003F8000003F8000003F8000003F8000003F8000003F8000003F8000003EA01A373EA872B042C800003EAAAAAB3EAAAAAB3F8000003EAAAAAB3EAAAAAB3F8000003EAAAAAB3EAAAAAB3F80000042BE175842C8000042D9CFC2501C8C4501C8C4501C8C400A3';
-  sSendCmd := sSendCmd + sTemp;
-  sRet := '';
-//  RunDosInMemo(sSendCmd,sRet);
-  mmoLog.Lines.Add(sRet);
-  mmoLog.Lines.Add('-----------------------------------');
-  stlTemp :=  TStringList.Create;
-  try
-    ExtractStrings([#10, #13], [], PWideChar(sRet), stlTemp);
-    for i := 0 to Pred(stlTemp.Count) do mmoLog.Lines.Add('#'+i.ToString+' '+Trim(stlTemp[i]));
-  finally
-    stlTemp.Free;
-  end;
+  if DongaGmes <> nil then
+    DongaGmes.SendR2REods(RzComboBox1.ItemIndex);
+//  Exit;
+//  cdCal.W_X := 677.2256;
+//  cdCal.W_Y := 716.7414;
+//  cdCal.W_Z := 769.7799;
+//  cdCal.W_xx := 0.3120;
+//  cdCal.W_yy := 0.3309;
+//  cdCal.W_Lv := 730.1678;
+//
+//  cdCal.R_X := 420.4322;
+//  cdCal.R_Y := 192.6249;
+//  cdCal.R_Z := 0.3449;
+//  cdCal.R_xx := 0.6853;
+//  cdCal.R_yy := 0.3142;
+//  cdCal.R_Lv := 195.1299;
+//
+//  cdCal.G_X := 183.3479;
+//  cdCal.G_Y := 553.7119;
+//  cdCal.G_Z := 27.5488;
+//  cdCal.G_xx := 0.2401;
+//  cdCal.G_yy := 0.7239;
+//  cdCal.G_Lv := 564.8961;
+//
+//  cdCal.B_X := 133.9259;
+//  cdCal.B_Y := 46.0480;
+//  cdCal.B_Z := 795.0201;
+//  cdCal.B_xx := 0.1373;
+//  cdCal.B_yy := 0.0472;
+//  cdCal.B_Lv := 47.1118;
+//  CtrlCa410.CDCal := cdCal;
+//  sSendCmd :=  'AppDllCaller.exe 7 1 02';
+//  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.W_X]);
+//  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.W_Y]);
+//  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.W_Z]);
+//  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.W_xx]);
+//  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.W_yy]);
+//  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.W_Lv]);
+//
+//  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.R_X]);
+//  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.R_Y]);
+//  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.R_Z]);
+//  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.R_xx]);
+//  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.R_yy]);
+//  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.R_Lv]);
+//
+//  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.G_X]);
+//  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.G_Y]);
+//  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.G_Z]);
+//  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.G_xx]);
+//  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.G_yy]);
+//  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.G_Lv]);
+//
+//  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.B_X]);
+//  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.B_Y]);
+//  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.B_Z]);
+//  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.B_xx]);
+//  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.B_yy]);
+//  sSendCmd := sSendCmd + Format(' %0.4f',[CtrlCa410.CDCal.B_Lv]);
+//
+//  sTemp := ' 42BE175842C8000042D9CFC23F8000003F8000003F8000003F8000003F8000003F8000003F8000003F8000003F8000003EA01A373EA872B042C800003EAAAAAB3EAAAAAB3F8000003EAAAAAB3EAAAAAB3F8000003EAAAAAB3EAAAAAB3F80000042BE175842C8000042D9CFC2501C8C4501C8C4501C8C400A3';
+//  sSendCmd := sSendCmd + sTemp;
+//  sRet := '';
+////  RunDosInMemo(sSendCmd,sRet);
+//  mmoLog.Lines.Add(sRet);
+//  mmoLog.Lines.Add('-----------------------------------');
+//  stlTemp :=  TStringList.Create;
+//  try
+//    ExtractStrings([#10, #13], [], PWideChar(sRet), stlTemp);
+//    for i := 0 to Pred(stlTemp.Count) do mmoLog.Lines.Add('#'+i.ToString+' '+Trim(stlTemp[i]));
+//  finally
+//    stlTemp.Free;
+//  end;
 end;
 
 procedure TfrmMainter.Button3Click(Sender: TObject);
@@ -3180,6 +3330,7 @@ end;
 
 
 
+
 function TfrmMainter.ReadFlashSerialNo(nPgNo: Integer): string;
 var
 nStartAddr,nLength : integer;
@@ -3198,6 +3349,49 @@ begin
   sAnsiStr := Copy(sAnsiStr,1,nLength);
   Result := string(Trim(sAnsiStr));
 end;
+
+//function TfrmMainter.Make_reference_All_DBV_Gray_Data(fDBV : double) : TArray<Double>;
+//var
+//Lv_Gray_per_band : array of double;
+//MAX_Lv : double;
+//nGray : Integer;
+//begin
+//  setlength(Lv_Gray_per_band,512);
+//
+//  MAX_Lv := 1680.0;
+//  if (Common.TestModelInfoFLOW.Is_3200NitDOE = true) then
+//    MAX_Lv := 2100.0;
+//  for nGray := 0 to 511 do begin
+//    Lv_Gray_per_band[nGray] := MAX_Lv * Power(fDBV / 2047.0, 2.2) * Power(((511.0 - nGray) / 511.0), 2.2);
+//  end;
+//
+//  Result := Lv_Gray_per_band;
+//
+//end;
+
+function TfrmMainter.Make_reference_All_DBV_Gray_Data(fDBV: Double): TArray<Double>;
+var
+  Lv_Gray_per_band: TArray<Double>;
+  MAX_Lv: Double;
+  nGray: Integer;
+begin
+  SetLength(Lv_Gray_per_band, 512);
+
+  MAX_Lv := 1680.0;
+  if Common.TestModelInfoFLOW.Is_3200NitDOE then
+    MAX_Lv := 2100.0;
+
+  for nGray := 0 to 511 do
+  begin
+    Lv_Gray_per_band[nGray] := MAX_Lv * Power(fDBV / 2047.0, 2.2) * Power(((511.0 - nGray) / 511.0), 2.2);
+  end;
+
+  Result := Lv_Gray_per_band; // 수정: 배열을 반환하도록 변경
+end;
+
+
+
+
 
 
 
@@ -3236,14 +3430,14 @@ begin
         GetBoxPtnSizeinfo(Common.TestModelInfoFLOW.ModelType,mBand_Count,nSX,nSy,nEX,nEY);
         wdRet := Pg[nFPgNo].DP860_SendBistAPL(i,i,i,nSX,nSy,nEX,nEY,nWaitMS,nRetry);
         if i = 511 then begin
-           wdRet := Pg[nFPgNo].SendDimmingBist(BandDBV[mBand_Count-1], nWaitMS,nRetry);
+           wdRet := Pg[nFPgNo].SendDimmingBist(CSharpDll.m_GetDBVdata(mBand_Count-1), nWaitMS,nRetry);
            Sleep(100);
         end;
       end
       else begin
        wdRet := Pg[nFPgNo].SendDisplayPatBistRGB_9Bit(i,i,i,nWaitMS,nRetry);
        if i = 511 then begin
-           wdRet := Pg[nFPgNo].SendDimmingBist(BandDBV[mBand_Count-1], nWaitMS,nRetry);
+           wdRet := Pg[nFPgNo].SendDimmingBist(CSharpDll.m_GetDBVdata(mBand_Count-1), nWaitMS,nRetry);
            Sleep(100);
        end;
       end;
@@ -3252,13 +3446,13 @@ begin
   //    AdvChartView1.Panes[0].Series[0].AddSinglePoint(m_Ca410Data.LvVal);
       advstrngrdDataView[nFPgNo].DisableAlign;
 
-      advstrngrdDataView[nFPgNo].Cells[0, Abs(512-i)] := IntToStr(BandDBV[mBand_Count-1]);
+      advstrngrdDataView[nFPgNo].Cells[0, Abs(512-i)] := IntToStr(CSharpDll.m_GetDBVdata(mBand_Count-1));
       advstrngrdDataView[nFPgNo].Cells[1, Abs(512-i)] := IntToStr(i);
       advstrngrdDataView[nFPgNo].Cells[2, Abs(512-i)] := FloatToStr(m_Ca410Data.xVal);
       advstrngrdDataView[nFPgNo].Cells[3, Abs(512-i)] := FloatToStr(m_Ca410Data.yVal);
       advstrngrdDataView[nFPgNo].Cells[4, Abs(512-i)] := FloatToStr(m_Ca410Data.LvVal);
       advstrngrdDataView[nFPgNo].EnableAlign;
-      sData := Format('%d,%d,%4.4f,%4.4f,%4.4f,',[BandDBV[mBand_Count-1],i,m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
+      sData := Format('%d,%d,%4.4f,%4.4f,%4.4f,',[CSharpDll.m_GetDBVdata(mBand_Count-1),i,m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
       SaveCsvMeasureLog(nFPgNo,sSerialNo,sDataHeader,sData);
     end;
   end
@@ -3273,14 +3467,15 @@ begin
         GetBoxPtnSizeinfo(Common.TestModelInfoFLOW.ModelType,mBand_Count,nSX,nSy,nEX,nEY);
         wdRet := Pg[nFPgNo].DP860_SendBistAPL(i,i,i,nSX,nSy,nEX,nEY,nWaitMS,nRetry);
         if i = 1 then begin
-           wdRet := Pg[nFPgNo].SendDimmingBist(BandDBV[mBand_Count-1], nWaitMS,nRetry);
-           Sleep(100);
+//           wdRet := Pg[nFPgNo].SendDimmingBist(BandDBV[mBand_Count-1], nWaitMS,nRetry);
+          wdRet := Pg[nFPgNo].SendDimmingBist(CSharpDll.m_GetDBVdata(mBand_Count-1), nWaitMS,nRetry);
+          Sleep(100);
         end;
       end
       else begin
       wdRet := Pg[nFPgNo].SendDisplayPatBistRGB_9Bit(i,i,i,nWaitMS,nRetry);
         if i = 1 then begin
-           wdRet := Pg[nFPgNo].SendDimmingBist(BandDBV[mBand_Count-1], nWaitMS,nRetry);
+           wdRet := Pg[nFPgNo].SendDimmingBist(CSharpDll.m_GetDBVdata(mBand_Count-1), nWaitMS,nRetry);
            Sleep(100);
         end;
       end;
@@ -3289,16 +3484,89 @@ begin
   //    AdvChartView1.Panes[0].Series[0].AddSinglePoint(m_Ca410Data.LvVal);
       advstrngrdDataView[nFPgNo].DisableAlign;
 
-      advstrngrdDataView[nFPgNo].Cells[0, Abs(i)] := IntToStr(BandDBV[mBand_Count-1]);
+      advstrngrdDataView[nFPgNo].Cells[0, Abs(i)] := IntToStr(CSharpDll.m_GetDBVdata(mBand_Count-1));
       advstrngrdDataView[nFPgNo].Cells[1, Abs(i)] := IntToStr(i);
       advstrngrdDataView[nFPgNo].Cells[2, Abs(i)] := FloatToStr(m_Ca410Data.xVal);
       advstrngrdDataView[nFPgNo].Cells[3, Abs(i)] := FloatToStr(m_Ca410Data.yVal);
       advstrngrdDataView[nFPgNo].Cells[4, Abs(i)] := FloatToStr(m_Ca410Data.LvVal);
       advstrngrdDataView[nFPgNo].EnableAlign;
-      sData := Format('%d,%d,%4.4f,%4.4f,%4.4f,',[BandDBV[mBand_Count-1],i,m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
+      sData := Format('%d,%d,%4.4f,%4.4f,%4.4f,',[CSharpDll.m_GetDBVdata(mBand_Count-1),i,m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
       SaveCsvMeasureLog(nFPgNo,sSerialNo,sDataHeader,sData);
     end;
   end;
+end;
+
+procedure TfrmMainter.Run_Measure_CEL_NY(nFPgNo: Integer; fSearch_Lv: Double);
+var
+sSerialNo,sDataHeader,sData : string;
+output : TArray<Double>;
+nDBV,nFind_Gray_index,nGray : Integer;
+nSX,nSy,nEX,nEY,nWaitMS,nRetry,wdRet : integer;
+m_Ca410Data: TBrightValue ;
+fIdeal_Target_Lv : Double;
+begin
+  PasScr[nFPgNo].m_sFileCsv :=  format('%s_CH%d_CEL_NY_%f_GrayScale_',[Common.SystemInfo.EQPId,nFPgNo+1,fSearch_Lv]) + formatDateTime('yyMMddHHmmss',now) + '.csv';
+  sSerialNo := ReadFlashSerialNo(nFPgNo);
+  sSerialNo := Format('sSerialNo : %s',[sSerialNo]);
+  sDataHeader := 'DBV,DBV_Nits,Gray,Measure_Lv,x,y';
+
+  advstrngrdDataView[nFPgNo].Cells[0, 0] := 'DBV';
+  advstrngrdDataView[nFPgNo].Cells[1, 0] := 'DBV_Nits';
+  advstrngrdDataView[nFPgNo].Cells[2, 0] := 'Gray';
+  advstrngrdDataView[nFPgNo].Cells[3, 0] := 'x';
+  advstrngrdDataView[nFPgNo].Cells[4, 0] := 'y';
+  advstrngrdDataView[nFPgNo].Cells[5, 0] := 'Lv';
+
+  nWaitMS := 3000;
+  nRetry  := 0;  // No Retry
+
+  SetLength(output,2);
+
+  for nDBV := 180 to 2048 do begin
+    if bIs_Stop then Exit;
+    output := Find_Gray_index_Near_Target_1(nDBV,fSearch_Lv);
+    if output[1] = -1 then continue;
+    nFind_Gray_index := Trunc(output[0]);
+    fIdeal_Target_Lv := output[1];
+
+    nGray := 511 - nFind_Gray_index;
+
+    if nDBV < 1645 then       //APL 100%  1Band
+    begin
+      wdRet := Pg[nFPgNo].SendDisplayPatBistRGB_9Bit(nGray,nGray,nGray,nWaitMS,nRetry);
+    end
+    else if nDBV <= 1850 then //APL 60% 2Band
+    begin
+      GetBoxPtnSizeinfo(Common.TestModelInfoFLOW.ModelType,2,nSX,nSy,nEX,nEY);
+      wdRet := Pg[nFPgNo].DP860_SendBistAPL(nGray,nGray,nGray,nSX,nSy,nEX,nEY,nWaitMS,nRetry);
+    end
+    else
+    begin
+      GetBoxPtnSizeinfo(Common.TestModelInfoFLOW.ModelType,1,nSX,nSy,nEX,nEY);
+      wdRet := Pg[nFPgNo].DP860_SendBistAPL(nGray,nGray,nGray,nSX,nSy,nEX,nEY,nWaitMS,nRetry);
+    end;
+    Sleep(100);
+    wdRet := Pg[nFPgNo].SendDimmingBist(nDBV, nWaitMS,nRetry);
+    Sleep(100);
+    wdRet := CaSdk2.Measure(nFPgNo, m_Ca410Data);
+
+    advstrngrdDataView[nFPgNo].DisableAlign;
+    advstrngrdDataView[nFPgNo].Cells[0, Abs(nDBV-179)] := IntToStr(nDBV);
+    advstrngrdDataView[nFPgNo].Cells[1, Abs(nDBV-179)] := FloatToStr(fIdeal_Target_Lv);
+    advstrngrdDataView[nFPgNo].Cells[2, Abs(nDBV-179)] := IntToStr(nGray);
+
+    advstrngrdDataView[nFPgNo].Cells[3, Abs(nDBV-179)] := FloatToStr(m_Ca410Data.xVal);
+    advstrngrdDataView[nFPgNo].Cells[4, Abs(nDBV-179)] := FloatToStr(m_Ca410Data.yVal);
+    advstrngrdDataView[nFPgNo].Cells[5, Abs(nDBV-179)] := FloatToStr(m_Ca410Data.LvVal);
+    advstrngrdDataView[nFPgNo].EnableAlign;
+
+    sData := Format('%d,%4.4f,%d,%4.4f,%4.4f,%4.4f,',[nDBV,fIdeal_Target_Lv,nGray,m_Ca410Data.LvVal,m_Ca410Data.xVal,m_Ca410Data.yVal]);
+    SaveCsvMeasureLog(nFPgNo,sSerialNo,sDataHeader,sData);
+
+  end;
+
+
+
 end;
 
 procedure TfrmMainter.btnMeasureClick(Sender: TObject);
@@ -3335,6 +3603,34 @@ begin
         sRGB := cboGrayRGB.Text;
         advstrngrdDataView[cboMeasureCH.ItemIndex].ClearAll;
         Run_DBVtracking(cboMeasureCH.ItemIndex,StrToIntDef(sRGB,0));
+      end
+      else if rbCEL_Yufeng.Checked then begin
+        Sleep(500);
+        Run_Measure_CEL_NY(cboMeasureCH.ItemIndex,0.1);
+        advstrngrdDataView[cboMeasureCH.ItemIndex].ClearAll;
+        sleep(100);
+        Run_Measure_CEL_NY(cboMeasureCH.ItemIndex,0.5);
+        advstrngrdDataView[cboMeasureCH.ItemIndex].ClearAll;
+        sleep(100);
+        Run_Measure_CEL_NY(cboMeasureCH.ItemIndex,0.9);
+        advstrngrdDataView[cboMeasureCH.ItemIndex].ClearAll;
+        sleep(100);
+        Run_Measure_CEL_NY(cboMeasureCH.ItemIndex,1);
+        advstrngrdDataView[cboMeasureCH.ItemIndex].ClearAll;
+        sleep(100);
+        Run_Measure_CEL_NY(cboMeasureCH.ItemIndex,5);
+        advstrngrdDataView[cboMeasureCH.ItemIndex].ClearAll;
+        sleep(100);
+        Run_Measure_CEL_NY(cboMeasureCH.ItemIndex,9);
+        advstrngrdDataView[cboMeasureCH.ItemIndex].ClearAll;
+        sleep(100);
+        Run_Measure_CEL_NY(cboMeasureCH.ItemIndex,10);
+        advstrngrdDataView[cboMeasureCH.ItemIndex].ClearAll;
+        sleep(100);
+        Run_Measure_CEL_NY(cboMeasureCH.ItemIndex,100);
+        advstrngrdDataView[cboMeasureCH.ItemIndex].ClearAll;
+        sleep(100);
+        Run_Measure_CEL_NY(cboMeasureCH.ItemIndex,1000);
       end;
       wdRet := Pg[cboMeasureCH.ItemIndex].SendPowerBistOn(0{Off},False,3000,0); //TBD:DP860?
       ControlDio.ProbeBackward(cboMeasureCH.ItemIndex);
@@ -3377,6 +3673,34 @@ begin
             nRGBIdx := StrToIntDef(cboGrayRGB.text,0);
             advstrngrdDataView[0].ClearAll;
             Run_DBVtracking(0,nRGBIdx);
+          end
+          else if rbCEL_Yufeng.Checked then begin
+            Sleep(500);
+            Run_Measure_CEL_NY(0,0.1);
+            advstrngrdDataView[0].ClearAll;
+            sleep(100);
+            Run_Measure_CEL_NY(0,0.5);
+            advstrngrdDataView[0].ClearAll;
+            sleep(100);
+            Run_Measure_CEL_NY(0,0.9);
+            advstrngrdDataView[0].ClearAll;
+            sleep(100);
+            Run_Measure_CEL_NY(0,1);
+            advstrngrdDataView[0].ClearAll;
+            sleep(100);
+            Run_Measure_CEL_NY(0,5);
+            advstrngrdDataView[0].ClearAll;
+            sleep(100);
+            Run_Measure_CEL_NY(0,9);
+            advstrngrdDataView[0].ClearAll;
+            sleep(100);
+            Run_Measure_CEL_NY(0,10);
+            advstrngrdDataView[0].ClearAll;
+            sleep(100);
+            Run_Measure_CEL_NY(0,100);
+            advstrngrdDataView[0].ClearAll;
+            sleep(100);
+            Run_Measure_CEL_NY(0,1000);
           end;
           wdRet := Pg[0].SendPowerBistOn(0{Off},False,3000,0); //TBD:DP860?
 
@@ -3422,6 +3746,34 @@ begin
             nRGBIdx := StrToIntDef(cboGrayRGB.text,0);
             advstrngrdDataView[1].ClearAll;
             Run_DBVtracking(1,nRGBIdx);
+          end
+          else if rbCEL_Yufeng.Checked then begin
+            Sleep(500);
+            Run_Measure_CEL_NY(1,0.1);
+            advstrngrdDataView[1].ClearAll;
+            sleep(100);
+            Run_Measure_CEL_NY(1,0.5);
+            advstrngrdDataView[1].ClearAll;
+            sleep(100);
+            Run_Measure_CEL_NY(1,0.9);
+            advstrngrdDataView[1].ClearAll;
+            sleep(100);
+            Run_Measure_CEL_NY(1,1);
+            advstrngrdDataView[1].ClearAll;
+            sleep(100);
+            Run_Measure_CEL_NY(1,5);
+            advstrngrdDataView[1].ClearAll;
+            sleep(100);
+            Run_Measure_CEL_NY(1,9);
+            advstrngrdDataView[1].ClearAll;
+            sleep(100);
+            Run_Measure_CEL_NY(1,10);
+            advstrngrdDataView[1].ClearAll;
+            sleep(100);
+            Run_Measure_CEL_NY(1,100);
+            advstrngrdDataView[1].ClearAll;
+            sleep(100);
+            Run_Measure_CEL_NY(1,1000);
           end;
           wdRet := Pg[1].SendPowerBistOn(0{Off},False,3000,0); //TBD:DP860?
 
@@ -3467,6 +3819,34 @@ begin
             nRGBIdx := StrToIntDef(cboGrayRGB.text,0);
             advstrngrdDataView[2].ClearAll;
             Run_DBVtracking(2,nRGBIdx);
+          end
+          else if rbCEL_Yufeng.Checked then begin
+            Sleep(500);
+            Run_Measure_CEL_NY(2,0.1);
+            advstrngrdDataView[2].ClearAll;
+            sleep(100);
+            Run_Measure_CEL_NY(2,0.5);
+            advstrngrdDataView[2].ClearAll;
+            sleep(100);
+            Run_Measure_CEL_NY(2,0.9);
+            advstrngrdDataView[2].ClearAll;
+            sleep(100);
+            Run_Measure_CEL_NY(2,1);
+            advstrngrdDataView[2].ClearAll;
+            sleep(100);
+            Run_Measure_CEL_NY(2,5);
+            advstrngrdDataView[2].ClearAll;
+            sleep(100);
+            Run_Measure_CEL_NY(2,9);
+            advstrngrdDataView[2].ClearAll;
+            sleep(100);
+            Run_Measure_CEL_NY(2,10);
+            advstrngrdDataView[2].ClearAll;
+            sleep(100);
+            Run_Measure_CEL_NY(2,100);
+            advstrngrdDataView[2].ClearAll;
+            sleep(100);
+            Run_Measure_CEL_NY(2,1000);
           end;
           wdRet := Pg[2].SendPowerBistOn(0{Off},False,3000,0); //TBD:DP860?
 
@@ -3512,6 +3892,34 @@ begin
             nRGBIdx := StrToIntDef(cboGrayRGB.text,0);
             advstrngrdDataView[3].ClearAll;
             Run_DBVtracking(3,nRGBIdx);
+          end
+          else if rbCEL_Yufeng.Checked then begin
+            Sleep(500);
+            Run_Measure_CEL_NY(3,0.1);
+            advstrngrdDataView[3].ClearAll;
+            sleep(100);
+            Run_Measure_CEL_NY(3,0.5);
+            advstrngrdDataView[3].ClearAll;
+            sleep(100);
+            Run_Measure_CEL_NY(3,0.9);
+            advstrngrdDataView[3].ClearAll;
+            sleep(100);
+            Run_Measure_CEL_NY(3,1);
+            advstrngrdDataView[3].ClearAll;
+            sleep(100);
+            Run_Measure_CEL_NY(3,5);
+            advstrngrdDataView[3].ClearAll;
+            sleep(100);
+            Run_Measure_CEL_NY(3,9);
+            advstrngrdDataView[3].ClearAll;
+            sleep(100);
+            Run_Measure_CEL_NY(3,10);
+            advstrngrdDataView[3].ClearAll;
+            sleep(100);
+            Run_Measure_CEL_NY(3,100);
+            advstrngrdDataView[3].ClearAll;
+            sleep(100);
+            Run_Measure_CEL_NY(3,1000);
           end;
           wdRet := Pg[3].SendPowerBistOn(0{Off},False,3000,0); //TBD:DP860?
 
@@ -4340,6 +4748,12 @@ begin
   end;
 end;
 
+procedure TfrmMainter.cboSaveCa410ChannelClick(Sender: TObject);
+begin
+  Common.SystemInfo.R2RCa410MemCh := cboCa310Channel.ItemIndex;
+  Common.SaveSystemInfo;
+end;
+
 procedure TfrmMainter.chkUseTowerLampClick(Sender: TObject);
 begin
   ControlDio.UseTowerLamp:= chkUseTowerLamp.Checked;
@@ -4354,51 +4768,123 @@ begin
 end;
 
 
-
 procedure TfrmMainter.MaintFlashAllWrite(nCh: Integer);
 var
   dwRtn : DWORD;
   nFlashSize, nDataSize : DWORD;
   DataBuf : TIdBytes;
   sTemp, sFileName : string;
+  //
+  sFileExt : string;
+  bIsHexFile : Boolean;
+  mtData : TMemoryStream;
+  binData : array of Byte;
 begin
   try
-    sTemp := 'Flash Write (All)';
-    DisplayPgLog(nCh,sTemp+' ------');
-
+    sTemp := '---------- Flash ALL Write';
+    DisplayPgLog(nCh,sTemp);
+    //
     if Length(edPgFileSend.Text) <= 0 then begin
-      sTemp := sTemp + ' ...Parameter Error(Flash hex file is NOT selected) !!!';
+      sTemp := sTemp + ' ...Parameter Error(Flash All file is NOT selected) !!!';
       DisplayPgLog(nCh,sTemp);
       Exit;
     end;
 
-    sFileName  := Trim(edPgFileSend.Text);
-    DisplayPgLog(nCh,sTemp+Format(': HexFile(%s)',[sFileName]));
-
-    nFlashSize := 3612*1024;
-    nDataSize  := Common.GetHexLog(sFileName,nFlashSize,@Logic[nCh].m_FlashAllData.Data[0]);
+    sFileName := Trim(edPgFileSend.Text);
+    sFileExt  := ExtractFileExt(sFileName);
+    if LowerCase(sFileExt) = '.hex'      then bIsHexFile := True
+    else if LowerCase(sFileExt) = '.bin' then bIsHexFile := False
+    else begin
+      sTemp := sTemp + ' ...Parameter Error(the selected file is NOT *.hex|*.bin) !!!';
+      DisplayPgLog(nCh,sTemp);
+      Exit;
+    end;
+    DisplayPgLog(nCh,sTemp+Format(': %s',[sFileName]));
+    //
+    nFlashSize := 8192*1024;  // 8MB
+    //
+    if bIsHexFile then begin
+      nDataSize := Common.GetHexLog(sFileName,nDataSize,@DataBuf[0]);
+    end
+    else begin
+      mtData := TMemoryStream.Create;
+      try
+        mtData.LoadFromFile(sFileName);
+        SetLength(binData,nFlashSize);
+        mtData.Position := 0;
+        mtData.Read(binData[0],mtData.Size);
+        //
+        nDataSize := mtData.Size;
+        SetLength(DataBuf,nDataSize);
+        CopyMemory(@DataBuf[0],@binData[0],Min(nFlashSize,nDataSize));
+      finally
+        mtData.Free;
+      end;
+    end;
     if nDataSize <= 0  then begin
-      sTemp := sTemp + ' ...Error(Check hex file) !!!';
+      sTemp := sTemp + ' ...Error(Check Flash All hex|bin file data) !!!';
       DisplayPgLog(nCh,sTemp);
       Exit;
     end;
     if nDataSize <> nFlashSize  then begin
-      sTemp := sTemp + Format(' ...Warning(HexDataCnt:%d, FlashSize=%d) !!!',[nDataSize,nFlashSize]);
+      sTemp := sTemp + Format(' ...NG(DataCnt:%d, FlashSize=%d) !!!',[nDataSize,nFlashSize]);
       DisplayPgLog(nCh,sTemp);
+      Exit;
     end;
-
-    dwRtn := Pg[nCh].SendFlashWrite(0{nStartAddr},nDataSize, @Logic[nCh].m_FlashAllData.Data[0]);
-    if (dwRtn <> WAIT_OBJECT_0) then begin
-      sTemp := sTemp + ' NG';
-      DisplayPgLog(nCh,sTemp);;
-    end
-    else begin
-      sTemp := sTemp + Format(' OK (%s)',[sFileName]);
-      DisplayPgLog(nCh,sTemp);
-    end;
+    //
+   	dwRtn :=Pg[nCh].SendFlashWrite(0{nStartAddr},nDataSize, @DataBuf[0]);
+		sTemp := sTemp + TernaryOp((dwRtn = WAIT_OBJECT_0),' OK',' NG');
+    if dwRtn = WAIT_OBJECT_0 then sTemp := sTemp + Format(' [LOG/FLASH/CH%d_FlashAllWrite_A0x0_L%d.bin]',[nCh,nFlashSize]);
+    DisplayPgLog(nCh,sTemp);
   finally
   end;
 end;
+
+
+//procedure TfrmMainter.MaintFlashAllWrite(nCh: Integer);
+//var
+//  dwRtn : DWORD;
+//  nFlashSize, nDataSize : DWORD;
+//  DataBuf : TIdBytes;
+//  sTemp, sFileName : string;
+//begin
+//  try
+//    sTemp := 'Flash Write (All)';
+//    DisplayPgLog(nCh,sTemp+' ------');
+//
+//    if Length(edPgFileSend.Text) <= 0 then begin
+//      sTemp := sTemp + ' ...Parameter Error(Flash hex file is NOT selected) !!!';
+//      DisplayPgLog(nCh,sTemp);
+//      Exit;
+//    end;
+//
+//    sFileName  := Trim(edPgFileSend.Text);
+//    DisplayPgLog(nCh,sTemp+Format(': HexFile(%s)',[sFileName]));
+//
+//    nFlashSize := 3612*1024;
+//    nDataSize  := Common.GetHexLog(sFileName,nFlashSize,@Logic[nCh].m_FlashAllData.Data[0]);
+//    if nDataSize <= 0  then begin
+//      sTemp := sTemp + ' ...Error(Check hex file) !!!';
+//      DisplayPgLog(nCh,sTemp);
+//      Exit;
+//    end;
+//    if nDataSize <> nFlashSize  then begin
+//      sTemp := sTemp + Format(' ...Warning(HexDataCnt:%d, FlashSize=%d) !!!',[nDataSize,nFlashSize]);
+//      DisplayPgLog(nCh,sTemp);
+//    end;
+//
+//    dwRtn := Pg[nCh].SendFlashWrite(0{nStartAddr},nDataSize, @Logic[nCh].m_FlashAllData.Data[0]);
+//    if (dwRtn <> WAIT_OBJECT_0) then begin
+//      sTemp := sTemp + ' NG';
+//      DisplayPgLog(nCh,sTemp);;
+//    end
+//    else begin
+//      sTemp := sTemp + Format(' OK (%s)',[sFileName]);
+//      DisplayPgLog(nCh,sTemp);
+//    end;
+//  finally
+//  end;
+//end;
 
 
 procedure TfrmMainter.MaintFlashAllRead(nCh: Integer);
@@ -4428,7 +4914,10 @@ begin
 end;
 
 
-
+procedure TfrmMainter.Panel1DblClick(Sender: TObject);
+begin
+  Button2.Visible := not Button2.Visible;
+end;
 
 procedure TfrmMainter.PgCmdThread(nCh: Integer);
 var
@@ -4674,7 +5163,15 @@ begin
         end;
       end;
 
-
+      MAINT_PG_CMD_FLASH_ALL_READ : begin
+        sTemp := '---------- Flash ALL Read';
+        DisplayPgLog(nCh,sTemp);
+        nDataLen := 8192*1024;
+        dwRtn := Pg[nCh].SendFlashRead(0{nStartAddr},nDataLen,@Logic[nCh].m_FlashAllData.Data[0]);
+  			sTemp := sTemp + TernaryOp(bOK,' OK',' NG');
+        if bOK then sTemp := sTemp + Format(' [LOG/FLASH/CH%d_FlashPucDataRead_A0x0_L%d.hex]',[nCh,nDataLen]);
+        DisplayPgLog(nCh,sTemp);;
+      end;
 
   		MAINT_PG_CMD_FLASH_ALL_WRITE : begin
         MaintFlashAllWrite(nCh);
@@ -4690,6 +5187,14 @@ begin
         PG[nCh].DP860_SendCmd(edPgCmdParam.Text, DefPG.PG_CMDID_UNKNOWN,DefPG.PG_CMDSTR_UNKNOWN, 0{nWaitMS},0{nRetry});
       end;
       {$ENDIF}
+
+      MAINT_PG_REPROGRARMING : begin
+        SetLength(naData,240);
+        for j := 0 to 240 -1 do
+          naData[j] := Common.m_DLLReProgrammingData[j];
+
+        Pg[nCh].SendReProgramming(PROGRAMING_DEVICE,0,240,naData);
+      end;
 
 			else begin
 				//TBD:ITOLED?

@@ -140,6 +140,8 @@ Const
   MSG_TYPE_COMM_ECS  = 103;
   MSG_TYPE_EXT_CONTROL  = 1001;
 
+  MSG_TYPE_COMMTHERMOMETER = 104;
+
   MSG_TYPE_ADLINK = 7;
   MSG_TYPE_IONIZER  = 8;
   MSG_TYPE_HOST   = 9;
@@ -212,6 +214,7 @@ Const
   MSG_MODE_WORKING                = 31;
   MSG_MODE_LOG_PWR                = 32;
   MSG_MODE_LOG_CSV                = 33;
+  MSG_MODE_LOG_REPGM              = 34;
   MSG_MODE_LOG_ON_GUI             = 35;
   MSG_MODE_DISPLAY_CONNECTION     = 36;
   MSG_MODE_TRANS_DOWNLOAD_STATUS  = 37;
@@ -247,6 +250,10 @@ Const
   MSG_MODE_LOG_CSV_APDR           = 65;
   MSG_MODE_CAX10_MEM_CH_NO        = 66;
   MSG_MODE_SHOW_CONFIRM_EICR      = 67;
+
+
+  MSG_MODE_LOG_HWCID              = 68;
+  MSG_MODE_VIRTUAL_CAPTION        = 68;
 //
 //	MSG_CHANNEL_ALL                 = $ff;
 //

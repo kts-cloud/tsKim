@@ -28,7 +28,7 @@ object frmSystemSetup: TfrmSystemSetup
     Width = 853
     Height = 757
     Hint = ''
-    ActivePage = tbEcsSheet
+    ActivePage = TabSheet1
     Align = alClient
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
@@ -36,7 +36,7 @@ object frmSystemSetup: TfrmSystemSetup
     Font.Name = 'Tahoma'
     Font.Style = [fsBold]
     ParentFont = False
-    TabIndex = 1
+    TabIndex = 0
     TabOrder = 0
     FixedDimension = 22
     object TabSheet1: TRzTabSheet
@@ -52,7 +52,7 @@ object frmSystemSetup: TfrmSystemSetup
         Left = 10
         Top = 2
         Width = 400
-        Height = 143
+        Height = 156
         Caption = 'SYSTEM'
         CaptionFont.Charset = DEFAULT_CHARSET
         CaptionFont.Color = clWindowText
@@ -204,7 +204,7 @@ object frmSystemSetup: TfrmSystemSetup
         end
         object edSaveEnergy: TRzEdit
           Left = 128
-          Top = 77
+          Top = 78
           Width = 261
           Height = 22
           Text = '0'
@@ -224,12 +224,49 @@ object frmSystemSetup: TfrmSystemSetup
           ParentFont = False
           TabOrder = 7
         end
+        object edNGAlarmCnt: TRzEdit
+          Left = 128
+          Top = 131
+          Width = 261
+          Height = 22
+          Text = '0'
+          Alignment = taRightJustify
+          Ctl3D = True
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clBlack
+          Font.Height = -12
+          Font.Name = 'Verdana'
+          Font.Style = [fsBold]
+          FocusColor = 14283263
+          FrameHotTrack = True
+          FrameVisible = True
+          ImeName = 'Microsoft IME 2010'
+          MaxLength = 1
+          ParentCtl3D = False
+          ParentFont = False
+          TabOrder = 8
+        end
+        object RzPanel50: TRzPanel
+          Left = 6
+          Top = 131
+          Width = 116
+          Height = 22
+          BorderOuter = fsFlatRounded
+          Caption = 'NG alarm count'
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Verdana'
+          Font.Style = []
+          ParentFont = False
+          TabOrder = 9
+        end
       end
       object grpSerialSetting: TRzGroupBox
-        Left = 424
-        Top = 116
+        Left = 426
+        Top = 105
         Width = 400
-        Height = 188
+        Height = 199
         Caption = 'Serial Port Setting'
         CaptionFont.Charset = DEFAULT_CHARSET
         CaptionFont.Color = clWindowText
@@ -240,6 +277,19 @@ object frmSystemSetup: TfrmSystemSetup
         GradientColorStop = 16763080
         GroupStyle = gsBanner
         TabOrder = 4
+        object Label2: TLabel
+          Left = 251
+          Top = 96
+          Width = 20
+          Height = 23
+          Caption = #176'C'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -19
+          Font.Name = 'Tahoma'
+          Font.Style = []
+          ParentFont = False
+        end
         object pnlBCR: TRzPanel
           Left = 4
           Top = 25
@@ -306,7 +356,17 @@ object frmSystemSetup: TfrmSystemSetup
             'COM7'
             'COM8'
             'COM9'
-            'COM10')
+            'COM10'
+            'COM11'
+            'COM12'
+            'COM13'
+            'COM14'
+            'COM15'
+            'COM16'
+            'COM17'
+            'COM18'
+            'COM19'
+            'COM20')
           ItemIndex = 0
         end
         object pnlBCR2: TRzPanel
@@ -346,6 +406,7 @@ object frmSystemSetup: TfrmSystemSetup
           ParentCtl3D = False
           ParentFont = False
           TabOrder = 1
+          Text = 'None'
           Items.Strings = (
             'None'
             'COM1'
@@ -368,10 +429,11 @@ object frmSystemSetup: TfrmSystemSetup
             'COM18'
             'COM19'
             'COM20')
+          ItemIndex = 0
         end
         object pnlCamLight: TRzPanel
           Left = 4
-          Top = 96
+          Top = 128
           Width = 106
           Height = 21
           BorderOuter = fsFlatRounded
@@ -387,7 +449,7 @@ object frmSystemSetup: TfrmSystemSetup
         end
         object cboCamLight: TRzComboBox
           Left = 111
-          Top = 96
+          Top = 128
           Width = 284
           Height = 22
           Style = csDropDownList
@@ -419,12 +481,22 @@ object frmSystemSetup: TfrmSystemSetup
             'COM7'
             'COM8'
             'COM9'
-            'COM10')
+            'COM10'
+            'COM11'
+            'COM12'
+            'COM13'
+            'COM14'
+            'COM15'
+            'COM16'
+            'COM17'
+            'COM18'
+            'COM19'
+            'COM20')
           ItemIndex = 0
         end
         object pnlTitleIonizer: TRzPanel
           Left = 4
-          Top = 120
+          Top = 152
           Width = 106
           Height = 21
           BorderOuter = fsFlatRounded
@@ -439,7 +511,7 @@ object frmSystemSetup: TfrmSystemSetup
         end
         object pnlModelonizer: TRzPanel
           Left = 208
-          Top = 120
+          Top = 152
           Width = 106
           Height = 21
           BorderOuter = fsFlatRounded
@@ -453,8 +525,8 @@ object frmSystemSetup: TfrmSystemSetup
           TabOrder = 8
         end
         object cboIonizer: TRzComboBox
-          Left = 111
-          Top = 120
+          Left = 110
+          Top = 152
           Width = 98
           Height = 22
           Style = csDropDownList
@@ -494,12 +566,13 @@ object frmSystemSetup: TfrmSystemSetup
             'COM16'
             'COM17'
             'COM18'
-            'COM19')
+            'COM19'
+            'COM20')
           ItemIndex = 0
         end
         object cboIonizerModel: TRzComboBox
           Left = 312
-          Top = 120
+          Top = 152
           Width = 83
           Height = 22
           Style = csDropDownList
@@ -525,7 +598,7 @@ object frmSystemSetup: TfrmSystemSetup
         end
         object cboIonizer2: TRzComboBox
           Left = 110
-          Top = 145
+          Top = 177
           Width = 98
           Height = 22
           Style = csDropDownList
@@ -565,12 +638,13 @@ object frmSystemSetup: TfrmSystemSetup
             'COM16'
             'COM17'
             'COM18'
-            'COM19')
+            'COM19'
+            'COM20')
           ItemIndex = 0
         end
         object RzPanel34: TRzPanel
           Left = 4
-          Top = 145
+          Top = 177
           Width = 106
           Height = 21
           BorderOuter = fsFlatRounded
@@ -616,7 +690,17 @@ object frmSystemSetup: TfrmSystemSetup
             'COM7'
             'COM8'
             'COM9'
-            'COM10')
+            'COM10'
+            'COM11'
+            'COM12'
+            'COM13'
+            'COM14'
+            'COM15'
+            'COM16'
+            'COM17'
+            'COM18'
+            'COM19'
+            'COM20')
           ItemIndex = 0
         end
         object cboBCR2: TRzComboBox
@@ -658,13 +742,120 @@ object frmSystemSetup: TfrmSystemSetup
             'COM12'
             'COM13'
             'COM14'
-            'COM15')
+            'COM15'
+            'COM16'
+            'COM17'
+            'COM18'
+            'COM19'
+            'COM20')
           ItemIndex = 0
+        end
+        object RzPanel48: TRzPanel
+          Left = 4
+          Top = 71
+          Width = 106
+          Height = 22
+          BorderOuter = fsFlatRounded
+          Caption = 'IR Temp Sensor'
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Verdana'
+          Font.Style = []
+          ParentFont = False
+          TabOrder = 15
+        end
+        object cboIrTempSensor: TRzComboBox
+          Left = 111
+          Top = 71
+          Width = 130
+          Height = 22
+          AutoDropDown = True
+          Style = csDropDownList
+          Color = clWhite
+          Ctl3D = False
+          DropDownCount = 12
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clBlack
+          Font.Height = -12
+          Font.Name = 'Verdana'
+          Font.Style = [fsBold]
+          FlatButtons = True
+          FrameHotTrack = True
+          FrameVisible = True
+          ImeName = 'Microsoft Office IME 2007'
+          ParentCtl3D = False
+          ParentFont = False
+          TabOrder = 16
+          Text = 'None'
+          Items.Strings = (
+            'None'
+            'COM1'
+            'COM2'
+            'COM3'
+            'COM4'
+            'COM5'
+            'COM6'
+            'COM7'
+            'COM8'
+            'COM9'
+            'COM10'
+            'COM11'
+            'COM12'
+            'COM13'
+            'COM14'
+            'COM15'
+            'COM16'
+            'COM17'
+            'COM18'
+            'COM19'
+            'COM20')
+          ItemIndex = 0
+        end
+        object RzPanel49: TRzPanel
+          Left = 4
+          Top = 94
+          Width = 106
+          Height = 33
+          BorderOuter = fsFlatRounded
+          Caption = 'Fan operation settings'
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Verdana'
+          Font.Style = []
+          ParentFont = False
+          TabOrder = 17
+        end
+        object edSetTemperature: TRzNumericEdit
+          Left = 114
+          Top = 94
+          Width = 127
+          Height = 31
+          Ctl3D = True
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clBlack
+          Font.Height = -19
+          Font.Name = 'Tahoma'
+          Font.Style = []
+          FocusColor = clInfoBk
+          FrameHotTrack = True
+          FrameVisible = True
+          FramingPreference = fpCustomFraming
+          ImeName = 'Microsoft Office IME 2007'
+          ParentCtl3D = False
+          ParentFont = False
+          ReadOnlyColor = clBtnFace
+          TabOrder = 18
+          IntegersOnly = False
+          Max = 100.000000000000000000
+          DisplayFormat = '0'
+          Value = 40.000000000000000000
         end
       end
       object grpIPSetting: TRzGroupBox
         Left = 10
-        Top = 151
+        Top = 164
         Width = 400
         Height = 83
         Caption = 'Auto Backup'
@@ -1476,8 +1667,8 @@ object frmSystemSetup: TfrmSystemSetup
         end
       end
       object RzBitBtn1: TRzBitBtn
-        Left = 426
-        Top = 85
+        Left = 424
+        Top = 74
         Width = 155
         Caption = 'Password Setup'
         HotTrack = True
@@ -1552,13 +1743,13 @@ object frmSystemSetup: TfrmSystemSetup
         GroupStyle = gsBanner
         ParentFont = False
         TabOrder = 5
-        Visible = False
         object Label1: TLabel
           Left = 366
           Top = 109
           Width = 17
           Height = 13
           Caption = 'ms'
+          Visible = False
         end
         object RzPanel24: TRzPanel
           Left = -2
@@ -1761,6 +1952,7 @@ object frmSystemSetup: TfrmSystemSetup
           State = cbUnchecked
           TabOrder = 3
           UseCustomGlyphs = True
+          Visible = False
         end
         object RzPanel13: TRzPanel
           Left = 4
@@ -1791,6 +1983,7 @@ object frmSystemSetup: TfrmSystemSetup
           Font.Style = []
           ParentFont = False
           TabOrder = 5
+          Visible = False
         end
         object cboRetryCount: TComboBox
           Left = 111
@@ -1801,6 +1994,7 @@ object frmSystemSetup: TfrmSystemSetup
           ItemIndex = 0
           TabOrder = 6
           Text = '0'
+          Visible = False
           Items.Strings = (
             '0'
             '1'
@@ -1840,6 +2034,7 @@ object frmSystemSetup: TfrmSystemSetup
           Font.Style = []
           ParentFont = False
           TabOrder = 8
+          Visible = False
         end
         object edtECS_Timeout: TRzEdit
           Left = 111
@@ -1853,6 +2048,7 @@ object frmSystemSetup: TfrmSystemSetup
           ImeName = 'Microsoft IME 2010'
           ParentCtl3D = False
           TabOrder = 9
+          Visible = False
         end
       end
       object RzGroupBox4: TRzGroupBox
@@ -2222,10 +2418,12 @@ object frmSystemSetup: TfrmSystemSetup
           ParentCtl3D = False
           ParentFont = False
           TabOrder = 1
+          Text = 'None'
           Items.Strings = (
             'None'
             'Inspect'
             'Inspect+ConnCheck')
+          ItemIndex = 0
           Values.Strings = (
             '0'
             '1'
@@ -2389,6 +2587,244 @@ object frmSystemSetup: TfrmSystemSetup
             D5D5D5D4D4D4A2E8E8E8E8E8E8E8E881E3E3E3ACACAC81E8E8E8E8E8E8E8E8AA
             AAAAAAAAAAAAAAAAE8E8E8E8E8E8E8818181818181818181E8E8}
           NumGlyphs = 2
+        end
+      end
+      object RzGroupBox9: TRzGroupBox
+        Left = 10
+        Top = 519
+        Width = 400
+        Height = 90
+        BiDiMode = bdLeftToRight
+        Caption = 'SW / DLL Version Interlock '
+        CaptionFont.Charset = DEFAULT_CHARSET
+        CaptionFont.Color = clWindowText
+        CaptionFont.Height = -11
+        CaptionFont.Name = 'Tahoma'
+        CaptionFont.Style = [fsBold]
+        Color = 16768443
+        Ctl3D = True
+        FlatColor = clRed
+        GradientColorStop = 16763080
+        GroupStyle = gsBanner
+        ParentBiDiMode = False
+        ParentCtl3D = False
+        TabOrder = 10
+        object edVerInterlock: TRzEdit
+          Left = 6
+          Top = 53
+          Width = 384
+          Height = 22
+          Text = ''
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clBlack
+          Font.Height = -12
+          Font.Name = 'Verdana'
+          Font.Style = [fsBold]
+          FocusColor = 14283263
+          FrameHotTrack = True
+          FrameVisible = True
+          ImeName = 'Microsoft IME 2010'
+          ParentFont = False
+          TabOrder = 0
+        end
+        object RzBitBtn2: TRzBitBtn
+          Left = 280
+          Top = 22
+          Width = 107
+          Caption = 'Add'
+          HotTrack = True
+          TabOrder = 1
+          OnClick = RzBitBtn2Click
+          Glyph.Data = {
+            36060000424D3606000000000000360400002800000020000000100000000100
+            08000000000000020000830B0000830B00000001000000000000000000003300
+            00006600000099000000CC000000FF0000000033000033330000663300009933
+            0000CC330000FF33000000660000336600006666000099660000CC660000FF66
+            000000990000339900006699000099990000CC990000FF99000000CC000033CC
+            000066CC000099CC0000CCCC0000FFCC000000FF000033FF000066FF000099FF
+            0000CCFF0000FFFF000000003300330033006600330099003300CC003300FF00
+            330000333300333333006633330099333300CC333300FF333300006633003366
+            33006666330099663300CC663300FF6633000099330033993300669933009999
+            3300CC993300FF99330000CC330033CC330066CC330099CC3300CCCC3300FFCC
+            330000FF330033FF330066FF330099FF3300CCFF3300FFFF3300000066003300
+            66006600660099006600CC006600FF0066000033660033336600663366009933
+            6600CC336600FF33660000666600336666006666660099666600CC666600FF66
+            660000996600339966006699660099996600CC996600FF99660000CC660033CC
+            660066CC660099CC6600CCCC6600FFCC660000FF660033FF660066FF660099FF
+            6600CCFF6600FFFF660000009900330099006600990099009900CC009900FF00
+            990000339900333399006633990099339900CC339900FF339900006699003366
+            99006666990099669900CC669900FF6699000099990033999900669999009999
+            9900CC999900FF99990000CC990033CC990066CC990099CC9900CCCC9900FFCC
+            990000FF990033FF990066FF990099FF9900CCFF9900FFFF99000000CC003300
+            CC006600CC009900CC00CC00CC00FF00CC000033CC003333CC006633CC009933
+            CC00CC33CC00FF33CC000066CC003366CC006666CC009966CC00CC66CC00FF66
+            CC000099CC003399CC006699CC009999CC00CC99CC00FF99CC0000CCCC0033CC
+            CC0066CCCC0099CCCC00CCCCCC00FFCCCC0000FFCC0033FFCC0066FFCC0099FF
+            CC00CCFFCC00FFFFCC000000FF003300FF006600FF009900FF00CC00FF00FF00
+            FF000033FF003333FF006633FF009933FF00CC33FF00FF33FF000066FF003366
+            FF006666FF009966FF00CC66FF00FF66FF000099FF003399FF006699FF009999
+            FF00CC99FF00FF99FF0000CCFF0033CCFF0066CCFF0099CCFF00CCCCFF00FFCC
+            FF0000FFFF0033FFFF0066FFFF0099FFFF00CCFFFF00FFFFFF00000080000080
+            000000808000800000008000800080800000C0C0C00080808000191919004C4C
+            4C00B2B2B200E5E5E500C8AC2800E0CC6600F2EABF00B59B2400D8E9EC009933
+            6600D075A300ECC6D900646F710099A8AC00E2EFF10000000000000000000000
+            0000000000000000000000000000000000000000000000000000000000000000
+            0000000000000000000000000000000000000000000000000000E8E8E8E8E8E8
+            E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8
+            E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8
+            09090909E8E8E8E8E8E8E8E8E8E8E8E881818181E8E8E8E8E8E8E8E8E8E8E8E8
+            09101009E8E8E8E8E8E8E8E8E8E8E8E881ACAC81E8E8E8E8E8E8E8E8E8E8E8E8
+            09101009E8E8E8E8E8E8E8E8E8E8E8E881ACAC81E8E8E8E8E8E8E8E8E8E8E8E8
+            09101009E8E8E8E8E8E8E8E8E8E8E8E881ACAC81E8E8E8E8E8E8E8E809090909
+            0910100909090909E8E8E8E88181818181ACAC8181818181E8E8E8E809101010
+            1010101010101009E8E8E8E881ACACACACACACACACACAC81E8E8E8E809101010
+            1010101010101009E8E8E8E881ACACACACACACACACACAC81E8E8E8E809090909
+            0910100909090909E8E8E8E88181818181ACAC8181818181E8E8E8E8E8E8E8E8
+            09101009E8E8E8E8E8E8E8E8E8E8E8E881ACAC81E8E8E8E8E8E8E8E8E8E8E8E8
+            09101009E8E8E8E8E8E8E8E8E8E8E8E881ACAC81E8E8E8E8E8E8E8E8E8E8E8E8
+            09101009E8E8E8E8E8E8E8E8E8E8E8E881ACAC81E8E8E8E8E8E8E8E8E8E8E8E8
+            09090909E8E8E8E8E8E8E8E8E8E8E8E881818181E8E8E8E8E8E8E8E8E8E8E8E8
+            E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8
+            E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8}
+          NumGlyphs = 2
+        end
+        object chkVerInterlock: TRzCheckBox
+          Left = 10
+          Top = 25
+          Width = 193
+          Height = 18
+          Caption = 'Use Auto Ver Interlock '
+          CustomGlyphs.Data = {
+            C20E0000424DC20E0000000000003604000028000000B40000000F0000000100
+            0800000000008C0A0000230B0000230B00000001000000010000000000003300
+            00006600000099000000CC000000FF0000000033000033330000663300009933
+            0000CC330000FF33000000660000336600006666000099660000CC660000FF66
+            000000990000339900006699000099990000CC990000FF99000000CC000033CC
+            000066CC000099CC0000CCCC0000FFCC000000FF000033FF000066FF000099FF
+            0000CCFF0000FFFF000000003300330033006600330099003300CC003300FF00
+            330000333300333333006633330099333300CC333300FF333300006633003366
+            33006666330099663300CC663300FF6633000099330033993300669933009999
+            3300CC993300FF99330000CC330033CC330066CC330099CC3300CCCC3300FFCC
+            330000FF330033FF330066FF330099FF3300CCFF3300FFFF3300000066003300
+            66006600660099006600CC006600FF0066000033660033336600663366009933
+            6600CC336600FF33660000666600336666006666660099666600CC666600FF66
+            660000996600339966006699660099996600CC996600FF99660000CC660033CC
+            660066CC660099CC6600CCCC6600FFCC660000FF660033FF660066FF660099FF
+            6600CCFF6600FFFF660000009900330099006600990099009900CC009900FF00
+            990000339900333399006633990099339900CC339900FF339900006699003366
+            99006666990099669900CC669900FF6699000099990033999900669999009999
+            9900CC999900FF99990000CC990033CC990066CC990099CC9900CCCC9900FFCC
+            990000FF990033FF990066FF990099FF9900CCFF9900FFFF99000000CC003300
+            CC006600CC009900CC00CC00CC00FF00CC000033CC003333CC006633CC009933
+            CC00CC33CC00FF33CC000066CC003366CC006666CC009966CC00CC66CC00FF66
+            CC000099CC003399CC006699CC009999CC00CC99CC00FF99CC0000CCCC0033CC
+            CC0066CCCC0099CCCC00CCCCCC00FFCCCC0000FFCC0033FFCC0066FFCC0099FF
+            CC00CCFFCC00FFFFCC000000FF003300FF006600FF009900FF00CC00FF00FF00
+            FF000033FF003333FF006633FF009933FF00CC33FF00FF33FF000066FF003366
+            FF006666FF009966FF00CC66FF00FF66FF000099FF003399FF006699FF009999
+            FF00CC99FF00FF99FF0000CCFF0033CCFF0066CCFF0099CCFF00CCCCFF00FFCC
+            FF0000FFFF0033FFFF0066FFFF0099FFFF00CCFFFF00FFFFFF00000080000080
+            000000808000800000008000800080800000C0C0C00080808000191919004C4C
+            4C00B2B2B200E5E5E500C8AC2800E0CC6600F2EABF00B59B2400D8E9EC009933
+            6600D075A300ECC6D900646F710099A8AC00E2EFF10000000000000000000000
+            0000000000000000000000000000000000000000000000000000000000000000
+            0000000000000000000000000000000000000000000000000000DADA08080808
+            08080808080808DADADADADADADADADA0808080808080808080808DADADADADA
+            DADADADA0808080808080808080808DADADADADADADADADA0808080808080808
+            080808DADADADADADADADADA0808080808080808080808DADADADADADADADADA
+            0808080808080808080808DADADADADADADADADAECECECECECECECECECECECDA
+            DADADADADADADADAECECECECECECECECECECECDADADADADADADADADAECECECEC
+            ECECECECECECECDADADADADADADADADA081E1E1E1E1E1E1E1E1E08DADADADADA
+            DADADADA081E1E1E1E1E1E1E1E1E08DADADADADADADADADA081E1E1E1E1E1E1E
+            1E1E08DADADADADADADADADA08E8E8E8E8E8E8E8E8E808DADADADADADADADADA
+            08E8E8E8E8E8E8E8E8E808DADADADADADADADADA08E8E8E8E8E8E8E8E8E808DA
+            DADADADADADADADAECACACACACACACACACACECDADADADADADADADADAECACACAC
+            ACACACACACACECDADADADADADADADADAECACACACACACACACACACECDADADADADA
+            DADADADA081E1E1E1E1E1E1E1E1E08DADADADADADADADADA081E1E1E1E09091E
+            1E1E08DADADADADADADADADA081E090909090909091E08DADADADADADADADADA
+            08E8E8E8E8E8E8E8E8E808DADADADADADADADADA08E8E8E8E80909E8E8E808DA
+            DADADADADADADADA08E809090909090909E808DADADADADADADADADAECACACAC
+            ACACACACACACECDADADADADADADADADAECACACACAC8181ACACACECDADADADADA
+            DADADADAECAC81818181818181ACECDADADADADADADADADA081E1E1E1E1E1E1E
+            1E1E08DADADADADADADADADA081E1E1E091010091E1E08DADADADADADADADADA
+            081E091010101010091E08DADADADADADADADADA08E8E8E8E8E8E8E8E8E808DA
+            DADADADADADADADA08E8E8E809101009E8E808DADADADADADADADADA08E80910
+            1010101009E808DADADADADADADADADAECACACACACACACACACACECDADADADADA
+            DADADADAECACACAC81ACAC81ACACECDADADADADADADADADAECAC81ACACACACAC
+            81ACECDADADADADADADADADA081E1E1E1E1E1E1E1E1E08DADADADADADADADADA
+            081E1E0910101010091E08DADADADADADADADADA081E091010101010091E08DA
+            DADADADADADADADA08E8E8E8E8E8E8E8E8E808DADADADADADADADADA08E8E809
+            1010101009E808DADADADADADADADADA08E809101010101009E808DADADADADA
+            DADADADAECACACACACACACACACACECDADADADADADADADADAECACAC81ACACACAC
+            81ACECDADADADADADADADADAECAC81ACACACACAC81ACECDADADADADADADADADA
+            081E1E1E1E1E1E1E1E1E08DADADADADADADADADA081E091010101010100908DA
+            DADADADADADADADA081E091010101010091E08DADADADADADADADADA08E8E8E8
+            E8E8E8E8E8E808DADADADADADADADADA08E8091010101010100908DADADADADA
+            DADADADA08E809101010101009E808DADADADADADADADADAECACACACACACACAC
+            ACACECDADADADADADADADADAECAC81ACACACACACAC81ECDADADADADADADADADA
+            ECAC81ACACACACAC81ACECDADADADADADADADADA081E1E1E1E1E1E1E1E1E08DA
+            DADADADADADADADA081E091010090910101009DADADADADADADADADA081E0910
+            10101010091E08DADADADADADADADADA08E8E8E8E8E8E8E8E8E808DADADADADA
+            DADADADA08E8091010090910101009DADADADADADADADADA08E8091010101010
+            09E808DADADADADADADADADAECACACACACACACACACACECDADADADADADADADADA
+            ECAC81ACAC8181ACACAC81DADADADADADADADADAECAC81ACACACACAC81ACECDA
+            DADADADADADADADA081E1E1E1E1E1E1E1E1E08DADADADADADADADADA081E0910
+            091E1E0910101009DADADADADADADADA081E091010101010091E08DADADADADA
+            DADADADA08E8E8E8E8E8E8E8E8E808DADADADADADADADADA08E8091009E8E809
+            10101009DADADADADADADADA08E809101010101009E808DADADADADADADADADA
+            ECACACACACACACACACACECDADADADADADADADADAECAC81AC81ACAC81ACACAC81
+            DADADADADADADADAECAC81ACACACACAC81ACECDADADADADADADADADA081E1E1E
+            1E1E1E1E1E1E08DADADADADADADADADA081E09091E1E1E1E0910101009DADADA
+            DADADADA081E090909090909091E08DADADADADADADADADA08E8E8E8E8E8E8E8
+            E8E808DADADADADADADADADA08E80909E8E8E8E80910101009DADADADADADADA
+            08E809090909090909E808DADADADADADADADADAECACACACACACACACACACECDA
+            DADADADADADADADAECAC8181ACACACAC81ACACAC81DADADADADADADAECAC8181
+            8181818181ACECDADADADADADADADADA081E1E1E1E1E1E1E1E1E08DADADADADA
+            DADADADA081E1E1E1E1E1E1E1E0910101009DADADADADADA081E1E1E1E1E1E1E
+            1E1E08DADADADADADADADADA08E8E8E8E8E8E8E8E8E808DADADADADADADADADA
+            08E8E8E8E8E8E8E8E80910101009DADADADADADA08E8E8E8E8E8E8E8E8E808DA
+            DADADADADADADADAECACACACACACACACACACECDADADADADADADADADAECACACAC
+            ACACACACAC81ACACAC81DADADADADADAECACACACACACACACACACECDADADADADA
+            DADADADA0808080808080808080808DADADADADADADADADA0808080808080808
+            08080910101009DADADADADA0808080808080808080808DADADADADADADADADA
+            0808080808080808080808DADADADADADADADADA080808080808080808080910
+            101009DADADADADA0808080808080808080808DADADADADADADADADAECECECEC
+            ECECECECECECECDADADADADADADADADAECECECECECECECECECEC81ACACAC81DA
+            DADADADAECECECECECECECECECECECDADADADADADADADADADADADADADADADADA
+            DADADADADADADADADADADADADADADADADADADADADADADA09101009DADADADADA
+            DADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADA
+            DADADADADADADADADADADADADADADADADADADA09101009DADADADADADADADADA
+            DADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADA
+            DADADADADADADADADADADADADADADA81ACAC81DADADADADADADADADADADADADA
+            DADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADA
+            DADADADADADADADADADADADA091009DADADADADADADADADADADADADADADADADA
+            DADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADA
+            DADADADADADADADA091009DADADADADADADADADADADADADADADADADADADADADA
+            DADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADA
+            DADADADA81AC81DADADADADADADADADADADADADADADADADADADADADADADADADA
+            DADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADA
+            DA0909DADADADADADADADADADADADADADADADADADADADADADADADADADADADADA
+            DADADADADADADADADADADADADADADADADADADADADADADADADADADADADA0909DA
+            DADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADA
+            DADADADADADADADADADADADADADADADADADADADADADADADADA8181DADADADADA
+            DADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADA
+            DADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADA
+            DADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADA
+            DADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADA
+            DADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADA
+            DADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADADA
+            DADADADADADA}
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clNavy
+          Font.Height = -13
+          Font.Name = 'Verdana'
+          Font.Style = [fsBold]
+          HotTrack = True
+          ParentFont = False
+          State = cbUnchecked
+          TabOrder = 2
+          UseCustomGlyphs = True
+          OnClick = chkAutoBackupClick
         end
       end
     end
@@ -4360,7 +4796,7 @@ object frmSystemSetup: TfrmSystemSetup
               TabOrder = 1
             end
             object btnDfsFtpHostDirGo: TBitBtn
-              Left = 325
+              Left = 328
               Top = 27
               Width = 55
               Height = 30

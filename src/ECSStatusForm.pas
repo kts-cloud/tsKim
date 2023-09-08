@@ -379,7 +379,7 @@ begin
 //  GlassData.GlassAddData[3]:= $3232;
 //  GlassData.GlassAddData[4]:= $3232;
 //  GlassData.GlassAddData[5]:= $3232;
-  GlassData.PreviousUnitProcessing[0]:= $3333;
+  GlassData.PreviousUnitProcessing[0]:= $0;
   GlassData.PreviousUnitProcessing[1]:= $3333;
   GlassData.PreviousUnitProcessing[2]:= $3333;
   GlassData.PreviousUnitProcessing[3]:= $3333;
@@ -387,7 +387,7 @@ begin
   GlassData.PreviousUnitProcessing[5]:= $3333;
   GlassData.PreviousUnitProcessing[6]:= $3333;
   GlassData.PreviousUnitProcessing[7]:= $3333;
-  GlassData.GlassProcessingStatus[0]:= $3434;
+  GlassData.GlassProcessingStatus[0]:= $0;
   GlassData.GlassProcessingStatus[1]:= $3434;
   GlassData.GlassProcessingStatus[2]:= $3434;
   GlassData.GlassProcessingStatus[3]:= $3434;
@@ -879,6 +879,7 @@ var
   i: Integer;
   nAddr: Integer;
   sAddress : string;
+  nLinkTest : integer;
 begin
   if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then
     grdStatus.ColCount := 24
@@ -1215,6 +1216,9 @@ begin
 
   if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
     nAddr:= StrToInt('$000');
+    if (Common.PLCInfo.EQP_ID - 6) = 1 then
+      nLinkTest := 1
+    else nLinkTest := 2;
     grdStatus.Cells[20, 0] := 'ECS' + #10#13 + '(B' + IntToHex(nAddr, 4) + ')';
     grdStatus.Cells[20, 1] := 'ECS Restart' + sLineBreak + '(2 sec)' ;
     grdStatus.Cells[20, 2] := 'Time Set Request' + sLineBreak + '(2 sec)';
@@ -1225,17 +1229,17 @@ begin
     nAddr:= StrToInt('$' + Common.PLCInfo.Address_ECS)+ ((Common.PLCInfo.EQP_ID -3) div 16)*$10;
     grdStatus.Cells[21, 0] := 'ECS' + #10#13 + '(B' + IntToHex(nAddr, 4) + ')';
     grdStatus.Cells[21, ((Common.PLCInfo.EQP_ID + 10 )mod 16)+1] :=
-    Format('OC #%d Link',[Common.PLCInfo.EQP_ID - 6])  + sLineBreak + 'Test Request';
+    Format('OC #%d Link',[nLinkTest])  + sLineBreak + 'Test Request';
 
 
     grdStatus.Cells[22, 0] := 'ECS' + #10#13 + '(B' + IntToHex(nAddr + $100, 4) + ')';
     grdStatus.Cells[22, ((Common.PLCInfo.EQP_ID +10 )mod 16)+1] :=
-    Format('OC #%d Lost',[Common.PLCInfo.EQP_ID - 6]) + sLineBreak + 'Panel Data Report';
+    Format('OC #%d Lost',[nLinkTest]) + sLineBreak + 'Panel Data Report';
 
 
     grdStatus.Cells[23, 0] := 'ECS' + #10#13 + '(B' + IntToHex(nAddr + $200, 4) + ')';
     grdStatus.Cells[23, ((Common.PLCInfo.EQP_ID + 10 )mod 16)+1] :=
-    Format('OC #%d Take',[Common.PLCInfo.EQP_ID - 6]) + sLineBreak + 'Out Report_Confirm';
+    Format('OC #%d Take',[nLinkTest]) + sLineBreak + 'Out Report_Confirm';
 
 
     grdStatus.MergeCells(1, 0, 3, 1);

@@ -93,7 +93,7 @@ const
 
 	//--------------------------------------------------------
   TCON_REG_DEVICE  = $A0; //Temporary values for I2C (for TCON R/W, no need DevAddr)
-
+  PROGRAMING_DEVICE = $14;
 type
 
   //------------------------------------------ Temporary (for OC T/T Test)
@@ -1236,6 +1236,7 @@ const
   PG_CMDID_TCON_WRITE           =  41;  PG_CMDSTR_TCON_WRITE           = 'tcon.write';
   PG_CMDID_TCON_OCWRITE         =  42;  PG_CMDSTR_TCON_OCWRITE         = 'tcon.ocwrite';
   PG_CMDID_TCON_MULTIWRITE      =  43;  PG_CMDSTR_TCON_MULTIWRITE      = 'tcon.multiwrite';
+  PG_CMDID_TCON_SEQWRITE        =  44;  PG_CMDSTR_TCON_SEQWRITE        = 'tcon.seqwrite';
 	//------------------------------------------ NVM(FLASH) R/W
   PG_CMDID_NVM_INIT             =  50;  PG_CMDSTR_NVM_INIT             = 'nvm.init';        //TBD:DP860?  //SPI Speed and Init 
   PG_CMDID_NVM_ERASE            =  51;  PG_CMDSTR_NVM_ERASE            = 'nvm.erase';       //TBD:DP860?
@@ -1290,7 +1291,7 @@ const
    // DBV
   PG_CMDID_ALPDP_DBV            = 101;  PG_CMDSTR_ALPDP_DBV            = 'alpdp.dbv'; //TBD:DP860? TBD:2023-02-02? alpdp.dbv?
   PG_CMDID_BIST_DBV             = 102;  PG_CMDSTR_BIST_DBV             = 'bist.dbv'; //TBD:DP860? TBD:2023-02-02? alpdp.dbv?
-
+  PG_CMDID_REPROGRAMING         = 103;  PG_CMDSTR_REPROGRAMING         = 'programming.write';
 	//------------------------------------------ System Commands
   // BMP list
   PG_CMDID_GET_BMP_LIST         = 110;  PG_CMDSTR_GET_BMP_LIST         = 'bmp'; //TBD:DP860?

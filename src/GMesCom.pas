@@ -81,6 +81,7 @@ type
     FMesErrMsgEn   : string;
     FPmMode        : Boolean;
     FEayt          : Boolean;
+    FR2REayt       : boolean;
     FCanUseHost    : Boolean;
     FCanUseEas     : Boolean;
     FCanUseR2R     : Boolean;
@@ -90,17 +91,18 @@ type
     FMesRtnPID     : string;
     FMesErrMsgLc   : string;
     FMesZig_ID        : string;
+    FMesCarrier_ID : string;
 
     //LPIR
     FMesProsessCode : string;
 
 
     //R2R Scenario
+    R2RMachine     : string;
     FR2RUnit        : string;
     FR2RMmcTxnID   : string;
     FR2RDatainfo   : string;
-    FR2ROC_EODSName  : array [0..11] of string;
-    FR2ROC_EODSData  : array [0..11] of string;
+    R2RAACK        : string;
 
     m_sLocal       : string;
     m_sRemote      : string;
@@ -109,6 +111,7 @@ type
     m_sR2RLocal   : string;
     m_sR2RRemote   : string;
     m_sServicePort : string;
+    m_sR2RServicePort : string;
 
     FSystemNo_MGIB : string;
     FSystemNo_PGIB : string;
@@ -162,10 +165,11 @@ type
 //    procedure OntmCheckNoResMsg(Sender: TObject);
 
     procedure SeperateData(sMsg : string; var nChNo : Integer);
-    procedure SeperateR2RData(sMsg: string);// Added by KTS 2023-02-24 오후 5:03:58 R2R Data 분리
+    procedure SeperateR2RData(nCH : Integer; sMsg: string);// Added by KTS 2023-02-24 오후 5:03:58 R2R Data 분리
     procedure parse_EAYT; // 상위 통신 시작
     procedure parse_UCHK; // 사용자 로그인
     procedure parse_EDTI; // 검사기 시간 동기화.
+    procedure parse_R2REAYT;
     procedure parse_SGEN(nCh : Integer;sMsg : string);
     procedure parse_EQCC;
     procedure parse_PCHK(nCh : Integer;sMsg : string);
@@ -212,7 +216,10 @@ type
     m_sRepairDownFile, m_sRepairDownDate : String;
     m_sFullRepairDownFile, m_sFullRepairDownDate : String;
 
-    constructor Create(AOwner : TComponent; MainHandle : HWND); virtual;
+    m_bDoneEODS : array [DefCommon.CH1..DefCommon.MAX_CH] of Boolean;
+
+
+    constructor Create(AOwner : TComponent; MainHandle : HWND; nServerCnt : Integer); virtual;
     destructor Destroy; override;
 
 {$IFDEF WIN64}
@@ -242,9 +249,10 @@ type
     procedure SendHostFldr(sMsg : string);
     procedure SendHostApdr(sSerialNo : string; nPg : Integer; bIsDelayed : Boolean = False);
     procedure SendEasApdr(sSerialNo : string; nPg : Integer; bIsDelayed : Boolean = False);
-    procedure SendR2REods;
+    procedure SendR2REods(nPG : Integer);
     procedure SendR2REodsTest;
     procedure SendR2REoda(nPg,nAACK : Integer);
+    procedure SendR2REayt;
 
     function HOST_Initial(sServicePort, sNetwork, sDemonPort, sLocal, sRemote, sPath : string) : Boolean;
     // Added by ClintPark 2018-11-13 오후 1:01:05  EAS function.
@@ -252,6 +260,7 @@ type
     function R2R_Initial(sServicePort, sNetwork, sDemonPort, sLocal, sRemote, sPath : string) : Boolean;
     function IsMesWaiting(bIsChMsg : Boolean; nThisPgNo : Integer): Boolean;  //JHHWANG-GMES: 2018-06-20
     procedure SendHostStart;
+    procedure SendR2RStart;
     //DEL!!! procedure SendDelayedMesMsg;  //JHHWANG-GMES: 2018-06-20
 
 //    function  ConnectFTP: Boolean;
@@ -381,6 +390,19 @@ begin
 
 end;
 
+
+procedure TGmes.parse_R2REAYT;
+begin
+  if FMesRtnCd = '0' then begin
+    FR2REayt := True;
+    OnGmsEvent(DefGmes.R2R_EAYT,0,False,'');
+  end
+  else begin
+    OnGmsEvent(DefGmes.R2R_EAYT,0,true,'');
+//    OnGmsEvent(DefGmes.MES_EAYT,0,	False,'Error code:'+FMesRtnCd+' : '+FMesErrMsgLc + '('+ FMesErrMsgEn + ')');
+  end;
+end;
+
 procedure TGmes.parse_EAYT;
 begin
   if FMesRtnCd = '0' then begin
@@ -400,6 +422,9 @@ begin
   if FMesRtnCd = '0' then begin
 //    Common.Mlog('<HOST> HOST Server Connected Successfully!');
 //    CheckFLDRProcess;
+    if FCanUseR2R then begin
+      if not fR2REAYT then SEND_MESG2HOST(DefGmes.R2R_EAYT);
+    end;
     OnGmsEvent(DefGmes.MES_EDTI,0,False,'');
   end
   else begin
@@ -490,7 +515,7 @@ end;
 procedure TGmes.parse_EODS;
 begin
   MesData[FMesPg].MesSentMsg := MES_UNKNOWN; // JHHWANG-GMES 2018-06-27
-  SendR2REods;
+  SendR2REods(FMesPg);
 end;
 
 procedure TGmes.parse_EQCC;
@@ -833,6 +858,10 @@ begin
   m_sR2RLocal:= sLocal;
   FCanUseR2R := CommTibRv.Initialize(TIBServer_R2R,sServicePort, sNetwork, sDemonPort, sLocal, sRemote);
 {$ENDIF}
+
+  m_sR2RLocal  := sLocal;
+  m_sR2RRemote := sRemote;
+  m_sR2RServicePort  := sServicePort;
   if not FCanUseR2R then begin
     ShowMessage('[R2R initialization failure - Confirm HOST environment setup]');
   end;
@@ -1243,7 +1272,7 @@ end;
 //  Result := bRtn;
 //end;
 
-constructor TGmes.Create(AOwner : TComponent; MainHandle : HWND);
+constructor TGmes.Create(AOwner : TComponent; MainHandle : HWND; nServerCnt : integer );
 begin
 {$IFDEF WIN32}
   mesCommTibRv := TCommTibRv.Create(AOwner);
@@ -1256,7 +1285,8 @@ begin
 {$ENDIF}
 
 {$IFDEF WIN64}
-  CommTibRv := TCommTibRv64.Create(MainHandle,Common.Path.RootSW,'TIBCO_ECS_Converter.dll');
+
+  CommTibRv := TCommTibRv64.Create(MainHandle,Common.Path.RootSW,'TIBCO_ECS_Converter.dll',nServerCnt);
   CommTibRv.SetCallBack;
 {$IFDEF EAS_USE}
 //  easCommTibRv := TCommTibRv64.Create(MainHandle,MainHandle,Common.Path.RootSW,'TIBCO_ECS_Converter.dll');
@@ -1275,6 +1305,7 @@ begin
   FPmMode         := True;  //TBD  JHHWANG-GNES: 2018-06-20 False->True
   FEayt           := False;
   FCanUseHost     := False;
+  FR2REayt        := false;
   FMesModel       := '';
   FMesRtnCd       := '';
   FMesErrMsgLc    := '';
@@ -1474,19 +1505,29 @@ var
   sDebug  : string;
   nCh     : Integer;
 begin
-  if Length(sMsg) < 6 then Exit;
-  {$IFDEF SIMULATOR_GMES}
-  sMode := Copy(sMsg,1,6);
-  {$ELSE}
+  if Length(sMsg) < 4 then Exit;
+
   sMode := Copy(sMsg,1,4);
-  {$ENDIF}
-  SeperateR2RData(sMsg);
+
 
   {$IFDEF SIMULATOR_GMES}
-  if CompareStr(sMode,'EODS_R') = 0 then parse_EODS;
-  {$ELSE}
-  if CompareStr(sMode,'EODS') = 0 then parse_EODS;
+//  if CompareStr(sMode,'EODS_R') = 0 then parse_EODS;
   {$ENDIF}
+//  if CompareStr(sMode,'EAYT_R') = 0 then begin
+//    SeperateData(sMsg,nCh);
+//  	parse_R2REAYT;
+//  end
+//   if CompareStr(sMode,'EODS') = 0 then begin
+  if CompareStr(sMode,'EODS') = 0 then begin
+    SeperateData(sMsg,nCh);
+    SeperateR2RData(StrToIntdef(FR2RUnit,1)-1,FR2RDatainfo);
+    ReturnDataToTestForm(DefGmes.R2R_EODS, StrToIntdef(FR2RUnit,1)-1, False, 'R2R_DATA');
+    parse_EODS;
+    m_bDoneEODS[StrToIntdef(FR2RUnit,1)-1] := True;
+
+    ReturnDataToTestForm(DefGmes.R2R_EODA, StrToIntdef(FR2RUnit,1)-1, False, 'R2R_DATA');
+
+  end;
 
 end;
 procedure TGmes.GetEasData(sMsg: string);
@@ -1508,7 +1549,7 @@ begin
 //    Common.Mlog(Format('[HOST] Recv Msg: %s PG : %d', [sDebug, FMesPg]));
 //  end;
 
-  if CompareStr(sMode,'APDR_R') = 0 then parse_APDR(nCh,sMsg,False);
+//  if CompareStr(sMode,'APDR_R') = 0 then parse_APDR(nCh,sMsg,False);
 end;
 
 procedure TGmes.GetHostData(sMsg: string);
@@ -1522,6 +1563,7 @@ begin
   sMode := Copy(sMsg,1,6);
 
   SeperateData(sMsg,nCh);
+
 
   sDebug := StringReplace(sMsg,#$0a, #$24, [rfReplaceAll]);
   sDebug := StringReplace(sDebug,#$0d, #$25, [rfReplaceAll]);
@@ -1583,6 +1625,8 @@ begin
   end;
 end;
 
+
+
 procedure TGmes.SendEasApdr(sSerialNo: string; nPg: Integer; bIsDelayed : Boolean = False);
 var
   sConvertSerial : string;
@@ -1608,6 +1652,13 @@ begin
   FMesPg          := 0;
   FMesApdrPg      := 0;
   SEND_MESG2HOST(DefGmes.MES_EAYT);
+end;
+
+procedure TGmes.SendR2REayt;
+begin
+  FMesPg          := 0;
+  FMesApdrPg      := 0;
+  SEND_MESG2HOST(DefGmes.R2R_EAYT);
 end;
 
 procedure TGmes.SendHostEicr(sSerialNo : string; nPg : Integer; sJigId : string; bIsDelayed : Boolean = False);  //JHHWANG-GMES 2018-06-20
@@ -1722,6 +1773,22 @@ begin
 //    Common.MLog(DefCommon.MAX_SYSTEM_LOG,'<HOST> FCanUseHost is True!');
     if not fEAYT then SEND_MESG2HOST(DefGmes.MES_EAYT)
     else              SEND_MESG2HOST(DefGmes.MES_UCHK);
+
+
+    //EAYT 가 처음 INITIAL 하고 테스트 하는 쪽인듯?
+  end;
+end;
+
+procedure TGmes.SendR2RStart;
+begin
+  if not FCanUseHost then begin
+    ShowMessage('[HOST initialization failure - Confirm HOST environment setup]');
+  end
+  else begin
+//    Common.MLog(DefCommon.MAX_SYSTEM_LOG,'<HOST> FCanUseHost is True!');
+    if not fR2REAYT then SEND_MESG2HOST(DefGmes.R2R_EAYT);
+
+
     //EAYT 가 처음 INITIAL 하고 테스트 하는 쪽인듯?
   end;
 end;
@@ -1764,7 +1831,9 @@ end;
 
 procedure TGmes.SendR2REoda(nPg, nAACK: Integer);
 begin
+  R2RAACK := IntToStr(nAACK);
   SEND_MESG2HOST(DefGmes.R2R_EODA,'','',nPg);
+  DongaGmes.m_bDoneEODS[nPg] := False;
 end;
 
 procedure TGmes.SendR2REodsTest;
@@ -1772,9 +1841,9 @@ begin
   SEND_MESG2HOST(DefGmes.R2R_EODS,'','',1);
 end;
 
-procedure TGmes.SendR2REods;
+procedure TGmes.SendR2REods(nPG : Integer);
 begin
-  SEND_MESG2HOST(DefGmes.R2R_EODS_R,'','',0,true);
+  SEND_MESG2HOST(DefGmes.R2R_EODS_R,'','',nPG,true);
 end;
 
 procedure TGmes.SEND_MESG2HOST(const nMsgType: Integer; sSerialNo: string; sZigId : string; nPg : Integer; bIsDelayed : Boolean); //JHHWANG-GMES: 2018-06-20
@@ -2266,7 +2335,7 @@ begin
         sSendMsg := sSendMsg  + ' SERIAL_NO='+ sSerialNo
       else sSendMsg := sSendMsg  + ' PCB_ID='+ sSerialNo;
       //sSendMsg := sSendMsg  + ' FOG_ID='+sSerialNo;
-      sSendMsg := sSendMsg  + format(' PATH=%d',[nPg]);
+      sSendMsg := sSendMsg  + format(' PATH=%d',[nPg +1]);
       //sSendMsg := sSendMsg  + ' MODEL='+MesData[FMesApdrPg].Model; //' MODEL=LH542WF1-EDA1-VM1-S';
 
       sSendMsg := sSendMsg  + ' APD_INFO=['+ MesData[FMesApdrPg].ApdrData+']';
@@ -2279,29 +2348,52 @@ begin
       bIsChMsg := True;
 //      Common.MLog(nPg,'SEND_MESG2HOST2 : Send Msg :  ' + sSendMsg);
     end;
+    DefGmes.R2R_EAYT : begin
+      sSendMsg := 'EAYT';
+      sSendMsg := sSendMsg  + ' ADDR=' + m_sR2RLocal;
+      sSendMsg := sSendMsg  + ' EQP=' + FSystemNo;
+      sSendMsg := sSendMsg  + ' NET_IP=' + Common.SystemInfo.R2R_Network + ' NET_PORT=' + m_sR2RServicePort;//' NET_IP=' + GetLocalIP + ' NET_PORT=' + m_sServicePort;
+      sSendMsg := sSendMsg  + ' MODE=AUTO';
+      sSendMsg := sSendMsg  + ' CLIENT_DATE='+FormatDateTime('yyyymmddhhnnss', Now);
+    end;
+
     DefGmes.R2R_EODS : begin
       sSendMsg := 'EODS';
       sSendMsg := sSendMsg  + ' ADDR=' + m_sR2RLocal;
       sSendMsg := sSendMsg  + ' EQP=' + FSystemNo;
+      sSendMsg := sSendMsg  + ' MACHINE=' + 'H9AMAL515R';
       sSendMsg := sSendMsg  + ' UNIT=' + IntToStr(nPg +1);
+      sSendMsg := sSendMsg  + ' LOT=';
 
-      sSendMsg := sSendMsg  + ' DATAINFO=[::::[OC_W650_X#677.2256^OC_W650_Y#716.7414^OC_W650_Z#769.7799^OC_R650_X#420.4322^OC_R650_Y#192.6249^OC_R650_Z#0.3449^'
-                            + 'OC_G650_X#183.3476^OC_G650_Y#553.7119^OC_G650_Z#27.5488^OC_B650_X#133.9259^OC_B650_Y#46.0480^OC_B650_Z#795.0201^MP9_W650_L#730.1678^'
-                            +  'MP9_W650_X#0.3120^MP9_W650_Y#0.3309^MP9_R650_L#195.1299^MP9_R650_X#0.6853^MP9_R650_Y#0.3142^MP9_G650_L#564.8961^MP9_G650_X#0.2401^'
-                            + 'MP9_G650_Y#0.7239^MP9_B650_L#47.1118^MP9_B650_X#0.1373^MP9_B650_Y#0.0472]]';
-      sSendMsg := sSendMsg  + ' MMC_TXN_ID=20200705060026387HNAMAL42IB16';
+      sSendMsg := sSendMsg  +' DATAINFO=[::::[OC_W600_X#677.2256^OC_W600_Y#716.7414^OC_W600_Z#769.7799^OC_R600_X#420.4322^OC_R600_Y#192.6249^OC_R600_Z#0.3449^'
+                            +'OC_G600_X#183.3476^OC_G600_Y#553.7119^OC_G600_Z#27.5488^OC_B600_X#133.9259^OC_B600_Y#46.0480^OC_B600_Z#795.0201^'
+                            +'MPO_W600_L#730.1678^MPO_W600_X#0.3120^MPO_W600_Y#0.3309^MPO_R600_L#195.1299^MPO_R600_X#0.6853^MPO_R600_Y#0.3142^'
+                            +'MPO_G600_L#564.8961^MPO_G600_X#0.2401^MPO_G600_Y#0.7239^MPO_B600_L#47.1118^MPO_B600_X#0.1373^MPO_B600_Y#0.0472]] MMC_TXN_ID=20230719TEST1';
+
       bIsChMsg := True;
+    end;
 
+    DefGmes.R2R_EODA : begin
+      sSendMsg := 'EODA';
+      sSendMsg := sSendMsg  + ' ADDR=' + m_sR2RLocal+ ',' + m_sR2RRemote;
+      sSendMsg := sSendMsg  + ' EQP=' + FSystemNo;
+      sSendMsg := sSendMsg  + ' MACHINE=' + R2RMachine;
+      sSendMsg := sSendMsg  + ' UNIT=' + IntToStr(nPg +1);
+      sSendMsg := sSendMsg  + ' RECIPE=';
+      sSendMsg := sSendMsg  + ' LOT=';
+      sSendMsg := sSendMsg  + ' AACK=' + R2RAACK;
+      sSendMsg := sSendMsg  + ' MMC_TXN_ID=' + FR2RMmcTxnID;
 
     end;
 
     DefGmes.R2R_EODS_R : begin
       sSendMsg := 'EODS_R';
-      sSendMsg := sSendMsg  + ' ADDR=' + m_sR2RLocal;
+      sSendMsg := sSendMsg  + ' ADDR=' + m_sR2RLocal + ',' + m_sR2RRemote;
       sSendMsg := sSendMsg  + ' EQP=' + FSystemNo;
-
+      sSendMsg := sSendMsg  + ' DATAINFO=['+ R2RMachine+'::0]';
+//      sSendMsg := sSendMsg  + ' UNIT=' + IntToStr(nPg +1);
       sSendMsg := sSendMsg  + ' MMC_TXN_ID=' + FR2RMmcTxnID;
-      bIsChMsg := True;
+//      bIsChMsg := True;
     end;
   end;
   if FCanUseHost then begin
@@ -2371,7 +2463,7 @@ begin
 {$IFDEF WIN64}
     if bIsChMsg then begin  //JHHWANG-GMES 2018-06-20
 
-      if (nMsgType <> DefGmes.EAS_APDR) and (nMsgType <> DefGmes.R2R_EODS_R) and (nMsgType <> DefGmes.R2R_EODA) then begin
+      if (nMsgType <> DefGmes.EAS_APDR) and (nMsgType <> DefGmes.R2R_EODS_R) and (nMsgType <> DefGmes.R2R_EODA) and (nMsgType <> DefGmes.R2R_EAYT) then begin
         MesData[nPg].MesSentMsg := nMsgType;
         MesData[nPg].MesPendingMsg := MES_UNKNOWN;
       end
@@ -2388,7 +2480,7 @@ begin
       end;
       //sDebug := Format('TGmes.OnGmesChMsgTimer:PG(%d): ...sent',[nPg]); Common.MLog(DefCommon.MAX_SYSTEM_LOG,sDebug); //IMSI
     end;
-    if (nMsgType = DefGmes.R2R_EODS) or (nMsgType = DefGmes.R2R_EODS_R) or(nMsgType = DefGmes.R2R_EODA)   then
+    if (nMsgType = DefGmes.R2R_EODS) or (nMsgType = DefGmes.R2R_EODS_R) or(nMsgType = DefGmes.R2R_EODA) or (nMsgType = DefGmes.R2R_EAYT) then
       bRtn := CommTibRv.Send_Data(TIBServer_R2R,sSendMsg)
     else if nMsgType <> DefGmes.EAS_APDR then begin
       bRtn := CommTibRv.Send_Data(TIBServer_MES,sSendMsg);
@@ -2537,7 +2629,13 @@ begin
   begin
     if Pos('OC_', KeyValue) > 0 then
     begin
-      Key := Copy(KeyValue, Pos('OC_', KeyValue) + Length('OC_'), Pos('#', KeyValue) - Pos('OC_', KeyValue) - Length('OC_'));
+      Key := Copy(KeyValue, Pos('OC_', KeyValue), Pos('#', KeyValue) - Pos('OC_', KeyValue));
+      Value := Copy(KeyValue, Pos('#', KeyValue) + 1, Length(KeyValue) - Pos('#', KeyValue) - 1);
+      Result.Add(Key, Value);
+    end;
+    if Pos('MPO_', KeyValue) > 0 then
+    begin
+      Key := Copy(KeyValue, Pos('MPO_', KeyValue), Pos('#', KeyValue) - Pos('MPO_', KeyValue));
       Value := Copy(KeyValue, Pos('#', KeyValue) + 1, Length(KeyValue) - Pos('#', KeyValue) - 1);
       Result.Add(Key, Value);
     end;
@@ -2545,9 +2643,9 @@ begin
 end;
 
 
-procedure TGmes.SeperateR2RData(sMsg: string);
+procedure TGmes.SeperateR2RData(nCH : Integer; sMsg: string);
 var
-  i : integer;
+  i,j: integer;
   Key: string;
   Value: string;
   Dict: TDictionary<string, string>;
@@ -2556,8 +2654,17 @@ begin
 
   for i := 0 to Dict.Count - 1 do
   begin
-    FR2ROC_EODSname[i] := Dict.Keys.ToArray[i];
-    FR2ROC_EODSData[i] := Dict.Values.ToArray[i];
+    PasScr[nCH].FR2ROC_EODSname[i] := Dict.Keys.ToArray[i];
+    PasScr[nCH].FR2ROC_EODSData[i] := Dict.Values.ToArray[i];
+  end;
+
+  for I := 0 to 23 do begin
+    for j := 0 to 23 do begin
+      if R2REODSNAME[i] = PasScr[nCH].FR2ROC_EODSname[j] then begin
+        PasScr[nCH].FR2ROC_Data[i] := PasScr[nCH].FR2ROC_EODSData[j];
+        Break;
+      end;
+    end;
   end;
 
 end;
@@ -2601,12 +2708,13 @@ begin
     else if Uppercase(string(sMsgId))= 'MODEL'          then FMesModel     		:= Trim(string(sMsgCont))
     else if UpperCase(string(sMsgId))= 'INSPCHANEL_A'   then sChRet           := Trim(string(sMsgCont))
     else if Uppercase(string(sMsgId))= 'FOG_ID'         then FMesFogId     		:= Trim(string(sMsgCont))
+    else if Uppercase(string(sMsgId))= 'MACHINE'        then R2RMachine     	:= Trim(string(sMsgCont))
     else if Uppercase(string(sMsgId))= 'SERIAL_NO'      then FMesFogId     		:= Trim(string(sMsgCont))
     else if Uppercase(string(sMsgId))= 'UNIT'           then FR2RUnit         := Trim(string(sMsgCont))
     else if Uppercase(string(sMsgId))= 'MMC_TXN_ID'     then FR2RMmcTxnID     := Trim(string(sMsgCont))
     else if Uppercase(string(sMsgId))= 'DATAINFO'       then FR2RDatainfo     := Trim(string(sMsgCont))
     else if Uppercase(string(sMsgId))= 'PROCESS_CODE'   then FMesProsessCode  := Trim(string(sMsgCont)) //LPIR 추가m-GIB p-GIB 구분 코드
-    else if Uppercase(string(sMsgId))= 'ZIG_ID'         then FMesZig_ID       := Trim(string(sMsgCont)) //Zig_ID 추가
+    else if Uppercase(string(sMsgId))= 'JIG_ID'         then FMesZig_ID       := Trim(string(sMsgCont)) //Zig_ID 추가
 
     //    else if CompareStr(Uppercase(sMsgId), 'RWK_PID')  = 0     then begin
 //      RtnLotID[StrToInt(m_sGetUID)-1]       := sMsgCont;
@@ -2629,6 +2737,9 @@ begin
   FMesErrMsgEn := StringReplace(FMesErrMsgEn,']','', [rfReplaceAll]);
   FMesErrMsgLc := StringReplace(FMesErrMsgLc,'[','', [rfReplaceAll]);
   FMesErrMsgLc := StringReplace(FMesErrMsgLc,']','', [rfReplaceAll]);
+  FR2RDatainfo := StringReplace(FR2RDatainfo,'[','', [rfReplaceAll]);
+  FR2RDatainfo := StringReplace(FR2RDatainfo,']','', [rfReplaceAll]);
+
 end;
 
 

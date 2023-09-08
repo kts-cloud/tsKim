@@ -27,6 +27,7 @@ type
   TCommTibRv64 = class(TObject)
     private
       m_hDll  : HWND;
+      m_nServer_Cnt : integer;
       FNgMsg : string;
       FReturnMsg: string;
       bReady : Boolean;
@@ -66,7 +67,7 @@ type
       m_TestHandle : HWND;
       bISLOG : Boolean;
       sLogPath : string;
-      constructor Create(hMain: HWND;sDLLPath, sFileName: string);
+      constructor Create(hMain: HWND;sDLLPath, sFileName: string;  nServerCnt : integer);
 
       destructor Destroy; override;
       function Initialize(nCh : integer; ServicePort,Network,Deamon_Port,Local_Subject,Remote_Subject : string): Boolean;
@@ -94,13 +95,15 @@ uses GMesCom;
 
 { TCommTibRv64 }
 
-constructor TCommTibRv64.Create(hMain: HWND; sDLLPath, sFileName: string);
+constructor TCommTibRv64.Create(hMain: HWND; sDLLPath, sFileName: string; nServerCnt : integer);
 var
 sDllFile : string;
 begin
   sDllFile := sDLLPath+sFileName;
   bISLOG := false;
   m_MainHandle := hMain;
+
+  m_nServer_Cnt := nServerCnt;
 
   m_hDll := 0;
   if FileExists(sDllFile) then m_hDll := LoadLibrary(PChar(sDllFile))
@@ -111,7 +114,7 @@ begin
   end;
   SetFunction;
 
-  m_Create_TIB(TIBServer_MAX); // Added by KTS 2023-02-01 오전 8:07:59
+  m_Create_TIB(nServerCnt); // Added by KTS 2023-02-01 오전 8:07:59
 
 end;
 
@@ -181,7 +184,7 @@ procedure TCommTibRv64.Terminate;
 var
 i : Integer;
 begin
-  for I := 0 to Pred(TIBServer_MAX) do
+  for I := 0 to Pred(m_nServer_Cnt) do
     m_Terminate(i);
 end;
 

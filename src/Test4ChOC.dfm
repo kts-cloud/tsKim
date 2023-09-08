@@ -159,8 +159,8 @@ object frmTest4ChOC: TfrmTest4ChOC
     BorderOuter = fsFlat
     TabOrder = 0
     object pnlErrAlram: TAdvPanel
-      Left = 264
-      Top = 264
+      Left = 16
+      Top = 186
       Width = 737
       Height = 193
       Color = clActiveCaption
@@ -296,8 +296,8 @@ object frmTest4ChOC: TfrmTest4ChOC
     Text = ''
     FullHeight = 200
     object btnSWNext1: TRzBitBtn
-      Left = 3
-      Top = 170
+      Left = 4
+      Top = 166
       Width = 181
       Caption = 'Next'
       HotTrack = True

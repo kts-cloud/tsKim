@@ -52,6 +52,20 @@ type
     shppPreOCDi02NG: TShape;
     shppPreOCDi00NG: TShape;
     shppPreOCDi01NG: TShape;
+    shppPreOCDi64NG: TShape;
+    shppPreOCDi65NG: TShape;
+    shppPreOCDi68NG: TShape;
+    shppPreOCDi69NG: TShape;
+    shppOCDi40NG: TShape;
+    shppOCDi41NG: TShape;
+    Shape3: TShape;
+    Shape4: TShape;
+    shppOCDi53NG: TShape;
+    shppOCDi54NG: TShape;
+    shppOCDi27NG: TShape;
+    shppOCDi28NG: TShape;
+    shppOCDi14NG: TShape;
+    shppOCDi15NG: TShape;
     procedure FormCreate(Sender: TObject);
     procedure tmrFlickeringTimer(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
@@ -196,6 +210,16 @@ begin
 
 
     ShapeCheck(shpDi16NG,Common.StatusInfo.AlarmData[IN_TEMPERATURE_ALARM] <> 0);
+
+    ShapeCheck(shppOCDi14NG,Common.StatusInfo.AlarmData[IN_CH_1_PROBE_UP_SENSOR] <> 0);
+    ShapeCheck(shppOCDi15NG,Common.StatusInfo.AlarmData[IN_CH_1_PROBE_DOWN_SENSOR] <> 0);
+    ShapeCheck(shppOCDi27NG,Common.StatusInfo.AlarmData[IN_CH_2_PROBE_UP_SENSOR] <> 0);
+    ShapeCheck(shppOCDi28NG,Common.StatusInfo.AlarmData[IN_CH_2_PROBE_DOWN_SENSOR] <> 0);
+    ShapeCheck(shppOCDi40NG,Common.StatusInfo.AlarmData[IN_CH_3_PROBE_UP_SENSOR] <> 0);
+    ShapeCheck(shppOCDi41NG,Common.StatusInfo.AlarmData[IN_CH_3_PROBE_DOWN_SENSOR] <> 0);
+    ShapeCheck(shppOCDi53NG,Common.StatusInfo.AlarmData[IN_CH_4_PROBE_UP_SENSOR] <> 0);
+    ShapeCheck(shppOCDi54NG,Common.StatusInfo.AlarmData[IN_CH_4_PROBE_DOWN_SENSOR] <> 0);
+
   //  shpDi17.Visible   := Common.StatusInfo.AlarmData[IN_POWER_HIGH_ALARM] <> 0;
     // Light Curtain.
   //  shpDi181.Visible  := Common.StatusInfo.AlarmData[IN_LIGHT_CURTAIN] <> 0;
@@ -222,6 +246,12 @@ begin
     ShapeCheck(shppPreOCDi60NG,Common.StatusInfo.AlarmData[IN_GIB_CH_34_SHUTTER_UP_SENSOR] <> 0);
     ShapeCheck(shppPreOCDi59NG,Common.StatusInfo.AlarmData[IN_GIB_CH_12_SHUTTER_DN_SENSOR] <> 0);
     ShapeCheck(shppPreOCDi61NG,Common.StatusInfo.AlarmData[IN_GIB_CH_34_SHUTTER_DN_SENSOR] <> 0);
+
+    // Probe error.
+    ShapeCheck(shppPreOCDi64NG,Common.StatusInfo.AlarmData[IN_GIB_CH_12_PROBE_UP_SENSOR] <> 0);
+    ShapeCheck(shppPreOCDi65NG,Common.StatusInfo.AlarmData[IN_GIB_CH_12_PROBE_DN_SENSOR] <> 0);
+    ShapeCheck(shppPreOCDi68NG,Common.StatusInfo.AlarmData[IN_GIB_CH_34_PROBE_UP_SENSOR] <> 0);
+    ShapeCheck(shppPreOCDi69NG,Common.StatusInfo.AlarmData[IN_GIB_CH_34_PROBE_DN_SENSOR] <> 0);
 
 
     ShapeCheck(shppPreOCDi04,Common.StatusInfo.AlarmData[IN_GIB_CH_12_EMO_SWITCH] <> 0);

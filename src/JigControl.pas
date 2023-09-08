@@ -49,8 +49,9 @@ type
 //      m_bIsHostEvent : boolean;
 //      procedure SetCamConnection;
 //      procedure SendMainGuiDisplay(nGuiMode: Integer; nP1: Integer = 0);
-      procedure SendTestGuiDisplay(nGuiMode: Integer; nP1: Integer = 0; nP2: Integer = 0; nP3: Integer = 0);
+//      procedure SendTestGuiDisplay(nGuiMode: Integer; nP1: Integer = 0; nP2: Integer = 0; nP3: Integer = 0);
       procedure SendMainGuiDisplay(nMsgMode, nCh, nParam, nParam2: Integer; sMsg: String; pData:Pointer=nil);
+      procedure SendTestGuiDisplay(nGuiMode,nCh : Integer; sMsg: string = ''; sMsg2: string = ''; nParam: Integer = 0; nParam2 : Integer = 0);
 //      procedure MakeUserEvent(nCh, nIdxErr : Integer);
 //      procedure MakeUserEvent1(nCh, nIdxErr : Integer);
       function CheckPgConnect(nGroup : integer) : Boolean; // 한개라도 연결 안되면 False Return.
@@ -65,7 +66,7 @@ type
       constructor Create(nJigIdx : Integer ; hMain, hTest : HWND; AOwner : TComponent); virtual;
       destructor Destroy; override;
 //      procedure StopPowerMeasure;
-      procedure TestFunc;
+//      procedure TestFunc;
 
       function StartIspd_TOP(nSeq : Integer = 1) : Boolean;
       procedure StopIspd_TOP;
@@ -178,7 +179,7 @@ var
   nCh, nChCnt : Integer;
 begin
   nChCnt        := DefCommon.MAX_PG_CNT div DefCommon.MAX_JIG_CNT;
-  for nCh := m_nCurChStart to Pred(m_nCurChStart + nChCnt) do begin
+  for nCh := DefCommon.CH1 to DefCommon.MAX_JIG_CH do begin
 //    Logic[nCh].Free;
 //    Logic[nCh] := nil;
 
@@ -282,23 +283,41 @@ begin
   SendMessage(m_hMain,WM_COPYDATA,0, LongInt(@ccd));
 end;
 
-procedure TJig.SendTestGuiDisplay(nGuiMode, nP1, nP2, nP3: Integer);
+procedure TJig.SendTestGuiDisplay(nGuiMode,nCh: Integer; sMsg, sMsg2: string; nParam, nParam2: Integer);
 var
   ccd         : TCopyDataStruct;
-  SendData    : RGuiJigData;
+  GuiData    : RGuiScript;
 begin
-  SendData.MsgType := DefCommon.MSG_TYPE_JIG;
-  SendData.Channel := m_nCurJig;
-  SendData.Mode    := nGuiMode;
-  SendData.nParam  := nP1;
-  SendData.nParam1 := nP2;
-  SendData.nParam2 := nP3;
-
+  GuiData.MsgType := defCommon.MSG_TYPE_JIG;
+  GuiData.Channel := nCh;
+  GuiData.Mode    := nGuiMode;
+  GuiData.Msg     := sMsg;
+  GuiData.Msg2    := sMsg2;
+  GuiData.nParam  := nParam;
+  GuiData.nParam2 := nParam2;
   ccd.dwData      := 0;
-  ccd.cbData      := SizeOf(SendData);
-  ccd.lpData      := @SendData;
+  ccd.cbData      := SizeOf(GuiData);
+  ccd.lpData      := @GuiData;
   SendMessage(m_hTest,WM_COPYDATA,0, LongInt(@ccd));
 end;
+
+//procedure TJig.SendTestGuiDisplay(nGuiMode, nP1, nP2, nP3: Integer);
+//var
+//  ccd         : TCopyDataStruct;
+//  SendData    : RGuiJigData;
+//begin
+//  SendData.MsgType := DefCommon.MSG_TYPE_JIG;
+//  SendData.Channel := m_nCurJig;
+//  SendData.Mode    := nGuiMode;
+//  SendData.nParam  := nP1;
+//  SendData.nParam1 := nP2;
+//  SendData.nParam2 := nP3;
+//
+//  ccd.dwData      := 0;
+//  ccd.cbData      := SizeOf(SendData);
+//  ccd.lpData      := @SendData;
+//  SendMessage(m_hTest,WM_COPYDATA,0, LongInt(@ccd));
+//end;
 
 procedure TJig.SetHandleAgain(hMain, hTest: HWND);
 var
@@ -382,8 +401,10 @@ begin
     //if not Pg[nCh].CheckFWVersion then Continue;
 //    if pos('PASS',PasScr[i].TestInfo.Result)  > 0 then begin
     if COmmon.SystemInfo.OCType = DefCommon.PreOCType then begin
-       if PasScr[i].m_nConfirmHostRet  = 1 then begin  // Added by KTS 2023-06-13 오후 10:41:01 EICR 이후 재시작 안되게
-        Continue;
+      if Common.StatusInfo.AutoMode then begin
+        if PasScr[i].m_nConfirmHostRet  = 1 then begin  // Added by KTS 2023-06-13 오후 10:41:01 EICR 이후 재시작 안되게
+          Continue;
+        end;
       end;
     end;
     PasScr[i].TestInfo.NgCode := 0;
@@ -397,12 +418,15 @@ end;
 procedure TJig.StopIspd_TOP;
 var
   nCh, i : Integer;
+  sLog : string;
 begin
   for i := DefCommon.CH1 to DefCommon.CH2 do begin
     if PasScr[i] <> nil  then begin
       PasScr[i].m_bIsSyncSeq := False;  // 동기화시 Stop 되지 않는 이슈 때문.
       PasScr[i].RunSeq(DefScript.SEQ_KEY_STOP);
       PasScr[i].m_nConfirmHostRet := 0;
+      sLog := Format('ReStart Mode(%d) : Initialization ',[PasScr[i].m_nConfirmHostRet]);
+      SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING, i, sLog);
     end;
   end;
 end;
@@ -454,8 +478,10 @@ begin
 //    end;
     //if not Pg[nCh].CheckFWVersion then Continue;
     if COmmon.SystemInfo.OCType = DefCommon.PreOCType then begin
-       if PasScr[i].m_nConfirmHostRet  = 1 then begin  // Added by KTS 2023-06-13 오후 10:41:01 EICR 이후 재시작 안되게
-        Continue;
+      if Common.StatusInfo.AutoMode then begin
+         if PasScr[i].m_nConfirmHostRet  = 1 then begin  // Added by KTS 2023-06-13 오후 10:41:01 EICR 이후 재시작 안되게
+          Continue;
+        end;
       end;
     end;
     PasScr[i].TestInfo.NgCode := 0;
@@ -467,23 +493,30 @@ begin
 end;
 
 procedure TJig.StopIspdCh(nCh: Integer);
+var
+sLog : string;
 begin
   if PasScr[nCh] <> nil  then begin
     PasScr[nCh].m_bIsSyncSeq := False;  // 동기화시 Stop 되지 않는 이슈 때문.
     PasScr[nCh].RunSeq(DefScript.SEQ_KEY_STOP);
     PasScr[nCh].m_nConfirmHostRet := 0;
+    sLog := Format('ReStart Mode(%d) : Initialization ',[PasScr[nCh].m_nConfirmHostRet]);
+    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING, nCh, sLog);
   end;
 end;
 
 procedure TJig.StopIspd_BOTTOM;
 var
   nCh, i : Integer;
+  sLog : string;
 begin
   for i := DefCommon.CH3 to DefCommon.CH4 do begin
     if PasScr[i] <> nil  then begin
       PasScr[i].m_bIsSyncSeq := False;  // 동기화시 Stop 되지 않는 이슈 때문.
       PasScr[i].RunSeq(DefScript.SEQ_KEY_STOP);
       PasScr[i].m_nConfirmHostRet := 0;
+      sLog := Format('ReStart Mode(%d) : Initialization ',[PasScr[i].m_nConfirmHostRet]);
+      SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING, i, sLog);
     end;
   end;
 end;
@@ -501,9 +534,9 @@ end;
 //  end;
 //end;
 
-procedure TJig.TestFunc;
-begin
-  if Common.SystemInfo.UseManualSerial then SendTestGuiDisplay(DefCommon.MSG_MODE_BARCODE_READY);
-end;
+//procedure TJig.TestFunc;
+//begin
+//  if Common.SystemInfo.UseManualSerial then SendTestGuiDisplay(DefCommon.MSG_MODE_BARCODE_READY);
+//end;
 
 end.

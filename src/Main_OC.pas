@@ -9,7 +9,7 @@ uses
   CommonClass, UserID, GMesCom, DefCommon, DefGmes, NGMsg, ModelInfo, Mainter, LogIn, HandBCR, DefDio,
   CommLightNaratech, Vcl.AppEvnts, Vcl.StdCtrls, Vcl.ComCtrls, AdvListV,  DfsFtp, CommIonizer, JigControl, DefScript,
   {UdpServerClient,} Test4ChOC, SwitchBtn, ScriptClass, ModelSelect, {ModelDownload,} SystemSetup, RzStatus,
-  DoorOpenAlarmMsg, CommPLC_ECS, ECSStatusForm, DBModule, NGRatioForm,ShellApi
+  DoorOpenAlarmMsg, CommPLC_ECS, ECSStatusForm, DBModule, NGRatioForm,ShellApi,CommThermometerMulti,LibCa410Option
   , CA_SDK2, dllClass,CommPG,DefPG, Registry, Inifiles,DllMesCom ,OtlTaskControl, OtlParallel, SyncObjs
 
 ;
@@ -42,7 +42,7 @@ type
     RzPanel12: TRzPanel;
     pnlPatternGroup: TRzPanel;
     RzPanel14: TRzPanel;
-    pnlIsuVer: TRzPanel;
+    pnlOC_conVer: TRzPanel;
     pnlModelNameInfo: TPanel;
     tmAlarmMsg: TTimer;
     tmrDisplayTestForm: TTimer;
@@ -133,6 +133,11 @@ type
     RzPanel11: TRzPanel;
     pnlLGDDLLName: TRzPanel;
     Edit1: TEdit;
+    RzPanel16: TRzPanel;
+    pnlLGDBinName: TRzPanel;
+    RzPanel17: TRzPanel;
+    ledTempIr: ThhALed;
+    pnlCommTempIr: TRzPanel;
     procedure FormCreate(Sender: TObject);
     procedure MyExceptionHandler(Sender : TObject; E : Exception );
     procedure btnInitClick(Sender: TObject);
@@ -167,6 +172,10 @@ type
     procedure tmSaveEnergyTimer(Sender: TObject);
     procedure Button1Click(Sender: TObject);
     procedure RzPanel6DblClick(Sender: TObject);
+    procedure Button3Click(Sender: TObject);
+    procedure Button4Click(Sender: TObject);
+    procedure Button5Click(Sender: TObject);
+    procedure Button7Click(Sender: TObject);
   private
     { Private declarations }
     // DIO
@@ -1044,6 +1053,9 @@ begin
   Common.StatusInfo.LogIn:= False;
   Common.StatusInfo.AutoMode:= False;
 
+
+  Common.GetReProgrammingData;
+
   if Common.SystemInfo.Use_MES then begin
     btnLogIn.Visible:= True;
     btnLogIn.Caption := 'đăng nhập (Log In)';
@@ -1323,7 +1335,7 @@ begin
   pnlModelNameInfo.Caption := Common.SystemInfo.TestModel;
   pnlModelConfig.Caption  := Common.GetModelConfig(Common.SystemInfo.TestModel);
   pnlPsuVer.Caption    := Common.m_Ver.psu_Date+'('+Common.m_Ver.psu_Crc+')';
-  pnlIsuVer.Caption    := Common.m_Ver.isu_Date;
+//  pnlIsuVer.Caption    := Common.m_Ver.isu_Date;
 end;
 
 // DIO Status Display.
@@ -1585,14 +1597,14 @@ begin
     nCurSeq:= 0;
     for i := 0 to 1 do begin
       //현재 차수 구하기
-      g_CommPLC.GetGlassData_Processing_Status(g_CommPLC.GlassData[i + nStage*4], nSeq, 3);
+      g_CommPLC.GetGlassData_Processing_Status(g_CommPLC.GlassData[i + nStage*4],1, nSeq, 3);
       if nCurSeq < nSeq then begin
         nCurSeq:=  nSeq;
       end;
     end;
 
     for i := 0 to 1 do begin
-      nStation:= g_CommPLC.GetGlassData_Processing_Status(g_CommPLC.GlassData[i + nStage*4], nSeq, 3);
+      nStation:= g_CommPLC.GetGlassData_Processing_Status(g_CommPLC.GlassData[i + nStage*4],1, nSeq, 3);
       nJudge:= g_CommPLC.GlassData[i + nStage*4].GlassJudge; //, ord('G'));
       //ShowSysLog(format('AABMode Station=%d, Seq=%d, nJudge=%d', [nStation, nSeq, nJudge]));
       Common.MLog(i + nStage*4, format('AABMode Station=%d, CurSeq=%d, Seq=%d, nJudge=%d', [nStation, nCurSeq, nSeq, nJudge]));
@@ -1608,14 +1620,14 @@ begin
     nCurSeq:= 0;
     for i := 2 to 3 do begin
       //현재 차수 구하기
-      g_CommPLC.GetGlassData_Processing_Status(g_CommPLC.GlassData[i + nStage*4], nSeq, 3);
+      g_CommPLC.GetGlassData_Processing_Status(g_CommPLC.GlassData[i + nStage*4],1, nSeq, 3);
       if nCurSeq < nSeq then begin
         nCurSeq:=  nSeq;
       end;
     end;
 
     for i := 2 to 3 do begin
-      nStation:= g_CommPLC.GetGlassData_Processing_Status(g_CommPLC.GlassData[i + nStage*4], nSeq, 3);
+      nStation:= g_CommPLC.GetGlassData_Processing_Status(g_CommPLC.GlassData[i + nStage*4],1, nSeq, 3);
       nJudge:= g_CommPLC.GlassData[i + nStage*4].GlassJudge; //, ord('G'));
       Common.MLog(i + nStage*4, format('AABMode Station=%d, CurSeq=%d, Seq=%d, nJudge=%d', [nStation, nCurSeq, nSeq, nJudge]));
       if (nSeq < nCurSeq) and (nJudge = ord('G'))  then begin
@@ -1788,7 +1800,7 @@ begin
 
 //  ShowSysLog('InitGmes');
 
-  DongaGmes := TGmes.Create(Self, Self.Handle);
+  DongaGmes := TGmes.Create(Self, Self.Handle,Common.SystemInfo.Service_Cnt);
 //    ShowSysLog('Create');
   DongaGmes.OnGmsEvent  := DongaGmesEvent;  // Added by KTS 2023-03-27 오전 9:58:58
 //      ShowSysLog('OnGmsEvent');
@@ -1879,28 +1891,30 @@ begin
 
   end;
 
+  if Common.SystemInfo.Service_Cnt = 3 then begin
+    sService    := Common.SystemInfo.R2R_Service;
+    sNetWork    := Common.SystemInfo.R2R_Network;
+    sDeamon     := Common.SystemInfo.R2R_DeamonPort;
+    sLocal      := Common.SystemInfo.R2R_LocalSubject;
+    sRemote     := Common.SystemInfo.R2R_RemoteSubject;
+    sHostPath   := Common.Path.R2R;
 
-  sService    := Common.SystemInfo.R2R_Service;
-  sNetWork    := Common.SystemInfo.R2R_Network;
-  sDeamon     := Common.SystemInfo.R2R_DeamonPort;
-  sLocal      := Common.SystemInfo.R2R_LocalSubject;
-  sRemote     := Common.SystemInfo.R2R_RemoteSubject;
-  sHostPath   := Common.Path.R2R;
+    if ((Trim(sService) = '') or (Trim(sDeamon) = '') or (sRemote = '')) then begin
+      ShowSysLog('R2R Info is Empty');
+      Exit;
+    end;
 
-  if ((Trim(sService) = '') or (Trim(sDeamon) = '') or (sRemote = '')) then begin
-    ShowSysLog('R2R Info is Empty');
-    Exit;
-  end;
+    bRtn := DongaGmes.R2R_Initial(sService, sNetWork, sDeamon,sLocal,sRemote ,sHostPath);
+    ledR2R.Value := bRtn;
 
-  bRtn := DongaGmes.R2R_Initial(sService, sNetWork, sDeamon,sLocal,sRemote ,sHostPath);
-  ledR2R.Value := bRtn;
-  if bRtn then begin
-    pnlR2R.Caption := 'Connected';
-    ShowSysLog('R2R Connected');
-  end
-  else begin
-    pnlR2R.Caption := 'Disconnected';
-    ShowSysLog('R2R Disconnected', 1);
+    if bRtn then begin
+      pnlR2R.Caption := 'Connected';
+      ShowSysLog('R2R Connected');
+    end
+    else begin
+      pnlR2R.Caption := 'Disconnected';
+      ShowSysLog('R2R Disconnected', 1);
+    end;
   end;
 end;
 
@@ -1910,13 +1924,24 @@ var
 begin
   Common.StatusInfo.Closing:= True; //종료 중
   Self.Enabled:= False;
+  if g_CommThermometer <> nil then begin
+    g_CommThermometer.Disconnect;
+    Common.Delay(1000);
+    g_CommThermometer.Free;
+    g_CommThermometer := nil;
+  end;
+
+  if CtrlCa410 <> nil then begin
+    CtrlCa410.Free;
+    CtrlCa410 := nil;
+  end;
 
   if g_CommPLC <> nil then begin
     g_CommPLC.SaveGlassData(Common.Path.Ini + 'GlassData.dat');
     if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
     end
     else begin
-      g_CommPLC.ECS_Unit_Status(COMMPLC_UNIT_STATE_DOWN, 201); //프로그램 초기화down
+//      g_CommPLC.ECS_Unit_Status(COMMPLC_UNIT_STATE_DOWN, 201); //프로그램 초기화down
     end;
 //    g_CommPLC.ECS_Accessory_Unit_Status(0, 2, 201); //Stage A
 //    g_CommPLC.ECS_Accessory_Unit_Status(1, 2, 201); //Stage B
@@ -2611,7 +2636,7 @@ begin
     end; //COMMDIO_MSG_CHANGE_DO: begin
     CommDIO_DAE.COMMDIO_MSG_LOG: begin //COMMDIO_MSG_LOG: begin         
       //단순 로그
-      ShowSysLog(pGUIMsg.Msg);
+      ShowSysLog(pGUIMsg.Msg,pGUIMsg.Param2);
     end; //COMMDIO_MSG_LOG
     CommDIO_DAE.COMMDIO_MSG_ERROR: begin //COMMDIO_MSG_LOG: begin
       ShowSysLog('DIO ERROR : ' + pGUIMsg.Msg, 1);
@@ -2748,6 +2773,7 @@ begin
               frmTest4ChOC[nStage].AddLog(sMsg, pGUIMsg.Channel);
               PasScr[pGUIMsg.Channel].TestInfo.MateriID := g_CommPLC.GlassData[pGUIMsg.Channel].MateriID;
               PasScr[pGUIMsg.Channel].m_nConfirmHostRet := 0;
+              g_CommPLC.RobotLoadingStatus[pGUIMsg.Channel] := True;
             end
             else begin
               frmTest4ChOC[nStage].DisplayResult(pGUIMsg.Channel*2 + 0, -3, 0, 'Load Complete');
@@ -3036,7 +3062,7 @@ end;
 procedure TfrmMain_OC.ProcessMsg_SCRIPT(pGUIMsg: PGUIMessage);
 var
   nCh : Integer;
-  sDebug,sSN : string;
+  sDebug,sSN,sPID : string;
 begin
   nCh:= pGUIMsg.Channel;
   case pGUIMsg.Mode of
@@ -3077,12 +3103,13 @@ begin
       DongaGmes.SendHostSGEN(PasScr[nCh].TestInfo.SerialNo, nCh);
     end;
     DefGmes.EAS_APDR : begin
+      sPID := DongaGmes.MesData[nCh].PchkRtnPID;
       if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
         sSN := Format('%s_PCB_ID_CH_%d',[PasScr[nCh].TestInfo.SerialNo,nCh+1]);
-        PasScr[nCh].TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog(sSN,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
+        PasScr[nCh].TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog(sPID,sSN,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
       end
       else begin
-        PasScr[nCh].TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog(PasScr[nCh].TestInfo.SerialNo,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
+        PasScr[nCh].TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog(sPID,PasScr[nCh].TestInfo.SerialNo,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
       end;
       DongaGmes.MesData[nCh].ApdrData := PasScr[nCh].TestInfo.ApdrData;
       DongaGmes.SendEasApdr(PasScr[nCh].TestInfo.SerialNo, nCh);
@@ -3107,8 +3134,21 @@ begin
 
     MSG_TYPE_DLL : begin
       sMsg  := string(pGUIMsg.Msg);
-      pnlLGDDLLName.Caption :=  sMsg;
+      if pGUIMsg.Param = 1 then begin
+        pnlLGDDLLName.Caption :=  sMsg;
+        Common.DLLVersion := sMsg;
+      end
+      else if pGUIMsg.Param = 2 then begin
+        pnlOC_conVer.Caption :=  sMsg;
+        if Length(sMsg) = 0 then
+          ShowNgMessage('OC_OC_Converter.dll VER Verifying the Version');
+      end;
+
     end; //DefCommon.MSG_TYPE_DLL : begin
+
+    STAGE_MODE_DISPLAY_ALARAM :  begin//  COMMDIO_MSG_CONNECT: begin
+      Set_AlarmData(pGUIMsg.Param, pGUIMsg.Param2, 0); //경 알람
+    end;
 
     STAGE_MODE_UNLOAD :  begin
 
@@ -3434,7 +3474,7 @@ try
           sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[nCH]);
 //          SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 0, sMsg);
           SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, nCH, sMsg);
-
+          g_CommPLC.RobotLoadingStatus[nCH] := false;
           Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_EXCHANGE;
           g_CommPLC.ROBOT_Exchange_Request(nCH);
         end;
@@ -5519,6 +5559,14 @@ var
   sFileName : string;
   sSerialId : String;
 begin
+// Edit1.Text := IntToStr(CSharpDll.MainOC_GetOCFlowIsAlive(0));
+////  if DongaGmes <> nil then
+////   DongaGmes.SendR2REodsTest;
+////
+//   Exit;
+
+
+
 
 
 //  sFileName := 'D:\Project\ITOLED\IT_OLED_OC\LGDDLL\OCLog\SummaryLog\12345_Summary_Log_2023_05_03.csv';
@@ -5527,14 +5575,14 @@ begin
 //  sSerialId := '340600164';
   sSerialId :=  Edit1.Text;
 
-  frmTest4ChOC[0].GetNGCode_ByErroCode(sSerialId);
+//  frmTest4ChOC[0].GetNGCode_ByErroCode(sSerialId);
 //  Common.ReadLGDDLLSummaryLog(sSerialId, 2);
 //  PasScr[0].TestInfo.ApdrData := 'AFM_VRR_OPTIMUM:BARCODE:PB5,AFM_VRR_OPTIMUM:SERIALNUMBER:PB503C7602A3K30044,AFM_VRR_OPTIMUM:BUILD:Band_DOE:2,AFM_VRR_OPTIMUM:CONFIG:##,AFM_VRR_OPTIMUM:EQUIPMENT:H9BMTL413A';
-  PasScr[0].TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog(sSerialId,FormatDateTime('yymmdd',PasScr[0].TestInfo.StartTime), 0);
+  PasScr[0].TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog(sSerialId,sSerialId,FormatDateTime('yymmdd',PasScr[0].TestInfo.StartTime), 0);
 //  DongaGmes.MesData[0].ApdrData := PasScr[0].TestInfo.ApdrData;
   PasScr[0].TestInfo.SerialNo := sSerialId;
-  DongaGmes.MesData[0].ApdrData  := PasScr[0].TestInfo.ApdrData;
-  DongaGmes.SendEasApdr(PasScr[0].TestInfo.SerialNo, 0);
+//  DongaGmes.MesData[0].ApdrData  := PasScr[0].TestInfo.ApdrData;
+//  DongaGmes.SendEasApdr(PasScr[0].TestInfo.SerialNo, 0);
 //  sFileName := 'D:\Small_Insp\2.VH\ISPD\DOC\ECS\Error Level 참조_v0.1.xls';
 //  nStartTick := GetTickCount;
 //  while True do begin
@@ -5550,6 +5598,28 @@ begin
 //    end;
 //  end;
 //  ShowMessage('File enable');
+end;
+
+procedure TfrmMain_OC.Button3Click(Sender: TObject);
+begin
+frmTest4ChOC[0].tmCheckIRTemp[2].Enabled := True;
+end;
+
+procedure TfrmMain_OC.Button4Click(Sender: TObject);
+begin
+frmTest4ChOC[0].tmCheckIRTemp[2].Enabled := false;
+end;
+
+procedure TfrmMain_OC.Button5Click(Sender: TObject);
+begin
+frmTest4ChOC[0].ShowIrTempData(5,220);
+frmTest4ChOC[0].ShowIrTempData(6,220);
+end;
+
+procedure TfrmMain_OC.Button7Click(Sender: TObject);
+begin
+frmTest4ChOC[0].ShowIrTempData(5,220);
+frmTest4ChOC[0].ShowIrTempData(6,220);
 end;
 
 procedure TfrmMain_OC.SaveCsvSummaryLog(nCh: Integer);
@@ -5695,8 +5765,8 @@ begin
         if (nIndex = DefDio.IN_GIB_CH_12_EMO_SWITCH) or (nIndex = DefDio.IN_GIB_CH_12_EMO_SWITCH) then
           ShowNgMessage('Please press the Initialize button');
       end;
-
-      g_CommPLC.ECS_Alarm_Add(1, nIndex, 0);  // Added by KTS 2022-08-04 오후 4:31:41
+      if nIndex = g_CommPLC.m_nLastCode then
+        g_CommPLC.ECS_Alarm_Add(1, g_CommPLC.m_nLastCode , 0);  // Added by KTS 2022-08-04 오후 4:31:41
 
       bAlarm:= false;
       for i := 0 to 80 do begin
@@ -5714,7 +5784,7 @@ begin
       ShowSysLog('[ALARM ON] ' + Common.StatusInfo.AlarmMsg[nIndex], 2);
 
       g_CommPLC.ECS_Alarm_Add(0, nIndex, 1); //알람 보고  // Added by KTS 2022-08-04 오후 4:34:53
-      ShowNgMessage(Common.StatusInfo.AlarmMsg[nIndex]);
+//      ShowNgMessage(Common.StatusInfo.AlarmMsg[nIndex]);
     end
     else begin
       ShowSysLog('[ALARM OFF] ' + Common.StatusInfo.AlarmMsg[nIndex], 3);
@@ -5743,6 +5813,11 @@ begin
       if Common.StatusInfo.AutoMode then Exit;
       g_CommPLC.IgnoreConnect:= False;
 
+      if not CheckPG_Connect(0) then begin
+        ShowSysLog('Do not Auto Start - PG Disconnected');
+        Exit;
+      end;
+
       //MC 검사 - DIO 상태 검사 필요
       if not CheckState_DIO then begin
         ShowSysLog('DIO CheckState NG', 1);
@@ -5750,21 +5825,9 @@ begin
       end;
 
 
-//      for I := 0 to 1 do begin
-//        frmTest4ChOC[0].SetIonizer(i,True);
-//      end;
-
-//      if not CheckVersionInterlock then begin
-//        ShowSysLog('Version Interlock NG', 1);
-//        //ShowNgMessage('Version Interlock NG');
-//        Exit;
-//      end;
-
-//      nStage:= GetStageNo_LoadZone;
-//      if nStage < JIG_A then begin
-//        ShowSysLog('Stage Position NG - Turnning is not Complete', 1);
-//        Exit;
-//      end;
+      for I := 0 to 1 do begin
+        ControlDio.MovingShutter(i,True);     //Added by KTS 2023-07-14 오전 11:26:15 수동 모드변경
+      end;
 
       Update_Stage_Position(0); //Stage 포지션 - ECS, CAM
 
@@ -5811,7 +5874,9 @@ begin
       //tolGroupMain.Enabled:= True; //툴바 사용 가능
       for I := 0 to 1 do begin
         frmTest4ChOC[0].SetIonizer(i,false);
+//        ControlDio.MovingShutter(i,false);     //Added by KTS 2023-07-14 오전 11:26:15 수동 모드변경
       end;
+
       Common.StatusInfo.Loading:= False;
       g_CommPLC.IgnoreConnect:= True;
       if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
@@ -5838,7 +5903,7 @@ begin
         g_CommPLC.ITC_AllChNormalStatusOnOff(0);
       end
       else begin
-        g_CommPLC.ECS_Unit_Status(COMMPLC_UNIT_STATE_ONLINE, 0);
+//        g_CommPLC.ECS_Unit_Status(COMMPLC_UNIT_STATE_ONLINE, 0);
       end;
     end;
   end;
@@ -5967,7 +6032,7 @@ end;
 
 procedure TfrmMain_OC.StartAutoProcess;
 var
-  nRet: Integer;
+  nRet, nRetCH12,nRetCH34: Integer;
   nStage, nAnother,nMax_Count: Integer;
   i: Integer;
   frmSelectDetect: TfrmSelectDetect;
@@ -6084,7 +6149,9 @@ begin
           if Common.SystemInfo.UseNoExchange then begin
             frmSelectDetect.btnNo.Enabled:= False;
           end;
+          frmSelectDetect.pnlCaption := 'CH 1,2 Carrier Detected';
           nRet:= frmSelectDetect.ShowModal;
+
           frmSelectDetect.Free;
 
           if nRet = mrYes then begin
@@ -6223,6 +6290,22 @@ begin
     Exit;
   end;
 
+  ThreadTask(procedure var i : Integer; begin
+    for I := 0 to DefCommon.MAX_CH do begin
+      if Common.SystemInfo.OCType = DefCommon.OCType  then  begin
+        ControlDio.ProbeBackward(i);
+        ControlDio.UnlockCarrier(i,true);
+      end
+      else begin
+        ControlDio.UnlockPinBlock(i);
+        ControlDio.CLOSE_Up_PinBlock(i);
+        ControlDio.MovingProbe(i div 2, True);
+        ControlDio.MovingShutter(i div 2,False);  // Added by KTS 2023-07-14 오전 11:26:15 수동 모드- true -> false
+      end;
+      Sleep(100);
+    end;
+  end);
+
   //PG연결 확인해야 할까?
   g_CommPLC.EQP_Clear_ECS_Area; //ECS 보고 영역 지우기
   Sleep(10);
@@ -6256,6 +6339,9 @@ begin
 //
 //  end;
 
+  Display_Memory_DI;
+  Display_Memory_DO;
+
   ShowSysLog('Prepare OK');
   tmrWatch.Enabled:= False;
   tmrWatch.Tag:= 0;
@@ -6270,21 +6356,7 @@ begin
   end;
 
 
-  ThreadTask(procedure var i : Integer; begin
-    for I := 0 to DefCommon.MAX_CH do begin
-      if Common.SystemInfo.OCType = DefCommon.OCType  then  begin
-        ControlDio.ProbeBackward(i);
-        ControlDio.UnlockCarrier(i,true);
-      end
-      else begin
-        ControlDio.UnlockPinBlock(i);
-        ControlDio.CLOSE_Up_PinBlock(i);
-        ControlDio.MovingProbe(i div 2, True);
-        ControlDio.MovingShutter(i div 2,true);
-      end;
-      Sleep(500);
-    end;
-  end);
+
 
 //    common.MLog(DefCommon.MAX_SYSTEM_LOG,'Set_AutoMode Start');
 //  if g_CommPLC <> nil then begin
@@ -6293,10 +6365,10 @@ begin
 //  end;
 //    common.MLog(DefCommon.MAX_SYSTEM_LOG,'Set_AutoMode end');
 //  common.MLog(DefCommon.MAX_SYSTEM_LOG,'DaeIonizer tmrWatchTimer End');
-  Set_Login(True);
   if Common.SystemInfo.Use_ECS then begin
     InitGmes;
   end;
+  Set_Login(True);
 end;
 
 
@@ -6400,6 +6472,17 @@ var
 begin
   tmrDisplayTestForm.Enabled := False;
 
+  if Common.ReadDLLSet then
+    pnlLGDBinName.Caption := Common.TestModelInfoFLOW.GetDLLBin;
+
+  if Common.SystemInfo.DLLVerInterlock then begin   // Ver 관리 ini파일 복사 및 Data read
+    if not Common.FetchNetworkFile(Common.SystemInfo.DLLVerInterlockList,Common.Path.Ini+'SW Version 관리.ini')  then
+      ShowNgMessage('An error occurred while fetching the DLLVerInterlock file')
+    else begin
+      Common.ReadSWVer;
+    end;
+  end;
+
 //  TThread.CreateAnonymousThread( procedure begin
     if not Common.PLCInfo.Use_Simulation then begin
       //ActUTL Server 실행
@@ -6442,6 +6525,7 @@ begin
     end;
 //    end;
   end;
+
   // system Message window configuration.
 //  frmSysEtc.Left := 0;
 //  frmSysEtc.Top := frmTest4ChOC[DefCommon.JIG_A].Height * DefCommon.MAX_JIG_CNT;
@@ -6464,6 +6548,9 @@ begin
       DaeIonizer[i].SendRun; // SendMsg(',RUN,1');
     end;
   end;
+
+  g_CommThermometer:= TCommThermometerMulti.Create(self.Handle, MSG_TYPE_COMMTHERMOMETER, 1000);
+  g_CommThermometer.Connect(common.SystemInfo.Com_IrTempSensor);
   // File Copy
   if Common.SystemInfo.AutoBackupUse then begin
     sTarget := Trim(Common.SystemInfo.AutoBackupList);
@@ -6473,7 +6560,7 @@ begin
         aTask := TThread.CreateAnonymousThread(
           procedure begin
             SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Execute Auto Backup '  + sSource + ' -> '  + sTarget);
-            Common.CopyDirectoryAll(sSource,sTarget, False);
+            Common.CopyDirectoryAll(sSource,sTarget, True);
           end);
         aTask.FreeOnTerminate := True;
         aTask.Start;
@@ -6482,7 +6569,7 @@ begin
   end;
 
   try
-  ControlDio := TControlDio.Create(Self.Handle, DefCommon.MSG_TYPE_CTL_DIO);   // Added by KTS 2022-08-04 오후 4:04:53
+    ControlDio := TControlDio.Create(Self.Handle, DefCommon.MSG_TYPE_CTL_DIO);   // Added by KTS 2022-08-04 오후 4:04:53
   finally
   end;
 
@@ -6550,6 +6637,7 @@ begin
   else begin
     tmSaveEnergy.Enabled := False;
   end;
+
 
 
   //Self.WindowState := wsMaximized;
@@ -6804,8 +6892,19 @@ begin
         end;
         MSG_TYPE_DLL : begin
           sMsg  := string(pGUIMsg.Msg);
-          pnlLGDDLLName.Caption :=  sMsg;
+          if pGUIMsg.Param = 1 then
+            pnlLGDDLLName.Caption :=  sMsg
+          else if pGUIMsg.Param = 2 then begin
+            pnlOC_conVer.Caption :=  sMsg;
+            if Length(sMsg) = 0 then
+              ShowNgMessage('OC_Converter.dll VER Verifying the Version');
+          end;
+
         end; //DefCommon.MSG_TYPE_DLL : begin
+//        MSG_TYPE_DLL : begin
+//          sMsg  := string(pGUIMsg.Msg);
+//          pnlLGDDLLName.Caption :=  sMsg;
+//        end; //DefCommon.MSG_TYPE_DLL : begin
       end;
 
     end; //DefCommon.MSG_TYPE_ADDLOG : begin
@@ -6855,6 +6954,49 @@ begin
         end;
       end;
     end;
+
+    DefCommon.MSG_TYPE_COMMTHERMOMETER : begin
+      nMode := pGUIMsg.Mode;//PGUIMessage(PCopyDataStruct(Msg.LParam)^.lpData)^.Mode;
+      sMsg  := string(PGUIMessage(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
+//      nTemp  := PGUIMessage(PCopyDataStruct(Msg.LParam)^.lpData)^.Param;
+//      nCh := PGUIMessage(PCopyDataStruct(Msg.LParam)^.lpData)^.Channel;
+
+      case nMode of
+        CommThermometerMulti.COMMTHERMOMETER_CONNECT: begin
+          //Connect
+          case pGUIMsg.Param of
+            0: ShowSysLog('Disconnected: ' + pGUIMsg.Msg);
+            1: ShowSysLog('Connected: ' + pGUIMsg.Msg);
+            2: ShowSysLog('Timeout: ' + pGUIMsg.Msg);
+            3: ShowSysLog(pGUIMsg.Msg);
+          end;
+          ledTempIr.Value := False;
+          case pGUIMsg.Param of
+            0: ledTempIr.FalseColor := clRed;
+            1: ledTempIr.Value  := True;
+            2: ledTempIr.FalseColor := clRed;
+            3: ledTempIr.FalseColor := clGray;
+          end;
+          case pGUIMsg.Param of
+            0: pnlCommTempIr.Caption := 'Disconnected: ' + pGUIMsg.Msg;
+            1: pnlCommTempIr.Caption := 'Connected: ' + pGUIMsg.Msg;
+            2: pnlCommTempIr.Caption := 'Timeout: ' + pGUIMsg.Msg;
+            3: pnlCommTempIr.Caption := pGUIMsg.Msg;
+          end;
+        end;
+        CommThermometerMulti.COMMTHERMOMETER_UPDATE: begin
+          //Update
+//          ShowSysLog(Format('Data Update Ch=%d: %d', [pGUIMsg.Param2, pGUIMsg.Param]));
+          if frmTest4ChOC[defcommon.JIG_A] <> nil then begin
+            frmTest4ChOC[defcommon.JIG_A].ShowIrTempData(pGUIMsg.Param2, pGUIMsg.Param);
+          end;
+        end;
+        CommThermometerMulti.COMMTHERMOMETER_ADDLLOG: begin
+          //AddLog
+//          ShowSysLog('[LOG] ' + pGUIMsg.Msg);
+        end;
+      end;
+    end; //MSG_TYPE_AUTONICS : begin
 
     DefCommon.MSG_TYPE_CA410 : begin
 {$IFDEF CA410_USE}
@@ -7097,6 +7239,7 @@ begin
               if ledIonizer.Value then begin
                 ledIonizer.Value:= False;
                 ShowSysLog('Ionizer Status NG: ' + sMsg, 2);
+                ShowNgMessage('Ionizer Status NG: ' + sMsg);
               end;
             end;
             1: begin
@@ -7104,6 +7247,7 @@ begin
               if ledIonizer2.Value then begin
                 ledIonizer2.Value:= False;
                 ShowSysLog('Ionizer Status NG: ' + sMsg, 2);
+                ShowNgMessage('Ionizer Status NG: ' + sMsg);
               end;
 
             end;
@@ -7445,6 +7589,16 @@ begin
   Common.StatusInfo.AlarmMsg[114]:= 'Robot Door Opened';
   Common.StatusInfo.AlarmMsg[116]:= 'PLC Communication';
   Common.StatusInfo.AlarmMsg[117]:= 'Robot Interface Error';
+
+  Common.StatusInfo.AlarmMsg[120]:=  'Cannel 1 Power Limit NG';
+  Common.StatusInfo.AlarmMsg[121]:=  'Cannel 2 Power Limit NG';
+  Common.StatusInfo.AlarmMsg[122]:=  'Cannel 3 Power Limit NG';
+  Common.StatusInfo.AlarmMsg[123]:=  'Cannel 4 Power Limit NG';
+
+  Common.StatusInfo.AlarmMsg[124]:=  'Cannel 1 Same NG Occurrence';
+  Common.StatusInfo.AlarmMsg[125]:=  'Cannel 2 Same NG Occurrence';
+  Common.StatusInfo.AlarmMsg[126]:=  'Cannel 3 Same NG Occurrence';
+  Common.StatusInfo.AlarmMsg[127]:=  'Cannel 4 Same NG Occurrence';
 
 
   Common.StatusInfo.AlarmMsg[128]:=  'Connection NG';

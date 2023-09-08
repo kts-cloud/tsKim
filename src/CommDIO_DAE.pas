@@ -15,6 +15,7 @@ const
 {$ELSE}
   MAX_DIO_DEVICE_COUNT = 8;
 {$ENDIF}
+//  MAX_DIO_DEVICE_COUNT = 16;
 
 
   COMMDIO_MSG_NONE        = 100;
@@ -1203,7 +1204,7 @@ begin
     procedure begin
       Send_HeatBeat;
 
-      Sleep(50);
+      Sleep(200);
 
       nRet:= WaitForCommandAck(
         procedure begin

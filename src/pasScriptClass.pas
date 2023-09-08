@@ -5,10 +5,10 @@ interface
 uses
   Winapi.Windows, Winapi.Messages,  System.SysUtils, System.DateUtils,  System.Classes, System.Variants, Vcl.Dialogs,
    Vcl.ScripterInit, atpascal, atScript, ScrMemo, ScrMps, atScriptDebug,InternalScriptClass, ap_Classes ,
-  System.Generics.Collections, ControlDio_OC, CommPLC_ECS,UserUtils,
+  System.Generics.Collections, ControlDio_OC, CommPLC_ECS,UserUtils,CommThermometerMulti,
   DefCommon, {UdpServerClient,}CommPG, DefScript, uSystemLibrary, IdGlobal, Vcl.Forms,
   CommonClass, DefPG, GMesCom, DefGmes, {LogicVh,} DefDio, System.Math,System.SyncObjs
-  , CommCameraRadiant,dllClass,AF9_FPGA,RegularExpressions , CommDIO_DAE, CommIonizer
+  , CommCameraRadiant,dllClass,AF9_FPGA,RegularExpressions , CommDIO_DAE, CommIonizer,LogicVh
 {$IFDEF CA410_USE}
     , CA_SDK2
 {$ENDIF}
@@ -95,6 +95,7 @@ type
   TTestInformation = class
     PG_Ver: string;
     SW_Ver: string;
+    DLL_Ver : string;
     EQPId: string;
     Model: string;
     ModelConfig: String;
@@ -277,6 +278,7 @@ type
 
     m_hConfirmHostEvent: HWND; // 2020-06-03 CONFIRM_RESULT_REPORT_TO_HOST
     m_bIsWaitConfirmHostEvent: Boolean;
+
 {$IFDEF CA310_USE}
     m_Ca310Data: TBrightValue;
 {$ENDIF}
@@ -318,6 +320,7 @@ type
     procedure PgToComm_Proc(AMachine:TatVirtualMachine);
     procedure PgReset_Proc(AMachine:TatVirtualMachine);
     procedure PowerMeasure_Proc(AMachine:TatVirtualMachine);
+    procedure GetConfigVer_Proc(AMachine: TatVirtualMachine);
     procedure GpioPanel_IRQ_Proc(AMachine: TatVirtualMachine);
     procedure GPIOSet_Proc(AMachine:TatVirtualMachine);   // Added by KTS 2022-12-14 오전 9:38:56 기능 확인
     procedure ConfirmHost_Proc(AMachine: TatVirtualMachine); // Added by KTS 2023-06-09 오후 2:01:26 NG 시 EICR 보고 여부
@@ -333,11 +336,14 @@ type
     procedure OCVerifyStart_Proc(AMachine:TatVirtualMachine);
     procedure OCThreadStateCheck_Proc(AMachine:TatVirtualMachine);
     procedure OCThreadFlash_READ_Proc(AMachine: TatVirtualMachine);
+    procedure OCThreadFlash_Write_Proc(AMachine: TatVirtualMachine);
     procedure SetAgingTm_Proc(AMachine: TatVirtualMachine);
     //OC CA410
     procedure ReadCA410_Proc(AMachine: TatVirtualMachine);
 
     procedure LogM_Proc(AMachine:TatVirtualMachine);
+    procedure SetCaptionName_Proc(AMachine: TatVirtualMachine);
+    procedure LogRePGM_NG_Proc(AMachine:TatVirtualMachine);
     procedure LogPwr_Proc(AMachine:TatVirtualMachine);
     procedure LogPcd_Proc(AMachine:TatVirtualMachine);
     procedure ShowResult_Proc(AMachine:TatVirtualMachine);
@@ -391,11 +397,15 @@ type
     procedure GetCameraINFOName_Proc(AMachine:TatVirtualMachine);
     procedure ChangeBuff_Proc(AMachine:TatVirtualMachine);
     procedure I2CWrite_Proc(AMachine:TatVirtualMachine);
+    procedure ProgrammingWrite_Proc(AMachine:TatVirtualMachine);
     procedure I2CRead_Proc(AMachine:TatVirtualMachine);
     procedure MIPIWrite_Proc(AMachine:TatVirtualMachine);
     procedure MIPIWriteHS_Proc(AMachine: TatVirtualMachine);
     procedure MIPI_ICWrite_Proc(AMachine:TatVirtualMachine);
     procedure MIPI_ClkBps_Proc(AMachine:TatVirtualMachine);
+
+    procedure NVMWrite_Froc(AMachine:TatVirtualMachine);
+    procedure NVMRead_Froc(AMachine:TatVirtualMachine);
 //    procedure SetCamOtpData_Proc(AMachine:TatVirtualMachine);
     procedure MIPIRead_Proc(AMachine:TatVirtualMachine);
     procedure ReadCA310_Proc(AMachine:TatVirtualMachine);
@@ -480,6 +490,7 @@ type
     m_bIsProbeBackSig : boolean;
     m_bComfileCheck : boolean;
     m_bIsSyncSeq   : Boolean;
+    m_bIDLE : Boolean;
     nSyncMode      : integer;
     m_bIsRetryContact : Boolean;
     g_bIsBcrReady     : boolean;
@@ -507,6 +518,8 @@ type
     m_bTotalTact      : Boolean;
     m_bUnitiTact      : Boolean;
 
+    m_bIsReProgramming : Boolean; //ReProgramming OKNG 여부
+
     m_bMaintWindowOn  : Boolean;  //2018-07-31 JHHWANG
     m_nGibOpticNo     : Integer;  //2018-08-06 JHHWANG
     m_lstPrevRet      : TList<Integer>;
@@ -515,6 +528,10 @@ type
     PairCh            : integer;
     CurrentSEQ: Integer;
     TestInfo: TTestInformation;
+
+    FR2ROC_EODSName  : array [0..23] of string;
+    FR2ROC_EODSData  : array [0..23] of string;
+    FR2ROC_Data  : array [0..23] of string;
     procedure DefineMethodFunc(SetPaScript : TatPascalScripter);
     constructor Create(nPgNo : Integer; hMain, hTest : HWND; AOwner : TComponent); virtual;
     destructor Destroy; override;
@@ -542,6 +559,7 @@ type
   {$IFDEF CA310_USE}
     procedure SetCa310Data( Data : TBrightValue);
   {$ENDIF}
+
     procedure SetBCRData;
     procedure SetDioEvent;
     procedure SetHostEvent(nRet : Integer);
@@ -589,6 +607,8 @@ begin
   m_bUnitiTact   := False;
   m_nConfirmHostRet := 0;
   m_sNgMsg := '';
+
+  m_bIDLE := False;
 
   m_nCurPat  := 0;
   m_bLockThread := False;
@@ -652,6 +672,7 @@ end;
 procedure TScrCls.DefineMethodFunc(SetPaScript : TatPascalScripter);
 var
   sParamHint : string;
+  nValue : integer;
 begin
 // Define Method.
 //  atPasScrpt.DefineMethod('DisplayProgress',2,tkNone,nil,DisplayProgressProc,False,2);
@@ -686,6 +707,7 @@ begin
   SetPaScript.DefineRecordByRTTI(TypeInfo(TGammaVal));
   SetPaScript.DefineRecordByRTTI(TypeInfo(TRxPwrData));
   SetPaScript.DefineRecordByRTTI(TypeInfo(TOtpReadData));
+  SetPaScript.DefineRecordByRTTI(TypeInfo(TSWVer));
   //SetPaScript.DefineRecordByRTTI(TypeInfo(TTestRetInfo)); //해당 구조체 타입을 스크립트 내부에서 사용하려면 정의해야 한다.
 
   // DLL OC DLOW 관련
@@ -694,6 +716,7 @@ begin
   SetPaScript.DefineMethod('f_OC_VerifyStart',      0,tkInteger, nil,OCVerifyStart_Proc,False,0);
   SetPaScript.DefineMethod('f_ThreadStateCheck',      0,tkInteger, nil,OCThreadStateCheck_Proc,False,0);
   SetPaScript.DefineMethod('f_Flash_Read_Se_NO',      0,tkInteger, nil,OCThreadFlash_READ_Proc,False,0);
+  SetPaScript.DefineMethod('f_Flash_Write_Se_NO',      0,tkInteger, nil,OCThreadFlash_Write_Proc,False,0);
   SetPaScript.DefineMethod('f_SetAgingTm',             2, tkNone, nil, SetAgingTm_Proc,False, 2);
   SetPaScript.DefineMethod('f_ReadPairNgCode',         1, tkNone, nil, ReadPairNgCode_Proc,False, 1).SetVarArgs([0]);
   SetPaScript.DefineMethod('f_ReadGpioPanel_IRQ',      1, tkInteger, nil, GpioPanel_IRQ_Proc,False, 1).SetVarArgs([0]);
@@ -715,8 +738,17 @@ begin
   SetPaScript.DefineMethod('f_GPIOSet',    3,tkInteger, nil,GPIOSet_Proc,    False, 2);
   SetPaScript.DefineMethod('Sleep',      1,tkNone,    nil,Sleep_Proc,      False);
   SetPaScript.DefineMethod('f_LogM',       2,tkNone,    nil,LogM_Proc,       False,1);
+  SetPaScript.DefineMethod('f_SetCaptionName',       2,tkNone,    nil,SetCaptionName_Proc,       False,0);
+
+  SetPaScript.DefineMethod('f_LogRePGM',       1,tkNone,    nil,LogRePGM_NG_Proc,       False,1);
+  SetPaScript.DefineMethod('f_NVMWrite',       0,tkNone,    nil, NVMWrite_Froc,         False,0);
+  SetPaScript.DefineMethod('f_NVMRead',       0,tkNone,    nil, NVMRead_Froc,         False,0);
+
+
+
   SetPaScript.DefineMethod('f_LogPwr',     0,tkNone,    nil,LogPwr_Proc,     False);
   SetPaScript.DefineMethod('f_PowerMeasure',  1,tkInteger, nil,PowerMeasure_Proc, False,1).SetVarArgs([0]);
+  SetPaScript.DefineMethod('f_GetConfigVer',  2,tkInteger, nil,GetConfigVer_Proc, False,1).SetVarArgs([0]);
   SetPaScript.DefineMethod('f_PowerSet',   1, tkInteger, nil, PowerSet_Proc, False, 0);
   SetPaScript.DefineMethod('f_PowerSetBist',   1, tkInteger, nil, PowerBistSet_Proc, False, 0);
   SetPaScript.DefineMethod('f_ShowResult', 3,tkNone,    nil,ShowResult_Proc, False,2);
@@ -813,6 +845,7 @@ begin
 //  sParamHint := 'Line Select(1 byte),Add Size(1 byte),I2C_Type(1 byte),Device_Add(1 byte),MSB Register_Add(1 byte)';
 //  sParamHint := sParamHint + ',LSB Register_Add(1 byte),Data Length(2 byte),DATA[Length]';
   SetPaScript.DefineMethod('f_I2CWrite',   2,tkInteger, nil,I2CWrite_Proc,  False,2).UpdateParameterHints(sParamHint);
+  SetPaScript.DefineMethod('f_ProgrammingWrite',   2,tkInteger, nil,ProgrammingWrite_Proc,  False,2);
 
 //  // Parameter Hint for I2CWrite
 //  sParamHint := 'Line Select(1 byte),Add Size(1 byte),I2C_Type(1 byte),Device_Add(1 byte),MSB Register_Add(1 byte)';
@@ -864,6 +897,8 @@ begin
   SetPaScript.AddVariable('c_nNgCode',m_nNgCode);
   SetPaScript.AddVariable('c_sNgMsg',m_sNgMsg);
 
+  SetPaScript.AddVariable('c_bIsReProgramming',PG[Self.FPgNo].bIsReProgramming);
+
   SetPaScript.AddVariable('c_bIsRetryContact',m_bIsRetryContact);
   SetPaScript.AddVariable('c_bIsSyncSeq',m_bIsSyncSeq);
   SetPaScript.AddVariable('c_nSyncMode', nSyncMode);
@@ -873,6 +908,13 @@ begin
   SetPaScript.AddObject('c_TestInfo', TestInfo);
   SetPaScript.AddVariable('c_First_Process_DONE', m_First_Process_DONE);
 
+  SetPaScript.AddVariable('c_bChkSWVer',Common.TestModelInfoFLOW.UseCheckVer);
+
+  SetPaScript.AddVariable('c_nChkSWVerConut',Common.SystemInfo.ConfigVerCount);
+
+  SetPaScript.AddVariable('c_UseCheckReProgramming',Common.TestModelInfoFLOW.UseCheckReProgramming);
+
+  SetPaScript.AddVariable('c_bIDLE',m_bIDLE);
 
 
 
@@ -2078,6 +2120,7 @@ begin
 
   TestInfo.SW_Ver:= Common.ExeVersion; // Common.GetVersionDate;
   TestInfo.PG_Ver:= sPgVer;
+  TestInfo.DLL_Ver := Common.DLLVersion;
   TestInfo.Model:= Common.SystemInfo.TestModel;
   TestInfo.ModelConfig:= Common.GetModelConfig(TestInfo.Model);
   TestInfo.EQPId:= Common.SystemInfo.EQPId;
@@ -2355,6 +2398,39 @@ begin
 
         if m_bToMaint then SendDisplayGuiDisplay(defCommon.MSG_MODE_WORKING, 0,GetInputArgAsString(0))
         else               SendTestGuiDisplay(defCommon.MSG_MODE_WORKING,GetInputArgAsString(0),'',nOption);
+      end;
+    End;
+  end;
+end;
+
+procedure TScrCls.SetCaptionName_Proc(AMachine: TatVirtualMachine);
+var
+  nVIRTUAL : Integer;
+  sCaption : string;
+begin
+  With AMachine do begin
+		Case InputArgCount of
+      2 : begin
+        nVIRTUAL := GetInputArgAsInteger(0);
+        sCaption := GetInputArgAsString(1);
+        SendTestGuiDisplay(DefCommon.MSG_MODE_VIRTUAL_CAPTION,sCaption,'',nVIRTUAL);
+      end;
+    End;
+  end;
+end;
+
+procedure TScrCls.LogRePGM_NG_Proc(AMachine: TatVirtualMachine);
+var
+sSN,sPID : string;
+begin
+  With AMachine do begin
+		Case InputArgCount of
+      1 : begin
+        sSN := GetInputArgAsString(0);
+        if DongaGmes <> nil then
+          sPID :=  DongaGmes.MesData[FPgNo].PchkRtnPID
+        else sPID := 'NULL';
+        SendTestGuiDisplay(defCommon.MSG_MODE_LOG_REPGM,sPID,sSN,0);
       end;
     End;
   end;
@@ -2740,9 +2816,107 @@ begin
   end;
 end;
 
+procedure TScrCls.NVMRead_Froc(AMachine: TatVirtualMachine);
+var
+sTemp : string;
+nDataLen : Integer;
+dwRtn : DWORD;
+bOK : Boolean;
+begin
+  With AMachine do begin
+    sTemp := '---------- Flash ALL Read';
+    SendTestGuiDisplay(defCommon.MSG_MODE_WORKING, sTemp,'',0);
+    nDataLen := 8192*1024;
+    dwRtn := Pg[FPgNo].SendFlashRead(0{nStartAddr},nDataLen,@Logic[FPgNo].m_FlashAllData.Data[0]);
+    sTemp := sTemp + TernaryOp(bOK,' OK',' NG');
+    if bOK then sTemp := sTemp + Format(' [LOG/FLASH/CH%d_FlashPucDataRead_A0x0_L%d.hex]',[FPgNo,nDataLen]);
+    SendTestGuiDisplay(defCommon.MSG_MODE_WORKING, sTemp,'',0);
+  end;
+
+end;
+
+procedure TScrCls.NVMWrite_Froc(AMachine: TatVirtualMachine);
+var
+
+  sFileSend,sTemp,sFileName,sFileExt,sDirectory : string;
+  bIsHexFile : Boolean;
+  dwRtn : DWORD;
+  nFlashSize, nDataSize : DWORD;
+  DataBuf : TIdBytes;
+  mtData : TMemoryStream;
+  binData : array of Byte;
+begin
+  With AMachine do begin
+    sDirectory := Common.Path.LGDPara + Common.TestModelInfoFLOW.ModelTypeName + '\Default.bin';
+    if not FileExists(sDirectory) then begin
+      Exit;
+    end;
+    sFileSend := sDirectory;
+
+    try
+      sTemp := '---------- Flash ALL Write';
+      SendTestGuiDisplay(defCommon.MSG_MODE_WORKING, sTemp,'',0);
+      //
+      if Length(sFileSend) <= 0 then begin
+        sTemp := sTemp + ' ...Parameter Error(Flash All file is NOT selected) !!!';
+        SendTestGuiDisplay(defCommon.MSG_MODE_WORKING, sTemp,'',0);
+        Exit;
+      end;
+
+      sFileName := Trim(sFileSend);
+      sFileExt  := ExtractFileExt(sFileName);
+      if LowerCase(sFileExt) = '.hex'      then bIsHexFile := True
+      else if LowerCase(sFileExt) = '.bin' then bIsHexFile := False
+      else begin
+        sTemp := sTemp + ' ...Parameter Error(the selected file is NOT *.hex|*.bin) !!!';
+        SendTestGuiDisplay(defCommon.MSG_MODE_WORKING, sTemp,'',0);
+        Exit;
+      end;
+      SendTestGuiDisplay(defCommon.MSG_MODE_WORKING, sTemp+Format(': %s',[sFileName]),'',0);
+      //
+      nFlashSize := 8192*1024;  // 8MB
+      //
+      if bIsHexFile then begin
+        nDataSize := Common.GetHexLog(sFileName,nDataSize,@DataBuf[0]);
+      end
+      else begin
+        mtData := TMemoryStream.Create;
+        try
+          mtData.LoadFromFile(sFileName);
+          SetLength(binData,nFlashSize);
+          mtData.Position := 0;
+          mtData.Read(binData[0],mtData.Size);
+          //
+          nDataSize := mtData.Size;
+          SetLength(DataBuf,nDataSize);
+          CopyMemory(@DataBuf[0],@binData[0],Min(nFlashSize,nDataSize));
+        finally
+          mtData.Free;
+        end;
+      end;
+      if nDataSize <= 0  then begin
+        sTemp := sTemp + ' ...Error(Check Flash All hex|bin file data) !!!';
+        SendTestGuiDisplay(defCommon.MSG_MODE_WORKING, sTemp,'',0);
+        Exit;
+      end;
+      if nDataSize <> nFlashSize  then begin
+        sTemp := sTemp + Format(' ...NG(DataCnt:%d, FlashSize=%d) !!!',[nDataSize,nFlashSize]);
+        SendTestGuiDisplay(defCommon.MSG_MODE_WORKING, sTemp,'',0);
+        Exit;
+      end;
+      //
+      dwRtn :=Pg[FPgNo].SendFlashWrite(0{nStartAddr},nDataSize, @DataBuf[0]);
+      sTemp := sTemp + TernaryOp((dwRtn = WAIT_OBJECT_0),' OK',' NG');
+      if dwRtn = WAIT_OBJECT_0 then sTemp := sTemp + Format(' [LOG/FLASH/CH%d_FlashAllWrite_A0x0_L%d.bin]',[FPgNo,nFlashSize]);
+      SendTestGuiDisplay(defCommon.MSG_MODE_WORKING, sTemp,'',0);
+    finally
+    end;
+  end;
+end;
+
 procedure TScrCls.OCFlowStart_Proc(AMachine: TatVirtualMachine);
 var
-  wdRet : integer;
+  wdRet,i : integer;
   sPID,sSerialNumber,sEquipment,sUSERID : string;
 begin
   With AMachine do begin
@@ -2750,7 +2924,9 @@ begin
 //    if not CSharpDll.m_bIsDLLWork[FPgNo] then begin
 
     PG[Self.FPgNo].DP860_SendOcOnOff(1{start},2000,0); //2023-03-28 jhhwang (for T/T Test)
-    PG[Self.FPgNo].SetCyclicTimer(False); //2023-03-28 jhhwang (for T/T Test)
+    PG[FPgNo].SetCyclicTimer(False);
+//    for I := DefCommon.CH1 to DefCommon.CH4 do
+//      PG[i].SetCyclicTimer(False);
 
 //      CSharpDll.m_bIsDLLWork[FPgNo] := true;
     case InputArgCount of
@@ -2762,12 +2938,20 @@ begin
           sPID :=  DongaGmes.MesData[FPgNo].PchkRtnPID; // Added by KTS 2023-05-19 오후 5:32:48 PCHK 받은 RYN_PID
         if Length(sPID) = 0 then sPID := Copy(sSerialNumber,1,3);
         if Common.SystemInfo.OCType = DefCommon.PreOCType then
-          sSerialNumber := Format('%s_PCB_ID_CH_%d',[sSerialNumber,Self.FPgNo+1]);
+          sSerialNumber := Format('%s_PCB_ID_CH_%d',[sSerialNumber,Self.FPgNo+1])
+        else begin
+          Common.MLog(self.FPgNo,'[Source Code] CheckIRTemp : Set Temp : '+ IntToStr(Common.SystemInfo.SetTemperature));
+          frmTest4ChOC[0].tmCheckIRTemp[FPgNo].Enabled := True;
+          frmTest4ChOC[0].m_nTempIrTact[FPgNo] := 0;
+          frmTest4ChOC[0].SaveCsvTempStatus(FPgNo,'START',frmTest4ChOC[0].m_bFanOnOff[FPgNo]);
+        end;
         if Length(sSerialNumber) = 0 then sSerialNumber := 'TEST123456789012345678901';
         sEquipment := Common.SystemInfo.EQPId;
         sUSERID := Common.SystemInfo.AutoLoginID;
         if Length(sEquipment) = 0 then sEquipment :=  Format('Equipment:%d',[Self.FPgNo]);
         TestInfo.StartTime := now;
+//        if g_CommThermometer.Connected then
+
         TestInfo.PreOcReStart := False; // Added by KTS 2023-06-09 오후 4:20:10 ReStart 초기화
         case FPgNo of
           0:         wdRet := CSharpDll.MainOC_Start_CH1(Self.FPgNo,sPID,sSerialNumber,sUSERID,sEquipment);
@@ -2870,6 +3054,39 @@ begin
       end;
     end;
     ReturnOutputArg( Integer(wdRet));
+  end;
+end;
+
+procedure TScrCls.OCThreadFlash_Write_Proc(AMachine: TatVirtualMachine);
+var
+wdRet ,nStartAddr,nLength: Integer;
+sAnsiStr ,sSerialNo,sIsAlphaNumeric: string;
+SerialNoBuf : TIdBytes;
+sLog : string;
+begin
+  With AMachine do begin
+//    wdRet := CSharpDll.MainOC_Flash_Read(Self.FPgNo);
+    case InputArgCount of
+    0:
+      begin
+        wdRet := 1;
+        if Length(PasScr[FPgNo].TestInfo.SerialNo) > 0 then begin
+          nStartAddr := Common.TestModelInfoFLOW.SerialNoFlashInfo.nAddr;
+          nLength :=  Common.TestModelInfoFLOW.SerialNoFlashInfo.nLength;
+          sLog := format('OCThreadFlash_WRITE_Proc nStartAddr : %d nLength : %d ',[nStartAddr,nLength]);
+          sLog := sLog + Format(' SerialNo : %s',[PasScr[FPgNo].TestInfo.SerialNo]);
+          Common.MLog(FPgNo,sLog);
+          SerialNoBuf := Common.StringToIdBytes(PasScr[FPgNo].TestInfo.SerialNo);
+          if nLength <> Length(SerialNoBuf) then
+            nLength := Length(SerialNoBuf);
+          wdRet :=  Pg[FPgNo].SendFlashWrite(nStartAddr,nLength, @SerialNoBuf[0]);
+        end
+        else begin
+          SendTestGuiDisplay(defCommon.MSG_MODE_WORKING, 'SerialNo data not found','',0);
+        end;
+      end;
+    end;
+    ReturnOutputArg(wdRet);
   end;
 end;
 
@@ -3199,6 +3416,28 @@ begin
   end;
 end;
 
+procedure TScrCls.GetConfigVer_Proc(AMachine: TatVirtualMachine);
+var
+  wdRet   : Integer;
+  SWVerData : PSWVer;
+  Wrapper : TGenericRecordWrapper;
+  nData : Integer;
+begin
+  With AMachine do begin
+    if InputArgCount = 2 then begin
+      wdRet := 0;
+      Wrapper := VarToObject(AMachine.GetInputArg(0)) as TGenericRecordWrapper;
+      nData:= GetInputArgAsInteger(1);
+      SWVerData  := PSWVer(Wrapper.Rec);
+
+      CopyMemory(SWVerData,@Common.SystemInfo.ConfigVer[nData],SizeOf(Common.SystemInfo.ConfigVer[nData]));
+
+      SetInputArg(0,ObjectToVar(Wrapper));
+      ReturnOutputArg(wdRet);
+    end;
+  end;
+end;
+
 procedure TScrCls.GpioPanel_IRQ_Proc(AMachine: TatVirtualMachine);
 var
   wdRet,nData   : Integer;
@@ -3274,6 +3513,58 @@ begin
 
     end;
     ReturnOutputArg(dwRet);
+  end;
+end;
+
+
+procedure TScrCls.ProgrammingWrite_Proc(AMachine: TatVirtualMachine);
+var
+  nSlaveType, nDevAddr, nRegAddr,nWriteData : Integer;
+  sWriteData : string;
+  bDataLog : Boolean;
+  nWaitSec, nRetry : Integer;
+  //
+  wdRet      : DWORD;
+  sDebug, sTxData : string;
+  lstTemp    : TStringList;
+  arrData    : TIdBytes;  //TBD? array of Integer?
+  nDataCnt, nTemp, i : Integer;
+  sCrcData : string;
+begin
+  With AMachine do begin
+    wdRet := WAIT_FAILED;
+    // Get Param ---------------------------------------------------------------
+    if InputArgCount < 2 then begin
+      ReturnOutputArg(wdRet);
+      Exit;
+    end;
+    nRegAddr   := GetInputArgAsInteger(0);      // arg[0:M] nRegAddr: Integer
+    nDataCnt   := GetInputArgAsInteger(1);      // Length
+    nWaitSec := 2000; //2023-04-08 (3000->100->200)
+    nRetry  := 0;   //2023-04-08 (0->3->0)
+    SetLength(arRData,nDataCnt);
+    if Length(Common.m_DLLReProgrammingData) < nDataCnt then Exit;
+
+    for I := 0 to nDataCnt -1 do begin
+      arrData[i] := Common.m_DLLReProgrammingData[i];
+    end;
+    bDataLog := True;
+    sDebug := Format('ProgrammingWrite: RegAddr(0x%0.4x) DataCnt(%d), CRCData(%s) WaitMS(%d) Retry(%d) ',[nRegAddr,nDataCnt,Common.m_DLLReProgrammingCRC, nWaitSec,nRetry]);
+    if bDataLog then SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,sDebug,'',DefCommon.LOG_TYPE_INFO)
+    else             Common.MLog(FPgNo,sDebug);
+    wdRet := Pg[Self.FPgNo].SendReProgramming(PROGRAMING_DEVICE,nRegAddr,nDataCnt,arrData, nWaitSec,nRetry);
+
+    case wdRet of
+      WAIT_OBJECT_0: begin
+        sDebug := 'Programming WRITE OK';
+      end;
+      WAIT_TIMEOUT: sDebug := 'Programming WRITE NG (Timeout)';
+      WAIT_FAILED : sDebug := 'Programming WRITE NG (Failed)';
+      else          sDebug := 'Programming WRITE NG (Etc)';
+    end;
+    if bDataLog then SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,sDebug,'',TernaryOp((wdRet=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG))
+    else             Common.MLog(FPgNo,sDebug);
+    ReturnOutputArg(wdRet);
   end;
 end;
 
@@ -3724,7 +4015,7 @@ begin
 
   //Auto Mode일 경우 Load 요청을위한 알림
   //if Common.StatusInfo.AutoMode then begin
-    if CurrentSEQ in [SEQ_KEY_START,SEQ_UNLOAD_ZONE] then begin
+    if CurrentSEQ in [SEQ_UNLOAD_ZONE] then begin
       if not TestInfo.PreOcReStart then begin
         SendTestGuiDisplay(DefCommon.MSG_MODE_SYNC_WORK,'','', 3, CurrentSEQ);
       end
@@ -3942,6 +4233,7 @@ var
   nRet  : Integer;
   nTactSec: Int64;
   fTact: Double;
+  nValue,nSeq : Integer;
 begin
   With AMachine do begin
     wdRet := 1;
@@ -3955,6 +4247,22 @@ begin
           ReturnOutputArg(0);
           Exit;
         end;
+        if g_CommPLC <> nil then begin
+          if nRet <> 0 then begin
+            if g_CommPLC.PollingAABMode = 1 then begin
+              nValue := g_CommPLC.GlassData[FPgNo].GlassProcessingStatus[0];
+              if nValue and $F = 0 then begin
+                Common.MLog(self.FPgNo, 'AABMode - A Mode- EIJR SKIP');
+                Exit;
+              end;
+              if nValue and $3C0 = 0 then  begin
+                Common.MLog(self.FPgNo, 'AABMode - AA Mode EIJR SKIP');
+                Exit;
+              end;
+            end;
+          end;
+        end;
+
 
 //        SendTestGuiDisplay(DefCommon.MSG_MODE_SHOW_SERIAL_NUMBER,TestInfo.SerialNo);
         if DongaGmes is TGmes then begin
@@ -4232,7 +4540,7 @@ procedure TScrCls.ECS_SetGlassData_Proc(AMachine: TatVirtualMachine);
 var
   nNgCode: Integer;
   nStation: Integer;
-  nSeq,wdRet: Integer;
+  nSeq,wdRet,nGIBSeq,nEQP_ID: Integer;
 begin
 
   With AMachine do begin
@@ -4248,6 +4556,7 @@ begin
         g_CommPLC.SetGlassData_CheckRLogistics(FPgNo,g_CommPLC.GlassData[FPgNo],0);
       end;
 
+
       if nNgCode = 0 then begin
         g_CommPLC.SetGlassData_JudgCode(g_CommPLC.GlassData[FPgNo], ord('G'));
       end
@@ -4262,19 +4571,36 @@ begin
   //      end;
 
         if Common.SystemInfo.Use_GIB then begin //GIB구분- Auto이고 GIB 모드이면 Inline GIB
-          nStation:= g_CommPLC.GetGlassData_Processing_Status(g_CommPLC.GlassData[FPgNo], nSeq, 16);
-          g_CommPLC.SetGlassData_Processing_Status_GIB(g_CommPLC.GlassData[FPgNo], FPgNo,nSeq);
+          if (Common.PLCInfo.EQP_ID - 6) = 1 then
+            nEQP_ID := 1
+          else nEQP_ID := 2;
+          nStation:= g_CommPLC.GetGlassData_Processing_Status(g_CommPLC.GlassData[FPgNo],nEQP_ID, nSeq, 16);
+          g_CommPLC.SetGlassData_Processing_Status_GIB(g_CommPLC.GlassData[FPgNo],nEQP_ID, FPgNo,nSeq);
         end
         else begin
-          nStation:= g_CommPLC.GetGlassData_Processing_Status(g_CommPLC.GlassData[FPgNo], nSeq , 6);
-          g_CommPLC.SetGlassData_Processing_Status(g_CommPLC.GlassData[FPgNo], 1, 6);
+          if Common.SystemInfo.OCType = DefCommon.OCType then
+          begin
+            nStation:= g_CommPLC.GetGlassData_Processing_Status(g_CommPLC.GlassData[FPgNo],1, nSeq , 6);
+            g_CommPLC.SetGlassData_Processing_Status(g_CommPLC.GlassData[FPgNo], 1, 6);
+          end
+          else if Common.SystemInfo.OCType = DefCommon.PreOCType then
+          begin
+            g_CommPLC.SetGlassData_Processing_Status(g_CommPLC.GlassData[FPgNo], 1, 5);
+          end;
         end;
       end;
       if Common.SystemInfo.Use_GIB then begin //GIB구분- Auto이고 GIB 모드이면 Inline GIB
-        g_CommPLC.SetGlassData_Previous_Unit_Processing_GIB(g_CommPLC.GlassData[FPgNo],FPgNo,nSeq);
+        if (Common.PLCInfo.EQP_ID - 6) = 1 then
+            nEQP_ID := 1
+        else nEQP_ID := 2;
+        nStation:= g_CommPLC.GetGlassData_PreviousUnitProcessing(g_CommPLC.GlassData[FPgNo],nEQP_ID, nSeq, 16);
+        g_CommPLC.SetGlassData_Previous_Unit_Processing_GIB(g_CommPLC.GlassData[FPgNo],FPgNo,nEQP_ID,nSeq);
       end
       else begin
-        g_CommPLC.SetGlassData_Previous_Unit_Processing(g_CommPLC.GlassData[FPgNo], g_CommPLC.EQP_ID-10);
+        if Common.SystemInfo.OCType = DefCommon.OCType then
+          g_CommPLC.SetGlassData_Previous_Unit_Processing(g_CommPLC.GlassData[FPgNo], g_CommPLC.EQP_ID-10)
+        else if Common.SystemInfo.OCType = DefCommon.PreOCType then
+          g_CommPLC.SetGlassData_Previous_Unit_Processing(g_CommPLC.GlassData[FPgNo], g_CommPLC.EQP_ID-13);
       end;
       wdRet := 0;
       ReturnOutputArg(wdRet);
@@ -5301,8 +5627,14 @@ begin
 
 
     TestInfo.NgCode:= nResult;
+
+    m_lstPrevRet.Insert(0, nResult);
+    if m_lstPrevRet.Count > Common.SystemInfo.NGAlarmCount then
+      m_lstPrevRet.Delete(Common.SystemInfo.NGAlarmCount);
+
     if nResult <> 0 then begin
       TestInfo.Result :=  Format('%0.2d NG', [nResult]); //Common.GmesInfo[nResult].sErrCode; //Format('PD%0.2d',[nResult]);// 'FAIL';
+
       TestInfo.ERR_Code:= Common.GmesInfo[nResult].sErrCode;
       TestInfo.ERR_Message := Common.GmesInfo[nResult].sErrMsg+ ' ('+m_sNgMsg+')';
       TestInfo.MES_Code := Common.GmesInfo[nResult].MES_Code;
@@ -5313,6 +5645,7 @@ begin
 //        //SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'Ng Message : '+ Common.GmesInfo[nResult].sErrMsg,'',10 );
 //        SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,Format('NG Code:%d, ErrCode:%s, MES Code:%s, Message:%s',[nResult, TestInfo.ERR_Code, Common.GmesInfo[nResult].MES_Code, TestInfo.ERR_Message]),'', 10 );
       Inc(TestInfo.NGCount);
+
 //      end;
 
     end
@@ -5479,6 +5812,20 @@ begin
   end;
 end;
 
+procedure Delay(msec: longint);
+var
+  FirstTickCount: longint;
+  LastTickCount : longint;
+begin
+  if msec <= 0 then Exit;
+  FirstTickCount := GetTickCount;
+  repeat
+    Application.ProcessMessages;
+    Sleep(1);
+    LastTickCount := GetTickCount;
+  until ((LastTickCount-FirstTickCount) >= msec);
+end;
+
 procedure TScrCls.TerminateScript;
 var
   i: Integer;
@@ -5487,8 +5834,9 @@ begin
   if m_bCallTerminate then begin
     ScriptThread('Seq_Terminate',0);
   end;
-  for i := 0 to 1000 do begin
-    Common.Delay(10);//Sleep(10);
+  for i := 0 to 100 do begin
+    Delay(10);
+//    Sleep(10);
     if not m_bTheadIsTerminated then Break;
   end;
 end;
@@ -5895,9 +6243,9 @@ begin
           15 :wdRet := ControlDio.CLOSE_Up_PinBlock(Self.FPgNo);
           16 :wdRet := ControlDio.CLOSE_DN_PinBlock(Self.FPgNo);
         end;
-        {$IFDEF DEBUG}
-        wdRet := 0;
-        {$ENDIF}
+//        {$IFDEF DEBUG}
+//        wdRet := 0;
+//        {$ENDIF}
         ReturnOutputArg( wdRet);
       end;
     except
