@@ -151,6 +151,8 @@ object frmDoorOpenAlarmMsg: TfrmDoorOpenAlarmMsg
     ParentFont = False
     TabOrder = 0
     StyleElements = []
+    OnDblClick = Panel1DblClick
+    ExplicitTop = -6
   end
   object Panel2: TPanel
     Left = 0

@@ -87,6 +87,26 @@ const
   COMPLC_SIG_BUSY_LOAD2 = 0;
   COMPLC_SIG_BUSY_UNLOAD1 = 0;
   COMPLC_SIG_BUSY_UNLOAD2 = 0;
+
+  COMMPLC_MODE_LOAD_1 = 1;  //Glass Data Request
+  COMMPLC_MODE_LOAD_2 = 2;  //Glass Data Report
+  COMMPLC_MODE_LOAD_3 = 3;  // Load Request
+  COMMPLC_MODE_LOAD_4 = 4;  // Load Enable
+  COMMPLC_MODE_LOAD_5 = 5;  // Robot Busy
+  COMMPLC_MODE_LOAD_6 = 6;  // Load Complete
+  COMMPLC_MODE_LOAD_7 = 7;  // Load Complete Confirm
+  COMMPLC_MODE_LOAD_11 = 11;// Load EQP Normal Status
+  COMMPLC_MODE_LOAD_12 = 12;// Load ROBOT Normal Status
+
+  COMMPLC_MODE_UNLOAD_1 = 21;    // Glass Data Report
+  COMMPLC_MODE_UNLOAD_2 = 22;    // UnLoad Request
+  COMMPLC_MODE_UNLOAD_3 = 23;    // UnLoad Enable
+  COMMPLC_MODE_UNLOAD_4 = 24;    // Robot Busy
+  COMMPLC_MODE_UNLOAD_5 = 25;    // UnLoad Complete
+  COMMPLC_MODE_UNLOAD_6 = 26;    // UnLoad Complete Confirm
+  COMMPLC_MODE_UNLOAD_11 = 31;   // UnLoad EQP Normal Status
+  COMMPLC_MODE_UNLOAD_12 = 32;   // UnLoad ROBOT Normal Status
+
 type
 
 {$IFNDEF GUIMESSAGE}
@@ -248,6 +268,7 @@ type
     m_nLastMESTick: Cardinal;
     m_nLinkTestTick: Cardinal;
     m_nRobotDataSize : Integer; // GIB 및 OC ROBOT 영역 Size 가변적
+    m_nEQPDataSize : integer;
     //m_aGlassData: array [0..7] of TECSGlassData; //채널별 GlassData 저장
     procedure AddLog(sLog: String; bSave: Boolean=false);
     procedure SaveLog(dtSave: TDateTime);
@@ -279,6 +300,11 @@ type
     procedure Process_ROBOT_ResetCount(nCh, nValue: Integer);
     procedure Process_ROBOT_LastProduct(nCh, nValue: Integer);
     procedure Process_ROBOT_Normal_Off(nCh, nValue: Integer);
+
+    procedure Process_Door_Open_Warning(nValue: Integer);
+    procedure Process_Door_Open_Info(nValue: Integer);
+
+
 
     procedure Process_AlarmQue;
     procedure Process_MESQue;
@@ -483,6 +509,9 @@ type
     function ECS_WriteTactTime(nTactTimeMS: Integer): Integer;
     function ITC_AllChNormalStatusOnOff(nOnOff : Integer):integer;
 
+    function EQP_Door_Open_Warning: Boolean;
+    procedure EQP_Door_Open_Info(nValue: Integer);
+
     /// <summary> Robot측에 Load 요청</summary>
     function ROBOT_Load_Request(nCh: Integer): Integer;
     /// <summary> Robot측에 Unload 요청</summary>
@@ -637,14 +666,19 @@ begin
     m_nRobotDataSize := 4;
   end;
 
+  if (Common.SystemInfo.OCType = DefCommon.OCType) then
+    m_nEQPDataSize := 16
+  else if (Common.SystemInfo.OCType = DefCommon.PreOCType) then
+    m_nEQPDataSize := 22;
+
 
   //폴링 데이터 배열
   SetLength(PollingData, m_nRobotDataSize);
   SetLength(PollingDataPre, m_nRobotDataSize);
   SetLength(PollingECS, COMMPLC_ECS_DATASIZE+1);
   SetLength(PollingECSPre, COMMPLC_ECS_DATASIZE+1);
-  SetLength(PollingEQP, COMMPLC_EQP_DATASIZE);
-  SetLength(PollingEQPPre, COMMPLC_EQP_DATASIZE);
+  SetLength(PollingEQP, m_nEQPDataSize);
+  SetLength(PollingEQPPre, m_nEQPDataSize);
 
   SetLength(PollingCV, COMMPLC_CV_DATASIZE);
   SetLength(PollingCVPre, COMMPLC_CV_DATASIZE);
@@ -1032,12 +1066,12 @@ var
 begin
 
   if not Connected then Exit(1);
-  if (m_nStatus  = 3) and (nOnOff = 1) then Exit;
   AddLog(format('ECS_MES_AddItem nAlarmType=%d, nAlarmCode=%d OnOff=%d', [nAlarmType, nAlarmCode, nOnOff ]));
-//  item.AlarmType:= nAlarmType;
-//  item.AlarmCode:= nAlarmCode;
-//  item.AlarmValue:= nOnOff;
-//  m_AlarmQue.Enqueue(item);
+  item.AlarmType:= nAlarmType;
+  item.AlarmCode:= nAlarmCode;
+  item.AlarmValue:= nOnOff;
+  m_AlarmQue.Enqueue(item);
+  if (m_nStatus  = 3) and (nOnOff = 1) then Exit;
 
   ECS_Alarm_Report(nAlarmType,nAlarmCode, nOnOff);
   m_nLastCode := nAlarmCode;
@@ -1291,7 +1325,7 @@ begin
 //  AddLog(format('ECS_Lost_Glass_Request GlassCode=%d, GlassID=%s, CarrierID=%s', [AGlassData.GlassCode ,AGlassData.GlassID, AGlassData.CarrierID]));
   if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
 //    sEcsBitAddr :=  'B'+IntToHex(StartAddr_ECS+ $100+nIndex, 3)
-    sECSBitAddr := 'B'+IntToHex(StartAddr_ECS+ $10 * $10 +  $01, 3);
+    sECSBitAddr := 'B'+IntToHex(StartAddr_ECS+ $10 * $10 + EQP_ID - 6 , 3);
   end
   else begin
     sEcsBitAddr := 'B'+IntToHex(StartAddr_ECS+ $100+nIndex, 3);
@@ -1999,6 +2033,41 @@ begin
   RequestState_Unload[nCH]:= 0;
 end;
 
+procedure TCommPLCThread.EQP_Door_Open_Info(nValue: Integer);
+begin
+  if not Connected then Exit;
+  AddLog('EQP_Door_Open_Info ' + IntToStr(nValue));
+  WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$05+$2 , 3), nValue); //EQP_Door_Open_Info
+
+end;
+
+function TCommPLCThread.EQP_Door_Open_Warning: Boolean;
+var
+nRet : integer;
+begin
+  Result := True;
+  AddLog('Process_EQP_Door_Open_Warning ' + IntToStr(1));
+
+  WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$05+$0 , 3), 1); //Door Open Warning ON
+
+  nRet:= WaitSignal('B' + IntToHex(StartAddr_ROBOT_DOOR_BIT+$10*$00+$2, 3), 1, 3000); //Door Open Warning Confirm 대기
+  if nRet <> 0 then begin
+    AddLog('Door Open Warning Confirm ON Timeout');
+    //오류
+    WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$05+$0 , 3), 0);
+    Exit(false);
+  end;
+
+  WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$05+$0 , 3), 0); //Door Open Warning OFF
+
+  nRet:= WaitSignal('B' + IntToHex(StartAddr_ROBOT_DOOR_BIT+$10*$00+$2, 3), 0, 3000); //Door Open Warning Confirm 대기
+  if nRet <> 0 then begin
+    AddLog('Door Open Warning Confirm OFF Timeout');
+    //오류
+    Exit(false);
+  end;
+end;
+
 function TCommPLCThread.EQP_SkipCh(nJig, nCh, nSkip: Integer): integer;
 var
   sMsg : string;
@@ -2168,7 +2237,7 @@ begin
   nIndex := (EQP_ID + 13) mod 16;
   ConvertStrToPLC(sPanelID, 16, naGlassData[0]); //문자는 Word당 2글자
   if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
-    sECSBitAddr := 'B'+IntToHex(StartAddr_ECS+ $10 * $20 + $01, 3);
+    sECSBitAddr := 'B'+IntToHex(StartAddr_ECS+ $10 * $20 + EQP_ID - 6, 3);
   end
   else begin
     sECSBitAddr := 'B'+IntToHex(StartAddr_ECS+ $200+nIndex, 3);
@@ -2248,14 +2317,17 @@ begin
 
   if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
     WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$09+$4 + (nCh*$20), 3), 1); //Unload Normal Status
+    Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_11] := 1;
     WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$08+$4 + (nCh*$20), 3), 1); //Load Normal Status - 상태 설정에서....
-
+    Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_11] := 1;
     Sleep(50);
 
     ConvertGlassDataToBlock(GlassData[nCh], naGlassData[0]);
     WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$10+$0 + (nCh*$40) , 3), 64, naGlassData[0]); //Unload Glass Data #1
 
+    Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_1] := 1;
     WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$09+$1 + (nCh*$20), 3), 1); //Unload Glass Data Report
+    Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_2] := 1;
     WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$09+$5 + (nCh*$20), 3), 1); //Unload Request
 
     WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$08+$1 + (nCh*$20), 3), 1); //Load Glass Data Request
@@ -2268,14 +2340,17 @@ begin
 //    WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$09+$0 + (nCh*$20), 3), 1); //Unload Enable
 
     nRet:= WaitSignal('B' + IntToHex(StartAddr_ROBOT+$10*$00+$1 + (nCh*$20), 3), 1, 5000); //Glass Data Report를 보고 대기
-    if nRet <> 0 then     WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$09+$0 + (nCh*$20), 3), 1); //Unload Enable
-
+    if nRet <> 0 then  begin
+      Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_3] := 1;
+      WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$09+$0 + (nCh*$20), 3), 1); //Unload Enable
+    end;
   end
   else begin
 
     WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$4 + (nCh*$20), 3), 1); //Unload Normal Status
+    Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_11] := 1;
     WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$12+$4 + (nCh*$20), 3), 1); //Load Normal Status - 상태 설정에서....
-
+    Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_11] := 1;
     Sleep(50);
     if Common.SystemInfo.CHReversal then begin
       ConvertGlassDataToBlock(GlassData[nCh*2 + 1], naGlassData[0]);
@@ -2291,8 +2366,9 @@ begin
       ConvertGlassDataToBlock(GlassData[nCh*2+1], naGlassData[0]);
       WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$20+$0 + $40 + (nCh*$80), 3), 64, naGlassData[0]); //Unload Glass Data #2
     end;
-
+    Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_1] := 1;
     WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$1 + (nCh*$20), 3), 1); //Unload Glass Data Report
+    Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_2] := 1;
     WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$5 + (nCh*$20), 3), 1); //Unload Request
 
     WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$12+$1 + (nCh*$20), 3), 1); //Load Glass Data Request
@@ -2301,6 +2377,7 @@ begin
     //Glass Data Report를 보고 대기
     //기다 렸으니 응답이 왔던 안왔던 OFF 처리
     //WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$1 + (nCh*$20), 3), 0); //Load Glass Data Request Off
+    Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_3] := 1;
     if Common.SystemInfo.OCType = DefCommon.OCType then
           WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$0 + (nCh*$20), 3), 1) //Unload Enable
     else  WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$0 + (nCh*$20), 3), 1); //Unload Enable
@@ -2416,6 +2493,7 @@ begin
   AddLog('ROBOT_Load_Request: ' + InttoStr(nCh));
   if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
     WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$09+$4 + (nCh*$20), 3), 1); //Unload Normal Status
+    Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_11] := 1;
     WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$09+$0 + (nCh*$20), 3), 0); //Unload Enable
     WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$09+$1 + (nCh*$20), 3), 0); //Glass Data Report
     WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$09+$5 + (nCh*$20), 3), 0); //Unload Request
@@ -2424,12 +2502,15 @@ begin
     WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$08+$5 + (nCh*$20), 3), 0); //Load Request Off
     WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$08+$6 + (nCh*$20), 3), 0); //Load Complte Confirm Off
     WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$08+$4 + (nCh*$20), 3), 1); //Normal Status - 상태 설정에서....
+    Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_11] := 1;
     Sleep(500);
     WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$08+$1 + (nCh*$20), 3), 1); //Glass Data Request
+    Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_1] := 1;
   end
   else begin
     if Common.SystemInfo.OCType = DefCommon.OCType  then  begin
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$4 + (nCh*$20), 3), 1); //Unload Normal Status
+      Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_11] := 1;
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$0 + (nCh*$20), 3), 0); //Unload Enable
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$1 + (nCh*$20), 3), 0); //Glass Data Report
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$5 + (nCh*$20), 3), 0); //Unload Request
@@ -2438,11 +2519,14 @@ begin
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$5 + (nCh*$20), 3), 0); //Load Request Off
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$6 + (nCh*$20), 3), 0); //Load Complte Confirm Off
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$4 + (nCh*$20), 3), 1); //Normal Status - 상태 설정에서....
+      Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_11] := 1;
       Sleep(500);
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$1 + (nCh*$20), 3), 1); //Glass Data Request
+      Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_1] := 1;
     end
     else begin
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$4 + (nCh*$20), 3), 1); //Unload Normal Status
+      Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_11] := 1;
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$0 + (nCh*$20), 3), 0); //Unload Enable
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$1 + (nCh*$20), 3), 0); //Glass Data Report
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$5 + (nCh*$20), 3), 0); //Unload Request
@@ -2453,8 +2537,10 @@ begin
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$12+$6 + (nCh*$20), 3), 0); //Load Complte Confirm Off
 
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$12+$4 + (nCh*$20), 3), 1); //Normal Status - 상태 설정에서....
+      Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_11] := 1;
       Sleep(500);
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$12+$1 + (nCh*$20), 3), 1); //Glass Data Request
+      Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_1] := 1;
     end;
   end;
   RequestState_Load[nCh]:= 1;
@@ -2550,23 +2636,29 @@ begin
   if not (Common.PLCInfo.InlineGIB)  then begin
     if Common.SystemInfo.OCType = DefCommon.OCType then begin
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$4 + (nCh*$20), 3), 1); //UnLoad Normal Status
+      Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_11] := 1;
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$4 + (nCh*$20), 3), 1); //Load Normal Status - 상태 설정에서....
+      Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_11] := 1;
   //  Unload GlassData
       ConvertGlassDataToBlock(GlassData[nCh*2], naGlassData[0]);
       WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$10+$0 + (nCh*$80) , 3), 64, naGlassData[0]); //Unload Glass Data #1
 
       ConvertGlassDataToBlock(GlassData[nCh*2+1], naGlassData[0]);
       WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$10+$0 + $40 + (nCh*$80), 3), 64, naGlassData[0]); //Unload Glass Data #2
-
+      Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_1] := 1;
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$1 + (nCh*$20), 3), 1); //Glass Data Report
+      Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_2] := 1;
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$5 + (nCh*$20), 3), 1); //Unload Request
       Sleep(500);
+      Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_3] := 1;
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$0 + (nCh*$20), 3), 1); //Unload Enable
       RequestState_Unload[nCh]:= 1;
     end
     else begin
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$4 + (nCh*$20), 3), 1); //UnLoad Normal Status
+      Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_11] := 1;
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$12+$4 + (nCh*$20), 3), 1); //Load Normal Status - 상태 설정에서....
+      Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_11] := 1;
   //  Unload GlassData
       if Common.SystemInfo.CHReversal then begin
         ConvertGlassDataToBlock(GlassData[nCh*2 + 1], naGlassData[0]);
@@ -2582,9 +2674,12 @@ begin
         ConvertGlassDataToBlock(GlassData[nCh*2+1], naGlassData[0]);
         WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$20+$0 + $40 + (nCh*$80), 3), 64, naGlassData[0]); //Unload Glass Data #2
       end;
+      Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_1] := 1;
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$1 + (nCh*$20), 3), 1); //Glass Data Report
+      Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_2] := 1;
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$5 + (nCh*$20), 3), 1); //Unload Request
       Sleep(500);
+      Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_3] := 1;
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$0 + (nCh*$20), 3), 1); //Unload Enable
       RequestState_Unload[nCh]:= 1;
     end;
@@ -2592,7 +2687,9 @@ begin
   else begin
       if Common.SystemInfo.OCType = DefCommon.OCType then begin
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$09+$4 + (nCh*$20), 3), 1); //UnLoad Normal Status
+      Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_11] := 1;
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$08+$4 + (nCh*$20), 3), 1); //Load Normal Status - 상태 설정에서....
+      Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_11] := 1;
   //  Unload GlassData
       ConvertGlassDataToBlock(GlassData[nCh*2], naGlassData[0]);
       WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$10+$0 + (nCh*$80) , 3), 64, naGlassData[0]); //Unload Glass Data #1
@@ -2600,9 +2697,12 @@ begin
       ConvertGlassDataToBlock(GlassData[nCh*2+1], naGlassData[0]);
       WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$10+$0 + $40 + (nCh*$80), 3), 64, naGlassData[0]); //Unload Glass Data #2
 
+      Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_1] := 1;
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$09+$1 + (nCh*$20), 3), 1); //Glass Data Report
+      Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_2] := 1;
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$09+$5 + (nCh*$20), 3), 1); //Unload Request
       Sleep(500);
+      Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_3] := 1;
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$09+$0 + (nCh*$20), 3), 1); //Unload Enable
       RequestState_Unload[nCh]:= 1;
     end
@@ -2752,7 +2852,7 @@ end;
 
 procedure TCommPLCThread.Read_PollingData;
 var
-  nRet: int64;
+  nRet: Integer;
   i: Integer;
   bChanged: Boolean;
   nValue: Integer;
@@ -2829,56 +2929,52 @@ begin
   end;
 
   if Common.SystemInfo.OCType = DefCommon.OCType then begin
-    nRet := ReadDevice('B' + IntToHex(StartAddr_ROBOT_DOOR_BIT,3), nValue , False);
+    nRet := ReadDeviceBlock('B' + IntToHex(StartAddr_ROBOT_DOOR_BIT, 3), COMMPLC_CV_DATASIZE, PollingCV[0],nRet,False);
+//    nRet := ReadDevice('B' + IntToHex(StartAddr_ROBOT_DOOR_BIT,3), nValue , False);
     if nRet <> 0 then begin
       AddLog('Polling Door Open ReadDevice Fail');
     end;
-    if PollingDoorOpened <> nValue then begin
-      PollingDoorOpened := nValue;
-      if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
-        if PollingDoorOpened <> 1 then begin
-          AddLog(format('Robot_DoorOpened - EQP #%d', [EQP_ID]));
-          SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, 0, COMMPLC_PARAM_DOOR_OPENED, PollingDoorOpened, 'Robot_DoorOpened', nil);
-        end;
-      end
-      else begin
-        if PollingDoorOpened <> 0 then begin
-          AddLog(format('Robot_DoorOpened - EQP #%d', [EQP_ID]));
-          SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, 0, COMMPLC_PARAM_DOOR_OPENED, PollingDoorOpened, 'Robot_DoorOpened', nil);
-        end;
+
+    if m_nStop <> 0 then Exit;
+    if Terminated then Exit;
+
+    bChanged:= False;
+    for i := 0 to Pred(COMMPLC_CV_DATASIZE) do begin
+      if (PollingCV[i]) <> (PollingCVPre[i]) then begin
+        bChanged:= True; //데이터 변경 됨
+        //AddLog(format('<< Changed CV Data %d', [i]));
+        break;
       end;
     end;
-  end;
 
-  //POCB EQP_ID 시작이 33이다. 33이 1번 장비
-  bChanged:= False;
-  for i := 0 to Pred(COMMPLC_CV_DATASIZE) do begin
-    if (PollingCV[i]) <> (PollingCVPre[i]) then begin
-      bChanged:= True; //데이터 변경 됨
-      //AddLog(format('<< Changed CV Data %d', [i]));
-      break;
+    if bChanged = True then begin
+      Process_CVData; //폴링 데이터 처리
+      CopyMemory(@PollingCVPre[0], @PollingCV[0], sizeof(PollingCV[0])* COMMPLC_CV_DATASIZE);
     end;
+
+//    if PollingDoorOpened <> nValue then begin
+//      PollingDoorOpened := nValue;
+//      if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
+//        if PollingDoorOpened <> 1 then begin
+//          AddLog(format('Robot_DoorOpened - EQP #%d', [EQP_ID]));
+//          SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, 0, COMMPLC_PARAM_DOOR_OPENED, PollingDoorOpened, 'Robot_DoorOpened', nil);
+//        end;
+//      end
+//      else begin
+//        if PollingDoorOpened <> 0 then begin
+//          AddLog(format('Robot_DoorOpened - EQP #%d', [EQP_ID]));
+//          SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, 0, COMMPLC_PARAM_DOOR_OPENED, PollingDoorOpened, 'Robot_DoorOpened', nil);
+//        end;
+//      end;
+//    end;
   end;
 
-  if bChanged = True then begin
-    Process_CVData; //폴링 데이터 처리
-    CopyMemory(@PollingCVPre[0], @PollingCV[0], sizeof(PollingCV[0])* COMMPLC_CV_DATASIZE);
-  end;
+
   //Robot - Load, Unload
 //
   Sleep(100);
   m_ResultRobot := 0;
-//  TThread.Queue(nil, procedure
-//  begin
-//    ReadDeviceBlockPro('B' + IntToHex(StartAddr_ROBOT+$10*$00+$0, 3), COMMPLC_ROBOT_DATASIZE, PollingData[0],m_ResultRobot);
-//  end);
 
-//  Synchronize(nil,
-//  procedure
-//  begin
-//    ReadDeviceBlock('B' + IntToHex(StartAddr_ROBOT+$10*$00+$0, 3), COMMPLC_ROBOT_DATASIZE, PollingData[0],m_ResultRobot);
-//  end
-//  );
   if StartAddr2_ROBOT <> 0 then begin
     m_ResultRobot := ReadDeviceBlock('B' + IntToHex(StartAddr_ROBOT+$10*$00+$0, 3), 2, PollingData[0],m_ResultRobot, False);
     m_ResultRobot := ReadDeviceBlock('B' + IntToHex(StartAddr2_ROBOT+$10*$00+$0, 3), 2, PollingData[2],m_ResultRobot,False);
@@ -2919,116 +3015,44 @@ begin
     CopyMemory(@PollingDataPre[0], @PollingData[0], sizeof(PollingData[0])* m_nRobotDataSize);
   end;
   Sleep(50);
-//    Common.Delay(100);
   //ECS 데이터 읽기
    m_ResultECS := 0;
-//   TThread.Queue(nil, procedure
-//  begin
-//    ReadDeviceBlockPro('B000', 1, PollingECS[COMMPLC_ECS_DATASIZE],m_ResultECS); //공동 데이터
-//  end);
-//  Synchronize(nil,
-//  procedure
-//  begin
-//    ReadDeviceBlock('B000', 1, PollingECS[COMMPLC_ECS_DATASIZE],m_ResultECS); //공동 데이터
-//  end
-//  );
+
   m_ResultECS := ReadDeviceBlock('B000', 1, PollingECS[COMMPLC_ECS_DATASIZE],m_ResultECS, False); //공동 데이터
 
   nRet := m_ResultECS;
     if nRet <> 0 then begin
     AddLog(format('Polling ECS ReadDeviceBlock Re Fail: %s, ERR CODE : %d', ['B' + IntToHex(StartAddr_ECS+$200*$00+$0, 3),m_ResultECS]));
-//    Synchronize(ClosePLC);
-////    Result:= 1; //읽기 실패
-//    Exit;
-
-
   end;
 
   Sleep(50);
 
-//    Common.Delay(100);
   m_ResultECS :=0;
-//  TThread.Queue(nil, procedure
-//  begin
-//    ReadDeviceBlockPro('B' + IntToHex(StartAddr_ECS+$10*$00+$0, 3), 1, PollingECS[0],m_ResultECS);  // Link Test Request
-//  end);
-//    Synchronize(nil,
-//  procedure
-//  begin
-//    ReadDeviceBlock('B' + IntToHex(StartAddr_ECS+$10*$00+$0, 3), 1, PollingECS[0],m_ResultECS);  // Link Test Request
-//  end
-//  );
-    m_ResultECS := ReadDeviceBlock('B' + IntToHex(StartAddr_ECS+$10*$00+$0, 3), 1, PollingECS[0],m_ResultECS, False);  // Link Test Request
+
+  m_ResultECS := ReadDeviceBlock('B' + IntToHex(StartAddr_ECS+$10*$00+$0, 3), 1, PollingECS[0],m_ResultECS, False);  // Link Test Request
 
   nRet := m_ResultECS;
     if nRet <> 0 then begin
      AddLog(format('Polling ECS ReadDeviceBlock Fail: %s  ERR CODE : %d', ['B'  +IntToHex(StartAddr_ECS+$10*$00+$0, 3),m_ResultECS]));
-//    Synchronize(ClosePLC);
-////    Result:= 1; //읽기 실패
-//    Exit;
   end;
   Sleep(50);
 
-//    Common.Delay(100);
   m_ResultECS :=0;
-//     TThread.Queue(nil, procedure
-//  begin
-//    ReadDeviceBlockPro('B' + IntToHex(StartAddr_ECS+$100+$10*$00+$0, 3), 1, PollingECS[1],m_ResultECS);  // Lost Panel Data Report
-//  end);
-//    Synchronize(nil,
-//  procedure
-//  begin
-//    ReadDeviceBlock('B' + IntToHex(StartAddr_ECS+$100+$10*$00+$0, 3), 1, PollingECS[1],m_ResultECS);  // Lost Panel Data Report
-//  end
-//  );
-    m_ResultECS := ReadDeviceBlock('B' + IntToHex(StartAddr_ECS+$100+$10*$00+$0, 3), 1, PollingECS[1],m_ResultECS, False);  // Lost Panel Data Report
+  m_ResultECS := ReadDeviceBlock('B' + IntToHex(StartAddr_ECS+$100+$10*$00+$0, 3), 1, PollingECS[1],m_ResultECS, False);  // Lost Panel Data Report
 
   nRet := m_ResultECS;
     if nRet <> 0 then begin
       AddLog(format('Polling ECS ReadDeviceBlock Fail: %s ERR CODE : %d', ['B' + IntToHex(StartAddr_ECS+$200*$00+$0, 3),m_ResultECS]));
-//    Synchronize(ClosePLC);
-////    Result:= 1; //읽기 실패
-//    Exit;
-
   end;
   Sleep(50);
-
-//    Common.Delay(100);
-   m_ResultECS := 0;
-//   TThread.Queue(nil, procedure
-//  begin
-//    ReadDeviceBlockPro('B' + IntToHex(StartAddr_ECS+$200+$10*$00+$0, 3), 1, PollingECS[2],m_ResultECS);  // Take Out Report_Confirm
-//  end);
-//    Synchronize(nil,
-//  procedure
-//  begin
-//    ReadDeviceBlock('B' + IntToHex(StartAddr_ECS+$200+$10*$00+$0, 3), 1, PollingECS[2],m_ResultECS);  // Take Out Report_Confirm
-//  end
-//  );
-   m_ResultECS :=  ReadDeviceBlock('B' + IntToHex(StartAddr_ECS+$200+$10*$00+$0, 3), 1, PollingECS[2],m_ResultECS, False);  // Take Out Report_Confirm
+  m_ResultECS := 0;
+  m_ResultECS :=  ReadDeviceBlock('B' + IntToHex(StartAddr_ECS+$200+$10*$00+$0, 3), 1, PollingECS[2],m_ResultECS, False);  // Take Out Report_Confirm
 
   nRet := m_ResultECS;
 
   if nRet <> 0 then begin
      AddLog(format('Polling ECS ReadDeviceBlock Fail: %s  ERR CODE : %d', ['B' + IntToHex(StartAddr_ECS+$200*$00+$0, 3),m_ResultECS]));
-//    Synchronize(ClosePLC);
-////    Result:= 1; //읽기 실패
-//    Exit;
   end;
-
-
-
-
-//  nRet := ReadDeviceBlock('B000', 1, PollingECS[COMMPLC_ECS_DATASIZE],m_ResultECS); //공동 데이터
-//  nRet := ReadDeviceBlock('B' + IntToHex(StartAddr_ECS+$10*$00+$0, 3), 1, PollingECS[0],m_ResultECS);  // Link Test Request
-//  nRet := ReadDeviceBlock('B' + IntToHex(StartAddr_ECS+$100+$10*$00+$0, 3), 1, PollingECS[1],m_ResultECS);  // Lost Panel Data Report
-//  nRet := ReadDeviceBlock('B' + IntToHex(StartAddr_ECS+$200+$10*$00+$0, 3), 1, PollingECS[2],m_ResultECS);  // Take Out Report_Confirm
-//  if nRet <> 0 then begin
-//    AddLog(format('Polling ECS ReadDeviceBlock Fail: %s', ['B' + IntToHex(StartAddr_ECS+$200*$00+$0, 3)]));
-//    Synchronize(ClosePLC);
-////    Result:= 1; //읽기 실패
-//    Exit;
-//  end;
 
   if m_nStop <> 0 then Exit;
   if Terminated then Exit;
@@ -3051,48 +3075,16 @@ begin
 
   Sleep(50);
   //EQP - 상태 표시를 위해 읽기만 한다.
-//  for I := 0 to Pred(COMMPLC_EQP_DATASIZE) do begin
-//    m_szDevice := 'B' + IntToHex(StartAddr_EQP+$10*i + $00, 3);      // Link Test Request
-//    m_nSize := 1;
-//    m_lplData :=  0;
-//    Synchronize(ReadDeviceBlockProcedre);
-//    PollingEQP[i] := m_lplData;
-//  end;
 
-//    Common.Delay(100);
   m_ResultEQP := 0;
-//     TThread.Queue(nil, procedure
-//  begin
-//    ReadDeviceBlockPro('B' + IntToHex(StartAddr_EQP+$10*$00+$0, 3), COMMPLC_EQP_DATASIZE, PollingEQP[0],m_ResultEQP);
-//  end);
-//  Synchronize(nil,
-//  procedure
-//  begin
-//    ReadDeviceBlock('B' + IntToHex(StartAddr_EQP+$10*$00+$0, 3), COMMPLC_EQP_DATASIZE, PollingEQP[0],m_ResultEQP);
-//  end
-//  );
 
-  m_ResultEQP :=  ReadDeviceBlock('B' + IntToHex(StartAddr_EQP+$10*$00+$0, 3), COMMPLC_EQP_DATASIZE, PollingEQP[0],m_ResultEQP, False);
+  m_ResultEQP :=  ReadDeviceBlock('B' + IntToHex(StartAddr_EQP+$10*$00+$0, 3), m_nEQPDataSize, PollingEQP[0],m_ResultEQP, False);
 
   nRet := m_ResultEQP;
 
   if nRet <> 0 then begin
       AddLog(format('Polling EQP ReadDeviceBlock Fail: %s  ERR CODE : %d', ['B' + IntToHex(StartAddr_EQP+$10*$00+$0, 3),m_ResultEQP]));
-//   Synchronize(ClosePLC);
-////    Result:= 1; //읽기 실패
-//    Exit;
-
   end;
-
-
-
-////  nRet := ReadDeviceBlock('B' + IntToHex(StartAddr_EQP+$10*$00+$0, 3), COMMPLC_EQP_DATASIZE, PollingEQP[0],m_ResultEQP);
-//  if nRet <> 0 then begin
-//    AddLog(format('Polling EQP ReadDeviceBlock Fail: %s', ['B' + IntToHex(StartAddr_EQP, 3)]));
-//    Synchronize(ClosePLC);
-////    Result:= 1; //읽기 실패
-//    Exit;
-//  end;
 
 end;
 
@@ -3217,8 +3209,25 @@ try
             if nValue = 0 then Process_ROBOT_LoadBusy_Off(3)
             else Process_ROBOT_LoadBusy_On(3);
           end;
-          $04, $14, $24, $34: begin
-            if nValue = 0 then Process_Robot_Normal_Off(nIndex div 10, nValue);
+
+          $04, $24, $44, $64: begin
+            if nValue = 0 then begin
+              Process_Robot_Normal_Off(nIndex div $20, nValue);
+              Common.StatusInfo.LoadUnloadFlowData[nIndex div $20][COMMPLC_MODE_LOAD_12] := 0;
+            end
+            else begin
+              Common.StatusInfo.LoadUnloadFlowData[nIndex div $20][COMMPLC_MODE_LOAD_12] := 1;
+            end;
+          end;
+
+          $14, $34, $54, $74: begin
+            if nValue = 0 then begin
+              Process_Robot_Normal_Off(nIndex div $20, nValue);
+              Common.StatusInfo.LoadUnloadFlowData[nIndex div 10][COMMPLC_MODE_UNLOAD_12] := 0;
+            end
+            else begin
+              Common.StatusInfo.LoadUnloadFlowData[nIndex div 10][COMMPLC_MODE_UNLOAD_12] := 1;
+            end;
           end;
 
           $1D: begin //Robot Inspection Start
@@ -3274,24 +3283,39 @@ begin
   for i := 0 to Pred(COMMPLC_CV_DATASIZE) do begin
     if  PollingCV[i] = PollingCVPre[i] then continue;
 
-    for k := 4 to 15 do begin
+    for k := 0 to 15 do begin
       nValue:= Get_Bit(PollingCV[i], k);
       if nValue <> Get_Bit(PollingCVPre[i], k) then begin
         nIndex:= i*16 + k;
-        AddLog(format('<< ChangedDevice CV %s: %d', ['B' + IntToHex($1EB0 + nIndex, 3), nValue]), True);
+        AddLog(format('<< ChangedDevice CV %s: %d', ['B' + IntToHex(StartAddr_ROBOT_DOOR_BIT+nIndex, 3), nValue]), True);
+        if (Common.PLCInfo.InlineGIB) then begin
+          case nIndex of
+            $01 : begin    //Door Open Warning
+              if nValue <> 0 then Process_Door_Open_Warning(1)
+              else  Process_Door_Open_Warning(0);
+            end;
 
-        case nIndex of
-          $06, $07, $08: begin //Last Product - 잔량 처리 6=A Zone, 7=B Zone, 8=C zone
-//            AddLog(format('Process_CV_LastProduct Index=%d, Value=%d', [nIndex, nValue]));
-//            SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, nIndex-6, COMMPLC_PARAM_LAST_PRODUCT, nValue, 'Process_CV_LastProduct', nil);
-          end;
+            $02 : begin
 
-          $20 .. $3D: begin
-            //Reset Count - 아직 사용 안함
-          end;
+            end;
 
-          $3F: begin
-            //Inspection All Count Reset - 아직 사용 안함
+            $03 : begin
+              if nValue <> 0 then Process_Door_Open_Info(1)
+              else  Process_Door_Open_Info(0);
+            end;
+
+            $06, $07, $08: begin //Last Product - 잔량 처리 6=A Zone, 7=B Zone, 8=C zone
+  //            AddLog(format('Process_CV_LastProduct Index=%d, Value=%d', [nIndex, nValue]));
+  //            SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, nIndex-6, COMMPLC_PARAM_LAST_PRODUCT, nValue, 'Process_CV_LastProduct', nil);
+            end;
+
+            $20 .. $3D: begin
+              //Reset Count - 아직 사용 안함
+            end;
+
+            $3F: begin
+              //Inspection All Count Reset - 아직 사용 안함
+            end;
           end;
         end;
       end;
@@ -3502,6 +3526,8 @@ begin
   end; //for i := 0 to Pred(COMMPLC_ECS_DATASIZE) do begin
 end;
 
+
+
 procedure TCommPLCThread.Read_ROBOT_GlassData(nCh: Integer);
 var
   naGlassData: array [0..64]of Integer;
@@ -3536,6 +3562,18 @@ begin
   end;
 end;
 
+procedure TCommPLCThread.Process_Door_Open_Warning(nValue: Integer);
+begin
+  AddLog('Process_Door_Open_Warning ' + IntToStr(nValue));
+  WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$05+$1 , 3), nValue); //Door Open Warning Confirm ON/OFF
+end;
+
+procedure TCommPLCThread.Process_Door_Open_Info(nValue: Integer);
+begin
+  AddLog('Process_Door_Open_Info ' + IntToStr(nValue));
+  SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, 0, COMMPLC_PARAM_DOOR_OPENED, nValue, 'Robot_DoorOpened', nil);
+end;
+
 procedure TCommPLCThread.Process_ROBOT_GlassData_Report(nCh: Integer);
 var
   naGlassData: array [0..64]of Integer;
@@ -3543,19 +3581,21 @@ var
 begin
 
   RequestState_Load[nCh]:= 2; //Request
-
+  Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_2] := 1;
   AddLog('Process_ROBOT_GlassData_Report ' + IntToStr(nCh));
   if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
     ReadDeviceBlock('W' + IntToHex(StartAddr_ROBOT_W+$10*$0+$0+(nCh *$40), 3), 64, naGlassData[0],nReturnCode); //Load #1 Glass Data
     ConvertBlockToGlassData(naGlassData[0], GlassData[nCh]);
     AddLog('ROBOT_Load Request ' + IntToStr(nCh));
     WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$08+$5 + (nCh*$20), 3), 1); //Load Request
+    Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_3] := 1;
 //    Sleep(100);
     Sleep(100);
     WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$09+$0 + (nCh*$20), 3), 1); //UnLoad Enable
 
     Sleep(100);
     WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$08+$0 + (nCh*$20), 3), 1); //Load Enable
+    Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_4] := 1;
 
     RequestState_Load[nCh]:= 2; //Load Enable
     SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, nCh, COMMPLC_PARAM_GALSSDATA_REPORT, 0,
@@ -3580,6 +3620,7 @@ begin
       ConvertBlockToGlassData(naGlassData[0], GlassData[nCh*2+1]);
     AddLog('ROBOT_Load Request ' + IntToStr(nCh));
 
+    Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_3] := 1;
     if Common.SystemInfo.OCType = DefCommon.OCType then  begin
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$5 + (nCh*$20), 3), 1); //Load Request
       Sleep(100);
@@ -3590,6 +3631,7 @@ begin
       Sleep(100);
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$12+$0 + (nCh*$20), 3), 1); //Load Enable
     end;
+    Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_4] := 1;
     RequestState_Load[nCh]:= 2; //Load Enable
 
     SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, nCh, COMMPLC_PARAM_GALSSDATA_REPORT, 0,
@@ -3655,6 +3697,7 @@ procedure TCommPLCThread.Process_ROBOT_LoadComplete(nCh: Integer);
 begin
   AddLog('Process_ROBOT_LoadComplete ' + IntToStr(nCh));
   //Glass Data 읽어 변수에 저장
+  Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_6] := 1;
   Read_ROBOT_GlassData(nCh);   // Added by KTS 2023-03-23 오후 8:21:15
   if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
     if Common.SystemInfo.OCType = DefCommon.OCType then begin
@@ -3662,6 +3705,7 @@ begin
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$08+$5 + (nCh*$20), 3), 0); //Load Request off
       Sleep(100);
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$08+$6 + (nCh*$20), 3), 1); //Load Complete Confrim
+      Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_7] := 1;
     end;
   end
   else begin
@@ -3676,6 +3720,7 @@ begin
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$12+$5 + (nCh*$20), 3), 0); //Load Request off
       Sleep(100);
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$12+$6 + (nCh*$20), 3), 1); //Load Complete Confrim
+      Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_7] := 1;
     end;
   end;
   RequestState_Load[nCh]:= 3; //Load Complete Confrim
@@ -3731,6 +3776,7 @@ begin
     SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, nCh, COMMPLC_PARAM_INTERFACE_ERROR, 1, 'Process_ROBOT_LoadBusy_On Error - Not Request Ch ' + IntToStr(nCh), nil);
     Exit;
   end;
+  Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_5] := 1;
   AddLog('Process_ROBOT_LoadBusy_On ' + IntToStr(nCh));
   SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, nCh, COMMPLC_PARAM_LOADBUSY, 1, 'Process_ROBOT_LoadBusy_On ' + IntToStr(nCh), nil);
 end;
@@ -3781,21 +3827,25 @@ end;
 procedure TCommPLCThread.Process_ROBOT_UnloadComplete(nCh: Integer);
 begin
   AddLog('Process_ROBOT_UnloadComplete ' + IntToStr(nCh));
+  Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_5] := 1;
   if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
     Sleep(300);
   end;
   if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
+    Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_6] := 1;
     WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$09+$6 + (nCh*$20), 3), 1); //Unload Complete Confrim
     WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$09+$5 + (nCh*$20), 3), 0); //Unload Request Off
     WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$09+$1 + (nCh*$20), 3), 0); //Glass Data Request Off
   end
   else begin
     if Common.SystemInfo.OCType = DefCommon.OCType then begin
+      Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_6] := 1;
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$6 + (nCh*$20), 3), 1); //Unload Complete Confrim
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$5 + (nCh*$20), 3), 0); //Unload Request Off
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$1 + (nCh*$20), 3), 0); //Glass Data Request Off
     end
     else begin
+      Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_6] := 1;
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$6 + (nCh*$20), 3), 1); //Unload Complete Confrim
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$5 + (nCh*$20), 3), 0); //Unload Request Off
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$1 + (nCh*$20), 3), 0); //Glass Data Request Off
@@ -3839,6 +3889,7 @@ begin
     SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, nCh, COMMPLC_PARAM_INTERFACE_ERROR, 1, 'Process_ROBOT_UnloadBusy_On Error - Not Request Ch ' + IntToStr(nCh), nil);
     Exit;
   end;
+  Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_4] := 1;
   AddLog('Process_ROBOT_UnloadBusy_On ' + IntToStr(nCh));
   SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, nCh, COMMPLC_PARAM_UNLOADBUSY, 1, 'Process_ROBOT_UnloadBusy_On ' + IntToStr(nCh), nil);
 end;

@@ -128,6 +128,7 @@ type
     procedure Set_TowerLampState(nState: Integer);
     procedure test;
     property Connected : Boolean read m_bConnected;
+    function CheckAllDoorOpen : Boolean;
   end;
 
 
@@ -147,6 +148,17 @@ begin
     ErrorCheck;
   end);
   thBG.Start;
+end;
+
+function TControlDio.CheckAllDoorOpen : Boolean;
+begin
+  Result := False;
+  if Common.SystemInfo.OCType = DefCommon.OCType  then begin
+    if CheckDi(IN_CH_1_2_DOOR_LEFT_OPEN) and CheckDi(IN_CH_1_2_DOOR_LEFT_OPEN) and
+    CheckDi(IN_CH_3_4_DOOR_LEFT_OPEN) and CheckDi(IN_CH_3_4_DOOR_LEFT_OPEN) then
+    Result := True;
+  end;
+
 end;
 
 function TControlDio.CheckAlarm: Integer;
@@ -358,6 +370,7 @@ begin
     if not CheckDi(nAlarmNo) then begin
       nRet := nAlarmNo;
       SendAlarm(MSG_MODE_SYSTEM_ALARAM, nAlarmNo, 1);
+
     end
     else begin
       SendAlarm(MSG_MODE_SYSTEM_ALARAM, nAlarmNo, 0);
@@ -2511,11 +2524,15 @@ var
 begin
 
   if Common.SystemInfo.OCType <> DefCommon.PreOCType  then Exit(2);
-  if not CheckDi(DefDio.IN_GIB_CH_12_MC_MONITORING + nGroup) then Exit(2);
 
-
-  if nGroup = DefCommon.CH_TOP then sCH := 'CH 1,2'
-  else                              sCH := 'CH 3,4';
+  if nGroup = DefCommon.CH_ALL then begin
+    if (not CheckDi(DefDio.IN_GIB_CH_12_MC_MONITORING)) and (not CheckDi(DefDio.IN_GIB_CH_34_MC_MONITORING)) then Exit(2);
+  end
+  else begin
+    if not CheckDi(DefDio.IN_GIB_CH_12_MC_MONITORING + nGroup) then Exit(2);
+    if nGroup = DefCommon.CH_TOP then sCH := 'CH 1,2'
+    else                              sCH := 'CH 3,4';
+  end;
   //if ErrorCheck > 0 then Exit(1);
   nWaitingCount:= 100; //100ms * nWaitingCount
 
@@ -2584,8 +2601,6 @@ begin
         end;
         SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Shutter DN Finish ' + sCH);
       end;
-
-
     end;
     DefCommon.CH_BOTTOM : begin
       if bIsUp then begin
@@ -2651,6 +2666,79 @@ begin
       end;
 
     end;
+    DefCommon.CH_ALL : begin
+      if bIsUp then begin
+        if ReadInSig(DefDio.IN_GIB_CH_12_ROBOT_SENSOR) or ReadInSig(DefDio.IN_GIB_CH_34_ROBOT_SENSOR) then begin
+          SendMsgMain(COMMDIO_MSG_LOG, 0, 1, 'Do not MovingShutter - Sensing ROBOT_SENSOR');
+          Exit(3);
+        end;
+        SendMsgMain(COMMDIO_MSG_LOG, 0, 0,'Shutter UP Start CH ALL');
+        ClearOutDioSig(DefDio.OUT_GIB_CH_12_SHUTTER_DN_SOL);
+        ClearOutDioSig(DefDio.OUT_GIB_CH_34_SHUTTER_DN_SOL);
+        if (not ReadInSig(DefDio.IN_GIB_CH_12_SHUTTER_UP_SENSOR)) and (not ReadInSig(DefDio.IN_GIB_CH_34_SHUTTER_UP_SENSOR)) then begin
+          SendMsgMain(COMMDIO_MSG_LOG, 0, 0,Format('Shutter UP Finish %s- Already',['CH ALL']));
+          Exit(0);
+        end;
+        WriteDioSig(DefDio.OUT_GIB_CH_12_SHUTTER_UP_SOL,False);
+        WriteDioSig(DefDio.OUT_GIB_CH_34_SHUTTER_UP_SOL,False);
+
+        // Turn µ¹±âÀü Work Lamp Off.
+        for i := 0 to nWaitingCount do begin
+          Sleep(100);
+          if (not ReadInSig(DefDio.IN_GIB_CH_12_SHUTTER_UP_SENSOR)) and (not ReadInSig(DefDio.IN_GIB_CH_34_SHUTTER_UP_SENSOR)) then begin
+            SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format('Shutter UP OK. %s Step=%d', ['CH ALL',i]));
+            break;
+          end;
+        end;
+
+        if (ReadInSig(DefDio.IN_GIB_CH_12_SHUTTER_UP_SENSOR)) or (ReadInSig(DefDio.IN_GIB_CH_34_SHUTTER_UP_SENSOR)) then begin
+          if ReadInSig(DefDio.IN_GIB_CH_12_SHUTTER_UP_SENSOR) then
+            SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_GIB_CH_12_SHUTTER_UP_SENSOR, 1, '');
+          if ReadInSig(DefDio.IN_GIB_CH_34_SHUTTER_UP_SENSOR) then
+            SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_GIB_CH_34_SHUTTER_UP_SENSOR, 1, '');
+          Exit(2);
+        end;
+        SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Shutter UP Finish CH ALL ');
+      end
+      else begin
+        if (ReadInSig(DefDio.IN_GIB_CH_12_ROBOT_SENSOR)) or (ReadInSig(DefDio.IN_GIB_CH_34_ROBOT_SENSOR)) then begin
+          SendMsgMain(COMMDIO_MSG_LOG, 0, 1, 'Do not MovingShutter - Sensing ROBOT_SENSOR ');
+          Exit(3);
+        end;
+
+        if (g_CommPLC.IsBusy_Robot(0)) or (g_CommPLC.IsBusy_Robot(1)) then begin
+          SendMsgMain(COMMDIO_MSG_LOG, 0, 1, 'Do not MovingShutter - Robot Busy CH ALL ');
+          Exit(3);
+        end;
+        SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Shutter DN Start CH ALL');
+        ClearOutDioSig(DefDio.OUT_GIB_CH_12_SHUTTER_UP_SOL);
+        ClearOutDioSig(DefDio.OUT_GIB_CH_34_SHUTTER_UP_SOL);
+
+        if (not ReadInSig(DefDio.IN_GIB_CH_12_SHUTTER_DN_SENSOR)) and (not ReadInSig(DefDio.IN_GIB_CH_34_SHUTTER_DN_SENSOR)) then begin
+          SendMsgMain(COMMDIO_MSG_LOG, 0, 0,Format('Shutter DN Finish %s - Already',['CH ALL']));
+          Exit(0);
+        end;
+        WriteDioSig(DefDio.IN_GIB_CH_12_SHUTTER_DN_SENSOR,false);
+        WriteDioSig(DefDio.IN_GIB_CH_34_SHUTTER_DN_SENSOR,false);
+
+        for i := 0 to nWaitingCount do begin
+          Sleep(100);
+          if (not ReadInSig(DefDio.IN_GIB_CH_12_SHUTTER_DN_SENSOR)) and (not ReadInSig(DefDio.IN_GIB_CH_34_SHUTTER_DN_SENSOR)) then begin
+            SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format('Shutter DN OK. %s Step=%d', ['CH ALL',i]));
+            break;
+          end;
+        end;
+
+        if (ReadInSig(DefDio.IN_GIB_CH_12_SHUTTER_DN_SENSOR)) or (ReadInSig(DefDio.IN_GIB_CH_34_SHUTTER_DN_SENSOR)) then begin
+          if ReadInSig(DefDio.IN_GIB_CH_12_SHUTTER_DN_SENSOR) then
+            SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_GIB_CH_12_SHUTTER_DN_SENSOR, 1, '');
+          if ReadInSig(DefDio.IN_GIB_CH_34_SHUTTER_DN_SENSOR) then
+            SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_GIB_CH_34_SHUTTER_DN_SENSOR, 1, '');
+          Exit(3);
+        end;
+        SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Shutter DN Finish CH ALL');
+      end;
+    end;
   end;
 
   Result := 0;
@@ -2678,21 +2766,19 @@ begin
 //      WriteDioSig(DefDio.OUT_CH_3_4_LAMP_OFF,true);
     end
     else begin
-        if ReadOutSig(DefDio.OUT_RESET_SWITCH_LED) then begin
-          WriteDioSig(DefDio.OUT_RESET_SWITCH_LED, True);
-        end;
-        if ReadInSig(DefDio.IN_CH_1_2_DOOR_LEFT_OPEN) and ReadInSig(DefDio.IN_CH_1_2_DOOR_RIGHT_OPEN) then
-          WriteDioSig(DefDio.OUT_CH_1_2_BACK_DOOR_LAMPON,False)
-        else  WriteDioSig(DefDio.OUT_CH_1_2_BACK_DOOR_LAMPON,True);
+      if ReadOutSig(DefDio.OUT_RESET_SWITCH_LED) then begin
+        WriteDioSig(DefDio.OUT_RESET_SWITCH_LED, True);
+      end;
+      if ReadInSig(DefDio.IN_CH_1_2_DOOR_LEFT_OPEN) and ReadInSig(DefDio.IN_CH_1_2_DOOR_RIGHT_OPEN) then
+        WriteDioSig(DefDio.OUT_CH_1_2_BACK_DOOR_LAMPON,False)
+      else  WriteDioSig(DefDio.OUT_CH_1_2_BACK_DOOR_LAMPON,True);
 
 
-        if ReadInSig(DefDio.IN_CH_3_4_DOOR_LEFT_OPEN) and ReadInSig(DefDio.IN_CH_3_4_DOOR_RIGHT_OPEN) then
-          WriteDioSig(DefDio.OUT_CH_3_4_BACK_DOOR_LAMPON,False)
-         else  WriteDioSig(DefDio.OUT_CH_3_4_BACK_DOOR_LAMPON,True);
-//        WriteDioSig(DefDio.OUT_CH_1_2_LAMP_OFF,false);
-//        WriteDioSig(DefDio.OUT_CH_3_4_LAMP_OFF,false);
+      if ReadInSig(DefDio.IN_CH_3_4_DOOR_LEFT_OPEN) and ReadInSig(DefDio.IN_CH_3_4_DOOR_RIGHT_OPEN) then
+        WriteDioSig(DefDio.OUT_CH_3_4_BACK_DOOR_LAMPON,False)
+       else  WriteDioSig(DefDio.OUT_CH_3_4_BACK_DOOR_LAMPON,True);
+
     end;
-
 
     nTowerLamp_R :=  DefDio.OUT_TOWER_LAMP_RED;
     nTowerLamp_Y :=  DefDio.OUT_TOWER_LAMP_YELLOW;

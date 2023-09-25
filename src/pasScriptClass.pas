@@ -716,7 +716,7 @@ begin
   SetPaScript.DefineMethod('f_OC_VerifyStart',      0,tkInteger, nil,OCVerifyStart_Proc,False,0);
   SetPaScript.DefineMethod('f_ThreadStateCheck',      0,tkInteger, nil,OCThreadStateCheck_Proc,False,0);
   SetPaScript.DefineMethod('f_Flash_Read_Se_NO',      0,tkInteger, nil,OCThreadFlash_READ_Proc,False,0);
-  SetPaScript.DefineMethod('f_Flash_Write_Se_NO',      0,tkInteger, nil,OCThreadFlash_Write_Proc,False,0);
+  SetPaScript.DefineMethod('f_Flash_Write_Se_NO',      1,tkInteger, nil,OCThreadFlash_Write_Proc,False,1).SetVarArgs([0]);
   SetPaScript.DefineMethod('f_SetAgingTm',             2, tkNone, nil, SetAgingTm_Proc,False, 2);
   SetPaScript.DefineMethod('f_ReadPairNgCode',         1, tkNone, nil, ReadPairNgCode_Proc,False, 1).SetVarArgs([0]);
   SetPaScript.DefineMethod('f_ReadGpioPanel_IRQ',      1, tkInteger, nil, GpioPanel_IRQ_Proc,False, 1).SetVarArgs([0]);
@@ -3067,22 +3067,24 @@ begin
   With AMachine do begin
 //    wdRet := CSharpDll.MainOC_Flash_Read(Self.FPgNo);
     case InputArgCount of
-    0:
+    1:
       begin
         wdRet := 1;
         if Length(PasScr[FPgNo].TestInfo.SerialNo) > 0 then begin
           nStartAddr := Common.TestModelInfoFLOW.SerialNoFlashInfo.nAddr;
           nLength :=  Common.TestModelInfoFLOW.SerialNoFlashInfo.nLength;
-          sLog := format('OCThreadFlash_WRITE_Proc nStartAddr : %d nLength : %d ',[nStartAddr,nLength]);
+          sLog := format('OCThreadFlash_WRITE_Proc nStartAddr : 0x%x nLength : %d ',[nStartAddr,nLength]);
           sLog := sLog + Format(' SerialNo : %s',[PasScr[FPgNo].TestInfo.SerialNo]);
           Common.MLog(FPgNo,sLog);
           SerialNoBuf := Common.StringToIdBytes(PasScr[FPgNo].TestInfo.SerialNo);
           if nLength <> Length(SerialNoBuf) then
             nLength := Length(SerialNoBuf);
           wdRet :=  Pg[FPgNo].SendFlashWrite(nStartAddr,nLength, @SerialNoBuf[0]);
+          SetInputArg(0,PasScr[FPgNo].TestInfo.SerialNo);
         end
         else begin
           SendTestGuiDisplay(defCommon.MSG_MODE_WORKING, 'SerialNo data not found','',0);
+          SetInputArg(0,'');
         end;
       end;
     end;
@@ -4594,7 +4596,7 @@ begin
             nEQP_ID := 1
         else nEQP_ID := 2;
         nStation:= g_CommPLC.GetGlassData_PreviousUnitProcessing(g_CommPLC.GlassData[FPgNo],nEQP_ID, nSeq, 16);
-        g_CommPLC.SetGlassData_Previous_Unit_Processing_GIB(g_CommPLC.GlassData[FPgNo],FPgNo,nEQP_ID,nSeq);
+        g_CommPLC.SetGlassData_Previous_Unit_Processing_GIB(g_CommPLC.GlassData[FPgNo],nEQP_ID,FPgNo,nSeq);
       end
       else begin
         if Common.SystemInfo.OCType = DefCommon.OCType then

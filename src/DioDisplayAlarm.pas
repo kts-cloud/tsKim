@@ -183,10 +183,7 @@ begin
 
   if Common.SystemInfo.OCType = DefCommon.OCType  then  begin
 
-
     ShapeCheck(shpDi01NG,Common.StatusInfo.AlarmData[IN_EMO_SWITCH] <> 0);
-
-    // »Ì±‚ πË±‚.
 
     ShapeCheck(shpDi06NG,Common.StatusInfo.AlarmData[IN_FAN_1_EXHAUST] <> 0);
 
@@ -199,12 +196,6 @@ begin
 
     ShapeCheck(shpDi09NG,Common.StatusInfo.AlarmData[IN_FAN_4_INTAKE] <> 0);
 
-  //  shpDi10.Visible := Common.StatusInfo.AlarmData[IN_FAN5_IN] <> 0;
-  //  shpDi11.Visible := Common.StatusInfo.AlarmData[IN_FAN6_IN] <> 0;
-  //  shpDi12.Visible := Common.StatusInfo.AlarmData[IN_FAN7_OUT] <> 0;
-  //  shpDi13.Visible := Common.StatusInfo.AlarmData[IN_FAN8_OUT] <> 0;
-
-    // Main Air Pressure.
 
     ShapeCheck(shpDi14NG,Common.StatusInfo.AlarmData[IN_CYL_PRESSURE_GAUGE] <> 0);
 

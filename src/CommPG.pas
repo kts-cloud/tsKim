@@ -3963,7 +3963,7 @@ begin
   Inc(TconRWCnt.TconReadTX); //2023-03-28 jhhwang (for T/T Test)
   TconRWCnt.ContTConOcWrite := 0; //2023-03-28 jhhwang (for T/T Test)
   //
-  sEtcMsg  := '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+  sEtcMsg  := '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr+ '-' + FTxRxPG.RxPrevStr) + ']';
   if Result = WAIT_OBJECT_0 then begin
     try
       arCmdAck := FTxRxPG.RxAckStr.Split([#$0D]);

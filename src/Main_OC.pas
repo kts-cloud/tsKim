@@ -264,6 +264,7 @@ type
     procedure chkCH;
   public
     { Public declarations }
+    PollingDoorOpened : Boolean;
     function CheckEmpty_Pair(nStage, nPair: Integer): Boolean;
     function CheckProbe(nCH: Integer): Boolean;
     function CheckPinBlock(nCH : Integer) : Boolean;
@@ -1414,25 +1415,6 @@ begin
 end;
 
 
-//procedure SetControlColor(Control: TControl; Color: TColor);
-//var
-//  I: Integer;
-//begin
-//  if Control is TWinControl then
-//    for I := 0 to TWinControl(Control).ControlCount - 1 do
-//      SetControlColor(TWinControl(Control).Controls[I], Color);
-//  Control.Color := Color;
-//end;
-//
-//procedure SetControlFontColor(Control: TControl; Color: TColor);
-//var
-//  I: Integer;
-//begin
-//  if Control is TWinControl then
-//    for I := 0 to TWinControl(Control).ControlCount - 1 do
-//      SetControlFontColor(TWinControl(Control).Controls[I], Color);
-//  Control.Font.Color := Color;
-//end;
 
 function IsDebugMode: string;
 begin
@@ -1447,7 +1429,7 @@ procedure TfrmMain_OC.FormCreate(Sender: TObject);
 var
   i : Integer;
   sDebug : string;
-
+  aTask : TThread;
 begin
 //  Self.WindowState := wsMaximized;// wsNormal;
   Common := TCommon.Create;
@@ -1469,14 +1451,19 @@ begin
   //grpSystemInfo.Caption:= 'System Information. ' + Common.GetVerOnlyDate;
   MakeDioSig;
 
-  modDB := TDBModule_Sqlite.Create(Self);
-  if modDB.DBConnect then begin
-    if modDB.CheckAndCreateTable(MAX_PG_CNT, 'TLB_ISPD') then begin
-      modDB.CheckNGTypeFieldCount;
-    end
-    else begin
-    end;
-  end;
+  aTask := TThread.CreateAnonymousThread(
+    procedure begin
+      modDB := TDBModule_Sqlite.Create(Self);
+      if modDB.DBConnect then begin
+        if modDB.CheckAndCreateTable(MAX_PG_CNT, 'TLB_ISPD') then begin
+          modDB.CheckNGTypeFieldCount;
+        end
+        else begin
+        end;
+      end;
+    end);
+  aTask.FreeOnTerminate := True;
+  aTask.Start;
 
   CreateClassData;
 
@@ -2992,6 +2979,23 @@ begin
         COMMPLC_PARAM_DOOR_OPENED: begin
           //log만 남김
           ShowSysLog('Robot Door Opened: ' + pGUIMsg.Msg);
+          if pGUIMsg.Param2 = 1 then begin
+            PollingDoorOpened := True;
+            if frmDoorOpenAlarmMsg = nil then begin
+              frmDoorOpenAlarmMsg:= TfrmDoorOpenAlarmMsg.Create(self);
+            end;
+            Set_AlarmData(114, pGUIMsg.Param2, 0); //경 알람
+            ShowSysLog(Common.StatusInfo.AlarmMsg[114], 1);
+            frmDoorOpenAlarmMsg.Show; //ShowModal; //어차피 전체 창이므로 Modal일 필요 없다.
+            frmDoorOpenAlarmMsg.CloseEnable(False);
+          end
+          else begin
+            PollingDoorOpened := False;
+            if frmDoorOpenAlarmMsg <> nil then begin
+              frmDoorOpenAlarmMsg.CloseEnable(True);
+            end;
+          end;
+
 //          Set_AlarmData(114, pGUIMsg.Param2, 0); //경알람
         end; //COMMPLC_PARAM_RESET_COUNT: begin
 
@@ -3944,6 +3948,7 @@ var
   nStage: Integer;
   sMsg: String;
   bStep : Boolean;
+  i : integer;
 begin
   if g_CommPLC = nil then  Exit;
 
@@ -3952,6 +3957,8 @@ begin
   ShowSysLog(format('Robot_Request_Exchange Load %d', [nCh]));
 
   Common.StatusInfo.Loading:= True; //로딩 중 Interlock
+  for I := 1 to 10 do
+    Common.StatusInfo.LoadUnloadFlowData[nCh][i] := 0; // 초기화
 
   ThreadTask(procedure begin
     try
@@ -4253,6 +4260,7 @@ var
   nStage: Integer;
   sMsg: String;
   bStep : Boolean;
+  i : integer;
 begin
   if g_CommPLC = nil then  Exit;
 
@@ -4261,6 +4269,8 @@ begin
   ShowSysLog(format('Robot_Request_Exchange UnLoad %d', [nCh]));
 
   Common.StatusInfo.Loading:= True; //로딩 중 Interlock
+  for I := 21 to 30 do
+    Common.StatusInfo.LoadUnloadFlowData[nCh][i] := 0; // 초기화
 
   ThreadTask(procedure begin
     //ContactDown 때문에 쓰레드 필요
@@ -4600,6 +4610,7 @@ var
   nRet: Integer;
   nStage: Integer;
   sMsg: String;
+  I: Integer;
 begin
   if g_CommPLC = nil then  Exit;
 
@@ -4609,6 +4620,9 @@ begin
   ShowSysLog(format('Robot_Request_Load %d', [nCh +1]));
 
   Common.StatusInfo.Loading:= True; //로딩 중 Interlock
+
+  for I := 1 to 10 do
+    Common.StatusInfo.LoadUnloadFlowData[nCh][i] := 0; // 초기화
 
   ThreadTask(procedure begin
 try
@@ -5171,6 +5185,7 @@ var
   nRet: Integer;
   nStage: Integer;
   sMsg: String;
+  i : integer;
 begin
   if g_CommPLC = nil then  Exit;
 
@@ -5180,6 +5195,8 @@ begin
   ShowSysLog(format('Robot_Request_UnLoad %d', [nCh +1]));
 
   Common.StatusInfo.Loading:= True; //로딩 중 Interlock
+  for I := 21 to 30 do
+    Common.StatusInfo.LoadUnloadFlowData[nCh][i] := 0; // 초기화
 
   ThreadTask(procedure begin
 try
@@ -5740,6 +5757,8 @@ begin
 
       //Door Opend
       if nValue = 2 then begin
+        if common.PLCInfo.InlineGIB then
+          g_CommPLC.EQP_Door_Open_Info(1); // EQP_Door_Open_Info ON
         if frmDoorOpenAlarmMsg = nil then begin
           frmDoorOpenAlarmMsg:= TfrmDoorOpenAlarmMsg.Create(self);
         end;
@@ -5750,7 +5769,7 @@ begin
         tmDioAlarm.Interval := 10;
         tmDioAlarm.Enabled := True;
       end;
-    end                 
+    end
     else begin
       //알람 없을 경우 해제
       ShowSysLog('[ALARM OFF] ' + Common.StatusInfo.AlarmMsg[nIndex], 3);
@@ -5760,6 +5779,10 @@ begin
       if common.SystemInfo.OCType = DefCommon.OCType then  begin
         if nIndex = DefDio.IN_EMO_SWITCH  then    // EMO  해지 시 Initialize 하라는 메시지 출력
           ShowNgMessage('Please press the Initialize button');
+
+        if common.PLCInfo.InlineGIB and ControlDio.CheckAllDoorOpen  then
+          g_CommPLC.EQP_Door_Open_Info(0); // EQP_Door_Open_Info OFF
+
       end
       else begin
         if (nIndex = DefDio.IN_GIB_CH_12_EMO_SWITCH) or (nIndex = DefDio.IN_GIB_CH_12_EMO_SWITCH) then
@@ -5823,11 +5846,7 @@ begin
         ShowSysLog('DIO CheckState NG', 1);
         Exit;
       end;
-
-
-      for I := 0 to 1 do begin
-        ControlDio.MovingShutter(i,True);     //Added by KTS 2023-07-14 오전 11:26:15 수동 모드변경
-      end;
+      ControlDio.MovingShutter(DefCommon.CH_ALL,True);
 
       Update_Stage_Position(0); //Stage 포지션 - ECS, CAM
 
@@ -6149,53 +6168,69 @@ begin
           if Common.SystemInfo.UseNoExchange then begin
             frmSelectDetect.btnNo.Enabled:= False;
           end;
-          frmSelectDetect.pnlCaption := 'CH 1,2 Carrier Detected';
-          nRet:= frmSelectDetect.ShowModal;
+          frmSelectDetect.pnlCaption.Caption := 'CH 1,2 Carrier Detected';
+          nRetCH12:= frmSelectDetect.ShowModal;
 
-          frmSelectDetect.Free;
+          if nRetCH12 = mrCancel then  begin   // Cancel 시 종료
+            frmSelectDetect.Free;
+            ShowSysLog('StartAutoProcess Carrier Detected. User Cancel');
+            Set_AutoMode(False);
+            Exit;
+          end;
 
-          if nRet = mrYes then begin
-            ShowSysLog('StartAutoProcess Carrier Detected. Start A');
+          frmSelectDetect.pnlCaption.Caption := 'CH 3,4 Carrier Detected';
+          nRetCH34:= frmSelectDetect.ShowModal;
+
+          if nRetCH34 = mrCancel then  begin   // Cancel 시 종료
+            frmSelectDetect.Free;
+            ShowSysLog('StartAutoProcess Carrier Detected. User Cancel');
+            Set_AutoMode(False);
+            Exit;
+          end;
+
+          if nRetCH12 = mrYes then begin
+            ShowSysLog('StartAutoProcess Carrier Detected. Start CH 1,2');
 
             if ControlDio.IsDetected(CH_TOP)then Execute_AutoStart(CH_TOP)
             else Robot_Request_Load(CH_TOP);
-            if ControlDio.IsDetected(CH_BOTTOM)then Execute_AutoStart(CH_BOTTOM)
-            else Robot_Request_Load(CH_BOTTOM);
           end
-          else if nRet = mrNo then begin
-            ShowSysLog('StartAutoProcess Carrier Detected. Request Exchange A');
+          else if nRetCH12 = mrNo then begin
+            ShowSysLog('StartAutoProcess Carrier Detected. Request Exchange CH 1,2');
             g_CommPLC.ECS_Unit_Status(COMMPLC_UNIT_STATE_RUN, 0);
             Common.StatusInfo.StageStep[JIG_A]:= STAGE_STEP_LOADING;
             if Common.SystemInfo.OCType = DefCommon.OCType then begin
               if ControlDio.IsDetected(CH_TOP)then Robot_Request_UnLoad(CH_TOP)
               else Robot_Request_Load(CH_TOP);
-              if ControlDio.IsDetected(CH_BOTTOM)then Robot_Request_UnLoad(CH_BOTTOM)
-              else Robot_Request_Load(CH_BOTTOM);
-//              Robot_Request_UnLoad(CH_TOP);
-//              Common.Delay(100);
-//              Robot_Request_UnLoad(CH_BOTTOM);
             end
             else begin
               if ControlDio.IsDetected(CH_TOP)then Robot_Request_Exchange_UnLoad(CH_TOP)
               else Robot_Request_Exchange_Load(CH_TOP);
-              if ControlDio.IsDetected(CH_BOTTOM)then Robot_Request_Exchange_UnLoad(CH_BOTTOM)
-              else Robot_Request_Exchange_Load(CH_BOTTOM);
-//              Robot_Request_Exchange(CH_TOP);
-//              Common.Delay(100);
-//              Robot_Request_Exchange(CH_BOTTOM);
             end;
 
+          end;
+
+          if nRetCH34 = mrYes then begin
+            ShowSysLog('StartAutoProcess Carrier Detected. Start CH 3,4');
+            if ControlDio.IsDetected(CH_BOTTOM)then Execute_AutoStart(CH_BOTTOM)
+            else Robot_Request_Load(CH_BOTTOM);
           end
-          else begin
-            ShowSysLog('StartAutoProcess Carrier Detected. User Cancel');
-            Set_AutoMode(False);
-            Exit;
+          else if nRetCH34 = mrNo then begin
+            ShowSysLog('StartAutoProcess Carrier Detected. Request Exchange CH 3,4');
+            g_CommPLC.ECS_Unit_Status(COMMPLC_UNIT_STATE_RUN, 0);
+            Common.StatusInfo.StageStep[JIG_A]:= STAGE_STEP_LOADING;
+            if Common.SystemInfo.OCType = DefCommon.OCType then begin
+              if ControlDio.IsDetected(CH_BOTTOM)then Robot_Request_UnLoad(CH_BOTTOM)
+              else Robot_Request_Load(CH_BOTTOM);
+            end
+            else begin
+              if ControlDio.IsDetected(CH_BOTTOM)then Robot_Request_Exchange_UnLoad(CH_BOTTOM)
+              else Robot_Request_Exchange_Load(CH_BOTTOM);
+            end;
           end;
         end
         else begin
           //로드 요청
           ShowSysLog('StartAutoProcess Request Load A');
-
 
           if Common.SystemInfo.OCType = DefCommon.OCType  then  begin
             Robot_Request_Load(CH_TOP);
@@ -6290,19 +6325,21 @@ begin
     Exit;
   end;
 
+
   ThreadTask(procedure var i : Integer; begin
-    for I := 0 to DefCommon.MAX_CH do begin
-      if Common.SystemInfo.OCType = DefCommon.OCType  then  begin
+    if Common.SystemInfo.OCType = DefCommon.OCType  then  begin
+      for I := 0 to DefCommon.MAX_CH do begin
         ControlDio.ProbeBackward(i);
         ControlDio.UnlockCarrier(i,true);
-      end
-      else begin
+      end;
+    end
+    else begin
+      ControlDio.MovingShutter(DefCommon.CH_ALL,False);  // Added by KTS 2023-07-14 오전 11:26:15 수동 모드- true -> false
+      for I := 0 to DefCommon.MAX_CH do begin
+        ControlDio.MovingProbe(i mod 2, True);
         ControlDio.UnlockPinBlock(i);
         ControlDio.CLOSE_Up_PinBlock(i);
-        ControlDio.MovingProbe(i div 2, True);
-        ControlDio.MovingShutter(i div 2,False);  // Added by KTS 2023-07-14 오전 11:26:15 수동 모드- true -> false
       end;
-      Sleep(100);
     end;
   end);
 

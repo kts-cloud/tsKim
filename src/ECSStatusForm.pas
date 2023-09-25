@@ -5,8 +5,8 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, AdvUtil, Vcl.Grids, AdvObj, BaseGrid,
-  AdvGrid, Vcl.ExtCtrls, Vcl.StdCtrls,
-  CommPLC_ECS, ControlDio_OC;
+  AdvGrid, Vcl.ExtCtrls, Vcl.StdCtrls,System.Generics.Collections,
+  CommPLC_ECS, ControlDio_OC, Vcl.Imaging.pngimage;
 
 type
   /// <summary> Status 창과 Maint 겸용으로 사용하는 폼 </summary>
@@ -99,6 +99,30 @@ type
     btnHideGlassData: TButton;
     btnTakeOutReport: TButton;
     btnGlassDataReport: TButton;
+    pnlLoadUnloadFlow: TPanel;
+    Label5: TLabel;
+    btnHideLoadUnloadFlow: TButton;
+    imgEquipment: TImage;
+    Button2: TButton;
+    shppLoadFlow_1: TShape;
+    shppLoadFlow_2: TShape;
+    shppLoadFlow_3: TShape;
+    shppLoadFlow_4: TShape;
+    shppLoadFlow_5: TShape;
+    shppLoadFlow_6: TShape;
+    shppLoadFlow_7: TShape;
+    shppLoad_EQP_Normal: TShape;
+    shppLoad_ROBOT_Normal: TShape;
+    shppUnLoadFlow_1: TShape;
+    shppUnLoadFlow_2: TShape;
+    shppUnLoadFlow_3: TShape;
+    shppUnLoadFlow_4: TShape;
+    shppUnLoadFlow_5: TShape;
+    shppUnLoadFlow_6: TShape;
+    shppUnLoad_EQP_Normal: TShape;
+    shppUnLoad_ROBOT_Normal: TShape;
+    tmrFlickering: TTimer;
+
     procedure FormCreate(Sender: TObject);
     procedure tmrRefreshTimer(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -135,9 +159,14 @@ type
     procedure btnShowGlassDataClick(Sender: TObject);
     procedure btnGlassDataReportClick(Sender: TObject);
     procedure btnTakeOutReportClick(Sender: TObject);
+    procedure btnHideLoadUnloadFlowClick(Sender: TObject);
+    procedure Button2Click(Sender: TObject);
+    procedure tmrFlickeringTimer(Sender: TObject);
   private
     { Private declarations }
+    PanelList: TList<TPanel>;
     m_aMESItemValue: array [0..8] of TMESItemValue;
+    rbChkCH   :  array [0..3] of  TRadioButton;
     procedure Init_Grid;
     procedure UpdateStatus;
     procedure SetCellState(nCol, nRow, nDivisioin, nIndex, nBitLoc: Integer);
@@ -146,7 +175,8 @@ type
     procedure Process_Thread_EICR(nCh: Integer; sErrorCode, sInspectionResult: String);
     procedure Process_Thread_APDR(nCh: Integer; sInspectionResult: String);
     procedure Process_Thread_ZSET(nCh, nBondingType: Integer; sZigID, sPID, sPcbID: String);
-
+    procedure RefreshDisplay(nCH : Integer);
+    procedure FlickeringShape(AStyle: TBrushStyle);
   public
     { Public declarations }
     /// <summary>0=Status Mode, 1=Mainter Mode </summary>
@@ -380,21 +410,21 @@ begin
 //  GlassData.GlassAddData[4]:= $3232;
 //  GlassData.GlassAddData[5]:= $3232;
   GlassData.PreviousUnitProcessing[0]:= $0;
-  GlassData.PreviousUnitProcessing[1]:= $3333;
-  GlassData.PreviousUnitProcessing[2]:= $3333;
-  GlassData.PreviousUnitProcessing[3]:= $3333;
-  GlassData.PreviousUnitProcessing[4]:= $3333;
-  GlassData.PreviousUnitProcessing[5]:= $3333;
-  GlassData.PreviousUnitProcessing[6]:= $3333;
-  GlassData.PreviousUnitProcessing[7]:= $3333;
+  GlassData.PreviousUnitProcessing[1]:= $0;
+  GlassData.PreviousUnitProcessing[2]:= $0;
+  GlassData.PreviousUnitProcessing[3]:= $0;
+  GlassData.PreviousUnitProcessing[4]:= $0;
+  GlassData.PreviousUnitProcessing[5]:= $0;
+  GlassData.PreviousUnitProcessing[6]:= $0;
+  GlassData.PreviousUnitProcessing[7]:= $0;
   GlassData.GlassProcessingStatus[0]:= $0;
-  GlassData.GlassProcessingStatus[1]:= $3434;
-  GlassData.GlassProcessingStatus[2]:= $3434;
-  GlassData.GlassProcessingStatus[3]:= $3434;
-  GlassData.GlassProcessingStatus[4]:= $3434;
-  GlassData.GlassProcessingStatus[5]:= $3434;
-  GlassData.GlassProcessingStatus[6]:= $3434;
-  GlassData.GlassProcessingStatus[7]:= $3434;
+  GlassData.GlassProcessingStatus[1]:= $0;
+  GlassData.GlassProcessingStatus[2]:= $0;
+  GlassData.GlassProcessingStatus[3]:= $0;
+  GlassData.GlassProcessingStatus[4]:= $0;
+  GlassData.GlassProcessingStatus[5]:= $0;
+  GlassData.GlassProcessingStatus[6]:= $0;
+  GlassData.GlassProcessingStatus[7]:= $0;
 //  GlassData.GlassRoutingData[0]:= $3535;
 //  GlassData.GlassRoutingData[1]:= $3535;
 //  GlassData.GlassRoutingData[2]:= $3535;
@@ -792,6 +822,62 @@ begin
 
 end;
 
+procedure TfrmECSStatus.btnHideLoadUnloadFlowClick(Sender: TObject);
+begin
+  pnlLoadUnloadFlow.Visible := False;
+end;
+
+procedure TfrmECSStatus.Button2Click(Sender: TObject);
+begin
+  if pnlLoadUnloadFlow.Visible then begin
+    pnlLoadUnloadFlow.Visible:= False;
+    Exit;
+  end;
+  pnlLoadUnloadFlow.Visible := True;
+end;
+
+procedure ShapeCheck(Shape : TShape; bOKNG : Boolean);
+begin
+  Shape.Visible := True;
+  if not bOKNG then begin
+    Shape.Brush.Color := clLime;
+    Shape.Pen.Color   := clLime;
+  end
+  else begin
+    Shape.Brush.Color := clRed;
+    Shape.Pen.Color   := clRed;
+  end;
+
+end;
+
+
+procedure TfrmECSStatus.RefreshDisplay(nCH : Integer);
+var
+  I: Integer;
+begin
+  //LOAD
+  ShapeCheck(shppLoadFlow_1,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_LOAD_1] <> 1);
+  ShapeCheck(shppLoadFlow_2,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_LOAD_2] <> 1);
+  ShapeCheck(shppLoadFlow_3,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_LOAD_3] <> 1);
+  ShapeCheck(shppLoadFlow_4,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_LOAD_4] <> 1);
+  ShapeCheck(shppLoadFlow_5,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_LOAD_5] <> 1);
+  ShapeCheck(shppLoadFlow_6,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_LOAD_6] <> 1);
+  ShapeCheck(shppLoadFlow_7,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_LOAD_7] <> 1);
+  ShapeCheck(shppLoad_EQP_Normal,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_LOAD_11] <> 1);
+  ShapeCheck(shppLoad_ROBOT_Normal,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_LOAD_12] <> 1);
+
+  //UNLOAD
+  ShapeCheck(shppUnLoadFlow_1,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_UNLOAD_1] <> 1);
+  ShapeCheck(shppUnLoadFlow_2,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_UNLOAD_2] <> 1);
+  ShapeCheck(shppUnLoadFlow_3,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_UNLOAD_3] <> 1);
+  ShapeCheck(shppUnLoadFlow_4,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_UNLOAD_4] <> 1);
+  ShapeCheck(shppUnLoadFlow_5,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_UNLOAD_5] <> 1);
+  ShapeCheck(shppUnLoadFlow_6,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_UNLOAD_6] <> 1);
+  ShapeCheck(shppUnLoad_EQP_Normal,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_UNLOAD_11] <> 1);
+  ShapeCheck(shppUnLoad_ROBOT_Normal,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_UNLOAD_12] <> 1);
+
+end;
+
 procedure TfrmECSStatus.btnGlassDataReportClick(Sender: TObject);
 var
 nRes : integer;
@@ -805,6 +891,7 @@ end;
 procedure TfrmECSStatus.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
   tmrRefresh.Enabled:= False;
+  tmrFlickering.Enabled := False;
   //Action:= caFree;
 end;
 
@@ -815,27 +902,44 @@ end;
 
 procedure TfrmECSStatus.FormCreate(Sender: TObject);
 var
-  sEventName,sTemp: String;
-  i: Integer;
+  sEventName,sTemp,sCaption: String;
+  i,nCH: Integer;
 begin
   if g_CommPLC = nil then begin
     Self.Enabled:= false;
     Exit;
   end;
   cboChannel_Robot.Items.Clear;
+
   if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
     for i := 0 to 3 do begin
       sTemp := Format('CH %d',[i]);
       cboChannel_Robot.Items.Add(sTemp);
+      rbChkCH[i] := TRadioButton.Create(Self);
+      rbChkCH[i].Parent := pnlLoadUnloadFlow;
+      rbChkCH[i].Top := 30;
+      rbChkCH[i].Left := 24 + i * 100;
+      rbChkCH[i].Height := 17;
+      rbChkCH[i].Width := 113;
+      rbChkCH[i].Tag := i;
+      rbChkCH[i].Caption := Format('CH : %d',[i + 1]);
     end;
   end
   else begin
     for i := 0 to 1 do begin
       sTemp := Format('CH %d',[i]);
       cboChannel_Robot.Items.Add(sTemp);
+      rbChkCH[i] := TRadioButton.Create(Self);
+      rbChkCH[i].Parent := pnlLoadUnloadFlow;
+      rbChkCH[i].Top := 30;
+      rbChkCH[i].Left := 24 + i * 100;
+      rbChkCH[i].Height := 17;
+      rbChkCH[i].Width := 113;
+      rbChkCH[i].Tag := i;
+      rbChkCH[i].Caption := Format('CH : %d,%d',[i* 2 + 1,i * 2 +2]);
     end;
-
   end;
+  rbChkCH[0].Checked := True;
   cboChannel_Robot.ItemIndex := 0;
 
   for i := 0 to 7 do begin
@@ -847,6 +951,7 @@ begin
   grdStatus.Font.Color := clBlack;
 
   btnShowSimulator.Enabled:= g_CommPLC.UseSimulator;
+
 end;
 
 procedure TfrmECSStatus.FormDestroy(Sender: TObject);
@@ -872,6 +977,7 @@ begin
   edtStartAddrECS_W.Text:= IntToHex(g_CommPLC.StartAddr_ECS_W, 4);
 
   tmrRefresh.Enabled:= True;
+  tmrFlickering.Enabled := True;
 end;
 
 procedure TfrmECSStatus.Init_Grid;
@@ -957,6 +1063,10 @@ begin
     else nAddr:= nAddr + $12*$10;
   end;
   if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
+    grdStatus.Cells[2, 2] := 'Door Open' + sLineBreak + 'Warning';
+    grdStatus.Cells[2, 3] := 'Door Open' + sLineBreak + 'Warning Confirm';
+    grdStatus.Cells[2, 4] := 'Door Open' + sLineBreak + 'Info';
+
     grdStatus.Cells[4, 0] := 'EQP' + #10#13 + '(B' + IntToHex(nAddr, 4) + ')';
     grdStatus.Cells[4, 1] := 'Load' + sLineBreak + 'Enable';
     grdStatus.Cells[4, 2] := 'Glass Data Request';
@@ -1542,6 +1652,34 @@ begin
   end).Start;
 end;
 
+procedure TfrmECSStatus.FlickeringShape(AStyle: TBrushStyle);
+var
+  I: Integer;
+begin
+  for I := 0 to Pred(pnlLoadUnloadFlow.ControlCount) do  begin
+    if pnlLoadUnloadFlow.Controls[I] is TShape then  begin
+      if pnlLoadUnloadFlow.Controls[I].Visible then  begin
+        //(pnImage.Controls[I] as TShape).Brush.Color:= clRed; //bsClear후에 색상 없어짐 방지
+        (pnlLoadUnloadFlow.Controls[I] as TShape).Brush.Style:= AStyle;
+      end;
+    end;
+  end;
+end;
+
+
+procedure TfrmECSStatus.tmrFlickeringTimer(Sender: TObject);
+begin
+  if tmrFlickering.Tag = 0 then
+  begin
+    tmrFlickering.Tag:= 1;
+    FlickeringShape(bsSolid);
+  end else
+  begin
+    tmrFlickering.Tag:= 0;
+    FlickeringShape(bsBDiagonal);
+  end;
+end;
+
 procedure TfrmECSStatus.tmrRefreshTimer(Sender: TObject);
 begin
   UpdateStatus;
@@ -1549,8 +1687,15 @@ end;
 
 procedure TfrmECSStatus.UpdateStatus;
 var
-  i: Integer;
+  i,nCH: Integer;
 begin
+  if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then
+  nCH := 3
+  else nCH := 1;
+  for I := 0 to nCH do begin
+    if rbChkCH[i].Checked then
+      RefreshDisplay(i);
+  end;
   if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
       for i := 0 to 15 do begin
       //EQP
@@ -1565,6 +1710,9 @@ begin
       SetCellState(10,  i+1, 0, 14, i); //Load 1
       SetCellState(11,  i+1, 0, 15, i); //Unload 1
     end;
+
+    for I := 0 to 2 do
+      SetCellState(2,  i+2, 0, 5,  i); //DOOR OPEN
 
     for i := 0 to 7 do begin
       //EQP - Position
@@ -1634,6 +1782,7 @@ begin
 
       for I := 0 to 7 do
         SetCellState(2,  i+1, 0, 1,  i); //Special Equipment
+
       for I := 0 to 7 do
         SetCellState(2,  i+8, 0, 6,  i); //Special Equipment
 

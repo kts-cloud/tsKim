@@ -251,6 +251,7 @@ type
     AlarmData: array [0..150] of Byte; //알람 리스트
     AlarmMsg: array [0..150] of String; //알람 메시지
     Test_AutoRepeat: Boolean; //자동 반복테스트 중
+    LoadUnloadFlowData : array [DefCommon.CH1 .. DefCommon.MAX_CH] of array [0..50] of Integer;  // 현재CH 별 Load/Unload 신호 위치 저장
   end;
 
   TVer = record
@@ -5008,4 +5009,5 @@ end;
 
 
 end.
+
 

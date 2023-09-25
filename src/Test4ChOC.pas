@@ -4213,39 +4213,45 @@ begin
           end;
           AddLog('[DLL] ' + sMsg, nCh, nTemp);
 
-          if Pos('ErrCode:',sMsg) > 0 then begin
-            //ErrCode:AXXX
-            sTemp:= Copy(sMsg, 9, 4); //AXXX
-            PasScr[nCh].m_nNgCode:= GetNGCode_ByErroCode(sTemp);
-            AddLog(format('GetNGCode_ByErroCode: %d',[PasScr[nCh].m_nNgCode]),nCh);
-          end;
-          if ContainsText(sMsg,'Please Check Bin File Version') then begin
-            if PasScr[nCh].m_nNgCode = 0 then begin
-              PasScr[nCh].m_nNgCode:= 3181; //Other
-            end;
-          end;
-          if (Pos('Total OC Tact Time',sMsg) > 0)
-            or (Pos('[OCException]',sMsg) > 0)
-            or (Pos('[Exception]',sMsg) > 0)then begin
-            //Total OC Tact Time : 18 min 18 sec
-            //[OCException] : PreSet NG
-            if (Pos('Total OC Tact Time : 0 min 0 sec', sMsg) > 0) or (Pos('Total OC Tact Time : 0 min 1 sec', sMsg) > 0) then begin
-              if PasScr[nCh].m_nNgCode = 0 then begin
-                PasScr[nCh].m_nNgCode:= 3181; //Other
-              end;
-            end
-            else if (Pos('Total OC Tact Time',sMsg) > 0) then begin
-              PasScr[nCh].m_nNgCode := 0;
-            end
-            else if Pos('[OCException]',sMsg) > 0 then begin
-              if PasScr[nCh].m_nNgCode = 0 then begin
-                PasScr[nCh].m_nNgCode:= 3181; //Other
-              end;
-            end;
-
-          end;
+//          if Pos('ErrCode:',sMsg) > 0 then begin
+//            //ErrCode:AXXX
+//            sTemp:= Copy(sMsg, 9, 4); //AXXX
+//            PasScr[nCh].m_nNgCode:= GetNGCode_ByErroCode(sTemp);
+//            AddLog(format('GetNGCode_ByErroCode: %d',[PasScr[nCh].m_nNgCode]),nCh);
+//          end;
+//          if ContainsText(sMsg,'Please Check Bin File Version') then begin
+//            if PasScr[nCh].m_nNgCode = 0 then begin
+//              PasScr[nCh].m_nNgCode:= 3181; //Other
+//            end;
+//          end;
+//          if (Pos('Total OC Tact Time',sMsg) > 0)
+//            or (Pos('[OCException]',sMsg) > 0)
+//            or (Pos('[Exception]',sMsg) > 0)then begin
+//            //Total OC Tact Time : 18 min 18 sec
+//            //[OCException] : PreSet NG
+//            if (Pos('Total OC Tact Time : 0 min 0 sec', sMsg) > 0) or (Pos('Total OC Tact Time : 0 min 1 sec', sMsg) > 0) then begin
+//              if PasScr[nCh].m_nNgCode = 0 then begin
+//                PasScr[nCh].m_nNgCode:= 3181; //Other
+//              end;
+//            end
+//            else if (Pos('Total OC Tact Time',sMsg) > 0) then begin
+//              PasScr[nCh].m_nNgCode := 0;
+//            end
+//            else if Pos('[OCException]',sMsg) > 0 then begin
+//              if PasScr[nCh].m_nNgCode = 0 then begin
+//                PasScr[nCh].m_nNgCode:= 3181; //Other
+//              end;
+//            end;
+//
+//          end;
 
           if Pos('OKFLOW_END',sMsg) > 0 then begin
+            sTemp := CSharpDll.MainOC_GetSummaryLogData(nCh,'DEFECT_CODE');   // ERROR CODE 불러오기
+            if 'XXXX' <> sTemp then
+              PasScr[nCh].m_nNgCode:= GetNGCode_ByErroCode(sTemp)
+            else PasScr[nCh].m_nNgCode:= 0;
+            AddLog(format('GetSummaryLogData : %s GetNGCode_ByErroCode: %d',[sTemp,PasScr[nCh].m_nNgCode]),nCh);
+
             if DongaGmes <> nil then begin
               if DongaGmes.m_bDoneEODS[nCH] then begin   // R2R Data Down 확인 후
                 DongaGmes.SendR2REoda(nCh,WriteR2RData(nCH));
@@ -4694,13 +4700,13 @@ begin
                               Exit;
                             end;
                           end;
-                          if CSharpDll.m_bIsProcessDone[DefCommon.CH1] and CSharpDll.m_bIsProcessDone[DefCommon.CH2] then  begin
+//                          if CSharpDll.m_bIsProcessDone[DefCommon.CH1] and CSharpDll.m_bIsProcessDone[DefCommon.CH2] then  begin
 //                        SendMessageMain(STAGE_MODE_UNLOAD,0, 2,0, 'OC Flow Process_Finish',nil);
                             SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, 0 , 0 , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
 
                             CSharpDll.m_bIsProcessDone[DefCommon.CH1] := false;
                             CSharpDll.m_bIsProcessDone[DefCommon.CH2] := false;
-                          end;
+//                          end;
                         end;
                         2,3 :
                         begin
@@ -4710,13 +4716,13 @@ begin
                               Exit;
                             end;
                           end;
-                          if CSharpDll.m_bIsProcessDone[DefCommon.CH3] and CSharpDll.m_bIsProcessDone[DefCommon.CH4] then begin
+//                          if CSharpDll.m_bIsProcessDone[DefCommon.CH3] and CSharpDll.m_bIsProcessDone[DefCommon.CH4] then begin
     //                        SendMessageMain(STAGE_MODE_UNLOAD, 1, 2,0, 'OC Flow Process_Finish',nil);
                             SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, 1 , 1 , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
 
                             CSharpDll.m_bIsProcessDone[DefCommon.CH3] := false;
                             CSharpDll.m_bIsProcessDone[DefCommon.CH4] := false;
-                          end;
+//                          end;
 
                         end;
                       end;

@@ -46,8 +46,10 @@ type
     procedure btnResetErrorClick(Sender: TObject);
     procedure btnStopBuzzerClick(Sender: TObject);
     procedure btnShowAlarmClick(Sender: TObject);
+    procedure Panel1DblClick(Sender: TObject);
   private
     { Private declarations }
+    bBypass : Boolean;
     procedure CheckDoor;
   public
     { Public declarations }
@@ -105,6 +107,8 @@ begin
     if not ControlDio.ReadInSig(DefDio.IN_CH_3_4_DOOR_RIGHT_OPEN) then begin
       bOpened:= True;
     end;
+    if frmMain_OC.PollingDoorOpened and (not bBypass) then
+      bOpened := True;
   end
   else begin
     if ControlDio.ReadInSig(DefDio.IN_GIB_CH_12_EMO_SWITCH) then begin
@@ -161,6 +165,7 @@ end;
 procedure TfrmDoorOpenAlarmMsg.FormShow(Sender: TObject);
 begin
   CheckDoor;
+  bBypass := False;
   tmrRefresh.Enabled:= True;
   if Common.SystemInfo.UIType = DefCommon.UI_WIN10_BLACK then begin
     gbAdminClose.Color  := clBlack;
@@ -170,6 +175,11 @@ begin
 //
 //  lblWorker.Top := self.Height - 60;
 //  lblWorker.Left := self.Width - 150;
+end;
+
+procedure TfrmDoorOpenAlarmMsg.Panel1DblClick(Sender: TObject);
+begin
+  bBypass := not bBypass;
 end;
 
 procedure TfrmDoorOpenAlarmMsg.tmrRefreshTimer(Sender: TObject);

@@ -2879,7 +2879,7 @@ begin
   else if rdoProbe4.Checked then nCH := 3;
   if nCH > DefCommon.MAX_CH  then Exit;
 
-if g_CommPLC.IsGlassData_Robot(nCH div 2) then exit;
+  if g_CommPLC.IsGlassData_Robot(nCH div 2) then exit;
 
 
   if ControlDio <> nil then begin
@@ -2911,8 +2911,19 @@ end;
 procedure TfrmMainter.btnUnlockBottomDoorsClick(Sender: TObject);
 begin
   if pos('Unlock CH 34 Doors',btnUnlockBottomDoors.Caption) > 0 then begin
-    ControlDio.UnlockDoorOpen(DefDio.BOTTOM_CH,true);
-    btnUnlockBottomDoors.Caption := 'lock CH 34 Doors';
+    if (Common.PLCInfo.InlineGIB) then begin
+      if g_CommPLC.EQP_Door_Open_Warning then begin
+        ControlDio.UnlockDoorOpen(DefDio.BOTTOM_CH,true); //Unlock
+        btnUnlockBottomDoors.Caption := 'lock CH 34 Doors';
+      end
+      else begin
+        ShowNgMessage('EQP_Door_Open_Warning : NG');
+      end;
+    end
+    else begin
+      ControlDio.UnlockDoorOpen(DefDio.BOTTOM_CH,true); //Unlock
+      btnUnlockBottomDoors.Caption := 'lock CH 34 Doors';
+    end;
   end
   else begin
     ControlDio.UnlockDoorOpen(DefDio.BOTTOM_CH,false);
@@ -2925,11 +2936,22 @@ end;
 procedure TfrmMainter.btnUnlockTopDoorsClick(Sender: TObject);
 begin
   if pos('Unlock CH 12 Doors',btnUnlockTopDoors.Caption) > 0 then  begin
-    ControlDio.UnlockDoorOpen(DefDio.TOP_CH,true);
-    btnUnlockTopDoors.Caption := 'lock CH 12 Doors';
+    if (Common.PLCInfo.InlineGIB) then begin
+      if g_CommPLC.EQP_Door_Open_Warning then begin
+        ControlDio.UnlockDoorOpen(DefDio.TOP_CH,true); //Unlock
+        btnUnlockTopDoors.Caption := 'lock CH 12 Doors';
+      end
+      else begin
+        ShowNgMessage('EQP_Door_Open_Warning : NG');
+      end;
+    end
+    else begin
+      ControlDio.UnlockDoorOpen(DefDio.TOP_CH,true); //Unlock
+      btnUnlockTopDoors.Caption := 'lock CH 12 Doors';
+    end;
   end
   else begin
-    ControlDio.UnlockDoorOpen(DefDio.TOP_CH,False);
+    ControlDio.UnlockDoorOpen(DefDio.TOP_CH,False); //lock
     btnUnlockTopDoors.Caption := 'Unlock CH 12 Doors';
   end;
 

@@ -168,6 +168,7 @@ type
     m_hDll  : HWND;
     m_hMain : HWND;
     FNgMsg: string;
+    m_GetSummaryLogData : function (nCH : Integer; sParameter : PAnsiChar): PAnsiChar; cdecl;
     m_GetOCversion : function : PAnsiChar; cdecl;
     m_GetOCConverterVersion : function : PAnsiChar; cdecl;
     m_MainOC_START_CH1 : procedure(nCH : Integer; sParameter : PAnsiChar); cdecl;
@@ -265,6 +266,8 @@ type
     function MainOC_ThreadStateCheck(nCH : Integer): integer;
     function MainOC_Flash_Read(nCH : Integer): integer;
     function MainOC_GetOCFlowIsAlive(nCH : Integer): Integer;
+
+    function MainOC_GetSummaryLogData(nCH : Integer; sParameter : string): string;
 
 
 //    property OnRevSwData : TArray<TCallBackTextChanged> write CB_TextChangedTEST;
@@ -2129,6 +2132,11 @@ begin
   Result := m_MainOC_IsAlive(nCH);
 end;
 
+function TCSharpDll.MainOC_GetSummaryLogData(nCH : Integer; sParameter : string): string;
+begin
+  Result := PAnsiChar(m_GetSummaryLogData(nCH,Common.StringToPAnsiChar(sParameter)));
+end;
+
 
 function TCSharpDll.MainOC_Start_CH1(nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
 var
@@ -2497,6 +2505,7 @@ begin
   @m_SetCallback_measure_XYL := GetProcAddress(m_hDll, 'Callback_measure_XYL');
   @m_SetCallback_SetSync := GetProcAddress(m_hDll,'Callback_SetSync');
   @m_SetCallback_GetWaveformData := GetProcAddress(m_hDll,'Callback_GetWaveformData');
+  @m_GetSummaryLogData := GetProcAddress(m_hDll,'GetSummaryLogData');
   @m_MainOC_START_CH1 :=  GetProcAddress(m_hDll,'MainOC_START_CH1');
   @m_MainOC_START_CH2 :=  GetProcAddress(m_hDll,'MainOC_START_CH2');
   @m_MainOC_START_CH3 :=  GetProcAddress(m_hDll,'MainOC_START_CH3');
