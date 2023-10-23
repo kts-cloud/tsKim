@@ -7,8 +7,9 @@ uses
   Winapi.Windows, Winapi.ShellAPI, System.Classes, System.UITypes, System.SysUtils,
   Vcl.Forms,Vcl.Dialogs, Winapi.WinSock, Vcl.StdCtrls, psAPI,System.IOUtils,IdGlobal,
   System.IniFiles,  CodeSiteLogging, StrUtils,  DefCommon, system.zip,DefPG,
+
   Graphics,  IdSocketHandle, DateUtils, Winapi.ActiveX, System.Generics.Collections,
-  Winapi.Messages,DongaPattern,Registry, SyncObjs,Vcl.Imaging.pngimage, Vcl.Imaging.jpeg; //, AdvGrid, AdvObj, AdvGridWorkbook, , ScrMemo; //, DefScript;
+  Winapi.Messages,DongaPattern,Registry, SyncObjs,Vcl.Imaging.pngimage, Vcl.Imaging.jpeg,Math; //, AdvGrid, AdvObj, AdvGridWorkbook, , ScrMemo; //, DefScript;
 {$I Common.inc}
 
 const
@@ -46,6 +47,8 @@ type
     Password            : String;
     TestModel           : String;   // Test Model & ÆíÁý¿ë
     PatGrp              : string;
+    LGD_DLLVER_Name      : string;
+    OC_Converter_Name   : string;
     IPAddr              : TArrayChannelString; //array[0..DefCommon.MAX_CH] of String;  //PG-0
     ProbAddr            : TArrayChannelString; //array[0..DefCommon.MAX_CH] of String;
     //TestMode   : Integer; //MODE1, MODE2, MODE3, MODE4
@@ -600,6 +603,7 @@ type
 
     UseCheckVer : Boolean; // Added by KTS 2023-07-13 오전 8:30:17 Config별 SW / DLL Version Interlock
     UseCheckReProgramming : Boolean;
+    UseCkNVMWriteSequence : Integer;
     GetDLLBin : string;
     Is_3200NitDOE : Boolean;
 
@@ -689,6 +693,7 @@ type
     procedure LoadOcTables(nIdxOcTables : Integer);
     procedure LoadMesCode;
   public
+    AutoReStart : Boolean;
     loadAllPat    : TDongaPat;
     actual_resolution_hv : array[0..1] of Word;
     scrSequnce      : TStringList;
@@ -811,6 +816,12 @@ type
     function IsNetworkDriveConnected(const driveLetter: Char): Boolean;
     function FetchNetworkFile(const networkPath, localPath: string): Boolean;
     function StringToIdBytes(const AStr: string): TIdBytes;
+
+    procedure SearchForFilesWithText(sdirectoryPath,sSearchText : string);
+    function Make_reference_All_DBV_Gray_Data(fDBV: Double): TArray<Double>;
+    function Find_Gray_index_Near_Target(fDBV, Target_Lv: Double): TArray<Double>;
+    procedure SaveCsvMeasureLog(nCh: Integer; sFileCsv,sSerialNo,sDataHeader,sData : string);
+    procedure GetBoxPtnSizeinfo(nModel,mBand : Integer; var nStartX,nStartY,nEndX,nEndY : Integer);
   end;
 
 var
@@ -1666,6 +1677,129 @@ begin
   end;
   Result := sResult;
 end;
+
+function TCommon.Make_reference_All_DBV_Gray_Data(fDBV: Double): TArray<Double>;
+var
+  Lv_Gray_per_band: TArray<Double>;
+  MAX_Lv: Double;
+  nGray: Integer;
+begin
+  SetLength(Lv_Gray_per_band, 512);
+
+  MAX_Lv := 1680.0;
+  if Common.TestModelInfoFLOW.Is_3200NitDOE then
+    MAX_Lv := 2100.0;
+
+  for nGray := 0 to 511 do
+  begin
+    Lv_Gray_per_band[nGray] := MAX_Lv * Power(fDBV / 2047.0, 2.2) * Power(((511.0 - nGray) / 511.0), 2.2);
+  end;
+
+  Result := Lv_Gray_per_band; // 수정: 배열을 반환하도록 변경
+end;
+
+function TCommon.Find_Gray_index_Near_Target(fDBV, Target_Lv: Double): TArray<Double>;
+var
+ output : TArray<Double>;
+Lv_Gray_per_band: TArray<Double>;
+fTop_diff, fBottom_diff: double;
+nGray,nIndex_gray: Integer;
+begin
+  SetLength(Lv_Gray_per_band,512);
+  SetLength(output,2);
+
+  Lv_Gray_per_band := Make_reference_All_DBV_Gray_Data(fDBV);
+
+//  CopyMemory(@Lv_Gray_per_band,Make_reference_All_DBV_Gray_Data(fDBV),512*sizeof(Lv_Gray_per_band[0]));
+  for nIndex_gray := 0 to 511 do begin
+    if Lv_Gray_per_band[nIndex_gray] < Target_Lv then Break;
+  end;
+
+  if (nIndex_gray > 0) or (nIndex_gray <= 511) then begin
+    fTop_diff := Abs(Lv_Gray_per_band[nIndex_gray - 1] - Target_Lv);
+    fBottom_diff := Abs(Target_Lv - Lv_Gray_per_band[nIndex_gray]);
+    if fTop_diff >= fBottom_diff then
+    else  nIndex_gray := nIndex_gray -1;
+
+    output[0] := nIndex_gray;
+    output[1] := Lv_Gray_per_band[nIndex_gray];
+
+    Result := output;
+
+  end
+  else begin
+    output[0] := 0;
+    output[1] := -1;
+    Result := output;
+  end;
+end;
+
+procedure TCommon.GetBoxPtnSizeinfo(nModel,mBand : Integer; var nStartX,nStartY,nEndX,nEndY : Integer);
+begin
+  if nModel = 0 then begin      //Model X2146
+    if mBand = 1 then begin     //APL 40%
+      nStartX := 0;
+      nStartY := 619;
+      nEndX := 688;
+      nEndY := 826;
+    end
+    else if mBand = 2 then begin  // APL 60%
+      nStartX := 0;
+      nStartY := 412;
+      nEndX := 688;
+      nEndY := 1239;
+    end;
+  end
+  else if nModel = 1 then begin   //Model X2381
+    if mBand = 1 then begin     //APL 40%
+      nStartX := 0;
+      nStartY := 500;
+      nEndX := 605;
+      nEndY := 667;
+    end
+    else if mBand = 2 then begin  // APL 60%
+      nStartX := 0;
+      nStartY := 334;
+      nEndX := 605;
+      nEndY := 1001;
+    end;
+  end;
+end;
+
+procedure TCommon.SaveCsvMeasureLog(nCh: Integer; sFileCsv,sSerialNo,sDataHeader,sData : string);
+var
+  sFilePath, sFileName : String;
+  sLine: String;
+  txtF                 : Textfile;
+  i : integer;
+begin
+//  m_csWriteCsvLog.Acquire; // 메인에서 sync 처리 되어서 들어옴
+  sFilePath := Common.Path.Gamma + FormatDateTime('yymmdd',now) + '\';
+  sFileName := sFilePath + sFileCsv;
+  if Common.CheckDir(sFilePath) then Exit;
+  try
+    AssignFile(txtF, sFileName);
+    try
+
+      if not FileExists(sFileName) then begin
+        //Header 생성
+        Rewrite(txtF);
+        WriteLn(txtF, sSerialNo);
+        WriteLn(txtF, sDataHeader);
+      end;
+
+      //Data
+      Append(txtF);
+      WriteLn(txtF, sData);
+    except
+
+    end;
+  finally
+    CloseFile(txtF); // Close the file
+
+  end;
+end;
+
 
 function TCommon.GetAnsiCrcToWord(sData: AnsiString; nLen : Integer): Word;
 begin
@@ -2957,6 +3091,7 @@ begin
           UseNvmInit :=           Readinteger(sSection, 'NVMINITMODE',2);
           UseCheckVer :=          ReadBool(sSection, 'USE_CHECK_VERSION', False);
           UseCheckReProgramming := ReadBool(sSection, 'USE_CHECK_ReProgramming',False);
+          UseCkNVMWriteSequence := ReadInteger(sSection, 'USE_CHECK_NVMWriteSequence',0);
           //
         end;
         {$ENDIF}
@@ -3947,21 +4082,23 @@ const
 begin
 //  m_csReadCsvLog.Acquire; // 동시 접근 방지
 //  sDate := FormatDateTime('yymmdd', PasScr[nCh].TestInfo);
-  Result := '';
-  sFileName:= Common.Path.LGDDLL +format('Oclog\SummaryLog\%s_Summary_Log_',[Common.SystemInfo.EQPId]) + sDate +'.csv';
-  if not FileExists(sFileName) then begin
-    //File not Found
-    Exit;
-  end;
-  sCopyFileName := Common.Path.LGDDLL +format('Oclog\SummaryLog\%s_Summary_Log_%s_%d.csv',[Common.SystemInfo.EQPId, sDate, nCh]);
-  CopyFile(PChar(sFileName),Pchar(sCopyFileName),False);
-
-  if FileExists(sCopyFileName) = false then begin
-    //File not Found
-    Exit;
-  end;
-  AssignFile(txtFile, sCopyFileName);
   try
+    Result := '';
+    sResult := '';
+    sFileName:= Common.Path.LGDDLL +format('Oclog\SummaryLog\%s_Summary_Log_',[Common.SystemInfo.EQPId]) + sDate +'.csv';
+    if not FileExists(sFileName) then begin
+      //File not Found
+      Exit;
+    end;
+    sCopyFileName := Common.Path.LGDDLL +format('Oclog\SummaryLog\%s_Summary_Log_%s_%d.csv',[Common.SystemInfo.EQPId, sDate, nCh]);
+    CopyFile(PChar(sFileName),Pchar(sCopyFileName),False);
+
+    if FileExists(sCopyFileName) = false then begin
+      //File not Found
+      Exit;
+    end;
+    AssignFile(txtFile, sCopyFileName);
+
     Reset(txtFile);
     nlineCount := 0;
     while not Eof(txtFile) do begin
@@ -3978,6 +4115,7 @@ begin
         asSummaryAPDRData := sLine.Split([',']);
       end;
     end;
+    if Length(asSummaryAPDRData) = 0 then Exit;
 
     for I := 0 to Length(asSummaryAPDRData) do begin
       if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
@@ -3987,13 +4125,16 @@ begin
       end
       else begin
         asSummaryGroupHeader[i] := GroupName;
+        if asSummaryAPDRData = nil  then Exit;
+
         if i = Length(asSummaryAPDRData)  then sResult := sResult + GroupName + ':' + asSummaryHeader[i] + ':' + asSummaryAPDRData[i]
         else sResult := sResult + GroupName + ':' + asSummaryHeader[i] + ':' + asSummaryAPDRData[i]+ ',';
       end;
 
     end;
-    Result := sResult;
+
   finally
+    Result := sResult;
 //    m_csReadCsvLog.Release; //copy하면 상관없음
     CloseFile(txtFile);
      //지우기
@@ -4001,6 +4142,73 @@ begin
       DeleteFile(sCopyFileName)
     end;
 
+  end;
+end;
+
+
+function FindFilesWithText(const directoryPath, searchText: string; fileExtensions: TArray<string>): TStringList;
+var
+  searchResult: TStringList;
+  searchOption: TSearchOption;
+  filePath: string;
+  fileExt: string;
+  fileContent: TStringList;
+  i: Integer;
+  files: TArray<string>;
+  fileSearch: TSearchRec;
+begin
+  searchResult := TStringList.Create;
+  try
+    searchOption := TSearchOption.soAllDirectories;
+    if not TDirectory.Exists(directoryPath) then
+      Exit;
+
+    for fileExt in fileExtensions do
+    begin
+      if Length(TDirectory.GetFiles(directoryPath, '*.' + fileExt, searchOption)) = 0 then
+        Continue;
+
+      if FindFirst(directoryPath + '*.' + fileExt, faAnyFile, fileSearch) = 0 then
+      begin
+        repeat
+          filePath := System.IOUtils.TPath.Combine(directoryPath, fileSearch.Name);
+          fileContent := TStringList.Create;
+          try
+            if Pos(searchText, filePath) > 0 then
+            begin
+              searchResult.Add(filePath);
+            end;
+          finally
+            fileContent.Free;
+          end;
+        until FindNext(fileSearch) <> 0;
+
+        FindClose(fileSearch);
+      end;
+    end;
+
+    Result := searchResult;
+  except
+    searchResult.Free;
+    raise;
+  end;
+end;
+
+procedure TCommon.SearchForFilesWithText(sDirectoryPath,sSearchText : string);
+var
+  fileExtensions: TArray<string>;
+  foundFiles: TStringList;
+  filePath: string;
+begin
+
+  fileExtensions := ['dll']; // 검색할 파일 확장자
+
+  foundFiles := FindFilesWithText(sDirectoryPath, sSearchText, fileExtensions);
+  try
+    for filePath in foundFiles do
+      DeleteFile(filePath);
+  finally
+    foundFiles.Free;
   end;
 end;
 
@@ -4554,6 +4762,7 @@ begin
           WriteInteger(sSection, 'NVMINITMODE',     UseNvmInit);
           WriteBool(sSection, 'USE_CHECK_VERSION',     UseCheckVer);
           WriteBool(sSection, 'USE_CHECK_ReProgramming',     UseCheckReProgramming);
+          WriteInteger(sSection, 'USE_CHECK_NVMWriteSequence',     UseCkNVMWriteSequence);
 
         end;
 

@@ -1598,7 +1598,7 @@ begin
   cboCa310Channel.ItemIndex := Common.SystemInfo.R2RCa410MemCh;
 
   cboBandCount.Items.Clear;
-  cboBandCount.Items.Add('ALLBamd');
+  cboBandCount.Items.Add('ALLBand');
   for i := 1 to 32 do begin
     sTemp := Format('Band %d',[i]);
     cboBandCount.Items.Add(sTemp);
@@ -3324,29 +3324,25 @@ begin
   sFileName := sFilePath + PasScr[nCh].m_sFileCsv;
   if Common.CheckDir(sFilePath) then Exit;
   try
+    AssignFile(txtF, sFileName);
     try
-      AssignFile(txtF, sFileName);
-      try
 
-        if not FileExists(sFileName) then begin
-          //Header 생성
-          Rewrite(txtF);
-          WriteLn(txtF, sSerialNo);
-          WriteLn(txtF, sDataHeader);
-        end;
-
-        //Data
-        Append(txtF);
-        WriteLn(txtF, sData);
-      except
-//        m_csWriteCsvLog.Release;
+      if not FileExists(sFileName) then begin
+        //Header 생성
+        Rewrite(txtF);
+        WriteLn(txtF, sSerialNo);
+        WriteLn(txtF, sDataHeader);
       end;
-    finally
-      CloseFile(txtF); // Close the file
-//      m_csWriteCsvLog.Release;
+
+      //Data
+      Append(txtF);
+      WriteLn(txtF, sData);
+    except
+
     end;
-  except
-//    m_csWriteCsvLog.Release;
+  finally
+    CloseFile(txtF); // Close the file
+
   end;
 end;
 
@@ -3544,7 +3540,9 @@ begin
 
   SetLength(output,2);
 
-  for nDBV := 180 to 2048 do begin
+  wdRet := Pg[nFPgNo].SendDimmingBist(180, nWaitMS,nRetry);
+
+  for nDBV := 180 to 2047 do begin
     if bIs_Stop then Exit;
     output := Find_Gray_index_Near_Target_1(nDBV,fSearch_Lv);
     if output[1] = -1 then continue;
@@ -3567,7 +3565,7 @@ begin
       GetBoxPtnSizeinfo(Common.TestModelInfoFLOW.ModelType,1,nSX,nSy,nEX,nEY);
       wdRet := Pg[nFPgNo].DP860_SendBistAPL(nGray,nGray,nGray,nSX,nSy,nEX,nEY,nWaitMS,nRetry);
     end;
-    Sleep(100);
+    Sleep(50);
     wdRet := Pg[nFPgNo].SendDimmingBist(nDBV, nWaitMS,nRetry);
     Sleep(100);
     wdRet := CaSdk2.Measure(nFPgNo, m_Ca410Data);
@@ -3586,16 +3584,15 @@ begin
     SaveCsvMeasureLog(nFPgNo,sSerialNo,sDataHeader,sData);
 
   end;
-
-
-
 end;
+
 
 procedure TfrmMainter.btnMeasureClick(Sender: TObject);
 var
   nBandIdx, wdRet,nRGBIdx,j: integer;
   sRGB : string;
-
+  fDelay: Double;
+  afDelays: array of integer;
 begin
   bIs_Stop := false;
 
@@ -3626,34 +3623,20 @@ begin
         advstrngrdDataView[cboMeasureCH.ItemIndex].ClearAll;
         Run_DBVtracking(cboMeasureCH.ItemIndex,StrToIntDef(sRGB,0));
       end
-      else if rbCEL_Yufeng.Checked then begin
-        Sleep(500);
-        Run_Measure_CEL_NY(cboMeasureCH.ItemIndex,0.1);
-        advstrngrdDataView[cboMeasureCH.ItemIndex].ClearAll;
-        sleep(100);
-        Run_Measure_CEL_NY(cboMeasureCH.ItemIndex,0.5);
-        advstrngrdDataView[cboMeasureCH.ItemIndex].ClearAll;
-        sleep(100);
-        Run_Measure_CEL_NY(cboMeasureCH.ItemIndex,0.9);
-        advstrngrdDataView[cboMeasureCH.ItemIndex].ClearAll;
-        sleep(100);
-        Run_Measure_CEL_NY(cboMeasureCH.ItemIndex,1);
-        advstrngrdDataView[cboMeasureCH.ItemIndex].ClearAll;
-        sleep(100);
-        Run_Measure_CEL_NY(cboMeasureCH.ItemIndex,5);
-        advstrngrdDataView[cboMeasureCH.ItemIndex].ClearAll;
-        sleep(100);
-        Run_Measure_CEL_NY(cboMeasureCH.ItemIndex,9);
-        advstrngrdDataView[cboMeasureCH.ItemIndex].ClearAll;
-        sleep(100);
-        Run_Measure_CEL_NY(cboMeasureCH.ItemIndex,10);
-        advstrngrdDataView[cboMeasureCH.ItemIndex].ClearAll;
-        sleep(100);
-        Run_Measure_CEL_NY(cboMeasureCH.ItemIndex,100);
-        advstrngrdDataView[cboMeasureCH.ItemIndex].ClearAll;
-        sleep(100);
-        Run_Measure_CEL_NY(cboMeasureCH.ItemIndex,1000);
+      else if rbCEL_Yufeng.Checked then
+      begin
+        afDelays := [1, 5,9, 10, 50, 90, 100, 1000, 10000];
+        for i in afDelays do
+        begin
+          Sleep(500);
+          Run_Measure_CEL_NY(cboMeasureCH.ItemIndex, i/10);
+          advstrngrdDataView[cboMeasureCH.ItemIndex].ClearAll;
+          if bIs_Stop then
+            Break;
+          Sleep(100);
+        end;
       end;
+
       wdRet := Pg[cboMeasureCH.ItemIndex].SendPowerBistOn(0{Off},False,3000,0); //TBD:DP860?
       ControlDio.ProbeBackward(cboMeasureCH.ItemIndex);
       ControlDio.UnlockCarrier(cboMeasureCH.ItemIndex,true);

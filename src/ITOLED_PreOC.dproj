@@ -121,7 +121,7 @@
         <VerInfo_Locale>1033</VerInfo_Locale>
         <DCC_ExeOutput>..\IT_OLED_PreOC\</DCC_ExeOutput>
         <BRCC_Defines>SIMULATOR;$(BRCC_Defines)</BRCC_Defines>
-        <DCC_Define>SIMULATOR;$(DCC_Define)</DCC_Define>
+        <DCC_Define>SIMULATOR;madExcept;LeakChecking;$(DCC_Define)</DCC_Define>
         <DCC_MapFile>3</DCC_MapFile>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2)'!=''">
@@ -157,10 +157,11 @@
         <DCC_DebugInformation>2</DCC_DebugInformation>
         <DCC_LocalDebugSymbols>true</DCC_LocalDebugSymbols>
         <VerInfo_MajorVer>2</VerInfo_MajorVer>
-        <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=2.3.1.1;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
+        <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=2.3.3.1;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
         <VerInfo_MinorVer>3</VerInfo_MinorVer>
-        <VerInfo_Release>1</VerInfo_Release>
+        <VerInfo_Release>3</VerInfo_Release>
         <VerInfo_Build>1</VerInfo_Build>
+        <DCC_Define>madExcept;LeakChecking;$(DCC_Define)</DCC_Define>
     </PropertyGroup>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">

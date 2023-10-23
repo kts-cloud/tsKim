@@ -402,6 +402,9 @@ type
     edNvmInitMode: TRzEdit;
     cbCheckVer: TRzCheckBox;
     cbReProgramming: TRzCheckBox;
+    cbNVMWriteSequence: TRzCheckBox;
+    cboNVMWriteSequence: TRzComboBox;
+    RzPanel9: TRzPanel;
     procedure mmProgramAllDragOver(Sender, Source: TObject; X, Y: Integer; State: TDragState; var Accept: Boolean);
     procedure FormCreate(Sender: TObject);
     procedure btnCompileScriptClick(Sender: TObject);
@@ -2020,6 +2023,7 @@ begin
     edNvmInitMode.Text := IntToStr(UseNvmInit);
     cbCheckVer.Checked := UseCheckVer;
     cbReProgramming.Checked := UseCheckReProgramming;
+    cboNVMWriteSequence.ItemIndex := UseCkNVMWriteSequence;
     //
 
   end;
@@ -2951,6 +2955,7 @@ begin
     UseNvmInit := StrToIntDef(edNvmInitMode.Text,0);
     UseCheckVer := cbCheckVer.Checked;
     UseCheckReProgramming := cbReProgramming.Checked;
+    UseCkNVMWriteSequence := cboNVMWriteSequence.ItemIndex;
   end;
 
 

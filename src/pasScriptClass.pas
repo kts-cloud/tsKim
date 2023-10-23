@@ -96,6 +96,7 @@ type
     PG_Ver: string;
     SW_Ver: string;
     DLL_Ver : string;
+    OC_Con_ver : string;
     EQPId: string;
     Model: string;
     ModelConfig: String;
@@ -406,6 +407,7 @@ type
 
     procedure NVMWrite_Froc(AMachine:TatVirtualMachine);
     procedure NVMRead_Froc(AMachine:TatVirtualMachine);
+    procedure NVMVerify_Froc(AMachine: TatVirtualMachine);
 //    procedure SetCamOtpData_Proc(AMachine:TatVirtualMachine);
     procedure MIPIRead_Proc(AMachine:TatVirtualMachine);
     procedure ReadCA310_Proc(AMachine:TatVirtualMachine);
@@ -417,6 +419,10 @@ type
     procedure GetGammaOffSetTable_Proc( AMachine:TatVirtualMachine);
     procedure RecordTest_Proc(AMachine:TatVirtualMachine);
     procedure SetCa310MemoryCh_Proc(AMachine:TatVirtualMachine);
+
+    procedure CELYufeng_Proc(AMachine:TatVirtualMachine);
+    procedure GrayScale_Proc(AMachine: TatVirtualMachine);
+    procedure DBVtracking_Proc(AMachine: TatVirtualMachine);
 //    procedure EraseFlash_RM_D_Proc(AMachine: TatVirtualMachine);
 //    procedure ReadFlash_GammaData_Proc(AMachine:TatVirtualMachine);
 //    procedure ReadFlash_OTP_Data_Proc(AMachine: TatVirtualMachine);
@@ -494,6 +500,7 @@ type
     nSyncMode      : integer;
     m_bIsRetryContact : Boolean;
     g_bIsBcrReady     : boolean;
+    m_bCEL_Stop : Boolean;
 //    m_ShowGrid  : array[0..defPg.MAX_FRAME_SIZE] of RGridDisplay;
     //m_TestRet : TTestRetInfo;
     m_RgbAvrInfo : RRgbAvrInfo;
@@ -669,6 +676,7 @@ begin
   atScrDebug.Execute;
 end;
 
+
 procedure TScrCls.DefineMethodFunc(SetPaScript : TatPascalScripter);
 var
   sParamHint : string;
@@ -741,10 +749,13 @@ begin
   SetPaScript.DefineMethod('f_SetCaptionName',       2,tkNone,    nil,SetCaptionName_Proc,       False,0);
 
   SetPaScript.DefineMethod('f_LogRePGM',       1,tkNone,    nil,LogRePGM_NG_Proc,       False,1);
-  SetPaScript.DefineMethod('f_NVMWrite',       0,tkNone,    nil, NVMWrite_Froc,         False,0);
+  SetPaScript.DefineMethod('f_NVMWrite',       0,tkInteger,    nil, NVMWrite_Froc,         False,0);
   SetPaScript.DefineMethod('f_NVMRead',       0,tkNone,    nil, NVMRead_Froc,         False,0);
+  SetPaScript.DefineMethod('f_NVMVerify',       0,tkInteger,    nil, NVMVerify_Froc,         False,0);
 
-
+  SetPaScript.DefineMethod('f_Run_Measure_GrayScale',       1,tkNone,    nil, GrayScale_Proc,         False,1);
+  SetPaScript.DefineMethod('f_Run_Measure_CEL_NY',       1,tkNone,    nil, CELYufeng_Proc,         False,1);
+  SetPaScript.DefineMethod('f_Run_Measure_DBVtracking',       1,tkNone,    nil, DBVtracking_Proc,         False,1);
 
   SetPaScript.DefineMethod('f_LogPwr',     0,tkNone,    nil,LogPwr_Proc,     False);
   SetPaScript.DefineMethod('f_PowerMeasure',  1,tkInteger, nil,PowerMeasure_Proc, False,1).SetVarArgs([0]);
@@ -916,7 +927,9 @@ begin
 
   SetPaScript.AddVariable('c_bIDLE',m_bIDLE);
 
+  SetPaScript.AddVariable('c_bCEL_Stop',m_bCEL_Stop);
 
+  SetPaScript.AddVariable('c_NVMWriteSequence',Common.TestModelInfoFLOW.UseCkNVMWriteSequence);
 
   //문자열 속성 반환 p_Values[0], 필요 시 Get, Set에서 추가
   SetPaScript.DefineProp('c_Values',tkVariant, Get_PropValues_Proc, Set_PropValues_Proc, nil, False, 1); //checkmate 20191030
@@ -2079,6 +2092,7 @@ begin
   m_sMesPchkModel     := '';
   g_bIsBcrReady       := False;
   m_nNgCode           := 0; // Ã³À½¿¡´Â Ç×»ó OK·Î ¼³Á¤ ÇÏÀÚ.
+  m_bCEL_Stop := False;
   // Initialize MES Buffer.
   if DongaGmes <> nil then begin
     DongaGmes.MesData[Self.FPgNo].Rwk := '';
@@ -2113,6 +2127,7 @@ begin
   sPgVer := Trim(PG[FPgNo].m_PgVer.VerAll);
   sDebug := Format('Version Check : FW(%s), SW(%s)',[sPgVer,Common.GetVersionDate]);
   sDebug := sDebug + Format(', Psu(%s/%s), MES_CODE(%s)',[Common.m_Ver.psu_Date,Common.m_Ver.psu_Crc, Common.m_Ver.MES_CSV]);
+  sDebug := sDebug + Format(', OC_ConverterDLL (%s),LGD DLL (%s)',[Common.SystemInfo.OC_Converter_Name,Common.SystemInfo.LGD_DLLVER_Name]);
   //sDebug := sDebug + Format(', Psu(%s/%s), Oc_Param(%s)',[Common.m_Ver.psu_Date,Common.m_Ver.psu_Crc,Common.m_Ver.OcParam]);
   //sDebug := sDebug + Format(', Oc_Verify(%s), Otp_Table(%s)',[Common.m_Ver.OcVerify,Common.m_Ver.OtpTable]);
   //sDebug := sDebug + Format(', Oc_Offset(%s), MES_CODE(%s)',[Common.m_Ver.OcOffSet,Common.m_Ver.MES_CSV]);
@@ -2142,6 +2157,8 @@ begin
   TestInfo.SIM_Use_DIO:= Common.SimulateInfo.Use_DIO;
   TestInfo.SIM_Use_PLC:= Common.SimulateInfo.Use_PLC;
   TestInfo.SIM_Use_CAM:= Common.SimulateInfo.Use_CAM;
+  TestInfo.OC_Con_Ver := Common.SystemInfo.OC_Converter_Name;
+  TestInfo.DLL_Ver := Common.SystemInfo.LGD_DLLVER_Name;
 
   TestInfo.Result := '';
   TestInfo.csvHeader := '';
@@ -2687,32 +2704,83 @@ var
   sSendCmd, sDebug : String;
   lstTemp : TStringList;
   buff : TIdBytes;
+  dwRtn : DWORD;
+  nFlashSize, nDataSize : DWORD;
+  DataBuf : TIdBytes;
+  sTemp, sFileName : string;
+  //
+  sFileExt : string;
+  bIsHexFile : Boolean;
+  mtData : TMemoryStream;
+  binData : array of Byte;
 begin
   With AMachine do begin
-    nWait := 3000;
-    if InputArgCount in [1,2] then begin
-      sSendCmd := Trim(GetInputArgAsString(0));
-      sDebug := sSendCmd;
-      if InputArgCount = 2 then nWait := GetInputArgAsInteger(1);
-      //sSendCmd := StringReplace(sSendCmd, '0x', '$', [rfReplaceAll]);
-      lstTemp := TStringList.Create;
-      try
-        ExtractStrings([' '], [], PWideChar(sSendCmd), lstTemp);
-        nLen := lstTemp.Count;
-        SetLength(buff, nLen);
-        for i := 0 to Pred(nLen) do begin
-          buff[i] := StrToIntDef(lstTemp[i],0);
-        end;
-      finally
-        lstTemp.Free;
-      end;
-//      wdRet := Pg[Self.FPgNo].SendFlashRead(buff,nLen, nWait);
+//    nWait := 3000;
+//
+//  try
+//    sTemp := '---------- Flash ALL Write';
+//    DisplayPgLog(nCh,sTemp);
+//    //
+//    if Length(edPgFileSend.Text) <= 0 then begin
+//      sTemp := sTemp + ' ...Parameter Error(Flash All file is NOT selected) !!!';
+//      DisplayPgLog(nCh,sTemp);
+//      Exit;
+//    end;
+//
+//    sFileName := Trim(edPgFileSend.Text);
+//    sFileExt  := ExtractFileExt(sFileName);
+//    if LowerCase(sFileExt) = '.hex'      then bIsHexFile := True
+//    else if LowerCase(sFileExt) = '.bin' then bIsHexFile := False
+//    else begin
+//      sTemp := sTemp + ' ...Parameter Error(the selected file is NOT *.hex|*.bin) !!!';
+//      DisplayPgLog(nCh,sTemp);
+//      Exit;
+//    end;
+//    DisplayPgLog(nCh,sTemp+Format(': %s',[sFileName]));
+//    //
+//    nFlashSize := 8192*1024;  // 8MB
+//    //
+//    if bIsHexFile then begin
+//      nDataSize := Common.GetHexLog(sFileName,nDataSize,@DataBuf[0]);
+//    end
+//    else begin
+//      mtData := TMemoryStream.Create;
+//      try
+//        mtData.LoadFromFile(sFileName);
+//        SetLength(binData,nFlashSize);
+//        mtData.Position := 0;
+//        mtData.Read(binData[0],mtData.Size);
+//        //
+//        nDataSize := mtData.Size;
+//        SetLength(DataBuf,nDataSize);
+//        CopyMemory(@DataBuf[0],@binData[0],Min(nFlashSize,nDataSize));
+//      finally
+//        mtData.Free;
+//      end;
+//    end;
+//    if nDataSize <= 0  then begin
+//      sTemp := sTemp + ' ...Error(Check Flash All hex|bin file data) !!!';
+//      DisplayPgLog(nCh,sTemp);
+//      Exit;
+//    end;
+//    if nDataSize <> nFlashSize  then begin
+//      sTemp := sTemp + Format(' ...NG(DataCnt:%d, FlashSize=%d) !!!',[nDataSize,nFlashSize]);
+//      DisplayPgLog(nCh,sTemp);
+//      Exit;
+//    end;
+//    //
+//   	dwRtn :=Pg[nCh].SendFlashWrite(0{nStartAddr},nDataSize, @DataBuf[0]);
+//		sTemp := sTemp + TernaryOp((dwRtn = WAIT_OBJECT_0),' OK',' NG');
+//    if dwRtn = WAIT_OBJECT_0 then sTemp := sTemp + Format(' [LOG/FLASH/CH%d_FlashAllWrite_A0x0_L%d.bin]',[nCh,nFlashSize]);
+//    DisplayPgLog(nCh,sTemp);
+//          ReturnOutputArg(wdRet);
+//  finally
+//  end;
 
-      if Common.SystemInfo.MIPILog then Common.MLog(self.FPgNo,'[Source Code] MIPI Write '+sDebug);
-      ReturnOutputArg(wdRet);
-    end;
   end;
 end;
+
+
 
 procedure TScrCls.MIPIWriteHS_Proc(AMachine: TatVirtualMachine);
 var
@@ -2816,23 +2884,140 @@ begin
   end;
 end;
 
+procedure TScrCls.NVMVerify_Froc(AMachine: TatVirtualMachine);
+var
+sTemp : string;
+nDataLen,nDataSize : Integer;
+dwRtn : DWORD;
+bOK : Boolean;
+sCrcData : AnsiString;
+dReadCheckSum,dFileCheckSum,i : DWORD;
+sDirectory,sFileSend,sFileName,sFileExt : string;
+bIsHexFile : Boolean;
+  DataBuf : TIdBytes;
+  mtData : TMemoryStream;
+  binData : array of Byte;
+begin
+  With AMachine do begin
+    try
+      if Common.TestModelInfoFLOW.UseCkNVMWriteSequence = 0 then begin
+        Common.MLog(self.FPgNo, 'NVM Verify Sequence - SKIP');
+        dwRtn := 0;
+        Exit;
+      end;
+
+      sTemp := '---------- Flash ALL Verify';
+      SendTestGuiDisplay(defCommon.MSG_MODE_WORKING, sTemp,'',0);
+      nDataLen := 8192*1024;
+      dwRtn := Pg[FPgNo].SendFlashRead(0{nStartAddr},nDataLen,@Logic[FPgNo].m_FlashAllData.Data[0]);
+      sCrcData := '';
+      for i := 0 to Pred(nDataLen) do begin
+        sCrcData := sCrcData + AnsiChar(Logic[FPgNo].m_FlashAllData.Data[i]);
+      end;
+      dReadCheckSum := Common.crc16(sCrcData,nDataLen);
+      sTemp := Format('Flash ALL Read dCheckSum : 0x%.2X ',[dReadCheckSum]);
+      SendTestGuiDisplay(defCommon.MSG_MODE_WORKING, sTemp,'',0);
+
+      sDirectory := Common.Path.LGDPara + Common.TestModelInfoFLOW.ModelTypeName + '\Default.bin';
+      if not FileExists(sDirectory) then begin
+        Exit;
+      end;
+      sFileSend := sDirectory;
+
+      sTemp := '---------- Bin File ALL Verify';
+      SendTestGuiDisplay(defCommon.MSG_MODE_WORKING, sTemp,'',0);
+      //
+      if Length(sFileSend) <= 0 then begin
+        sTemp := sTemp + ' ...Parameter Error(Flash All file is NOT selected) !!!';
+        SendTestGuiDisplay(defCommon.MSG_MODE_WORKING, sTemp,'',0);
+        Exit;
+      end;
+
+      sFileName := Trim(sFileSend);
+      sFileExt  := ExtractFileExt(sFileName);
+      if LowerCase(sFileExt) = '.hex'      then bIsHexFile := True
+      else if LowerCase(sFileExt) = '.bin' then bIsHexFile := False
+      else begin
+        sTemp := sTemp + ' ...Parameter Error(the selected file is NOT *.hex|*.bin) !!!';
+        SendTestGuiDisplay(defCommon.MSG_MODE_WORKING, sTemp,'',0);
+        Exit;
+      end;
+      SendTestGuiDisplay(defCommon.MSG_MODE_WORKING, sTemp+Format(': %s',[sFileName]),'',0);
+
+      //
+      if bIsHexFile then begin
+        nDataSize := Common.GetHexLog(sFileName,nDataSize,@DataBuf[0]);
+      end
+      else begin
+        mtData := TMemoryStream.Create;
+        try
+          mtData.LoadFromFile(sFileName);
+          SetLength(binData,nDataLen);
+          mtData.Position := 0;
+          mtData.Read(binData[0],mtData.Size);
+          //
+          nDataSize := mtData.Size;
+          SetLength(DataBuf,nDataSize);
+          CopyMemory(@DataBuf[0],@binData[0],Min(nDataLen,nDataSize));
+        finally
+          mtData.Free;
+        end;
+      end;
+      if nDataSize <= 0  then begin
+        sTemp := sTemp + ' ...Error(Check Flash All hex|bin file data) !!!';
+        SendTestGuiDisplay(defCommon.MSG_MODE_WORKING, sTemp,'',0);
+        Exit;
+      end;
+      if nDataSize <> nDataLen  then begin
+        sTemp := sTemp + Format(' ...NG(DataCnt:%d, FlashSize=%d) !!!',[nDataSize,nDataLen]);
+        SendTestGuiDisplay(defCommon.MSG_MODE_WORKING, sTemp,'',0);
+        Exit;
+      end;
+
+      for i := 0 to Pred(nDataLen) do begin
+        sCrcData := sCrcData + AnsiChar(DataBuf[i]);
+      end;
+      dFileCheckSum := Common.crc16(sCrcData,nDataLen);
+
+      sTemp := Format('Bin File Read dCheckSum : 0x%.2X ',[dFileCheckSum]);
+      SendTestGuiDisplay(defCommon.MSG_MODE_WORKING, sTemp,'',0);
+
+
+      if dReadCheckSum = dFileCheckSum then
+        dwRtn := 0
+      else dwRtn := 1;
+    finally
+      ReturnOutputArg(Integer(dwRtn));
+    end;
+
+  end;
+end;
+
 procedure TScrCls.NVMRead_Froc(AMachine: TatVirtualMachine);
 var
 sTemp : string;
 nDataLen : Integer;
 dwRtn : DWORD;
 bOK : Boolean;
+sCrcData : AnsiString;
+dCheckSum,i : DWORD;
 begin
   With AMachine do begin
     sTemp := '---------- Flash ALL Read';
     SendTestGuiDisplay(defCommon.MSG_MODE_WORKING, sTemp,'',0);
     nDataLen := 8192*1024;
     dwRtn := Pg[FPgNo].SendFlashRead(0{nStartAddr},nDataLen,@Logic[FPgNo].m_FlashAllData.Data[0]);
-    sTemp := sTemp + TernaryOp(bOK,' OK',' NG');
+    sCrcData := '';
+    for i := 0 to Pred(nDataLen) do begin
+      sCrcData := sCrcData + AnsiChar(Logic[FPgNo].m_FlashAllData.Data[i]);
+    end;
+    dCheckSum := Common.crc16(sCrcData,nDataLen);
+    sTemp := Format('Flash ALL Read dCheckSum : 0x%.2X ',[dCheckSum]);
+    SendTestGuiDisplay(defCommon.MSG_MODE_WORKING, sTemp,'',0);
+    sTemp := sTemp + TernaryOp((dwRtn = WAIT_OBJECT_0),' OK',' NG');
     if bOK then sTemp := sTemp + Format(' [LOG/FLASH/CH%d_FlashPucDataRead_A0x0_L%d.hex]',[FPgNo,nDataLen]);
     SendTestGuiDisplay(defCommon.MSG_MODE_WORKING, sTemp,'',0);
   end;
-
 end;
 
 procedure TScrCls.NVMWrite_Froc(AMachine: TatVirtualMachine);
@@ -2845,15 +3030,23 @@ var
   DataBuf : TIdBytes;
   mtData : TMemoryStream;
   binData : array of Byte;
+  wdRet : integer;
 begin
   With AMachine do begin
-    sDirectory := Common.Path.LGDPara + Common.TestModelInfoFLOW.ModelTypeName + '\Default.bin';
-    if not FileExists(sDirectory) then begin
-      Exit;
-    end;
-    sFileSend := sDirectory;
-
     try
+      dwRtn := 1;
+      if Common.TestModelInfoFLOW.UseCkNVMWriteSequence = 0 then begin
+        Common.MLog(self.FPgNo, 'NVM Write Sequence - SKIP');
+        dwRtn := 0;
+        Exit;
+      end;
+
+      sDirectory := Common.Path.LGDPara + Common.TestModelInfoFLOW.ModelTypeName + '\Default.bin';
+      if not FileExists(sDirectory) then begin
+        Exit;
+      end;
+      sFileSend := sDirectory;
+
       sTemp := '---------- Flash ALL Write';
       SendTestGuiDisplay(defCommon.MSG_MODE_WORKING, sTemp,'',0);
       //
@@ -2910,6 +3103,7 @@ begin
       if dwRtn = WAIT_OBJECT_0 then sTemp := sTemp + Format(' [LOG/FLASH/CH%d_FlashAllWrite_A0x0_L%d.bin]',[FPgNo,nFlashSize]);
       SendTestGuiDisplay(defCommon.MSG_MODE_WORKING, sTemp,'',0);
     finally
+      ReturnOutputArg(Integer(dwRtn));
     end;
   end;
 end;
@@ -2949,8 +3143,8 @@ begin
         sEquipment := Common.SystemInfo.EQPId;
         sUSERID := Common.SystemInfo.AutoLoginID;
         if Length(sEquipment) = 0 then sEquipment :=  Format('Equipment:%d',[Self.FPgNo]);
-        TestInfo.StartTime := now;
-//        if g_CommThermometer.Connected then
+
+        Common.MLog(self.FPgNo,'[Source Code] OC_Converter_DLL_Name : '+ Common.SystemInfo.OC_Converter_Name); // OC_Converter_DLL Name 표시
 
         TestInfo.PreOcReStart := False; // Added by KTS 2023-06-09 오후 4:20:10 ReStart 초기화
         case FPgNo of
@@ -2997,24 +3191,7 @@ var
 wdRet,nStartAddr,nLength,SerialNoBuf: Integer;
 begin
   With AMachine do begin
-//    wdRet := CSharpDll.m_MainOC_ThreadStateCheck(Self.FPgNo);
-//    ReturnOutputArg( Integer(wdRet));
-//    case InputArgCount of
-//    2:
-//      begin
-//      nStartAddr := GetInputArgAsInteger(0);
-//      nLength :=  GetInputArgAsInteger(1);
-////      PG[FPgNo].SendFlashRead(nStartAddr,nLength);
-//
-//      SetLength(SerialNoBuf,nLength);
-//
-//      Pg[FPgNo].SendFlashRead(nStartAddr,nLength, @SerialNoBuf[0]);
-//
-//
-//      end;
-//    end;
   end;
-
 end;
 
 
@@ -3041,9 +3218,9 @@ begin
         sAnsiStr := Copy(sAnsiStr,1,nLength);
         sSerialNo := string(Trim(sAnsiStr));
 
-        {$IFDEF SIMULATOR}
-          sSerialNo := Format('PPPGU500011EEEEEEE000000ABNAA00000S00B12C00000000000000000003XA000000C43GQA0009R00000EL+3+T32LL1GM750D7R00000EN+1GJ6GLL0022B00000EPGJ6GPE0014M00000EQTHAGPG000MT00000EKF3111111112C1LY1GTS255720000273J1LLL3125AJY043010304T0MHU0S00ML341WL013L_%d',[FPgNo]);
-        {$ENDIF}
+//        {$IFDEF SIMULATOR}
+//          sSerialNo := Format('PPPGU500011EEEEEEE000000ABNAA00000S00B12C00000000000000000003XA000000C43GQA0009R00000EL+3+T32LL1GM750D7R00000EN+1GJ6GLL0022B00000EPGJ6GPE0014M00000EQTHAGPG000MT00000EKF3111111112C1LY1GTS255720000273J1LLL3125AJY043010304T0MHU0S00ML341WL013L_%d',[FPgNo]);
+//        {$ENDIF}
         sIsAlphaNumeric := Copy(sSerialNo,1,1);
         if not IsValidString(sIsAlphaNumeric) then begin
           sSerialNo := Format('TEST_CH%d',[Self.FPgNo]);
@@ -3870,7 +4047,7 @@ begin
       else begin
         atPasScrpt.Halt;
         StopManualKey;
-        Sleep(10);
+        Sleep(100);
       end;
 
       //Exit(DefScript.SEQ_ERR_RUNNING);
@@ -4127,6 +4304,7 @@ begin
             ReturnOutputArg(0);
             Exit;
           end;
+
 //          if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
 //            sSN := Format('%s_PCB_ID_CH_%d',[sSN,Self.FPgNo+1]);
 //            PasScr[Self.FPgNo].TestInfo.SerialNo := sSN;
@@ -4235,7 +4413,7 @@ var
   nRet  : Integer;
   nTactSec: Int64;
   fTact: Double;
-  nValue,nSeq : Integer;
+  nValue,nValue2,nSeq,nEQP_ID : Integer;
 begin
   With AMachine do begin
     wdRet := 1;
@@ -4253,14 +4431,33 @@ begin
           if nRet <> 0 then begin
             if g_CommPLC.PollingAABMode = 1 then begin
               nValue := g_CommPLC.GlassData[FPgNo].GlassProcessingStatus[0];
-              if nValue and $F = 0 then begin
-                Common.MLog(self.FPgNo, 'AABMode - A Mode- EIJR SKIP');
-                Exit;
+              nValue2:= g_CommPLC.GlassData[FPgNo].GlassProcessingStatus[1];
+              if (Common.PLCInfo.EQP_ID - 6) = 1 then
+                nEQP_ID := 1
+              else nEQP_ID := 2;
+              if nEQP_ID = 1 then begin
+                if nValue and $7 = 0 then begin
+                  Common.MLog(self.FPgNo, 'AABMode - A Mode- EIJR SKIP');
+                  Exit;
+                end;
+                if nValue and $38 = 0 then  begin
+                  Common.MLog(self.FPgNo, 'AABMode - AA Mode EIJR SKIP');
+                  Exit;
+                end;
+              end
+              else begin
+
+                if nValue and $1C00 = 0 then begin
+                  Common.MLog(self.FPgNo, 'AABMode - A Mode- EIJR SKIP');
+                  Exit;
+                end;
+                if nValue and $E000 = 0 then  begin
+                  Common.MLog(self.FPgNo, 'AABMode - AA Mode EIJR SKIP');
+                  Exit;
+                end;
+
               end;
-              if nValue and $3C0 = 0 then  begin
-                Common.MLog(self.FPgNo, 'AABMode - AA Mode EIJR SKIP');
-                Exit;
-              end;
+
             end;
           end;
         end;
@@ -5964,6 +6161,167 @@ begin
 //    end;
 //    ReturnOutputArg(wdRet);
 //  end;
+end;
+
+procedure TScrCls.GrayScale_Proc(AMachine: TatVirtualMachine);
+var
+i,nDBVValue,nWaitMS,nRetry,wdRet,mBand_Count : Integer;
+m_Ca410Data: TBrightValue;
+sFilePath,sFileCsv : string;
+sDataHeader, sData,sSerialNo : string;
+nSX,nSy,nEX,nEY : Integer;
+
+begin
+  With AMachine do begin
+    mBand_Count := GetInputArgAsInteger(0);
+    sFileCsv :=  format('%s_CH%d_%dband_GrayScale_',[Common.SystemInfo.EQPId,FPgNo+1,mBand_Count]) + formatDateTime('yyMMddHHmmss',now) + '.csv';
+    sSerialNo := TestInfo.SerialNo;
+    sSerialNo := Format('sSerialNo : %s',[sSerialNo]);
+    sDataHeader := 'DBV,GRAY,x,y,LV,';
+
+    nWaitMS := 3000;
+    nRetry  := 0;  // No Retry
+  //  Sleep(1000);
+  //  nDBVValue := BandDBV[mBand_Count-1];
+  //  wdRet := Pg[nFPgNo].SendDimmingBist(BandDBV[mBand_Count-1], nWaitMS,nRetry);  //2019-10-11 DIMMING (SendDisplayPat -> SendDisplayPWMPat)
+    Sleep(1000);
+    for I := 511 downto 1 do begin
+      if m_bCEL_Stop then exit;
+
+      if (mBand_Count = 1) or (mBand_Count = 2) then begin
+        Common.GetBoxPtnSizeinfo(Common.TestModelInfoFLOW.ModelType,mBand_Count,nSX,nSy,nEX,nEY);
+        wdRet := Pg[FPgNo].DP860_SendBistAPL(i,i,i,nSX,nSy,nEX,nEY,nWaitMS,nRetry);
+        if i = 511 then begin
+           wdRet := Pg[FPgNo].SendDimmingBist(CSharpDll.m_GetDBVdata(mBand_Count-1), nWaitMS,nRetry);
+        end;
+      end
+      else begin
+       wdRet := Pg[FPgNo].SendDisplayPatBistRGB_9Bit(i,i,i,nWaitMS,nRetry);
+        if i = 511 then begin
+           wdRet := Pg[FPgNo].SendDimmingBist(CSharpDll.m_GetDBVdata(mBand_Count-1), nWaitMS,nRetry);
+        end;
+      end;
+      Sleep(100);
+      wdRet := CaSdk2.Measure(FPgNo, m_Ca410Data);
+
+      if m_bCEL_Stop then exit;
+      sData := Format('%d,%d,%4.4f,%4.4f,%4.4f,',[CSharpDll.m_GetDBVdata(mBand_Count-1),i,m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
+      Common.SaveCsvMeasureLog(FPgNo,sFileCsv,sSerialNo,sDataHeader,sData);
+    end;
+  end;
+
+end;
+
+procedure TScrCls.DBVtracking_Proc(AMachine: TatVirtualMachine);
+var
+i,nDBVValue,nWaitMS,nRetry,wdRet,nRGBIdx : Integer;
+m_Ca410Data: TBrightValue ;
+sFilePath : string;
+sDataHeader, sData,sSerialNo,sFileCsv : string;
+nSX,nSy,nEX,nEY : Integer;
+begin
+  With AMachine do begin
+    nRGBIdx := GetInputArgAsInteger(0);
+    sFileCsv :=  format('%s_CH%d_Gray_%d_DBVtracking_',[Common.SystemInfo.EQPId,FPgNo+1,nRGBIdx]) + formatDateTime('yyMMddHHmmss',now) + '.csv';
+    sSerialNo := TestInfo.SerialNo;
+    sSerialNo := Format('sSerialNo : %s',[sSerialNo]);
+    sDataHeader := 'Gray,DBV,x,y,LV,';
+
+    nWaitMS := 3000;
+    nRetry  := 0;  // No Retry
+    wdRet := Pg[FPgNo].SendDimmingBist(180, nWaitMS,nRetry); // DBV 값 초기화
+    for I := 2047 downto 1 do begin
+      if m_bCEL_Stop then exit;
+      if i = 2047 then       //APL 40%  1Band
+      begin
+        Common.GetBoxPtnSizeinfo(Common.TestModelInfoFLOW.ModelType,1,nSX,nSy,nEX,nEY);
+        wdRet := Pg[FPgNo].DP860_SendBistAPL(nRGBIdx,nRGBIdx,nRGBIdx,nSX,nSy,nEX,nEY,nWaitMS,nRetry);
+      end
+      else if i = 1850 then //APL 60% 2Band
+      begin
+        Common.GetBoxPtnSizeinfo(Common.TestModelInfoFLOW.ModelType,2,nSX,nSy,nEX,nEY);
+        wdRet := Pg[FPgNo].DP860_SendBistAPL(nRGBIdx,nRGBIdx,nRGBIdx,nSX,nSy,nEX,nEY,nWaitMS,nRetry);
+      end
+      else if i = 1644 then
+      begin
+        wdRet := Pg[FPgNo].SendDisplayPatBistRGB_9Bit(nRGBIdx,nRGBIdx,nRGBIdx,nWaitMS,nRetry);
+      end;
+      Sleep(100);
+
+      wdRet := Pg[FPgNo].SendDimmingBist(i, nWaitMS,nRetry);
+      Sleep(100);
+      wdRet := CaSdk2.Measure(FPgNo, m_Ca410Data);
+      if m_bCEL_Stop then exit;
+      sData := Format('%d,%d,%4.4f,%4.4f,%4.4f,',[nRGBIdx,i,m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
+      Common.SaveCsvMeasureLog(FPgNo,sFileCsv,sSerialNo,sDataHeader,sData);
+    end;
+
+  end;
+end;
+
+
+
+
+procedure TScrCls.CELYufeng_Proc(AMachine: TatVirtualMachine);
+var
+sSerialNo,sDataHeader,sData,sFileCsv : string;
+output : TArray<Double>;
+nDBV,nFind_Gray_index,nGray,nSearch_Lv : Integer;
+nSX,nSy,nEX,nEY,nWaitMS,nRetry,wdRet : integer;
+m_Ca410Data: TBrightValue ;
+fIdeal_Target_Lv,fSearch_Lv : Double;
+
+begin
+  With AMachine do begin
+    nSearch_Lv := GetInputArgAsInteger(0);
+    fSearch_Lv := nSearch_Lv/10;
+
+    sFileCsv :=  format('%s_CH%d_CEL_NY_%f_GrayScale_',[Common.SystemInfo.EQPId,FPgNo+1,fSearch_Lv]) + formatDateTime('yyMMddHHmmss',now) + '.csv';
+    sSerialNo := TestInfo.SerialNo;
+    sSerialNo := Format('sSerialNo : %s',[sSerialNo]);
+    sDataHeader := 'DBV,DBV_Nits,Gray,Measure_Lv,x,y';
+
+
+    nWaitMS := 3000;
+    nRetry  := 0;  // No Retry
+
+    SetLength(output,2);
+
+    wdRet := Pg[FPgNo].SendDimmingBist(180, nWaitMS,nRetry); // DBV 값 초기화
+
+    for nDBV := 180 to 2047 do begin
+      if m_bCEL_Stop then exit;
+      output := Common.Find_Gray_index_Near_Target(nDBV,fSearch_Lv);
+      if output[1] = -1 then continue;
+      nFind_Gray_index := Trunc(output[0]);
+      fIdeal_Target_Lv := output[1];
+
+      nGray := 511 - nFind_Gray_index;
+
+      if nDBV < 1645 then       //APL 100%  1Band
+      begin
+        wdRet := Pg[FPgNo].SendDisplayPatBistRGB_9Bit(nGray,nGray,nGray,nWaitMS,nRetry);
+      end
+      else if nDBV <= 1850 then //APL 60% 2Band
+      begin
+        Common.GetBoxPtnSizeinfo(Common.TestModelInfoFLOW.ModelType,2,nSX,nSy,nEX,nEY);
+        wdRet := Pg[FPgNo].DP860_SendBistAPL(nGray,nGray,nGray,nSX,nSy,nEX,nEY,nWaitMS,nRetry);
+      end
+      else
+      begin
+        Common.GetBoxPtnSizeinfo(Common.TestModelInfoFLOW.ModelType,1,nSX,nSy,nEX,nEY);
+        wdRet := Pg[FPgNo].DP860_SendBistAPL(nGray,nGray,nGray,nSX,nSy,nEX,nEY,nWaitMS,nRetry);
+      end;
+      wdRet := Pg[FPgNo].SendDimmingBist(nDBV, nWaitMS,nRetry);
+      Sleep(50);
+      wdRet := CaSdk2.Measure(FPgNo, m_Ca410Data);
+      if m_bCEL_Stop then exit;
+
+      sData := Format('%d,%4.4f,%d,%4.4f,%4.4f,%4.4f,',[nDBV,fIdeal_Target_Lv,nGray,m_Ca410Data.LvVal,m_Ca410Data.xVal,m_Ca410Data.yVal]);
+      Common.SaveCsvMeasureLog(FPgNo,sFileCsv,sSerialNo,sDataHeader,sData);
+
+    end;
+  end;
 end;
 
 procedure TScrCls.ChangeBuff_Proc(AMachine: TatVirtualMachine);

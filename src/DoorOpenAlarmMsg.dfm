@@ -152,7 +152,6 @@ object frmDoorOpenAlarmMsg: TfrmDoorOpenAlarmMsg
     TabOrder = 0
     StyleElements = []
     OnDblClick = Panel1DblClick
-    ExplicitTop = -6
   end
   object Panel2: TPanel
     Left = 0
@@ -554,7 +553,7 @@ object frmDoorOpenAlarmMsg: TfrmDoorOpenAlarmMsg
   end
   object btnShowAlarm: TRzBitBtn
     Left = 1552
-    Top = 403
+    Top = 402
     Width = 288
     Height = 29
     Caption = 'Show Alarm'

@@ -144,8 +144,11 @@ type
     pnlUnitTact2    :  array [DefCommon.CH1..DefCommon.MAX_CH] of  TRzPanel;
     pnlUnitTactVal2 :  array [DefCommon.CH1..DefCommon.MAX_CH] of  TPanel;    // CH 별 개별 표시
 
+    pnlDelayTimes   :  array [DefCommon.CH1..DefCommon.MAX_CH] of  TRzPanel;
+    pnlNowDelayTimes  :  array [DefCommon.CH1..DefCommon.MAX_CH] of  TPanel;
 
     pnlTackTimesGroup : array [DefCommon.CH1..DefCommon.MAX_CH] of TPanel;
+    pnlDelayTimesGroup : array [DefCommon.CH1..DefCommon.MAX_CH] of TPanel;
     m_PlcStatus    : plcStatus;
     pnlLogGrp       : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TRzPanel;
     mmChannelLog   : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of  TRichEdit;//  TMemo;
@@ -594,6 +597,7 @@ begin
   SendMessageMain(STAGE_MODE_TEST_STOP, nCH, 0, 0, '', nil);
 
   if nCH = 0  then  begin
+
     JigLogic[Self.Tag].StopIspd_TOP;
     for i := DefCommon.CH1 to DefCommon.CH2 do begin
       pnlPGStatuses[i].Color := clBtnFace;
@@ -1967,15 +1971,26 @@ begin
     pnlTackTimesGroup[i] := TPanel.Create(self);
     pnlTackTimesGroup[i].Parent := pnlChGrp[i];
     pnlTackTimesGroup[i].Top := pnlChGrp[i].Height;
+
     pnlTackTimesGroup[i].Height := 30;
+
     pnlTackTimesGroup[i].Align := alTop;
+
+    pnlDelayTimesGroup[i] := TPanel.Create(self);
+    pnlDelayTimesGroup[i].Parent := pnlChGrp[i];
+    pnlDelayTimesGroup[i].Top := pnlChGrp[i].Height;
+    if Common.SystemInfo.OCType = DefCommon.OCType  then
+      pnlDelayTimesGroup[i].Height := 1
+    else pnlDelayTimesGroup[i].Height := 30;
+
+
+    pnlDelayTimesGroup[i].Align := alTop;
 
         // for Jig Information.
     pnlTackTimes[i] := TRzPanel.Create(self);
     pnlTackTimes[i].Parent := pnlTackTimesGroup[i];
     pnlTackTimes[i].Top := 1;
     pnlTackTimes[i].Left := 1;
-    pnlTackTimes[i].Width := pnlTackTimesGroup[i].Width div 4 ;// 90;//66;
     pnlTackTimes[i].Caption := 'Total Tact';
     pnlTackTimes[i].BorderOuter := TframeStyleEx(fsFlat);
     pnlTackTimes[i].Font.Size := 12;
@@ -1986,7 +2001,6 @@ begin
     pnlNowValues[i].Top := 1;
     pnlNowValues[i].Left := 20;
     pnlNowValues[i].Height := 40;
-    pnlNowValues[i].Width := pnlTackTimesGroup[i].Width div 4 ;// 90;//66;
     pnlNowValues[i].Caption := '000: 00';
     pnlNowValues[i].Color := clBlack;
     pnlNowValues[i].Font.Color := clLime;
@@ -2000,7 +2014,6 @@ begin
     pnlUnitTact[i].Top := pnlTackTimesGroup[i].Height;
     pnlUnitTact[i].Left := 40;
     pnlUnitTact[i].Height := 30;
-    pnlUnitTact[i].Width := pnlTackTimesGroup[i].Width div 4 ;// 90;//66;
     pnlUnitTact[i].Caption := 'OC Tact';
     pnlUnitTact[i].BorderOuter := TframeStyleEx(fsFlat);
     pnlUnitTact[i].Font.Size := 12;
@@ -2011,13 +2024,71 @@ begin
     pnlUnitTactVal[i].Top := pnlTackTimesGroup[i].Height;
     pnlUnitTactVal[i].Left := 50;
     pnlUnitTactVal[i].Height := 30;
-    pnlUnitTactVal[i].Width := pnlTackTimesGroup[i].Width div 4 ;// 90;//66;
     pnlUnitTactVal[i].Caption := '000: 00';
     pnlUnitTactVal[i].Color := clBlack;
     pnlUnitTactVal[i].Font.Color := clYellow;
     pnlUnitTactVal[i].Font.Size := 12;
     pnlUnitTactVal[i].StyleElements := [];
     pnlUnitTactVal[i].Align := alLeft;
+
+    if Common.SystemInfo.OCType = DefCommon.OCType  then begin
+
+      pnlTackTimes[i].Width := (pnlTackTimesGroup[i].Width -240) div 5 ;
+      pnlNowValues[i].Width := (pnlTackTimesGroup[i].Width -240) div 5 ;
+      pnlUnitTact[i].Width := (pnlTackTimesGroup[i].Width -240) div 5 ;
+      pnlUnitTactVal[i].Width := (pnlTackTimesGroup[i].Width -240) div 5 ;
+      pnlDelayTimes[i] := TRzPanel.Create(self);
+      pnlDelayTimes[i].Parent := pnlTackTimesGroup[i];
+      pnlDelayTimes[i].Top := 1;
+      pnlDelayTimes[i].Left := 60;
+      pnlDelayTimes[i].Width := 240;
+      pnlDelayTimes[i].Caption := 'DLL DelayTime(ms)';
+      pnlDelayTimes[i].BorderOuter := TframeStyleEx(fsFlat);
+      pnlDelayTimes[i].Font.Size := 12;
+      pnlDelayTimes[i].Align := alLeft;
+
+      pnlNowDelayTimes[i] := TPanel.Create(self);
+      pnlNowDelayTimes[i].Parent := pnlTackTimesGroup[i];
+      pnlNowDelayTimes[i].Top := 1;
+      pnlNowDelayTimes[i].Left := 70;
+      pnlNowDelayTimes[i].Height := 40;
+      pnlNowDelayTimes[i].Width := (pnlTackTimesGroup[i].Width -240) div 5 ;
+      pnlNowDelayTimes[i].Caption := '0';
+      pnlNowDelayTimes[i].Color := clBlack;
+      pnlNowDelayTimes[i].Font.Color := clWhite;
+      pnlNowDelayTimes[i].Font.Size := 12;
+      pnlNowDelayTimes[i].StyleElements := [];
+      pnlNowDelayTimes[i].Align := alLeft;
+    end
+    else begin
+      pnlTackTimes[i].Width := (pnlTackTimesGroup[i].Width) div 4 ;
+      pnlNowValues[i].Width := (pnlTackTimesGroup[i].Width) div 4 ;
+      pnlUnitTact[i].Width := (pnlTackTimesGroup[i].Width) div 4 ;
+      pnlUnitTactVal[i].Width := (pnlTackTimesGroup[i].Width) div 4 ;
+      pnlDelayTimes[i] := TRzPanel.Create(self);
+      pnlDelayTimes[i].Parent := pnlDelayTimesGroup[i];
+      pnlDelayTimes[i].Top := 1;
+      pnlDelayTimes[i].Left := 60;
+      pnlDelayTimes[i].Width := 240;
+      pnlDelayTimes[i].Caption := 'DLL DelayTime(ms)';
+      pnlDelayTimes[i].BorderOuter := TframeStyleEx(fsFlat);
+      pnlDelayTimes[i].Font.Size := 12;
+      pnlDelayTimes[i].Align := alLeft;
+
+      pnlNowDelayTimes[i] := TPanel.Create(self);
+      pnlNowDelayTimes[i].Parent := pnlDelayTimesGroup[i];
+      pnlNowDelayTimes[i].Top := 1;
+      pnlNowDelayTimes[i].Left := 70;
+      pnlNowDelayTimes[i].Height := 40;
+      pnlNowDelayTimes[i].Width := (pnlDelayTimesGroup[i].Width -240);
+      pnlNowDelayTimes[i].Caption := '0';
+      pnlNowDelayTimes[i].Color := clBlack;
+      pnlNowDelayTimes[i].Font.Color := clWhite;
+      pnlNowDelayTimes[i].Font.Size := 12;
+      pnlNowDelayTimes[i].StyleElements := [];
+      pnlNowDelayTimes[i].Align := alLeft;
+
+    end;
   end;
 
   for i := DefCommon.CH1 to DefCommon.MAX_JIG_CH do begin
@@ -4205,6 +4276,10 @@ begin
           Common.HWCIDLogLog(nCh,sPID,sSerialNumber,sMsg);
         end;
 
+        DefCommon.MSG_MODE_DELAY_TIME : begin
+          pnlNowDelayTimes[nCh].Caption := Trim(PGuiDLL(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg)
+        end;
+
         DefCommon.MSG_MODE_WORKING : begin
           sMsg := Trim(PGuiDLL(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
           if nTemp = 10 then begin
@@ -4258,6 +4333,7 @@ begin
               end;
             end;
 
+            pnlNowDelayTimes[nCh].Caption := '0'; // DLL Delay Time 0 표시
             PasScr[nCH].TestInfo.EndTime := now;  // Added by KTS 2023-05-19 오후 1:09:57 End Time
             PG[nCH].DP860_SendOcOnOff(0{end},2000,0); //2023-03-28 jhhwang (for T/T Test)
             PG[nCH].SetCyclicTimer(True); //2023-03-28 jhhwang (for T/T Test)
@@ -4267,12 +4343,13 @@ begin
             // Added by sam81 2023-04-24 오후 3:40:07 oc 보상 종료 시 Tact time stop
             StopTotalTimer(tmUnitTactTime[nCh],nCh,2);
             tmUnitTactTime[nCh].Enabled := False;
-            if (Common.SystemInfo.OCType = DefCommon.OCType) then begin
+            if (Common.SystemInfo.OCType = DefCommon.OCType) and (not Common.PLCInfo.InlineGIB) then begin
               tmCheckIRTemp[nCh].Enabled := False;   // IR 센서 저장 종료
               ControlDio.WriteDioSig(DefDio.OUT_CH1_PMIC_FAN_ON + 16 * nCH,True); // FAN DIO OFF
               SaveCsvTempStatus(nCh,'END',m_bFanOnOff[nCh]);
             end;
             DisplayPGStatuses(nCh,PasScr[nCh].m_nNgCode); // 종료 시 바로 결과 Display
+
             case nCH of
               0,1 :
               begin
@@ -4285,7 +4362,9 @@ begin
                     if not PasScr[i].m_bUse then CSharpDll.m_bIsProcessDone[i] := true;
                   end;
                   if CSharpDll.m_bIsProcessDone[DefCommon.CH1] and CSharpDll.m_bIsProcessDone[DefCommon.CH2] then  begin
+
                     SendMessageMain(STAGE_MODE_UNLOAD,0, 2,0, 'OC Flow Process_Finish',nil);
+
                     CSharpDll.m_bIsProcessDone[DefCommon.CH1] := false;
                     CSharpDll.m_bIsProcessDone[DefCommon.CH2] := false;
                   end;
@@ -4317,6 +4396,13 @@ begin
                   end;
                   if CSharpDll.m_bIsProcessDone[DefCommon.CH3] and CSharpDll.m_bIsProcessDone[DefCommon.CH4] then begin
                     SendMessageMain(STAGE_MODE_UNLOAD, 1, 2,0, 'OC Flow Process_Finish',nil);
+//                    if NOT Common.AutoReStart  then  begin
+                      SendMessageMain(STAGE_MODE_UNLOAD, 1, 2,0, 'OC Flow Process_Finish',nil);
+//                    end
+//                    else begin
+//                      SendMessageMain(STAGE_MODE_TEST_START, 1, 0, 0, '', nil);
+//                      AutoLogicStart(1);
+//                    end;
                     CSharpDll.m_bIsProcessDone[DefCommon.CH3] := false;
                     CSharpDll.m_bIsProcessDone[DefCommon.CH4] := false;
                   end;
@@ -4702,7 +4788,14 @@ begin
                           end;
 //                          if CSharpDll.m_bIsProcessDone[DefCommon.CH1] and CSharpDll.m_bIsProcessDone[DefCommon.CH2] then  begin
 //                        SendMessageMain(STAGE_MODE_UNLOAD,0, 2,0, 'OC Flow Process_Finish',nil);
-                            SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, 0 , 0 , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
+                          if NOT Common.AutoReStart  then  begin
+                            SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, 0 , 0 , nTemp2, '', nil);
+                          end
+                          else begin
+                            SendMessageMain(STAGE_MODE_TEST_START, 0, 0, 0, '', nil);
+                            AutoLogicStart(0);
+                          end;
+//                            SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, 0 , 0 , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
 
                             CSharpDll.m_bIsProcessDone[DefCommon.CH1] := false;
                             CSharpDll.m_bIsProcessDone[DefCommon.CH2] := false;
@@ -4718,8 +4811,14 @@ begin
                           end;
 //                          if CSharpDll.m_bIsProcessDone[DefCommon.CH3] and CSharpDll.m_bIsProcessDone[DefCommon.CH4] then begin
     //                        SendMessageMain(STAGE_MODE_UNLOAD, 1, 2,0, 'OC Flow Process_Finish',nil);
-                            SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, 1 , 1 , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
 
+                          if NOT Common.AutoReStart  then  begin
+                            SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, 1 , 1 , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
+                          end
+                          else begin
+                            SendMessageMain(STAGE_MODE_TEST_START, 0, 0, 0, '', nil);
+                            AutoLogicStart(0);
+                          end;
                             CSharpDll.m_bIsProcessDone[DefCommon.CH3] := false;
                             CSharpDll.m_bIsProcessDone[DefCommon.CH4] := false;
 //                          end;

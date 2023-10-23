@@ -1262,6 +1262,8 @@ begin
         grdStatus.Cells[8, 11] := 'Load CH1';
         grdStatus.Cells[8, 12] := 'Load CH2';
       end;
+      grdStatus.Cells[8, 16] := 'Door Open';
+      grdStatus.Cells[9, 16] := 'Door Open';
     end;
 
 
@@ -1295,6 +1297,8 @@ begin
         grdStatus.Cells[10, 11] := 'Load CH3';
         grdStatus.Cells[10, 12] := 'Load CH4';
       end;
+      grdStatus.Cells[10, 16] := 'Door Open';
+      grdStatus.Cells[11, 16] := 'Door Open';
     end;
 
     grdStatus.Cells[11, 1] := 'Unload' + sLineBreak + 'Noninterference';
@@ -1803,7 +1807,7 @@ begin
       SetCellState(11, i+1, 1, 3, i);
     end;
 
-    SetCellState(8, 16, 12, 0, 0); // door open
+//    SetCellState(8, 16, 12, 0, 0); // door open
 
     for I := 0 to 4 do
       SetCellState(12, i+1, 2, 3, i);  // ECS Status & Data (ECS ¡æ All)

@@ -113,10 +113,12 @@ begin
   else begin
     if ControlDio.ReadInSig(DefDio.IN_GIB_CH_12_EMO_SWITCH) then begin
     bOpened:= True;
-  end;
+    end;
     if ControlDio.ReadInSig(DefDio.IN_GIB_CH_34_EMO_SWITCH) then begin
       bOpened:= True;
     end;
+    if frmMain_OC.PollingDoorOpened and (not bBypass) then
+      bOpened := True;
 
   end;
 

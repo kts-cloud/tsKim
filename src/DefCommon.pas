@@ -254,6 +254,9 @@ Const
 
   MSG_MODE_LOG_HWCID              = 68;
   MSG_MODE_VIRTUAL_CAPTION        = 68;
+
+  MSG_MODE_DELAY_TIME             = 69;
+
 //
 //	MSG_CHANNEL_ALL                 = $ff;
 //

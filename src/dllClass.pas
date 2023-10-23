@@ -4,7 +4,7 @@ interface
 {$I Common.inc}
 
 uses Winapi.Windows, System.Classes, System.SysUtils,  IdGlobal,Vcl.ExtCtrls,
-   Messages, Vcl.Dialogs,CA_SDK2,DefCommon,DefPG,CommPG,LogicVh,CommonClass
+   Messages, Vcl.Dialogs,CA_SDK2,DefCommon,DefPG,CommPG,LogicVh,CommonClass,RegularExpressions
 {$IFDEF OC_TT_TEST}
     ,System.Generics.Collections
 {$ENDIF}
@@ -51,30 +51,6 @@ type
   TCallBackFlashErase       = function(nChannel,nStartSeg,nLength : Integer): Integer;
   TCallBackTCONMultiSetReg  = function(nChannel,nType : Integer; Addr : PINT; data : PByte; nLength : Integer): Integer;
   TCallBackTCONSeqSetReg    = function(nChannel,nMode,nSeqIdx : Integer; Addr : PINT; data : PByte; nLength : Integer): Integer;
-
-
-
-//
-//  TCallBackAPSBoxPatternSet  = function(nChannel,XOffset,YOffset, Width,Height, R,G,B, Background_R,Background_G,Background_B: Integer): Integer;
-//  TCallBackAPSPatternRGBSet  = function(nChannel,R, G, B: Integer): Integer;
-//  TCallBackAPSSetReg         = function(nChannel,Addr: Integer; Data: Integer): Integer;
-//  TCallBackLGDSetReg         = function(nChannel : Integer; Addr: DWORD; data: Byte): Integer;
-//  TCallBackLGDSetRegM        = function(nChannel, LGDCommand: AF9_PLGDCommand; CommandCnt: Integer): Integer;
-//  TCallBackPatternRGBSet     = function(nChannel,R, G, B: Integer): Integer;
-//  TCallBackSendHexFileCRC    = function(nChannel : Integer; CRC: Word): Integer;
-//  TCallBackStart_Connection  = function(nChannel : Integer): Integer;
-//  TCallBackStop_Connection   = function(nChannel : Integer): Integer;
-//  TCallBackWriteBMPFile      = function(nChannel : Integer;const pbyteBuffer: PByte; len: Integer): Integer;
-//  TCallBackConnection_Status = function(nChannel : Integer): Integer;
-//  TCallBackFreeAF9API        = function(nChannel : Integer): Boolean;
-//  TCallBackSendHexFile       = function(nChannel : Integer; const pbyteBuffer: PByte; len: Integer): Integer;
-//  TCallBackDAC_SET           = Function(nChannel,nType: Integer; Channel: Integer; Voltage: Integer; Option: Integer): Boolean;
-//  TCallBackExtendIO_Set      = Function(nChannel,Address: Integer; Channel: Integer; Enable: Integer): Boolean;
-//  TCallBackFlashRead         = function(nChannel : Integer;const pBuffer: PByte; StartAddr,EndAddr: DWORD): Byte;
-//  TCallBackSW_Revision       = function(nChannel : Integer): Integer;
-//  TCallBackSendHexFileOC     = Function(nChannel : Integer; pbyteBuffer: PByte; len: Integer): Integer;
-//  TCallBackSetFreqChange     = Function(nChannel : Integer; const pbyteBuffer: PByte; len: Integer; HzCnt: Integer; nRepeat: Integer): Integer;
-//
 
 type
   PProdutInfo = ^productInfo2;
@@ -144,32 +120,13 @@ type
     m_SetCallBackFlashErase         : procedure (nChannel : Integer; CaallbackFunction : TCallBackFlashErase         );cdecl;
     m_SetCallBackTCONMultiSetReg    : procedure (nChannel : Integer; CaallbackFunction : TCallBackTCONMultiSetReg    );cdecl;
     m_SetCallBackTCONSeqSetReg      : procedure (nChannel : Integer; CaallbackFunction : TCallBackTCONSeqSetReg    );cdecl;
-//    m_SetCallBackAPSBoxPatternSet   : procedure (nChannel : Integer; CaallbackFunction : TCallBackAPSBoxPatternSet   )      ;cdecl;
-//    m_SetCallBackAPSPatternRGBSet   : procedure (nChannel : Integer; CaallbackFunction : TCallBackAPSPatternRGBSet   )      ;cdecl;
-//    m_SetCallBackAPSSetReg          : procedure (nChannel : Integer; CaallbackFunction : TCallBackAPSSetReg          )      ;cdecl;
-//    m_SetCallBackLGDSetReg          : procedure (nChannel : Integer; CaallbackFunction : TCallBackLGDSetReg          )      ;cdecl;
-//    m_SetCallBackLGDSetRegM         : procedure (nChannel : Integer; CaallbackFunction : TCallBackLGDSetRegM         )      ;cdecl;
-//    m_SetCallBackPatternRGBSet      : procedure (nChannel : Integer; CaallbackFunction : TCallBackPatternRGBSet      )      ;cdecl;
-//    m_SetCallBackSendHexFileCRC     : procedure (nChannel : Integer; CaallbackFunction : TCallBackSendHexFileCRC     )      ;cdecl;
-//    m_SetCallBackStart_Connection   : procedure (nChannel : Integer; CaallbackFunction : TCallBackStart_Connection   )      ;cdecl;
-//    m_SetCallBackStop_Connection    : procedure (nChannel : Integer; CaallbackFunction : TCallBackStop_Connection    )      ;cdecl;
-//    m_SetCallBackWriteBMPFile       : procedure (nChannel : Integer; CaallbackFunction : TCallBackWriteBMPFile       )      ;cdecl;
-//    m_SetCallBackConnection_Status  : procedure (nChannel : Integer; CaallbackFunction : TCallBackConnection_Status  )      ;cdecl;
-//    m_SetCallBackFreeAF9API         : procedure (nChannel : Integer; CaallbackFunction : TCallBackFreeAF9API         )      ;cdecl;
-//    m_SetCallBackSendHexFile        : procedure (nChannel : Integer; CaallbackFunction : TCallBackSendHexFile        )      ;cdecl;
-//    m_SetCallBackDAC_SET            : procedure (nChannel : Integer; CaallbackFunction : TCallBackDAC_SET            )      ;cdecl;
-//    m_SetCallBackExtendIO_Set       : procedure (nChannel : Integer; CaallbackFunction : TCallBackExtendIO_Set       )      ;cdecl;
-//    m_SetCallBackFlashRead          : procedure (nChannel : Integer; CaallbackFunction : TCallBackFlashRead          )      ;cdecl;
-//    m_SetCallBackSW_Revision        : procedure (nChannel : Integer; CaallbackFunction : TCallBackSW_Revision        )      ;cdecl;
-//    m_SetCallBackSendHexFileOC      : procedure (nChannel : Integer; CaallbackFunction : TCallBackSendHexFileOC      )      ;cdecl;
-//    m_SetCallBackSetFreqChange      : procedure (nChannel : Integer; CaallbackFunction : TCallBackSetFreqChange      )      ;cdecl;
 
   private
     m_hDll  : HWND;
     m_hMain : HWND;
     FNgMsg: string;
     m_GetSummaryLogData : function (nCH : Integer; sParameter : PAnsiChar): PAnsiChar; cdecl;
-    m_GetOCversion : function : PAnsiChar; cdecl;
+
     m_GetOCConverterVersion : function : PAnsiChar; cdecl;
     m_MainOC_START_CH1 : procedure(nCH : Integer; sParameter : PAnsiChar); cdecl;
     m_MainOC_START_CH2 : procedure(nCH : Integer; sParameter : PAnsiChar); cdecl;
@@ -183,6 +140,8 @@ type
     m_MainOC_Flash_Read : procedure (nCH : Integer); cdecl;
 
     m_MainOC_IsAlive : function (nCH : Integer) : Integer; cdecl;
+
+    m_MainOC_ChangeDLL : function(sDLLName : PAnsiChar): Integer;  cdecl;
 
 
     m_OCFlowStart : array [DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of Boolean;
@@ -200,29 +159,6 @@ type
     CB_FlashErase           : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackFlashErase;
     CB_TCONMultiSetReg      : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackTCONMultiSetReg;
     CB_TCONSeqSetReg        : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackTCONSeqSetReg;
-
-
-
-
-//    CB_APSBoxPatternSet     : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackAPSBoxPatternSet;
-//    CB_APSPatternRGBSet     : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackAPSPatternRGBSet;
-//    CB_APSSetReg            : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackAPSSetReg;
-//    CB_LGDSetReg            : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackLGDSetReg;
-//    CB_LGDSetRegM           : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackLGDSetRegM;
-//    CB_PatternRGBSet        : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackPatternRGBSet;
-//    CB_SendHexFileCRC       : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackSendHexFileCRC;
-//    CB_Start_Connection     : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackStart_Connection;
-//    CB_Stop_Connection      : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackStop_Connection;
-//    CB_WriteBMPFile         : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackWriteBMPFile;
-//    CB_Connection_Status    : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackConnection_Status;
-//    CB_FreeAF9API           : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackFreeAF9API;
-//    CB_SendHexFile          : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackSendHexFile;
-//    CB_DAC_SET              : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackDAC_SET;
-//    CB_ExtendIO_Set         : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackExtendIO_Set;
-//    CB_FlashRead            : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackFlashRead;
-//    CB_SW_Revision          : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackSW_Revision;
-//    CB_SendHexFileOC        : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackSendHexFileOC;
-//    CB_SetFreqChange        : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackSetFreqChange;
     CB_Measure_XYL          : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackMeasure_XYL;
     CB_SetSync              : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackSetSync;
     CB_GetWaveformData      : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackGetWaveformData;
@@ -247,6 +183,7 @@ type
     m_bIsDLLWork :array of Boolean; // Added by KTS 2022-12-27 오전 9:00:40 현재 DLL 작업중 확ㅇ인
     m_bIsProcessDone : array of Boolean;
     m_bIsProcessUnloadDone : array of Boolean;
+    m_GetOCversion : function : PAnsiChar; cdecl;
     constructor Create(hMain,hTest: HWND;sDLLPath, sFileName: string);
     procedure  Create_Test;
     destructor Destroy; override;
@@ -269,6 +206,7 @@ type
 
     function MainOC_GetSummaryLogData(nCH : Integer; sParameter : string): string;
 
+    function MainOC_ChangeDLL(sDLLName : string): Integer;
 
 //    property OnRevSwData : TArray<TCallBackTextChanged> write CB_TextChangedTEST;
 //    property OnRevData : TCallBackTextChanged write SetOnRevSwData ;
@@ -892,7 +830,7 @@ nResult : integer;
 begin
   Inc(PG[nChannel].TconRWCnt.TconWriteDllCall); //2023-03-28 jhhwang (for T/T Test)
 
-  nWaitMS := 2000; //2023-04-08 (3000->100->200)
+  nWaitMS := 200; //2023-04-08 (3000->100->200)
   nRetry  := 0;   //2023-04-08 (0->3->0)
 
   nDataCnt := nLength;
@@ -911,6 +849,7 @@ begin
       CSharpDll.MainOC_Stop_CH1(nChannel);
     end;
   end;
+//  Sleep(50); //2023-0926
   Result := nResult
 end;
 
@@ -924,7 +863,7 @@ arRAddr : array of Integer;
 nResult : integer;
 begin
   Inc(PG[nChannel].TconRWCnt.TconWriteDllCall); //2023-03-28 jhhwang (for T/T Test)
-  nWaitMS := 2000; //2023-04-08 (3000->100->200)
+  nWaitMS := 200; //2023-04-08 (3000->100->200)
   nRetry  := 0;   //2023-04-08 (0->3->0)
 
   nDataCnt := nLength;
@@ -943,6 +882,7 @@ begin
       CSharpDll.MainOC_Stop_CH2(nChannel);
     end;
   end;
+//  Sleep(50); //2023-0926
   Result := nResult
 end;
 
@@ -957,7 +897,7 @@ nResult : integer;
 begin
   Inc(PG[nChannel].TconRWCnt.TconWriteDllCall); //2023-03-28 jhhwang (for T/T Test)
 
-  nWaitMS := 2000; //2023-04-08 (3000->100->200)
+  nWaitMS := 200; //2023-04-08 (3000->100->200)
   nRetry  := 0;   //2023-04-08 (0->3->0)
 
   nDataCnt := nLength;
@@ -976,6 +916,7 @@ begin
       CSharpDll.MainOC_Stop_CH3(nChannel);
     end;
   end;
+//  Sleep(50); //2023-0926
   Result := nResult
 end;
 
@@ -990,7 +931,7 @@ nResult : integer;
 begin
   Inc(PG[nChannel].TconRWCnt.TconWriteDllCall); //2023-03-28 jhhwang (for T/T Test)
 
-  nWaitMS := 2000; //2023-04-08 (3000->100->200)
+  nWaitMS := 200; //2023-04-08 (3000->100->200)
   nRetry  := 0;   //2023-04-08 (0->3->0)
 
   nDataCnt := nLength;
@@ -1009,6 +950,7 @@ begin
       CSharpDll.MainOC_Stop_CH4(nChannel);
     end;
   end;
+//  Sleep(50); //2023-0926
   Result := nResult
 end;
 
@@ -1795,6 +1737,7 @@ function MyCB_measure_XYL_1(nChannel:Integer; var t5 : TArray<double>; var nLen 
 var
 i,wdRet: Integer;
 m_Ca410Data  : TBrightValue;
+sDebug : string;
 begin
   if Common.SystemInfo.PG_GpioReadHpdBeforeMeasure then begin //2023-03-30 jhhwang (for T/T Test)
     PG[nChannel].DP860_SendGpioRead('HPD');
@@ -1802,6 +1745,11 @@ begin
   PG[nChannel].TconRWCnt.ContTConOcWrite := 0; //2023-03-30 jhhwang (for T/T Test)
 
   wdRet := CaSdk2.Measure(nChannel,m_Ca410Data);
+
+  if (Common.SystemInfo.DebugLogLevelConfig > 0) then begin
+    sDebug := format('<CA410> Measure_XYL : Ca410Data x : %f y : %f LV : %f',[m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
+    CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
+  end;
 
   t5[0] := m_Ca410Data.xVal;
   t5[1] := m_Ca410Data.yVal;
@@ -1823,6 +1771,11 @@ begin
 //  Common.MLog(nChannel,sDebug);
   wdRet := CaSdk2.Measure(nChannel,m_Ca410Data);
 
+    if (Common.SystemInfo.DebugLogLevelConfig > 0) then begin
+    sDebug := format('<CA410> Measure_XYL : Ca410Data x : %f y : %f LV : %f',[m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
+    CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
+  end;
+
   t5[0] := m_Ca410Data.xVal;
   t5[1] := m_Ca410Data.yVal;
   t5[2] := m_Ca410Data.LvVal;
@@ -1833,6 +1786,7 @@ function MyCB_measure_XYL_3(nChannel:Integer; var t5 : TArray<double>; var nLen 
 var
 i,wdRet: Integer;
 m_Ca410Data  : TBrightValue;
+sDebug : string;
 begin
   if Common.SystemInfo.PG_GpioReadHpdBeforeMeasure then begin //2023-03-30 jhhwang (for T/T Test)
     PG[nChannel].DP860_SendGpioRead('HPD');
@@ -1840,6 +1794,11 @@ begin
   PG[nChannel].TconRWCnt.ContTConOcWrite := 0; //2023-03-30 jhhwang (for T/T Test)
 
   wdRet := CaSdk2.Measure(nChannel,m_Ca410Data);
+
+    if (Common.SystemInfo.DebugLogLevelConfig > 0) then begin
+    sDebug := format('<CA410> Measure_XYL : Ca410Data x : %f y : %f LV : %f',[m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
+    CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
+  end;
 
   t5[0] := m_Ca410Data.xVal;
   t5[1] := m_Ca410Data.yVal;
@@ -1851,6 +1810,7 @@ function MyCB_measure_XYL_4(nChannel:Integer; var t5 : TArray<double>; var nLen 
 var
 i,wdRet: Integer;
 m_Ca410Data  : TBrightValue;
+sDebug : string;
 begin
   if Common.SystemInfo.PG_GpioReadHpdBeforeMeasure then begin //2023-03-30 jhhwang (for T/T Test)
     PG[nChannel].DP860_SendGpioRead('HPD');
@@ -1858,6 +1818,11 @@ begin
   PG[nChannel].TconRWCnt.ContTConOcWrite := 0; //2023-03-30 jhhwang (for T/T Test)
 
   wdRet := CaSdk2.Measure(nChannel,m_Ca410Data);
+
+    if (Common.SystemInfo.DebugLogLevelConfig > 0) then begin
+    sDebug := format('<CA410> Measure_XYL : Ca410Data x : %f y : %f LV : %f',[m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
+    CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
+  end;
 
   t5[0] := m_Ca410Data.xVal;
   t5[1] := m_Ca410Data.yVal;
@@ -1929,6 +1894,24 @@ begin
 end;
 
 
+function ExtractNumbersFromString(inputString: string): string;
+var
+  regex: TRegEx;
+  match: TMatch;
+begin
+  // 정규 표현식을 사용하여 숫자만 추출
+  regex := TRegEx.Create('\d+');
+  match := regex.Match(inputString);
+
+  // 추출된 숫자를 모두 결합하여 반환
+  Result := '';
+  while match.Success do
+  begin
+    Result := Result + match.Value;
+    match := match.NextMatch;
+  end;
+end;
+
 procedure TCSharpDll.MLOG(nChannel_Index : Integer; bClear : Boolean; sMLOG : string);
 var
   th : TThread;
@@ -1937,7 +1920,12 @@ var
 begin
   if bClear then nParam := 10
   else nParam := 0;
-  if pos('Delay_Time',sMLOG) > 0 then Exit;
+  if pos('Delay_Time',sMLOG) > 0 then begin
+    sLog := ExtractNumbersFromString(sMLOG);
+
+    SendTestGuiDisplay(nChannel_Index,defCommon.MSG_MODE_DELAY_TIME,sLog,nParam);
+    Exit;
+  end;
 
   SendTestGuiDisplay(nChannel_Index,defCommon.MSG_MODE_WORKING,sMLOG,nParam);
 end;
@@ -2134,7 +2122,18 @@ end;
 
 function TCSharpDll.MainOC_GetSummaryLogData(nCH : Integer; sParameter : string): string;
 begin
-  Result := PAnsiChar(m_GetSummaryLogData(nCH,Common.StringToPAnsiChar(sParameter)));
+  try
+    Result := PAnsiChar(m_GetSummaryLogData(nCH,Common.StringToPAnsiChar(sParameter)));
+  except
+    Result := 'MXXX';
+  end;
+
+end;
+
+function TCSharpDll.MainOC_ChangeDLL(sDLLName : string): Integer;
+begin
+
+  Result := 0;
 end;
 
 
@@ -2255,12 +2254,12 @@ end;
 
 function TCSharpDll.MainOC_ThreadStateCheck(nCH : Integer): integer;
 begin
-   Result :=  m_MainOC_ThreadStateCheck(nCH);
+  Result :=  m_MainOC_ThreadStateCheck(nCH);
 end;
 
 function TCSharpDll.MainOC_Verify_Start(nCH : Integer): integer;
 begin
- Result :=  m_MainOC_VerifyStart(nCH);
+  Result :=  m_MainOC_VerifyStart(nCH);
 end;
 
 destructor TCSharpDll.Destroy;
@@ -2297,11 +2296,9 @@ end;
 
 
 
-
 procedure TCSharpDll.CreateCallBackFunction;
 var
   i : integer;
-  a: TCallBackAllPowerOnOff;
 begin
   for I := DefCommon.CH1 to DefCommon.MAX_CH do begin
     case i of
@@ -2320,28 +2317,6 @@ begin
 
         @CB_TCONMultiSetReg[i] := @MyCB_TCONSetRegMultiWrite_1;
         @CB_TCONSeqSetReg[i] := @MyCB_TCONSetRegSeqWrite_1;
-
-
-//        @CB_APSBoxPatternSet[i] := @MyCB_APSBoxPatternSet_1;
-//        @CB_APSPatternRGBSet[i] := @MyCB_APSPatternRGBSet_1;
-//        @CB_APSSetReg[i] := @MyCB_APSSetReg_1;
-//        @CB_LGDSetReg[i] := @MyCB_LGDSetReg_1;
-//        @CB_LGDSetRegM[i] := @MyCB_LGDSetRegM_1;
-//        @CB_PatternRGBSet[i] := @MyCB_PatternRGBSet_1;
-//        @CB_SendHexFileCRC[i] := @MyCB_SendHexFileCRC_1;
-//        @CB_Start_Connection[i] := @MyCB_Start_Connection_1;
-//        @CB_Stop_Connection[i] := @MyCB_Stop_Connection_1;
-//
-//        @CB_WriteBMPFile[i] := @MyCB_WriteBMPFile_1;
-//        @CB_Connection_Status[i] := @MyCB_Connection_Status_1;
-//        @CB_FreeAF9API[i] := @MyCB_FreeAF9API_1;
-//        @CB_SendHexFile[i] := @MyCB_SendHexFile_1;
-//        @CB_DAC_SET[i] := @MyCB_DAC_SET_1;
-//        @CB_ExtendIO_Set[i] := @MyCB_ExtendIO_Set_1;
-//        @CB_FlashRead[i] := @MyCB_FlashRead_1;
-//        @CB_SW_Revision[i] := @MyCB_SW_Revision_1;
-//        @CB_SendHexFileOC[i] := @MyCB_SendHexFileOC_1;
-//        @CB_SetFreqChange[i] := @MyCB_SetFreqChange_1;
         @CB_Measure_XYL[i] := @MyCB_measure_XYL_1;
         @CB_SetSync[i] := @MyCB_SetSync_1;
         @CB_GetWaveformData[i] := @MyCB_GetWaveformData_1;
@@ -2363,27 +2338,6 @@ begin
 
         @CB_TCONMultiSetReg[i] := @MyCB_TCONSetRegMultiWrite_2;
         @CB_TCONSeqSetReg[i] := @MyCB_TCONSetRegSeqWrite_2;
-
-//        @CB_APSBoxPatternSet[i] := @MyCB_APSBoxPatternSet_2;
-//        @CB_APSPatternRGBSet[i] := @MyCB_APSPatternRGBSet_2;
-//        @CB_APSSetReg[i] := @MyCB_APSSetReg_2;
-//        @CB_LGDSetReg[i] := @MyCB_LGDSetReg_2;
-//        @CB_LGDSetRegM[i] := @MyCB_LGDSetRegM_2;
-//        @CB_PatternRGBSet[i] := @MyCB_PatternRGBSet_2;
-//        @CB_SendHexFileCRC[i] := @MyCB_SendHexFileCRC_2;
-//        @CB_Start_Connection[i] := @MyCB_Start_Connection_2;
-//        @CB_Stop_Connection[i] := @MyCB_Stop_Connection_2;
-//
-//        @CB_WriteBMPFile[i] := @MyCB_WriteBMPFile_2;
-//        @CB_Connection_Status[i] := @MyCB_Connection_Status_2;
-//        @CB_FreeAF9API[i] := @MyCB_FreeAF9API_2;
-//        @CB_SendHexFile[i] := @MyCB_SendHexFile_2;
-//        @CB_DAC_SET[i] := @MyCB_DAC_SET_2;
-//        @CB_ExtendIO_Set[i] := @MyCB_ExtendIO_Set_2;
-//        @CB_FlashRead[i] := @MyCB_FlashRead_2;
-//        @CB_SW_Revision[i] := @MyCB_SW_Revision_2;
-//        @CB_SendHexFileOC[i] := @MyCB_SendHexFileOC_2;
-//        @CB_SetFreqChange[i] := @MyCB_SetFreqChange_2;
         @CB_Measure_XYL[i] := @MyCB_measure_XYL_2;
         @CB_SetSync[i] := @MyCB_SetSync_2;
         @CB_GetWaveformData[i] := @MyCB_GetWaveformData_2;
@@ -2406,27 +2360,6 @@ begin
 
         @CB_TCONMultiSetReg[i] := @MyCB_TCONSetRegMultiWrite_3;
         @CB_TCONSeqSetReg[i] := @MyCB_TCONSetRegSeqWrite_3;
-
-//        @CB_APSBoxPatternSet[i] := @MyCB_APSBoxPatternSet_3;
-//        @CB_APSPatternRGBSet[i] := @MyCB_APSPatternRGBSet_3;
-//        @CB_APSSetReg[i] := @MyCB_APSSetReg_3;
-//        @CB_LGDSetReg[i] := @MyCB_LGDSetReg_3;
-//        @CB_LGDSetRegM[i] := @MyCB_LGDSetRegM_3;
-//        @CB_PatternRGBSet[i] := @MyCB_PatternRGBSet_3;
-//        @CB_SendHexFileCRC[i] := @MyCB_SendHexFileCRC_3;
-//        @CB_Start_Connection[i] := @MyCB_Start_Connection_3;
-//        @CB_Stop_Connection[i] := @MyCB_Stop_Connection_3;
-//
-//        @CB_WriteBMPFile[i] := @MyCB_WriteBMPFile_3;
-//        @CB_Connection_Status[i] := @MyCB_Connection_Status_3;
-//        @CB_FreeAF9API[i] := @MyCB_FreeAF9API_3;
-//        @CB_SendHexFile[i] := @MyCB_SendHexFile_3;
-//        @CB_DAC_SET[i] := @MyCB_DAC_SET_3;
-//        @CB_ExtendIO_Set[i] := @MyCB_ExtendIO_Set_3;
-//        @CB_FlashRead[i] := @MyCB_FlashRead_3;
-//        @CB_SW_Revision[i] := @MyCB_SW_Revision_3;
-//        @CB_SendHexFileOC[i] := @MyCB_SendHexFileOC_3;
-//        @CB_SetFreqChange[i] := @MyCB_SetFreqChange_3;
         @CB_Measure_XYL[i] := @MyCB_measure_XYL_3;
         @CB_SetSync[i] := @MyCB_SetSync_3;
         @CB_GetWaveformData[i] := @MyCB_GetWaveformData_3;
@@ -2449,27 +2382,6 @@ begin
 
         @CB_TCONMultiSetReg[i] := @MyCB_TCONSetRegMultiWrite_4;
         @CB_TCONSeqSetReg[i] := @MyCB_TCONSetRegSeqWrite_4;
-
-//        @CB_APSBoxPatternSet[i] := @MyCB_APSBoxPatternSet_4;
-//        @CB_APSPatternRGBSet[i] := @MyCB_APSPatternRGBSet_4;
-//        @CB_APSSetReg[i] := @MyCB_APSSetReg_4;
-//        @CB_LGDSetReg[i] := @MyCB_LGDSetReg_4;
-//        @CB_LGDSetRegM[i] := @MyCB_LGDSetRegM_4;
-//        @CB_PatternRGBSet[i] := @MyCB_PatternRGBSet_4;
-//        @CB_SendHexFileCRC[i] := @MyCB_SendHexFileCRC_4;
-//        @CB_Start_Connection[i] := @MyCB_Start_Connection_4;
-//        @CB_Stop_Connection[i] := @MyCB_Stop_Connection_4;
-//
-//        @CB_WriteBMPFile[i] := @MyCB_WriteBMPFile_4;
-//        @CB_Connection_Status[i] := @MyCB_Connection_Status_4;
-//        @CB_FreeAF9API[i] := @MyCB_FreeAF9API_4;
-//        @CB_SendHexFile[i] := @MyCB_SendHexFile_4;
-//        @CB_DAC_SET[i] := @MyCB_DAC_SET_4;
-//        @CB_ExtendIO_Set[i] := @MyCB_ExtendIO_Set_4;
-//        @CB_FlashRead[i] := @MyCB_FlashRead_4;
-//        @CB_SW_Revision[i] := @MyCB_SW_Revision_4;
-//        @CB_SendHexFileOC[i] := @MyCB_SendHexFileOC_4;
-//        @CB_SetFreqChange[i] := @MyCB_SetFreqChange_4;
         @CB_Measure_XYL[i] := @MyCB_measure_XYL_4;
         @CB_SetSync[i] := @MyCB_SetSync_4;
         @CB_GetWaveformData[i] := @MyCB_GetWaveformData_4;
@@ -2533,25 +2445,6 @@ begin
 
   @m_SetCallBackTCONMultiSetReg    := GetProcAddress(m_hDll,'Callback_TCONSetRegMultiwrite');
   @m_SetCallBackTCONSeqSetReg    := GetProcAddress(m_hDll,'Callback_TCONSetRegSeqWrite');
-//  @m_SetCallBackAPSBoxPatternSet   := GetProcAddress(m_hDll,'Callback_APSBoxPatternSet');
-//  @m_SetCallBackAPSPatternRGBSet   := GetProcAddress(m_hDll,'Callback_APSPatternRGBSet');
-//  @m_SetCallBackAPSSetReg          := GetProcAddress(m_hDll,'Callback_APSSetReg');
-//  @m_SetCallBackLGDSetReg          := GetProcAddress(m_hDll,'Callback_LGDSetReg');
-//  @m_SetCallBackLGDSetRegM         := GetProcAddress(m_hDll,'Callback_LGDSetRegM');
-//  @m_SetCallBackPatternRGBSet      := GetProcAddress(m_hDll,'Callback_PatternRGBSet');
-//  @m_SetCallBackSendHexFileCRC     := GetProcAddress(m_hDll,'Callback_SendHexFileCRC');
-//  @m_SetCallBackStart_Connection   := GetProcAddress(m_hDll,'Callback_Start_Connection');
-//  @m_SetCallBackStop_Connection    := GetProcAddress(m_hDll,'Callback_Stop_Connection');
-//  @m_SetCallBackWriteBMPFile       := GetProcAddress(m_hDll,'Callback_WriteBMPFile');
-//  @m_SetCallBackConnection_Status  := GetProcAddress(m_hDll,'Callback_Connection_Status');
-//  @m_SetCallBackFreeAF9API         := GetProcAddress(m_hDll,'Callback_FreeAF9API');
-//  @m_SetCallBackSendHexFile        := GetProcAddress(m_hDll,'Callback_SendHexFile');
-//  @m_SetCallBackDAC_SET            := GetProcAddress(m_hDll,'Callback_DAC_SET');
-//  @m_SetCallBackExtendIO_Set       := GetProcAddress(m_hDll,'Callback_ExtendIO_Set');
-//  @m_SetCallBackFlashRead          := GetProcAddress(m_hDll,'Callback_FlashRead');
-//  @m_SetCallBackSW_Revision        := GetProcAddress(m_hDll,'Callback_SW_Revision');
-//  @m_SetCallBackSendHexFileOC      := GetProcAddress(m_hDll,'Callback_SendHexFileOC');
-//  @m_SetCallBackSetFreqChange      := GetProcAddress(m_hDll,'Callback_SetFreqChange');
 
 end;
 

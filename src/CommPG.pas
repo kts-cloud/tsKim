@@ -4011,7 +4011,7 @@ begin
     sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
   end;
   //
-  if {(Common.SystemInfo.DebugLogLevelConfig > 0) or} (Result <> 0) then begin
+  if ((Common.SystemInfo.DebugLogLevelConfig > 0) and Common.SystemInfo.PG_TconWriteLogDisplay) or (Result <> 0) then begin
     sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
     ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
   end;
@@ -4117,18 +4117,19 @@ begin
 	end;
   CrcAddr := $FFFF and CrcAddr;
   CrcData := $FF and CrcData;
-  sCommand := sCmdName + ' ' + Format('%d %d %d %0.4x %0.2x',[nMode,nSeqIdx,nDataCnt,CrcAddr,CrcData]) + ' ' + sCommand;
+  sCommand := sCmdName + ' ' + Format('%d %d %d %0.4x %0.2x',[nMode,nSeqIdx,nDataCnt,CrcAddr,CrcData]) + sCommand;
 
 	Result := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
   Inc(TconRWCnt.TconOcWriteTX);   //2023-03-28 jhhwang (for T/T Test)
   Inc(TconRWCnt.ContTConOcWrite); //2023-03-28 jhhwang (for T/T Test)
 
   if Result <> WAIT_OBJECT_0 then begin
-    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr +'-' + FTxRxPG.RxPrevStr)+']';
+//    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
   end;
   //
-//if (Common.SystemInfo.DebugLogLevelConfig > 0) or (Result <> 0) then begin
-  if ((Common.SystemInfo.DebugLogLevelConfig > 0) and Common.SystemInfo.PG_TconWriteLogDisplay) or (Result <> 0) then begin
+if (Common.SystemInfo.DebugLogLevelConfig > 0) or (Result <> 0) then begin
+//  if ((Common.SystemInfo.DebugLogLevelConfig > 0) and Common.SystemInfo.PG_TconWriteLogDisplay) or (Result <> 0) then begin
     sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
     ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
   end;

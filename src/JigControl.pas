@@ -422,6 +422,7 @@ var
 begin
   for i := DefCommon.CH1 to DefCommon.CH2 do begin
     if PasScr[i] <> nil  then begin
+      PasScr[i].m_bCEL_Stop := True;
       PasScr[i].m_bIsSyncSeq := False;  // 동기화시 Stop 되지 않는 이슈 때문.
       PasScr[i].RunSeq(DefScript.SEQ_KEY_STOP);
       PasScr[i].m_nConfirmHostRet := 0;
@@ -498,6 +499,7 @@ sLog : string;
 begin
   if PasScr[nCh] <> nil  then begin
     PasScr[nCh].m_bIsSyncSeq := False;  // 동기화시 Stop 되지 않는 이슈 때문.
+    PasScr[nCh].m_bCEL_Stop := True;
     PasScr[nCh].RunSeq(DefScript.SEQ_KEY_STOP);
     PasScr[nCh].m_nConfirmHostRet := 0;
     sLog := Format('ReStart Mode(%d) : Initialization ',[PasScr[nCh].m_nConfirmHostRet]);

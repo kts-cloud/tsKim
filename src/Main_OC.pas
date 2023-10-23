@@ -138,6 +138,8 @@ type
     RzPanel17: TRzPanel;
     ledTempIr: ThhALed;
     pnlCommTempIr: TRzPanel;
+    Button4: TButton;
+    CheckBox1: TCheckBox;
     procedure FormCreate(Sender: TObject);
     procedure MyExceptionHandler(Sender : TObject; E : Exception );
     procedure btnInitClick(Sender: TObject);
@@ -172,10 +174,8 @@ type
     procedure tmSaveEnergyTimer(Sender: TObject);
     procedure Button1Click(Sender: TObject);
     procedure RzPanel6DblClick(Sender: TObject);
-    procedure Button3Click(Sender: TObject);
     procedure Button4Click(Sender: TObject);
-    procedure Button5Click(Sender: TObject);
-    procedure Button7Click(Sender: TObject);
+    procedure grpDIODblClick(Sender: TObject);
   private
     { Private declarations }
     // DIO
@@ -1465,6 +1465,16 @@ begin
   aTask.FreeOnTerminate := True;
   aTask.Start;
 
+  aTask := TThread.CreateAnonymousThread(
+  procedure begin
+    Common.SearchForFilesWithText(Common.Path.RootSW,'LGD_OC_');
+    Common.SearchForFilesWithText(Common.Path.RootSW,'OC_Converter');
+  end);
+  aTask.FreeOnTerminate := True;
+  aTask.Start;
+
+
+
   CreateClassData;
 
   Application.OnException := MyExceptionHandler;         // Added by KTS 2021-12-21 오후 3:34:52
@@ -1531,6 +1541,12 @@ begin
 //  else if ControlDio.ReadInSig(DefDio.IN_A_STAGE_IN_CAM) then begin
 //    Result:= 1;
 //  end;
+end;
+
+procedure TfrmMain_OC.grpDIODblClick(Sender: TObject);
+begin
+ Button4.Visible := not Button4.Visible;
+ CheckBox1.Visible := not CheckBox1.Visible;
 end;
 
 procedure TfrmMain_OC.Execute_AutoStart(nCH : Integer) ;
@@ -2801,24 +2817,6 @@ begin
             //Glass Position 보고
             UpdateECS_Glass_Position_Pair(nStage, pGUIMsg.Channel); //ECS_Glass_Postion  // Added by KTS 2023-03-23 오후 4:51:22
 
-//            if Common.StatusInfo.LastProduct then begin
-//              //잔량 처리일 경우Detect 검사 안하고 바로 시작한다.
-//
-//              if CheckDetect_Empty(nStage) then begin
-//                ShowSysLog(format('Last Product Process: Do not Start - Stage=%d  Empty', [nStage]));
-//                Exit;
-//              end;
-//
-//              //Unload가 남아 있으면
-//              if g_CommPLC.IsUnloadRequest_Robot(pGUIMsg.Channel) then begin
-//                ShowSysLog('Last Product Process: Do not Start - Unloading..');
-//                Exit;
-//              end;
-//
-//              ShowSysLog('Last Product Process: AutoStart');
-//              Execute_AutoStart(pGUIMsg.Channel);
-//              Exit;
-//            end; //if Common.StatusInfo.LastProduct then begin
 
             ShowSysLog(format('CheckDetect_Loaded CH=%d', [pGUIMsg.Channel]));
 
@@ -2909,41 +2907,6 @@ begin
               UpdateECS_Glass_Position_Pair(nStage, pGUIMsg.Channel); //ECS_Glass_Postion   // Added by KTS 2023-03-23 오후 4:51:33
             end;
 
-//            if Common.StatusInfo.LastProduct then begin
-//              //잔량 처리일 경우 Unload 완료 시 로드 된 것이 있으면 자동 시작
-//              //양쪽 모두 빈 경우
-//              //Unload가 남아 있으면
-//              if g_CommPLC.IsUnloadRequest_Robot(pGUIMsg.Channel) then begin
-//                ShowSysLog('Last Product Process: Do not Start - Unloading..');
-//                Exit;
-//              end;
-//
-//              if CheckDetect_Empty(nStage) and CheckDetect_Empty(nAnother) then begin
-//                ShowSysLog(format('Last Product Process: Do not Start - Stage=%d  Empty', [nStage]));
-//                Exit;
-//              end;
-//
-//              if not CheckDetect_Empty(nStage) then begin
-//                ShowSysLog('Last Product Process: AutoStart');
-//                Execute_AutoStart(pGUIMsg.Channel);
-//                Exit;
-//              end;
-//
-//              if not CheckDetect_Empty(nAnother) then begin
-//                //모든 스크립트 종료 되지 않았으면 통과
-//                for i := DefCommon.CH1 to DefCommon.MAX_CH do begin
-//                  //Stage의 모든 채널이 작업 종료일 때
-//                  if PasScr[i].m_bIsScriptWork then begin
-//                    ShowSysLog('Last Product Process: Do not Turn - Another Side is Working');
-//                    Exit;
-//                  end;
-//                end;
-////                ShowSysLog('Last Product Process: Turn - Another Side Detected');    // Added by KTS 2022-08-23 오후 3:41:00
-////                //턴 처리
-////                ThreadTurnStage;
-//              end;
-//              Exit;
-//            end;
             if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
               if not CheckEmpty_Pair(0,pGUIMsg.Channel) then
                 Robot_Request_Exchange_Load(pGUIMsg.Channel);
@@ -2992,7 +2955,7 @@ begin
           else begin
             PollingDoorOpened := False;
             if frmDoorOpenAlarmMsg <> nil then begin
-              frmDoorOpenAlarmMsg.CloseEnable(True);
+              frmDoorOpenAlarmMsg.CloseEnable(true);
             end;
           end;
 
@@ -3000,64 +2963,10 @@ begin
         end; //COMMPLC_PARAM_RESET_COUNT: begin
 
         COMMPLC_PARAM_LAST_PRODUCT: begin
-          //Last Product
-          //자기 Zone 해당 확인(A Zone(0):33,34,35,36, B Zone(1):37,38,39,40, C Zone(2):41,42,43,44)
-//          if pGUIMsg.Channel <> Common.PLCInfo.Zone then Exit;
 
-//          Common.StatusInfo.LastProduct:= pGUIMsg.Param2 <> 0;
-
-//          if Common.StatusInfo.LastProduct then begin
-//            ShowSysLog('Last Product: On');
-//
-//            if not Common.StatusInfo.AutoMode then begin
-//              ShowSysLog('Last Product: Not Auto mode');
-//              Exit;  //자동 모드 아니면 무시
-//            end;
-//
-//            if Common.StatusInfo.StageTurnning then begin
-//              ShowSysLog('Last Product: Turning..');
-//              Exit;  //Turn 중에는 무시
-//            end;
-//
-//            if not CheckDetect_Empty(nStage) then begin
-//              //1개라도 있으면 시작
-//              if CheckStage_Started(nStage) then begin
-//                ShowSysLog('Last Product Process: Do Not Start - Script is Running');
-//                Exit;
-//              end;
-//              ShowSysLog('Last Product Process: AutoStart');
-//              Execute_AutoStart(pGUIMsg.Channel);
-//            end
-//            else begin
-//              if CheckDetect_Empty(nAnother) then begin
-//                ShowSysLog('Last Product Process: Do not Turn - Another Side is empty');
-//                Exit;
-//              end;
-//
-//              //모든 스크립트 종료 되지 않았으면 통과
-//              for i := DefCommon.CH1 to DefCommon.MAX_CH do begin
-//                //Stage의 모든 채널이 작업 종료일 때
-//                if PasScr[i].m_bIsScriptWork then begin
-//                  ShowSysLog('Last Product Process: Do not Turn - Another Side is Working');
-//                  Exit;
-//                end;
-//              end;
-////              ShowSysLog('Last Product Process: Turn - Another Side Detected');     // Added by KTS 2022-08-23 오후 3:41:22
-////              //턴 처리
-////              ThreadTurnStage;
-//            end;
-//          end
-//          else begin
-//            ShowSysLog('Last Product: Off');
-//          end;
           
         end; //COMMPLC_PARAM_LAST_PRODUCT: begin
 
-//        COMMPLC_PARAM_INTERFACE_ERROR: begin
-//          //Reset count
-//          ShowSysLog('Robot Interface Error: ' + pGUIMsg.Msg);
-//          Set_AlarmData(117, pGUIMsg.Param2, 1); //경알람
-//        end; //COMMPLC_PARAM_INTERFACE_ALARM
       end; //case pGUIMsg.Param of //Robot 이벤트 종류
     end; //COMMPLC_MODE_EVENT_ROBOT: begin
   end;
@@ -4449,11 +4358,6 @@ try
             if not bStep then begin
               Exit;
             end;
-            // Added by sam81 2023-05-04 오후 1:17:23  ch 별 unloading
-            nRet := ControlDio.CheckPreOCPanelDetectCh(DefCommon.CH1, 1);
-            g_CommPLC.EQP_UnloadBeforeCh(DefCommon.CH_TOP,DefCommon.CH1,nRet);
-            nRet := ControlDio.CheckPreOCPanelDetectCh(DefCommon.CH2, 1);
-            g_CommPLC.EQP_UnloadBeforeCh(DefCommon.CH_TOP,DefCommon.CH2,nRet);
           end;
 
           frmTest4ChOC[nStage].ClearChData(0);
@@ -4564,6 +4468,26 @@ try
                   Exit;
                 end;
               end;
+            end;
+          end;
+
+          if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
+//            nRet := ControlDio.CheckOpenPinBlock(DefCommon.CH1);
+            bStep := true;
+            nRet := ControlDio.CheckPreOcUnloadStatus(DefCommon.CH3);
+            if nRet > 0 then begin
+              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock Close Status CH 3 - NG');
+//              Exit;
+              bStep := False;
+            end;
+            nRet := ControlDio.CheckPreOcUnloadStatus(DefCommon.CH4);
+            if nRet > 0 then begin
+              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock Close Status CH 4 - NG');
+//              Exit;
+              bStep := False;
+            end;
+            if not bStep then begin
+              Exit;
             end;
           end;
 
@@ -5580,7 +5504,9 @@ begin
 ////  if DongaGmes <> nil then
 ////   DongaGmes.SendR2REodsTest;
 ////
-//   Exit;
+  CSharpDll.MainOC_ChangeDLL('LGD_OC_X2146_v61.081_VARGB_1.5');
+  Edit1.Text := PAnsiChar(CSharpDll.m_GetOCversion);
+   Exit;
 
 
 
@@ -5617,26 +5543,10 @@ begin
 //  ShowMessage('File enable');
 end;
 
-procedure TfrmMain_OC.Button3Click(Sender: TObject);
-begin
-frmTest4ChOC[0].tmCheckIRTemp[2].Enabled := True;
-end;
-
 procedure TfrmMain_OC.Button4Click(Sender: TObject);
 begin
-frmTest4ChOC[0].tmCheckIRTemp[2].Enabled := false;
-end;
-
-procedure TfrmMain_OC.Button5Click(Sender: TObject);
-begin
-frmTest4ChOC[0].ShowIrTempData(5,220);
-frmTest4ChOC[0].ShowIrTempData(6,220);
-end;
-
-procedure TfrmMain_OC.Button7Click(Sender: TObject);
-begin
-frmTest4ChOC[0].ShowIrTempData(5,220);
-frmTest4ChOC[0].ShowIrTempData(6,220);
+  Common.AutoReStart := not Common.AutoReStart;
+  CheckBox1.Checked := Common.AutoReStart;
 end;
 
 procedure TfrmMain_OC.SaveCsvSummaryLog(nCh: Integer);
@@ -5788,11 +5698,11 @@ begin
         if (nIndex = DefDio.IN_GIB_CH_12_EMO_SWITCH) or (nIndex = DefDio.IN_GIB_CH_12_EMO_SWITCH) then
           ShowNgMessage('Please press the Initialize button');
       end;
-      if nIndex = g_CommPLC.m_nLastCode then
-        g_CommPLC.ECS_Alarm_Add(1, g_CommPLC.m_nLastCode , 0);  // Added by KTS 2022-08-04 오후 4:31:41
+      if nIndex = g_CommPLC.m_nLastHeavyCode then
+        g_CommPLC.ECS_Alarm_Add(1, g_CommPLC.m_nLastHeavyCode , 0);  // Added by KTS 2022-08-04 오후 4:31:41
 
       bAlarm:= false;
-      for i := 0 to 80 do begin
+      for i := 0 to 150 do begin
         if Common.StatusInfo.AlarmData[i] <> 0 then bAlarm:= True;
       end;
 
@@ -6929,10 +6839,15 @@ begin
         end;
         MSG_TYPE_DLL : begin
           sMsg  := string(pGUIMsg.Msg);
-          if pGUIMsg.Param = 1 then
-            pnlLGDDLLName.Caption :=  sMsg
+          if pGUIMsg.Param = 1 then begin
+            pnlLGDDLLName.Caption :=  sMsg;
+            Common.SystemInfo.LGD_DLLVER_Name := sMsg;
+            ShowSysLog(Format('LGDDLLNam : %s',[sMsg]), 0);
+          end
           else if pGUIMsg.Param = 2 then begin
             pnlOC_conVer.Caption :=  sMsg;
+            ShowSysLog(Format('DAE_DLLNam : %s',[sMsg]), 0);
+            Common.SystemInfo.OC_Converter_Name := sMsg;
             if Length(sMsg) = 0 then
               ShowNgMessage('OC_Converter.dll VER Verifying the Version');
           end;
@@ -7078,7 +6993,8 @@ begin
                 ledCam1.FalseColor := clRed;
                 if PSyncCa(PCopyDataStruct(Msg.LParam)^.lpData)^.bError then begin
                   ledCam1.Value := False;
-
+                  if g_CommPLC <> nil then
+                    Set_AlarmData(100, 1, 1);
                   ShowSysLog(sMsg, 1);
 
                 end
@@ -7090,7 +7006,8 @@ begin
                 ledCam2.FalseColor := clRed;
                 if PSyncCa(PCopyDataStruct(Msg.LParam)^.lpData)^.bError then begin
                   ledCam2.Value := False;
-
+                  if g_CommPLC <> nil then
+                    Set_AlarmData(101, 1, 1);
                   ShowSysLog(sMsg, 1);
 
                 end
@@ -7102,7 +7019,8 @@ begin
                 ledCam3.FalseColor := clRed;
                 if PSyncCa(PCopyDataStruct(Msg.LParam)^.lpData)^.bError then begin
                   ledCam3.Value := False;
-
+                  if g_CommPLC <> nil then
+                    Set_AlarmData(102, 1, 1);
                   ShowSysLog(sMsg, 1);
 
                 end
@@ -7114,6 +7032,8 @@ begin
                 ledCam4.FalseColor := clRed;
                 if PSyncCa(PCopyDataStruct(Msg.LParam)^.lpData)^.bError then begin
                   ledCam4.Value := False;
+                  if g_CommPLC <> nil then
+                    Set_AlarmData(103, 1, 1);
                   ShowSysLog(sMsg, 1);
 
                 end
@@ -7135,94 +7055,6 @@ begin
 {$ENDIF}
     end;
 
-    DefCommon.MSG_TYPE_CAMERA : begin
-      nMode := PSyncCa(PCopyDataStruct(Msg.LParam)^.lpData)^.MsgMode;
-      nTemp := PSyncCa(PCopyDataStruct(Msg.LParam)^.lpData)^.nParam;
-      // nCh은 해당 Jig로 사용.
-      case nMode of
-        DefCommon.MSG_MODE_CA310_STATUS : begin
-          // nTemp = 0 이면 해당 Channel 사용하지 않음. 아니면 사용.
-          if nTemp = 0 then begin
-            case nCh of
-              DefCommon.CH1 : begin
-                ledCam1.FalseColor := clGray;
-                ledCam1.Value := False;
-              end;
-              DefCommon.CH2 : begin
-                ledCam2.FalseColor := clGray;
-                ledCam2.Value := False;
-              end;
-              DefCommon.CH3 : begin
-                ledCam3.FalseColor := clGray;
-                ledCam3.Value := False;
-              end;
-              DefCommon.CH4 : begin
-                ledCam4.FalseColor := clGray;
-                ledCam4.Value := False;
-              end;
-            end;
-          end
-          else begin
-            nTemp := Common.SystemInfo.Com_Ca310_DevieId[nCh];
-            sSubMsg := Format('USB ID (COMM%d)',[nTemp]);
-            sMsg  := 'CA410 ERROR : '+ PSyncCa(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg;
-            case nCh of
-              DefCommon.CH1 : begin
-                ledCam1.FalseColor := clRed;
-//                pnlCa310Com1.Caption := sSubMsg;
-                if PSyncCa(PCopyDataStruct(Msg.LParam)^.lpData)^.bError then begin
-                  ledCam1.Value := False;
-                  ShowNgMessage(sMsg);
-                end
-                else begin
-                  ledCam1.Value := True;
-                end;
-              end;
-              DefCommon.CH3 : begin
-                ledCam3.FalseColor := clRed;
-//                pnlCa310Com1.Caption := sSubMsg;
-                if PSyncCa(PCopyDataStruct(Msg.LParam)^.lpData)^.bError then begin
-                  ledCam3.Value := False;
-                  ShowNgMessage(sMsg);
-                end
-                else begin
-                  ledCam3.Value := True;
-                end;
-              end;
-              DefCommon.CH2 : begin
-                ledCam2.FalseColor := clRed;
-//                pnlCa310Com1.Caption := sSubMsg;
-                if PSyncCa(PCopyDataStruct(Msg.LParam)^.lpData)^.bError then begin
-                  ledCam2.Value := False;
-                  ShowNgMessage(sMsg);
-                end
-                else begin
-                  ledCam2.Value := True;
-                end;
-              end;
-              DefCommon.CH4 : begin
-                ledCam4.FalseColor := clRed;
-//                pnlCa310Com1.Caption := sSubMsg;
-                if PSyncCa(PCopyDataStruct(Msg.LParam)^.lpData)^.bError then begin
-                  ledCam4.Value := False;
-                  ShowNgMessage(sMsg);
-                end
-                else begin
-                  ledCam4.Value := True;
-                end;
-              end;
-            end;
-          end;
-
-        end;
-        DefCommon.MSG_MODE_CA310_NG : begin
-          if PSyncCa(PCopyDataStruct(Msg.LParam)^.lpData)^.bError then begin
-            Common.MLog(DefCommon.MAX_SYSTEM_LOG,PSyncCa(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
-          end;
-        end;
-      end;
-
-    end;
     DefCommon.MSG_TYPE_IONIZER : begin
       nMode := PGuiIonizer(PCopyDataStruct(Msg.LParam)^.lpData)^.Mode;
       sMsg  := string(PGuiIonizer(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
@@ -7369,7 +7201,7 @@ begin
     Common.StatusInfo.AlarmMsg[10]:= 'CH 1,2 RIGHT DOOR OPEN (DI06)';
     Common.StatusInfo.AlarmMsg[11]:= 'CH 3,4 LEFT DOOR OPEN (DI07)';
     Common.StatusInfo.AlarmMsg[12]:= 'CH 3,4 RIGHT DOOR OPEN (DI08)';
-    Common.StatusInfo.AlarmMsg[13]:= 'MC MONITORING - NEED RESET BUTTON (DI09)';
+    Common.StatusInfo.AlarmMsg[13]:= 'MC MONITORING (DI09) - NEED RESET BUTTON (DO10)';
     Common.StatusInfo.AlarmMsg[14]:= 'N/A 14';
     Common.StatusInfo.AlarmMsg[15]:= 'N/A 15';
 
@@ -7512,8 +7344,8 @@ begin
 
     Common.StatusInfo.AlarmMsg[8]:= 'CH 1,2 MUTING sensing (DI08)';
     Common.StatusInfo.AlarmMsg[9]:= 'CH 3,4 MUTING sensing (DI09)';
-    Common.StatusInfo.AlarmMsg[10]:= 'CH 1,2 MC MONITORING - NEED RESET BUTTON (DI10)';
-    Common.StatusInfo.AlarmMsg[11]:= 'CH 3,4 MC MONITORING - NEED RESET BUTTON (DI11)';
+    Common.StatusInfo.AlarmMsg[10]:= 'CH 1,2 MC MONITORING (DI10) - NEED RESET BUTTON (DO06)';
+    Common.StatusInfo.AlarmMsg[11]:= 'CH 3,4 MC MONITORING (DI11) - NEED RESET BUTTON (DI07)';
     Common.StatusInfo.AlarmMsg[12]:= 'TEMPERATURE ALARM (DI12)';
     Common.StatusInfo.AlarmMsg[13]:= 'N/A 13';
     Common.StatusInfo.AlarmMsg[14]:= 'N/A 14';

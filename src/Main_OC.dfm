@@ -765,6 +765,7 @@ object frmMain_OC: TfrmMain_OC
       GroupStyle = gsUnderline
       ParentFont = False
       TabOrder = 3
+      OnDblClick = grpDIODblClick
     end
     object grpPwrInfo: TRzGroupBox
       Left = 1
@@ -1275,6 +1276,24 @@ object frmMain_OC: TfrmMain_OC
         NumGlyphs = 2
       end
     end
+    object Button4: TButton
+      Left = 15
+      Top = 557
+      Width = 75
+      Height = 25
+      Caption = 'AUTO Restart'
+      TabOrder = 10
+      Visible = False
+      OnClick = Button4Click
+    end
+    object CheckBox1: TCheckBox
+      Left = 15
+      Top = 534
+      Width = 97
+      Height = 17
+      TabOrder = 11
+      Visible = False
+    end
   end
   object RzStatusBar1: TRzStatusBar
     Left = 0
@@ -1545,7 +1564,7 @@ object frmMain_OC: TfrmMain_OC
     TabOrder = 4
   end
   object Button1: TButton
-    Left = 8
+    Left = 150
     Top = 559
     Width = 75
     Height = 25
@@ -1555,8 +1574,8 @@ object frmMain_OC: TfrmMain_OC
     OnClick = Button1Click
   end
   object Edit1: TEdit
-    Left = 79
-    Top = 592
+    Left = 138
+    Top = 590
     Width = 121
     Height = 21
     TabOrder = 6

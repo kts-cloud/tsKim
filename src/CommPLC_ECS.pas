@@ -332,7 +332,8 @@ type
     MessageHandle: THandle;
     MessageHandleTest1: THandle;
     MessageHandleTest2: THandle;
-    m_nLastCode : integer;
+    m_nLastHeavyCode : integer;
+    m_nLastLightCode : integer;
     /// <summary> SendMessage에서 사용할 MsgType</summary>
     MessageType: Int64;
     /// <summary> 폴링 간격. Runtime 변경 가능</summary>
@@ -1064,17 +1065,28 @@ function TCommPLCThread.ECS_Alarm_Add(nAlarmType, nAlarmCode, nOnOff: Integer): 
 var
   item: TAlarmItem;
 begin
+  if g_CommPLC = nil then Exit;
 
   if not Connected then Exit(1);
+  if (m_nStatus  = 3) and (nOnOff = 1) then Exit;
+  if (nAlarmType  = 0) and (nOnOff = 1) and ( m_nLastLightCode <> 0) then Exit;
+  if (nAlarmType  = 0) and (nOnOff = 0) and ( m_nLastLightCode = 0) then Exit;
+
+
   AddLog(format('ECS_MES_AddItem nAlarmType=%d, nAlarmCode=%d OnOff=%d', [nAlarmType, nAlarmCode, nOnOff ]));
   item.AlarmType:= nAlarmType;
   item.AlarmCode:= nAlarmCode;
   item.AlarmValue:= nOnOff;
   m_AlarmQue.Enqueue(item);
-  if (m_nStatus  = 3) and (nOnOff = 1) then Exit;
 
   ECS_Alarm_Report(nAlarmType,nAlarmCode, nOnOff);
-  m_nLastCode := nAlarmCode;
+  if nAlarmType = 1 then
+    m_nLastHeavyCode := nAlarmCode;
+  if nAlarmType = 0 then begin
+    m_nLastLightCode := nAlarmCode;
+    if nOnOff = 0 then
+      m_nLastLightCode := 0;
+  end;
   Result:= 0;
 end;
 
@@ -1325,7 +1337,7 @@ begin
 //  AddLog(format('ECS_Lost_Glass_Request GlassCode=%d, GlassID=%s, CarrierID=%s', [AGlassData.GlassCode ,AGlassData.GlassID, AGlassData.CarrierID]));
   if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
 //    sEcsBitAddr :=  'B'+IntToHex(StartAddr_ECS+ $100+nIndex, 3)
-    sECSBitAddr := 'B'+IntToHex(StartAddr_ECS+ $10 * $10 + EQP_ID - 6 , 3);
+    sECSBitAddr := 'B'+IntToHex(StartAddr_ECS+ $100 + (EQP_ID - 6) mod 16 , 3);
   end
   else begin
     sEcsBitAddr := 'B'+IntToHex(StartAddr_ECS+ $100+nIndex, 3);
@@ -1490,6 +1502,7 @@ var
   nEqpOnlineMode : Integer;
   nCh : integer;
 begin
+  if g_CommPLC = nil then Exit;
 
   if not Connected then Exit(1);
 
@@ -2089,8 +2102,9 @@ begin
   if not Connected then Exit(1);
 
   Result:= 0;
-  sMsg := format('EQP_UNLOAD_CH : Jig=%d Ch=%d OnOff=%d',[nJig,nCh,nOnOff]);
+  sMsg := format('EQP_UNLOAD_CH : Jig=%d Ch=%d OnOff=%d',[nJig,nCh +1,nOnOff]);
   AddLog(sMsg);
+  SendMessageTest(COMMPLC_MODE_LOG_ECS, nCh, 0, 0, sMsg);
   nTempCh := nCh mod 2;
   if Common.SystemInfo.OCType = Defcommon.OCType then begin
 
@@ -2237,7 +2251,7 @@ begin
   nIndex := (EQP_ID + 13) mod 16;
   ConvertStrToPLC(sPanelID, 16, naGlassData[0]); //문자는 Word당 2글자
   if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
-    sECSBitAddr := 'B'+IntToHex(StartAddr_ECS+ $10 * $20 + EQP_ID - 6, 3);
+    sECSBitAddr := 'B'+IntToHex(StartAddr_ECS+ $10 * $20 + (EQP_ID - 6) mod 16, 3);
   end
   else begin
     sECSBitAddr := 'B'+IntToHex(StartAddr_ECS+ $200+nIndex, 3);
@@ -2822,9 +2836,9 @@ begin
 
 //    Alarm Que에 꺼내어 처리
 // alarm 보고 필요 // Added by sam81 2023-05-01 오후 5:12:12
-    if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
-      Process_AlarmQue;
-    end;
+//    if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
+//      Process_AlarmQue;
+//    end;
 
     //MES Que에 꺼내어 처리
 //    Process_MESQue;
@@ -2882,47 +2896,6 @@ begin
 
   if Terminated then Exit;
 
-//
-//  //POCB EQP_ID 시작이 33이다. 33이 1번 장비
-//  case EQP_ID of
-//    12, 13: begin
-//      nRet:= ReadDevice('B230D', nValue); //Robot Door #1 - 1, 2호기
-//    end;
-//    14, 15: begin
-//      nRet:= ReadDevice('B236D', nValue); //Robot Door #3 - 3,4 호기
-//    end;
-//    16, 17: begin
-//      nRet:= ReadDevice('B239D', nValue); //Robot Door #4 - 5,6 호기
-//    end;
-//    18, 19: begin
-//      nRet:= ReadDevice('B240D', nValue); //Robot Door #6 - 7,8, 호기
-//    end;
-//    20, 21: begin
-//      nRet:= ReadDevice('B243D', nValue); //Robot Door #7 - 9, 10 호기
-//    end;
-//    23, 24: begin
-//      nRet:= ReadDevice('B249D', nValue); //Robot Door #9 - 11, 12 호기
-//    end;
-//    25, 26: begin
-//      nRet:= ReadDevice('B249D', nValue); //Robot Door #9 - 11, 12 호기
-//    end;
-//    27, 28: begin
-//      nRet:= ReadDevice('B249D', nValue); //Robot Door #9 - 11, 12 호기
-//    end;
-//    29, 30: begin
-//      nRet:= ReadDevice('B249D', nValue); //Robot Door #9 - 11, 12 호기
-//    end;
-//    else begin
-//(*
-//      nRet:= ReadDevice('B233D', nValue); //Robot Door #2
-//      nRet:= ReadDevice('B23CD', nValue); //Robot Door #5
-//      nRet:= ReadDevice('B246D', nValue); //Robot Door #8
-//*)
-//    end;
-//  end;
-//  if nRet <> 0 then begin
-//    AddLog('Polling Door Open ReadDevice Fail');
-//  end;
   if InlineGIB then begin
     nRet := ReadDevice('B030', nValue , False);
     PollingAABMode := nValue;
@@ -3107,7 +3080,6 @@ try
   for i := 0 to Pred(m_nRobotDataSize) do begin
 //    AddLog(format('<< COMMPLC_ROBOT_DATASIZE  %d', [ i]),True);
     if  PollingData[i] = PollingDataPre[i] then continue;
-    if not Common.StatusInfo.AutoMode then Exit;
 
     for k := 0 to 15 do begin
       nValue:= Get_Bit(PollingData[i], k);
@@ -3116,6 +3088,17 @@ try
         AddLog(format('<< ChangedDevice ROBOT %s: %d', ['B' + IntToHex(StartAddr_ROBOT+nIndex, 3), nValue]), True);
 
         case nIndex of
+          $0F, $1F, $2F, $3F: begin
+            if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
+              if nValue <> 0 then Process_Door_Open_Info(0)
+              else  Process_Door_Open_Info(1);
+            end;
+          end;
+        end;
+
+        if not Common.StatusInfo.AutoMode then Exit;
+        case nIndex of
+
           $01: begin //Galss Data Report
             if nValue <> 0 then Process_ROBOT_GlassData_Report(0)
           end;
@@ -3230,32 +3213,6 @@ try
             end;
           end;
 
-          $1D: begin //Robot Inspection Start
-            //Process_ROBOT_InspectionStart(0, nValue);
-          end;
-          $3D: begin //Robot Inspection Start
-            //Process_ROBOT_InspectionStart(1, nValue);
-          end;
-
-          $1E: begin //Robot Reset Count
-            //Process_ROBOT_ResetCount(0, nValue);
-          end;
-          $3E: begin //Robot Reset Count
-            //Process_ROBOT_ResetCount(1, nValue);
-          end;
-
-          $1F: begin //Robot Last Product
-            //Process_ROBOT_LastProduct(0, nValue);
-          end;
-          $3F: begin //Robot Last Product
-            //Process_ROBOT_LastProduct(1, nValue);
-//            if InlineGIB = True then begin
-//              //Inline GIB - 조립라인은 시작 주소가 5600부터- 궁여지책
-//              AddLog(format('Process_ROBOT_LastProduct Index=%d, Value=%d', [nIndex, nValue]));
-//              nIndex:= (EQP_ID - 33) div 4; //Zone 구분을 위한 계산  0=A Zone, 1=B Zone, 2=C zone
-//              SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, nIndex, COMMPLC_PARAM_LAST_PRODUCT, nValue, 'Process_ROBOT_LastProduct', nil);
-//            end;
-          end;
 
           else begin
             //SendMessageMain(COMMPLC_MODE_CHANGE_ROBOT, 0, nIndex, 0, 'ROBOT Chnage Data', nil);

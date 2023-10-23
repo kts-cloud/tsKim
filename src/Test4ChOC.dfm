@@ -296,8 +296,8 @@ object frmTest4ChOC: TfrmTest4ChOC
     Text = ''
     FullHeight = 200
     object btnSWNext1: TRzBitBtn
-      Left = 4
-      Top = 166
+      Left = 5
+      Top = 165
       Width = 181
       Caption = 'Next'
       HotTrack = True
