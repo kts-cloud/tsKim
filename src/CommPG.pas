@@ -123,6 +123,7 @@ type
     SimTconData   : array[0..SIM_TCON_SIZE] of Byte;
     SimAPSRegData : array[0..SIM_APSREG_SIZE] of Byte;
     {$ENDIF}
+    sPreviousCommand : string;
 	public
     //================================================================= COMMON
     //------------------------------------------------------ GUI Handle
@@ -726,13 +727,15 @@ end;
 //	procedure/function
 //		- procedure TUdpServerPG.UdpSvrSend(nPg: Integer; sData: string);
 //
+
 procedure TUdpServerPG.UdpSvrSend(nBindIdx, nPg: Integer; sData: string);
 var
   sPeerIP   : string;
-	nLocalPort, nPeerPort : Integer;
+  nLocalPort, nPeerPort : Integer;
 
-  nDebugMsgType : integer;
-  sLocal, sRemote : string;
+  nDebugMsgType: Integer;
+  sLocal, sRemote, logMessage: string;
+  MaxRetries: Integer;
 begin
   if udpSvr = nil then Exit;
 
@@ -740,36 +743,101 @@ begin
   sPeerIP    := PG[nPg].PG_IPADDR;
   nPeerPort  := PG[nPg].PG_IPPORT;
 
-  // debug/maint log
+  // Debug/maint log
   nDebugMsgType := DEBUG_LOG_MSGTYPE_INSPECT;
-{$IFDEF DP860_TBD_XXXX} //TBD:DP860?
-  if (btSigId = DefPG.SIG_PG_CONN_CHECK)        then nDebugMsgType := DEBUG_LOG_MSGTYPE_CONNCHECK
-  else if (btSigId = DefPG.SIG_PG_READ_VOLTCUR) then nDebugMsgType := DEBUG_LOG_MSGTYPE_POWERREAD;
-{$ENDIF}
-//sLocal     := Format('%s/%d',[DefPG.CommPG_PC_IPADDR,nLocalPort]);
-//sRemote    := Format('%s/%d',[sPeerIP,nPeerPort]);
-  sLocal     := Format('%d',[nLocalPort]);
-  sRemote    := Format('%d',[nPeerPort]);
-  if (Common.m_nDebugLogLevelActive >= nDebugMsgType) then
-		Common.DebugLog(nPg, nDebugMsgType, 'TX', sLocal,sRemote, sData);
-    {$IFDEF PG_DP860}
-    if PG[nPg].FIsMainter and Assigned(PG[nPg].OnTxMaintEventPG) and (nDebugMsgType = DEBUG_LOG_MSGTYPE_INSPECT) then begin
-      PG[nPg].OnTxMaintEventPG(nPg, sLocal,sRemote, sData);
-    end;
-    {$ENDIF}
 
-  try
-    udpSvr.Bindings[nBindIdx].SendTo(PG[nPg].PG_IPADDR,PG[nPg].PG_IPPORT, sData);
-  except
-    if (Common.m_nDebugLogLevelActive >= nDebugMsgType) then
-  		Common.DebugLog(nPg, nDebugMsgType, 'TX', sLocal,sRemote, sData+' ...TX_NG');
-    {$IFDEF PG_DP860}
-    if PG[nPg].FIsMainter and Assigned(PG[nPg].OnTxMaintEventPG) and (nDebugMsgType = DEBUG_LOG_MSGTYPE_INSPECT) then begin
-      PG[nPg].OnTxMaintEventPG(nPg, sLocal,sRemote, sData+' ...TX_NG');
+
+  sLocal  := Format('%d', [nLocalPort]);
+  sRemote := Format('%d', [nPeerPort]);
+  logMessage := Format('TX %s/%s: %s', [sLocal, sRemote, sData]);
+
+  if (Common.m_nDebugLogLevelActive >= nDebugMsgType) then
+    Common.DebugLog(nPg, nDebugMsgType, 'TX', sLocal,sRemote, sData);
+
+  {$IFDEF PG_DP860}
+  if PG[nPg].FIsMainter and Assigned(PG[nPg].OnTxMaintEventPG) and (nDebugMsgType = DEBUG_LOG_MSGTYPE_INSPECT) then
+    PG[nPg].OnTxMaintEventPG(nPg, sLocal, sRemote, sData);
+  {$ENDIF}
+
+  MaxRetries := 3; // Adjust the number of retries as needed
+  while MaxRetries > 0 do
+  begin
+    try
+      udpSvr.Bindings[nBindIdx].SendTo(PG[nPg].PG_IPADDR, PG[nPg].PG_IPPORT, sData);
+      // Packet sent successfully
+      Exit;
+    except
+      on E: Exception do
+      begin
+        // 예외 처리 코드 추가
+        PG[nPg].ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG, 'UdpSvrSend : Error: ' + E.Message);
+        if (Common.m_nDebugLogLevelActive >= nDebugMsgType) then
+          Common.DebugLog(nPg, nDebugMsgType, 'TX', sLocal,sRemote, sData+' ...TX_NG');
+        {$IFDEF PG_DP860}
+        if PG[nPg].FIsMainter and Assigned(PG[nPg].OnTxMaintEventPG) and (nDebugMsgType = DEBUG_LOG_MSGTYPE_INSPECT) then
+          PG[nPg].OnTxMaintEventPG(nPg, sLocal, sRemote, sData + ' ...TX_NG');
+        {$ENDIF}
+      end;
     end;
-    {$ENDIF}
+
+    // Wait and then retry (you can adjust the sleep duration as needed)
+    Sleep(1000); // Sleep for 1 second before retrying
+    Dec(MaxRetries);
   end;
+
+  // If all retries fail, handle the failure appropriately (e.g., log the failure)
+  // ...
 end;
+
+//procedure TUdpServerPG.UdpSvrSend(nBindIdx, nPg: Integer; sData: string);
+//var
+//  sPeerIP   : string;
+//	nLocalPort, nPeerPort : Integer;
+//
+//  nDebugMsgType : integer;
+//  sLocal, sRemote : string;
+//begin
+//  if udpSvr = nil then Exit;
+//
+//  nLocalPort := udpSvr.Bindings[nBindIdx].Port;
+//  sPeerIP    := PG[nPg].PG_IPADDR;
+//  nPeerPort  := PG[nPg].PG_IPPORT;
+//
+//  // debug/maint log
+//  nDebugMsgType := DEBUG_LOG_MSGTYPE_INSPECT;
+//{$IFDEF DP860_TBD_XXXX} //TBD:DP860?
+//  if (btSigId = DefPG.SIG_PG_CONN_CHECK)        then nDebugMsgType := DEBUG_LOG_MSGTYPE_CONNCHECK
+//  else if (btSigId = DefPG.SIG_PG_READ_VOLTCUR) then nDebugMsgType := DEBUG_LOG_MSGTYPE_POWERREAD;
+//{$ENDIF}
+////sLocal     := Format('%s/%d',[DefPG.CommPG_PC_IPADDR,nLocalPort]);
+////sRemote    := Format('%s/%d',[sPeerIP,nPeerPort]);
+//  sLocal     := Format('%d',[nLocalPort]);
+//  sRemote    := Format('%d',[nPeerPort]);
+//  if (Common.m_nDebugLogLevelActive >= nDebugMsgType) then
+//		Common.DebugLog(nPg, nDebugMsgType, 'TX', sLocal,sRemote, sData);
+//    {$IFDEF PG_DP860}
+//    if PG[nPg].FIsMainter and Assigned(PG[nPg].OnTxMaintEventPG) and (nDebugMsgType = DEBUG_LOG_MSGTYPE_INSPECT) then begin
+//      PG[nPg].OnTxMaintEventPG(nPg, sLocal,sRemote, sData);
+//    end;
+//    {$ENDIF}
+//
+//  try
+//    udpSvr.Bindings[nBindIdx].SendTo(PG[nPg].PG_IPADDR,PG[nPg].PG_IPPORT, sData);
+//  except
+//    on E: Exception do
+//    begin
+//      // 예외 처리 코드 추가
+//      PG[nPg].ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG,'UdpSvrSend : Error : '+ E.Message);
+//      if (Common.m_nDebugLogLevelActive >= nDebugMsgType) then
+//        Common.DebugLog(nPg, nDebugMsgType, 'TX', sLocal,sRemote, sData+' ...TX_NG');
+//      {$IFDEF PG_DP860}
+//      if PG[nPg].FIsMainter and Assigned(PG[nPg].OnTxMaintEventPG) and (nDebugMsgType = DEBUG_LOG_MSGTYPE_INSPECT) then begin
+//        PG[nPg].OnTxMaintEventPG(nPg, sLocal,sRemote, sData+' ...TX_NG');
+//      end;
+//      {$ENDIF}
+//    end;
+//  end;
+//end;
 
 //##############################################################################
 {$ENDIF} //PG_DP860 ############################################################
@@ -3963,7 +4031,7 @@ begin
   Inc(TconRWCnt.TconReadTX); //2023-03-28 jhhwang (for T/T Test)
   TconRWCnt.ContTConOcWrite := 0; //2023-03-28 jhhwang (for T/T Test)
   //
-  sEtcMsg  := '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr+ '-' + FTxRxPG.RxPrevStr) + ']';
+  sEtcMsg  := '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr) +  '-' + FTxRxPG.RxPrevStr + ']';
   if Result = WAIT_OBJECT_0 then begin
     try
       arCmdAck := FTxRxPG.RxAckStr.Split([#$0D]);
@@ -4033,7 +4101,7 @@ begin
 	end;
 	Result := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
 
-  sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr +'-' + FTxRxPG.RxPrevStr)+']';
+  sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr) +'-' + FTxRxPG.RxPrevStr+']';
 
   sDebug := '<PG> ' + sCommand + #13#10 + DP860_GetStrCmdResult(Result) + sEtcMsg;
   ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
@@ -4120,19 +4188,30 @@ begin
   sCommand := sCmdName + ' ' + Format('%d %d %d %0.4x %0.2x',[nMode,nSeqIdx,nDataCnt,CrcAddr,CrcData]) + sCommand;
 
 	Result := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+  if Common.SystemInfo.PG_TconOcWriteDelayMsec > 0 then
+    Sleep(Common.SystemInfo.PG_TconOcWriteDelayMsec)
+  else if Common.SystemInfo.PG_TconOcWriteDelayMicroSec > 0 then
+    Common.SleepMicro(Common.SystemInfo.PG_TconOcWriteDelayMicroSec)  // SleepMicro 적용
+  else begin
+
+  end;
   Inc(TconRWCnt.TconOcWriteTX);   //2023-03-28 jhhwang (for T/T Test)
   Inc(TconRWCnt.ContTConOcWrite); //2023-03-28 jhhwang (for T/T Test)
 
   if Result <> WAIT_OBJECT_0 then begin
-    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr +'-' + FTxRxPG.RxPrevStr)+']';
+    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr) +'-' + FTxRxPG.RxPrevStr+']';
 //    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
   end;
   //
-if (Common.SystemInfo.DebugLogLevelConfig > 0) or (Result <> 0) then begin
+  if (Common.SystemInfo.DebugLogLevelConfig > 0) or (Result <> 0) then begin
 //  if ((Common.SystemInfo.DebugLogLevelConfig > 0) and Common.SystemInfo.PG_TconWriteLogDisplay) or (Result <> 0) then begin
+    sDebug := '<PG> Previous Command : ' + sPreviousCommand;
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
     sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
     ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
   end;
+  if Result = 0 then
+    sPreviousCommand := sCommand;
 end;
 
 {$IFDEF FEATURE_FLASH_ACCESS}
@@ -5723,10 +5802,24 @@ begin
           end
           else begin
             Result := DP860_SendTconWrite(nRegAddr,nDataCnt,arDataW, nWaitMS,nRetry);
+            if Common.SystemInfo.PG_TconOcWriteDelayMsec > 0 then
+              Sleep(Common.SystemInfo.PG_TconOcWriteDelayMsec)
+            else if Common.SystemInfo.PG_TconOcWriteDelayMicroSec > 0 then
+              Common.SleepMicro(Common.SystemInfo.PG_TconOcWriteDelayMicroSec)  // SleepMicro 적용
+            else begin
+
+            end;
           end;
         end;
         1 : begin // all tcon.write (ack)
     			Result := DP860_SendTconWrite(nRegAddr,nDataCnt,arDataW, nWaitMS,nRetry);
+          if Common.SystemInfo.PG_TconOcWriteDelayMsec > 0 then
+            Sleep(Common.SystemInfo.PG_TconOcWriteDelayMsec)
+          else if Common.SystemInfo.PG_TconOcWriteDelayMicroSec > 0 then
+            Common.SleepMicro(Common.SystemInfo.PG_TconOcWriteDelayMicroSec)  // SleepMicro 적용
+          else begin
+
+          end;
         end;
         2 : begin // default tcon.ocwrite + selective tcon.write only if SyncAddr
           bWriteSync := False;

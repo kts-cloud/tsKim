@@ -82,6 +82,8 @@ type
     EQPId_PGIB					: String;  //PGIB EQP ID
     EQPId_MGIB_Process_Code : string; // LPIR 관련 Process_Code
     EQPId_PGIB_Process_Code : string; // LPIR 관련 Process_Code
+
+
     PIDLengthLimit      : Integer;
     ZIGLengthLimit      : Integer;
     Eas_Service         : string;
@@ -95,7 +97,7 @@ type
     R2R_LocalSubject    : string;
     R2R_RemoteSubject   : string;
     Service_Cnt : integer;
-
+    MES_CODE_Cnt : Integer;
     MesModelInfo        : string; //PCHK에서 Model_Info 값에  사용할 모델 이름. 혼입 방지용  - LH606WF2
 //    Language						: Integer;
     Loader_Index				: string;
@@ -662,6 +664,7 @@ type
     SimulateInfo : TSimulateInfo;
     OpticInfo    : TOcInfo;
     ModelInfo    : TMODELINFO;
+
 //    ModelInfo2   : TModelInfo2;
     PatGrpInfo   : TPatterGroup;
 //    TempModelInfo  : TMODELINFO;
@@ -691,7 +694,7 @@ type
     m_bModelInfoNg : Boolean;
     procedure SetResolution(nH, nV : Word);
     procedure LoadOcTables(nIdxOcTables : Integer);
-    procedure LoadMesCode;
+    function LoadMesCode : Integer;
   public
     AutoReStart : Boolean;
     loadAllPat    : TDongaPat;
@@ -817,6 +820,7 @@ type
     function FetchNetworkFile(const networkPath, localPath: string): Boolean;
     function StringToIdBytes(const AStr: string): TIdBytes;
 
+    procedure LoadDeleteFile;
     procedure SearchForFilesWithText(sdirectoryPath,sSearchText : string);
     function Make_reference_All_DBV_Gray_Data(fDBV: Double): TArray<Double>;
     function Find_Gray_index_Near_Target(fDBV, Target_Lv: Double): TArray<Double>;
@@ -1325,6 +1329,7 @@ begin
   loadAllPat    := TDongaPat.Create(nil);
   scrSequnce      := TStringList.Create;
   LoadBaseData;
+
   m_csvLine :=	0;
   m_csvFile :=	0;
   m_nCurPosZAxis := 0;
@@ -2439,7 +2444,8 @@ begin
   LoadPsuFile;
   // Load OC Param.
   LoadOcData;
-  LoadMesCode;
+  if LoadMesCode < SystemInfo.MES_CODE_Cnt then  // MES CODE 갯수 로
+    ShowMessage('<SYSTEM> Please check MES_CODE.CSV');
   //LoadPLCInfo; //임시 주석
   LoadCompiledFiles;
 end;
@@ -2823,7 +2829,106 @@ begin
 
 end;
 
-procedure TCommon.LoadMesCode;
+function TCommon.LoadMesCode : Integer;
+var
+  sErrMsg, sErrCode, sFileName, sReadData, sCrcData : string;
+  txtF    : Textfile;
+  lstTemp, lstCrc, lstErrCode : TStringList;
+  nRow , nDataCount: Integer;
+  i: Integer;
+begin
+//{$IFDEF ISPD_L_OPTIC}
+  Result := 0;
+  m_Ver.MES_CSV := '';
+  sCrcData := '';
+  m_nGmesInfoCnt := 0;
+  sFileName := Path.Ini + 'MES_CODE.csv';
+  if (not FileExists(sFileName)) or (sFileName = '') then begin
+    sErrMsg := #13#10 + 'Input Error! MES CODE File [' + sFileName + '] cannot be loaded!';
+    MessageDlg(sErrMsg, mtError, [mbOk], 0);
+    m_bModelInfoNg := True;
+    Exit;
+  end;
+  if IOResult = 0 then begin
+    AssignFile(txtF, sFileName);
+    try
+      // ÀüÃ¼ Data ¼³Á¤.
+      Reset(txtF);
+      nRow := 0;
+      lstCrc := TStringList.Create;
+      try
+        while not Eof(txtF) do begin
+          Readln(txtF, sReadData);
+          sCrcData := sCrcData + sReadData;
+          if Trim(sReadData) = '' then Continue;
+          lstCrc.Add(sReadData);
+          Inc(nRow);
+        end;
+
+      finally
+        lstCrc.Free;
+      end;
+      m_Ver.MES_CSV := GetFileVerDate(sFileName,1) + ' ' + GetStringCrc(sCrcData);
+      SetLength(GmesInfo, nRow+1);
+      m_nGmesInfoCnt := nRow;
+      nRow := 0;
+      GmesInfo[nRow].nIdx     := 0;
+      GmesInfo[nRow].sErrCode := 'PASS';
+      GmesInfo[nRow].sErrMsg  := '';
+      GmesInfo[nRow].MES_Code := '';
+      Inc(nRow);
+      Reset(txtF);
+
+      lstTemp := TStringList.Create;
+      lstErrCode := TStringList.Create;
+      try
+        while not Eof(txtF) do begin
+          Readln(txtF, sReadData);
+          if Trim(sReadData) = '' then Continue;
+
+          lstTemp.Clear;
+          ExtractStrings([','], [], PWideChar(Trim(sReadData)), lstTemp);
+          nDataCount := lstTemp.Count;
+          if nDataCount < 6  then Continue;
+          //1,Optical Compensation ,Optical Defect,OD01,EEPROM Read Fail,A06-B01-G78
+          GmesInfo[nRow].nIdx     := StrToIntDef(lstTemp[0], -1);
+          if GmesInfo[nRow].nIdx < 00 then Continue; //유효하지 않을 경우
+
+          GmesInfo[nRow].sErrCode := Trim(lstTemp[3]);
+          GmesInfo[nRow].sErrMsg  := Trim(lstTemp[4]);
+          sErrCode := Trim(lstTemp[5]);
+
+          //자릿수 맞추기:
+          //회로-구동-NG : 4 - 8 - 30 유추
+          //A06-B01-----IZJ----------------------------
+          //A06-B01-IZJ
+
+          lstErrCode.Clear;
+          ExtractStrings(['-'], [], PWideChar(sErrCode), lstErrCode);
+          //중간에'-'가 다수 있어도 count=3.
+          if lstErrCode.Count > 2 then begin
+            sErrCode := lstErrCode.Strings[0] + '-';
+            sErrCode := sErrCode + lstErrCode.Strings[1] + '-----';
+            sErrCode := sErrCode + lstErrCode.Strings[2] + '---------------------------';
+          end;
+          GmesInfo[nRow].MES_Code := sErrCode;
+
+          Inc(nRow);
+        end;
+      finally
+        lstTemp.Free;
+        lstErrCode.Free;
+      end;
+    finally
+      // Close the file
+      Result := nRow;
+      CloseFile(txtF);
+    end;
+  end;
+end;
+
+
+procedure TCommon.LoadDeleteFile;
 var
   sErrMsg, sErrCode, sFileName, sReadData, sCrcData : string;
   txtF    : Textfile;
@@ -2917,13 +3022,7 @@ begin
       CloseFile(txtF);
     end;
   end;
-
-
-  {    m_Ver.psu_Date := GetFileVerDate(sFileName,1);
-    m_Ver.psu_Crc  := GetScriptCrc( scrSequnce);}
-//{$ENDIF}
 end;
-
 
 
 function TCommon.LoadModelInfo(fName: String): Boolean;
@@ -4481,6 +4580,8 @@ begin
       SystemInfo.CAM_CallbackChangePattern := fSys.Readbool('SYSTEMDATA', 		'CAM_CALLBACK_CHANGEPATTERN',  False);
       SystemInfo.CAM_ResultType       := fSys.ReadInteger('SYSTEMDATA', 		'CAM_ResultType',  0);
 
+      SystemInfo.MES_CODE_Cnt         := fSys.ReadInteger('SYSTEMDATA', 		'MES_CODE_Cnt',  3181);  // MES_code 갯수 불러오기
+
       {$IFDEF CA410_USE}
 //      SystemInfo.Ca410MemCh := fsys.ReadInteger('SYSTEMDATA', 'CA410_CH', 3);
       for i := DefCommon.CH1 to DefCommon.MAX_CH do begin
@@ -5060,6 +5161,7 @@ begin
       WriteString('SYSTEMDATA',  'SIGNAL_INVERSION_OC',  		SystemInfo.SignalInversion); // Added by KTS 2023-01-17 오후 5:12:27 B접점 반전 해야되는 신호 목록
       WriteInteger('SYSTEMDATA',  'R2RCa410MemCh',  		SystemInfo.R2RCa410MemCh); // Added by KTS 2023-01-17 오후 5:12:27 B접점 반전 해야되는 신호 목록
 
+      WriteInteger('SYSTEMDATA',  'MES_CODE_Cnt',  		SystemInfo.MES_CODE_Cnt);
 
 
 

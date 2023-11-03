@@ -553,7 +553,7 @@ var
 nWaitMS,nRetry,nDataCnt : Integer;
 sDebug,sTxData : string;
 arRData : TIdBytes;
-nResult : integer;
+nResult,i : integer;
 begin
   Inc(PG[nChannel].TconRWCnt.TconWriteDllCall); //2023-03-28 jhhwang (for T/T Test)
 
@@ -571,19 +571,24 @@ begin
   SetLength(arRData,nDataCnt);
   arrData[0] := data;
   sTxData := Format(' 0x%0.2x',[arrData[0]]);
-//  sDebug := Format('I2C WRITE: DevAddr(0x%0.2x) RegAddr(0x%0.4x) DataCnt(%d), WaitSec(%d) Retry(%d) Data(%s)',
-//                     [DEVICE_ADDRESS,Addr,nDataCnt, nWaitMS,nRetry, sTxData]);
-//  Common.MLog(nChannel,sDebug);
 
-  nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nDataCnt, arrData, nWaitMS,nRetry);
-  if nResult <> WAIT_OBJECT_0  then  begin
+
+  for I := 0 to 2 do begin
     nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nDataCnt, arrData, nWaitMS,nRetry);
     if nResult <> WAIT_OBJECT_0 then begin
-      sDebug := Format('TCONSetReg NG CH : %d',[nChannel]);
+      sDebug := Format('TCONSetReg NG CH : %d Retry : %d',[nChannel,i + 1]);
       CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-      CSharpDll.MainOC_Stop_CH1(nChannel);
+    end
+    else begin
+      Break;
     end;
   end;
+  if nResult <> WAIT_OBJECT_0 then begin
+    sDebug := Format('TCONSetReg NG CH : %d',[nChannel]);
+    CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
+    CSharpDll.MainOC_Stop_CH1(nChannel);
+  end;
+
   Result := nResult
 
   {$ENDIF}
@@ -595,7 +600,7 @@ var
 nWaitMS,nRetry,nDataCnt : Integer;
 sDebug,sTxData : string;
 arRData : TIdBytes;
-nResult : integer;
+nResult,i : integer;
 begin
   Inc(PG[nChannel].TconRWCnt.TconWriteDllCall); //2023-03-28 jhhwang (for T/T Test)
 
@@ -616,14 +621,20 @@ begin
 //                     [DEVICE_ADDRESS,Addr,nDataCnt, nWaitMS,nRetry, sTxData]);
 //  Common.MLog(nChannel,sDebug);
 
-  nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nDataCnt, arrData, nWaitMS,nRetry);
-  if nResult <> WAIT_OBJECT_0  then  begin
+  for I := 0 to 2 do begin
     nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nDataCnt, arrData, nWaitMS,nRetry);
     if nResult <> WAIT_OBJECT_0 then begin
-      sDebug := Format('TCONSetReg NG CH : %d',[nChannel]);
+      sDebug := Format('TCONSetReg NG CH : %d Retry : %d',[nChannel,i + 1]);
       CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-      CSharpDll.MainOC_Stop_CH2(nChannel);
+    end
+    else begin
+      Break;
     end;
+  end;
+  if nResult <> WAIT_OBJECT_0 then begin
+    sDebug := Format('TCONSetReg NG CH : %d',[nChannel]);
+    CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
+    CSharpDll.MainOC_Stop_CH2(nChannel);
   end;
   Result := nResult
   {$ENDIF}
@@ -636,7 +647,7 @@ var
 nWaitMS,nRetry,nDataCnt : Integer;
 sDebug,sTxData : string;
 arRData : TIdBytes;
-nResult : integer;
+nResult,i : integer;
 begin
   Inc(PG[nChannel].TconRWCnt.TconWriteDllCall); //2023-03-28 jhhwang (for T/T Test)
 
@@ -657,14 +668,20 @@ begin
 //                     [DEVICE_ADDRESS,Addr,nDataCnt, nWaitMS,nRetry, sTxData]);
 //  Common.MLog(nChannel,sDebug);
 
-  nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nDataCnt, arrData, nWaitMS,nRetry);
-  if nResult <> WAIT_OBJECT_0  then  begin
+  for I := 0 to 2 do begin
     nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nDataCnt, arrData, nWaitMS,nRetry);
     if nResult <> WAIT_OBJECT_0 then begin
-      sDebug := Format('TCONSetReg NG CH : %d',[nChannel]);
+      sDebug := Format('TCONSetReg NG CH : %d Retry : %d',[nChannel,i + 1]);
       CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-      CSharpDll.MainOC_Stop_CH3(nChannel);
+    end
+    else begin
+      Break;
     end;
+  end;
+  if nResult <> WAIT_OBJECT_0 then begin
+    sDebug := Format('TCONSetReg NG CH : %d',[nChannel]);
+    CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
+    CSharpDll.MainOC_Stop_CH3(nChannel);
   end;
   Result := nResult
   {$ENDIF}
@@ -676,7 +693,7 @@ var
 nWaitMS,nRetry,nDataCnt : Integer;
 sDebug,sTxData : string;
 arRData : TIdBytes;
-nResult : integer;
+nResult,i : integer;
 begin
   Inc(PG[nChannel].TconRWCnt.TconWriteDllCall); //2023-03-28 jhhwang (for T/T Test)
 
@@ -694,15 +711,31 @@ begin
   arrData[0] := data;
   sTxData := Format(' 0x%0.2x',[arrData[0]]);
 
-  nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nDataCnt, arrData, nWaitMS,nRetry);
-  if nResult <> WAIT_OBJECT_0  then  begin
+  for I := 0 to 2 do begin
     nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nDataCnt, arrData, nWaitMS,nRetry);
     if nResult <> WAIT_OBJECT_0 then begin
-      sDebug := Format('TCONSetReg NG CH : %d',[nChannel]);
+      sDebug := Format('TCONSetReg NG CH : %d Retry : %d',[nChannel,i + 1]);
       CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-      CSharpDll.MainOC_Stop_CH4(nChannel);
+    end
+    else begin
+      Break;
     end;
   end;
+  if nResult <> WAIT_OBJECT_0 then begin
+    sDebug := Format('TCONSetReg NG CH : %d',[nChannel]);
+    CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
+    CSharpDll.MainOC_Stop_CH4(nChannel);
+  end;
+
+//  nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nDataCnt, arrData, nWaitMS,nRetry);
+//  if nResult <> WAIT_OBJECT_0  then  begin
+//    nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nDataCnt, arrData, nWaitMS,nRetry);
+//    if nResult <> WAIT_OBJECT_0 then begin
+//      sDebug := Format('TCONSetReg NG CH : %d',[nChannel]);
+//      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
+//      CSharpDll.MainOC_Stop_CH4(nChannel);
+//    end;
+//  end;
   Result := nResult
   {$ENDIF}
 end;
@@ -961,6 +994,7 @@ sDebug,sTxData : string;
 arRData : TIdBytes;
 arRAddr : array of Integer;
 nResult : integer;
+i : Integer;
 begin
   Inc(PG[nChannel].TconRWCnt.TconWriteDllCall); //2023-03-28 jhhwang (for T/T Test)
 
@@ -974,16 +1008,23 @@ begin
   Move(Addr^, arRAddr[0],nDataCnt * SizeOf(Integer));
   Move(data^, arRData[0],nLength);
 
-  nResult := Pg[nChannel].SendI2CSeqWrite(nMode,nSeqIdx,nLength,arRAddr, arRData, nWaitMS,nRetry);
-  if nResult <> WAIT_OBJECT_0  then  begin
+  for I := 0 to 2 do begin
     nResult := Pg[nChannel].SendI2CSeqWrite(nMode,nSeqIdx,nLength,arRAddr, arRData, nWaitMS,nRetry);
     if nResult <> WAIT_OBJECT_0 then begin
-      sDebug := Format('TCONSetRegSeqWrite NG CH : %d',[nChannel]);
+      sDebug := Format('TCONSetRegSeqWrite NG CH : %d Retry : %d',[nChannel,i + 1]);
       CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-      CSharpDll.MainOC_Stop_CH1(nChannel);
+    end
+    else begin
+      Break;
     end;
   end;
-  Result := nResult
+  if nResult <> WAIT_OBJECT_0 then begin
+    sDebug := Format('TCONSetRegSeqWrite NG CH : %d',[nChannel]);
+    CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
+    CSharpDll.MainOC_Stop_CH1(nChannel);
+  end;
+
+  Result := nResult;
 end;
 
 function MyCB_TCONSetRegSeqWrite_2(nChannel,nMode,nSeqIdx : Integer; Addr : PINT; const data : PByte; nLength : Integer): Integer;
@@ -992,7 +1033,7 @@ nWaitMS,nRetry,nDataCnt : Integer;
 sDebug,sTxData : string;
 arRData : TIdBytes;
 arRAddr : array of Integer;
-nResult : integer;
+nResult,i : integer;
 begin
   Inc(PG[nChannel].TconRWCnt.TconWriteDllCall); //2023-03-28 jhhwang (for T/T Test)
 
@@ -1006,16 +1047,22 @@ begin
   Move(Addr^, arRAddr[0],nDataCnt * SizeOf(Integer));
   Move(data^, arRData[0],nLength);
 
-  nResult := Pg[nChannel].SendI2CSeqWrite(nMode,nSeqIdx,nLength,arRAddr, arRData, nWaitMS,nRetry);
-  if nResult <> WAIT_OBJECT_0  then  begin
+  for I := 0 to 2 do begin
     nResult := Pg[nChannel].SendI2CSeqWrite(nMode,nSeqIdx,nLength,arRAddr, arRData, nWaitMS,nRetry);
     if nResult <> WAIT_OBJECT_0 then begin
-      sDebug := Format('TCONSetRegSeqWrite NG CH : %d',[nChannel]);
+      sDebug := Format('TCONSetRegSeqWrite NG CH : %d Retry : %d',[nChannel,i + 1]);
       CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-      CSharpDll.MainOC_Stop_CH2(nChannel);
+    end
+    else begin
+      Break;
     end;
   end;
-  Result := nResult
+  if nResult <> WAIT_OBJECT_0 then begin
+    sDebug := Format('TCONSetRegSeqWrite NG CH : %d',[nChannel]);
+    CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
+    CSharpDll.MainOC_Stop_CH2(nChannel);
+  end;
+  Result := nResult;
 end;
 
 function MyCB_TCONSetRegSeqWrite_3(nChannel,nMode,nSeqIdx : Integer; Addr : PINT; const data : PByte; nLength : Integer): Integer;
@@ -1024,7 +1071,7 @@ nWaitMS,nRetry,nDataCnt : Integer;
 sDebug,sTxData : string;
 arRData : TIdBytes;
 arRAddr : array of Integer;
-nResult : integer;
+nResult,i : integer;
 begin
   Inc(PG[nChannel].TconRWCnt.TconWriteDllCall); //2023-03-28 jhhwang (for T/T Test)
 
@@ -1038,16 +1085,22 @@ begin
   Move(Addr^, arRAddr[0],nDataCnt * SizeOf(Integer));
   Move(data^, arRData[0],nLength);
 
-  nResult := Pg[nChannel].SendI2CSeqWrite(nMode,nSeqIdx,nLength,arRAddr, arRData, nWaitMS,nRetry);
-  if nResult <> WAIT_OBJECT_0  then  begin
+  for I := 0 to 2 do begin
     nResult := Pg[nChannel].SendI2CSeqWrite(nMode,nSeqIdx,nLength,arRAddr, arRData, nWaitMS,nRetry);
     if nResult <> WAIT_OBJECT_0 then begin
-      sDebug := Format('TCONSetRegSeqWrite NG CH : %d',[nChannel]);
+      sDebug := Format('TCONSetRegSeqWrite NG CH : %d Retry : %d',[nChannel,i + 1]);
       CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-      CSharpDll.MainOC_Stop_CH3(nChannel);
+    end
+    else begin
+      Break;
     end;
   end;
-  Result := nResult
+  if nResult <> WAIT_OBJECT_0 then begin
+    sDebug := Format('TCONSetRegSeqWrite NG CH : %d',[nChannel]);
+    CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
+    CSharpDll.MainOC_Stop_CH3(nChannel);
+  end;
+  Result := nResult;
 end;
 
 function MyCB_TCONSetRegSeqWrite_4(nChannel,nMode,nSeqIdx : Integer; Addr : PINT; const data : PByte; nLength : Integer): Integer;
@@ -1056,7 +1109,7 @@ nWaitMS,nRetry,nDataCnt : Integer;
 sDebug,sTxData : string;
 arRData : TIdBytes;
 arRAddr : array of Integer;
-nResult : integer;
+nResult,i : integer;
 begin
   Inc(PG[nChannel].TconRWCnt.TconWriteDllCall); //2023-03-28 jhhwang (for T/T Test)
 
@@ -1070,16 +1123,22 @@ begin
   Move(Addr^, arRAddr[0],nDataCnt * SizeOf(Integer));
   Move(data^, arRData[0],nLength);
 
-  nResult := Pg[nChannel].SendI2CSeqWrite(nMode,nSeqIdx,nLength,arRAddr, arRData, nWaitMS,nRetry);
-  if nResult <> WAIT_OBJECT_0  then  begin
+  for I := 0 to 2 do begin
     nResult := Pg[nChannel].SendI2CSeqWrite(nMode,nSeqIdx,nLength,arRAddr, arRData, nWaitMS,nRetry);
     if nResult <> WAIT_OBJECT_0 then begin
-      sDebug := Format('TCONSetRegSeqWrite NG CH : %d',[nChannel]);
+      sDebug := Format('TCONSetRegSeqWrite NG CH : %d Retry : %d',[nChannel,i + 1]);
       CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-      CSharpDll.MainOC_Stop_CH4(nChannel);
+    end
+    else begin
+      Break;
     end;
   end;
-  Result := nResult
+  if nResult <> WAIT_OBJECT_0 then begin
+    sDebug := Format('TCONSetRegSeqWrite NG CH : %d',[nChannel]);
+    CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
+    CSharpDll.MainOC_Stop_CH4(nChannel);
+  end;
+  Result := nResult;
 end;
 
 
@@ -2125,9 +2184,9 @@ begin
   try
     Result := PAnsiChar(m_GetSummaryLogData(nCH,Common.StringToPAnsiChar(sParameter)));
   except
+    SendTestGuiDisplay(nCH,defCommon.MSG_MODE_WORKING,'GetSummaryLogData Error Occurrence!!',10);
     Result := 'MXXX';
   end;
-
 end;
 
 function TCSharpDll.MainOC_ChangeDLL(sDLLName : string): Integer;

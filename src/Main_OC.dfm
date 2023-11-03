@@ -1276,23 +1276,15 @@ object frmMain_OC: TfrmMain_OC
         NumGlyphs = 2
       end
     end
-    object Button4: TButton
-      Left = 15
-      Top = 557
-      Width = 75
-      Height = 25
-      Caption = 'AUTO Restart'
-      TabOrder = 10
-      Visible = False
-      OnClick = Button4Click
-    end
-    object CheckBox1: TCheckBox
+    object chkAutoReStart: TCheckBox
       Left = 15
       Top = 534
       Width = 97
       Height = 17
-      TabOrder = 11
+      Caption = 'AUTO Restart'
+      TabOrder = 10
       Visible = False
+      OnClick = chkAutoReStartClick
     end
   end
   object RzStatusBar1: TRzStatusBar

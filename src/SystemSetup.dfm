@@ -49,8 +49,8 @@ object frmSystemSetup: TfrmSystemSetup
       Font.Style = []
       ParentFont = False
       object grpSystem: TRzGroupBox
-        Left = 10
-        Top = 2
+        Left = 3
+        Top = 3
         Width = 400
         Height = 156
         Caption = 'SYSTEM'
@@ -224,7 +224,7 @@ object frmSystemSetup: TfrmSystemSetup
           ParentFont = False
           TabOrder = 7
         end
-        object edNGAlarmCnt: TRzEdit
+        object edMESCodeCnt: TRzEdit
           Left = 128
           Top = 131
           Width = 261
@@ -252,7 +252,7 @@ object frmSystemSetup: TfrmSystemSetup
           Width = 116
           Height = 22
           BorderOuter = fsFlatRounded
-          Caption = 'NG alarm count'
+          Caption = 'MES CODE Cnt'
           Font.Charset = ANSI_CHARSET
           Font.Color = clWindowText
           Font.Height = -11

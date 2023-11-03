@@ -262,12 +262,12 @@ type
     RzPanel49: TRzPanel;
     Label2: TLabel;
     edSetTemperature: TRzNumericEdit;
-    edNGAlarmCnt: TRzEdit;
-    RzPanel50: TRzPanel;
     RzGroupBox9: TRzGroupBox;
     edVerInterlock: TRzEdit;
     RzBitBtn2: TRzBitBtn;
     chkVerInterlock: TRzCheckBox;
+    edMESCodeCnt: TRzEdit;
+    RzPanel50: TRzPanel;
 
     procedure FormCreate(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -812,6 +812,8 @@ begin
     EQPId_MGIB_Process_Code := edPRCS_CD_MGIB.Text;
     EQPId_PGIB_Process_Code := edPRCS_CD_PGIB.Text;
 
+    MES_CODE_Cnt := StrToIntDef(edMESCodeCnt.Text,0);
+
     case EQPId_Type of
       0: begin
         if EQPId_INLINE = '' then begin
@@ -1300,6 +1302,8 @@ begin
 
     chkVerInterlock.Checked := DLLVerInterlock;
     edVerInterlock.Text := DLLVerInterlockList;
+
+    edMESCodeCnt.Text  := IntToStr(MES_CODE_Cnt);
 
 (*
     edRobotARev.Text  := RobotRevA;

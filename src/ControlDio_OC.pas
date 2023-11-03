@@ -351,19 +351,14 @@ begin
       if (not CheckDi(DefDio.IN_GIB_CH_12_LIGHTCURTAIN)) and (not CheckDi(DefDio.IN_GIB_CH_12_MUTING_LAMP)) then begin
         nRet := nAlarmNo;
         SendAlarm(MSG_MODE_DISPLAY_ALARAM, nAlarmNo, 1);
-      end
-      else begin
-        SendAlarm(MSG_MODE_DISPLAY_ALARAM, nAlarmNo, 0);
       end;
 
       nAlarmNo := DefDio.IN_GIB_CH_34_LIGHTCURTAIN;
       if not CheckDi(DefDio.IN_GIB_CH_34_LIGHTCURTAIN) and (not CheckDi(DefDio.IN_GIB_CH_34_MUTING_LAMP)) then begin
         nRet := nAlarmNo;
         SendAlarm(MSG_MODE_DISPLAY_ALARAM, nAlarmNo, 1);
-      end
-      else begin
-        SendAlarm(MSG_MODE_DISPLAY_ALARAM, nAlarmNo, 0);
       end;
+
     end;
 
     nAlarmNo:= DefDio.IN_GIB_CH_12_MC_MONITORING;

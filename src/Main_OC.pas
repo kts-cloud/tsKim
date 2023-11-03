@@ -138,8 +138,7 @@ type
     RzPanel17: TRzPanel;
     ledTempIr: ThhALed;
     pnlCommTempIr: TRzPanel;
-    Button4: TButton;
-    CheckBox1: TCheckBox;
+    chkAutoReStart: TCheckBox;
     procedure FormCreate(Sender: TObject);
     procedure MyExceptionHandler(Sender : TObject; E : Exception );
     procedure btnInitClick(Sender: TObject);
@@ -174,8 +173,8 @@ type
     procedure tmSaveEnergyTimer(Sender: TObject);
     procedure Button1Click(Sender: TObject);
     procedure RzPanel6DblClick(Sender: TObject);
-    procedure Button4Click(Sender: TObject);
     procedure grpDIODblClick(Sender: TObject);
+    procedure chkAutoReStartClick(Sender: TObject);
   private
     { Private declarations }
     // DIO
@@ -583,6 +582,17 @@ begin
   Result := bRet;
 end;
 
+
+procedure TfrmMain_OC.chkAutoReStartClick(Sender: TObject);
+begin
+  if chkAutoReStart.Checked then begin
+
+    Common.AutoReStart :=  chkAutoReStart.Checked;
+  end
+  else begin
+    Common.AutoReStart :=  chkAutoReStart.Checked;
+  end;
+end;
 
 function TfrmMain_OC.CheckDetect_Empty(nStage: Integer): Boolean;
 var
@@ -1473,8 +1483,6 @@ begin
   aTask.FreeOnTerminate := True;
   aTask.Start;
 
-
-
   CreateClassData;
 
   Application.OnException := MyExceptionHandler;         // Added by KTS 2021-12-21 오후 3:34:52
@@ -1545,8 +1553,7 @@ end;
 
 procedure TfrmMain_OC.grpDIODblClick(Sender: TObject);
 begin
- Button4.Visible := not Button4.Visible;
- CheckBox1.Visible := not CheckBox1.Visible;
+ chkAutoReStart.Visible := not chkAutoReStart.Visible;
 end;
 
 procedure TfrmMain_OC.Execute_AutoStart(nCH : Integer) ;
@@ -4183,9 +4190,9 @@ begin
 
   ThreadTask(procedure begin
     //ContactDown 때문에 쓰레드 필요
-try
+    try
 
-    if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
+      if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
         if not CheckLoad_Used(nStage, nCh) then begin
           //사용 안할 경우
           SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0,Format( 'Not Used Pair= %d',[nCh]));
@@ -4253,278 +4260,278 @@ try
           Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_EXCHANGE;
           g_CommPLC.ROBOT_Exchange_Request(nCH);
         end;
-    end
-    else begin
-      if nCh = 0 then  begin
+      end
+      else begin
+        if nCh = 0 then  begin
 
-        if not CheckLoad_Used(nStage, COMMPLC_CH_12) then begin
-          //사용 안할 경우
-          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Not Used Pair=0');
-        end
-        else begin
-          //Last Product 갑자기 변경하는 현상에 대한 방어 - Start 여부 확인
-          if CheckStage_Started(COMMPLC_CH_12) then begin
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Do not Request - Script is Running');
-            Exit;
-          end;
-
-          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, format('Request Exchange %s 0', [chr(ord('A') + nStage)]));
-          if not CheckProbe(COMMPLC_CH_12) then begin
-            if Common.SystemInfo.OCType = DefCommon.OCType  then  begin
-              nRet := 0;
-              nRet := ControlDio.ProbeBackward(0);
-              if nRet > 0 then begin
-                SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'ProbeBackward 1 - NG');
-                Exit;
-              end;
-              nRet := ControlDio.UnlockCarrier(0,true);
-              if nRet > 0 then begin
-                SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockCarrier 1 - NG');
-                Exit;
-              end;
-              nRet := ControlDio.ProbeBackward(1);
-              if nRet > 0 then begin
-                SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'ProbeBackward 2 - NG');
-                Exit;
-              end;
-              nRet := ControlDio.UnlockCarrier(1,true);
-              if nRet > 0 then begin
-                SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockCarrier  2- NG');
-                Exit;
-              end;
-            end
-            else begin
-              nRet := 0;
-              nRet := ControlDio.MovingProbe(DefCommon.CH_TOP,true);
-              if nRet > 0 then begin
-                SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'MovingProbe UP CH 1,2 - NG');
-                Exit;
-              end;
-              nRet := ControlDio.MovingShutter(DefCommon.CH_TOP,true);
-              if nRet > 0 then begin
-                SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'MovingShutter UP CH 1,2 - NG');
-                Exit;
-              end;
-              if not CheckPinBlock(0) then begin
-                nRet := ControlDio.VaccumOFF(DefCommon.CH1);
-                if nRet > 0 then begin
-                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'VaccumOFF CH 1 - NG');
-                  Exit;
-                end;
-                nRet := ControlDio.VaccumOFF(DefCommon.CH2);
-                if nRet > 0 then begin
-                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'VaccumOFF CH 2 - NG');
-                  Exit;
-                end;
-                nRet := ControlDio.UnlockPinBlock(DefCommon.CH1);
-                if nRet > 0 then begin
-                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockPinBlock CH 1 - NG');
-                  Exit;
-                end;
-                nRet := ControlDio.UnlockPinBlock(DefCommon.CH2);
-                if nRet > 0 then begin
-                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockPinBlock CH 2 - NG');
-                  Exit;
-                end;
-                nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH1);
-                if nRet > 0 then begin
-                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 1 - NG');
-                  Exit;
-                end;
-                nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH2);
-                if nRet > 0 then begin
-                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 2 - NG');
-                  Exit;
-                end;
-              end;
-            end;
-          end;
-
-          if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
-//            nRet := ControlDio.CheckOpenPinBlock(DefCommon.CH1);
-            bStep := true;
-            nRet := ControlDio.CheckPreOcUnloadStatus(DefCommon.CH1);
-            if nRet > 0 then begin
-              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock Close Status CH 1 - NG');
-//              Exit;
-              bStep := False;
-            end;
-            nRet := ControlDio.CheckPreOcUnloadStatus(DefCommon.CH2);
-            if nRet > 0 then begin
-              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock Close Status CH 2 - NG');
-//              Exit;
-              bStep := False;
-            end;
-            if not bStep then begin
+          if not CheckLoad_Used(nStage, COMMPLC_CH_12) then begin
+            //사용 안할 경우
+            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Not Used Pair=0');
+          end
+          else begin
+            //Last Product 갑자기 변경하는 현상에 대한 방어 - Start 여부 확인
+            if CheckStage_Started(COMMPLC_CH_12) then begin
+              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Do not Request - Script is Running');
               Exit;
             end;
+
+            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, format('Request Exchange %s 0', [chr(ord('A') + nStage)]));
+            if not CheckProbe(COMMPLC_CH_12) then begin
+              if Common.SystemInfo.OCType = DefCommon.OCType  then  begin
+                nRet := 0;
+                nRet := ControlDio.ProbeBackward(0);
+                if nRet > 0 then begin
+                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'ProbeBackward 1 - NG');
+                  Exit;
+                end;
+                nRet := ControlDio.UnlockCarrier(0,true);
+                if nRet > 0 then begin
+                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockCarrier 1 - NG');
+                  Exit;
+                end;
+                nRet := ControlDio.ProbeBackward(1);
+                if nRet > 0 then begin
+                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'ProbeBackward 2 - NG');
+                  Exit;
+                end;
+                nRet := ControlDio.UnlockCarrier(1,true);
+                if nRet > 0 then begin
+                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockCarrier  2- NG');
+                  Exit;
+                end;
+              end
+              else begin
+                nRet := 0;
+                nRet := ControlDio.MovingProbe(DefCommon.CH_TOP,true);
+                if nRet > 0 then begin
+                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'MovingProbe UP CH 1,2 - NG');
+                  Exit;
+                end;
+                nRet := ControlDio.MovingShutter(DefCommon.CH_TOP,true);
+                if nRet > 0 then begin
+                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'MovingShutter UP CH 1,2 - NG');
+                  Exit;
+                end;
+                if not CheckPinBlock(0) then begin
+                  nRet := ControlDio.VaccumOFF(DefCommon.CH1);
+                  if nRet > 0 then begin
+                    SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'VaccumOFF CH 1 - NG');
+                    Exit;
+                  end;
+                  nRet := ControlDio.VaccumOFF(DefCommon.CH2);
+                  if nRet > 0 then begin
+                    SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'VaccumOFF CH 2 - NG');
+                    Exit;
+                  end;
+                  nRet := ControlDio.UnlockPinBlock(DefCommon.CH1);
+                  if nRet > 0 then begin
+                    SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockPinBlock CH 1 - NG');
+                    Exit;
+                  end;
+                  nRet := ControlDio.UnlockPinBlock(DefCommon.CH2);
+                  if nRet > 0 then begin
+                    SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockPinBlock CH 2 - NG');
+                    Exit;
+                  end;
+                  nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH1);
+                  if nRet > 0 then begin
+                    SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 1 - NG');
+                    Exit;
+                  end;
+                  nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH2);
+                  if nRet > 0 then begin
+                    SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 2 - NG');
+                    Exit;
+                  end;
+                end;
+              end;
+            end;
+
+            if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
+  //            nRet := ControlDio.CheckOpenPinBlock(DefCommon.CH1);
+              bStep := true;
+              nRet := ControlDio.CheckPreOcUnloadStatus(DefCommon.CH1);
+              if nRet > 0 then begin
+                SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock Close Status CH 1 - NG');
+  //              Exit;
+                bStep := False;
+              end;
+              nRet := ControlDio.CheckPreOcUnloadStatus(DefCommon.CH2);
+              if nRet > 0 then begin
+                SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock Close Status CH 2 - NG');
+  //              Exit;
+                bStep := False;
+              end;
+              if not bStep then begin
+                Exit;
+              end;
+            end;
+
+            frmTest4ChOC[nStage].ClearChData(0);
+            frmTest4ChOC[nStage].ClearChData(1);
+            frmTest4ChOC[nStage].DisplayResult(0, -3, 0, 'Request Exchange');
+            frmTest4ChOC[nStage].DisplayResult(1, -3, 0, 'Request Exchange');
+
+            sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[0 + nStage*4]);
+            //Common.MLog(0 + nStage*4, sMsg);
+            //frmTest4ChOC[nStage].AddLog(sMsg, 0);
+            SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 0, sMsg);
+            sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[1 + nStage*4]);
+            //Common.MLog(1 + nStage*4, sMsg);
+            //frmTest4ChOC[nStage].AddLog(sMsg, 1);
+            SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 1, sMsg);
+            if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
+              // Added by sam81 2023-05-04 오후 1:17:23  ch 별 unloading
+              nRet := ControlDio.CheckPreOCPanelDetectCh(DefCommon.CH1, 1);
+              g_CommPLC.EQP_UnloadBeforeCh(DefCommon.CH_TOP,DefCommon.CH1,nRet);
+              nRet := ControlDio.CheckPreOCPanelDetectCh(DefCommon.CH2, 1);
+              g_CommPLC.EQP_UnloadBeforeCh(DefCommon.CH_TOP,DefCommon.CH2,nRet);
+            end;
+            Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_EXCHANGE;
+            g_CommPLC.ROBOT_Exchange_Request(COMMPLC_CH_12);
           end;
 
-          frmTest4ChOC[nStage].ClearChData(0);
-          frmTest4ChOC[nStage].ClearChData(1);
-          frmTest4ChOC[nStage].DisplayResult(0, -3, 0, 'Request Exchange');
-          frmTest4ChOC[nStage].DisplayResult(1, -3, 0, 'Request Exchange');
+        end;
 
-          sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[0 + nStage*4]);
-          //Common.MLog(0 + nStage*4, sMsg);
-          //frmTest4ChOC[nStage].AddLog(sMsg, 0);
-          SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 0, sMsg);
-          sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[1 + nStage*4]);
-          //Common.MLog(1 + nStage*4, sMsg);
-          //frmTest4ChOC[nStage].AddLog(sMsg, 1);
-          SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 1, sMsg);
-          if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
-            // Added by sam81 2023-05-04 오후 1:17:23  ch 별 unloading
-            nRet := ControlDio.CheckPreOCPanelDetectCh(DefCommon.CH1, 1);
-            g_CommPLC.EQP_UnloadBeforeCh(DefCommon.CH_TOP,DefCommon.CH1,nRet);
-            nRet := ControlDio.CheckPreOCPanelDetectCh(DefCommon.CH2, 1);
-            g_CommPLC.EQP_UnloadBeforeCh(DefCommon.CH_TOP,DefCommon.CH2,nRet);
+        Sleep(10);
+        if nCh = 1 then begin
+          if not CheckLoad_Used(nStage, COMMPLC_CH_34) then begin
+            //사용 안할 경우
+            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Not Used Pair=1');
+          end
+          else begin
+            //Last Product 갑자기 변경하는 현상에 대한 방어 - Start 여부 확인
+            if CheckStage_Started(COMMPLC_CH_34) then begin
+              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Do not Request - Script is Running');
+              Exit;
+            end;
+
+            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, format('Request Exchange %s 1', [chr(ord('A') + nStage)]));
+            if not CheckProbe(COMMPLC_CH_34) then begin
+              if Common.SystemInfo.OCType = DefCommon.OCType  then  begin
+                nRet := 0;
+                nRet := ControlDio.ProbeBackward(2);
+                if nRet > 0 then begin
+                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'ProbeBackward CH 3- NG');
+                  Exit;
+                end;
+                nRet := ControlDio.UnlockCarrier(2,true);
+                if nRet > 0 then begin
+                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockCarrier CH 3 - NG');
+                  Exit;
+                end;
+                nRet := ControlDio.ProbeBackward(3);
+                if nRet > 0 then begin
+                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'ProbeBackward CH 4 - NG');
+                  Exit;
+                end;
+                nRet := ControlDio.UnlockCarrier(3,true);
+                if nRet > 0 then begin
+                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockCarrier CH 4 - NG');
+                  Exit;
+                end;
+              end
+              else begin
+                nRet := 0;
+                nRet := ControlDio.MovingProbe(DefCommon.CH_BOTTOM,true);
+                if nRet > 0 then begin
+                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'MovingProbe UP CH 3,4 - NG');
+                  Exit;
+                end;
+                nRet := ControlDio.MovingShutter(DefCommon.CH_BOTTOM,true);
+                if nRet > 0 then begin
+                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'MovingShutter UP CH 3,4 - NG');
+                  Exit;
+                end;
+                if not CheckPinBlock(1) then begin
+                  nRet := ControlDio.VaccumOFF(DefCommon.CH3);
+                  if nRet > 0 then begin
+                    SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'VaccumOFF CH 3 - NG');
+                    Exit;
+                  end;
+                  nRet := ControlDio.VaccumOFF(DefCommon.CH4);
+                  if nRet > 0 then begin
+                    SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'VaccumOFF CH 4 - NG');
+                    Exit;
+                  end;
+                  nRet := ControlDio.UnlockPinBlock(DefCommon.CH3);
+                  if nRet > 0 then begin
+                    SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockPinBlock CH 3 - NG');
+                    Exit;
+                  end;
+                  nRet := ControlDio.UnlockPinBlock(DefCommon.CH4);
+                  if nRet > 0 then begin
+                    SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockPinBlock CH 4 - NG');
+                    Exit;
+                  end;
+                  nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH3);
+                  if nRet > 0 then begin
+                    SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 3 - NG');
+                    Exit;
+                  end;
+                  nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH4);
+                  if nRet > 0 then begin
+                    SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock Close Prev. UP CH 4 - NG');
+                    Exit;
+                  end;
+                end;
+              end;
+            end;
+
+            if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
+  //            nRet := ControlDio.CheckOpenPinBlock(DefCommon.CH1);
+              bStep := true;
+              nRet := ControlDio.CheckPreOcUnloadStatus(DefCommon.CH3);
+              if nRet > 0 then begin
+                SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock Close Status CH 3 - NG');
+  //              Exit;
+                bStep := False;
+              end;
+              nRet := ControlDio.CheckPreOcUnloadStatus(DefCommon.CH4);
+              if nRet > 0 then begin
+                SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock Close Status CH 4 - NG');
+  //              Exit;
+                bStep := False;
+              end;
+              if not bStep then begin
+                Exit;
+              end;
+            end;
+
+            frmTest4ChOC[nStage].ClearChData(2);
+            frmTest4ChOC[nStage].ClearChData(3);
+            frmTest4ChOC[nStage].DisplayResult(2, -3, 0, 'Request Exchange');
+            frmTest4ChOC[nStage].DisplayResult(3, -3, 0, 'Request Exchange');
+
+            sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[2 + nStage*4]);
+            //Common.MLog(2 + nStage*4, sMsg);
+            //frmTest4ChOC[nStage].AddLog(sMsg, 2);
+            SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 2, sMsg);
+            sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[3 + nStage*4]);
+            //Common.MLog(3 + nStage*4, sMsg);
+            //frmTest4ChOC[nStage].AddLog(sMsg, 3);
+            SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 3, sMsg);
+
+            if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
+              // Added by sam81 2023-05-04 오후 1:17:23  ch 별 unloading
+              nRet := ControlDio.CheckPreOCPanelDetectCh(DefCommon.CH3, 1);
+              g_CommPLC.EQP_UnloadBeforeCh(DefCommon.CH_BOTTOM,DefCommon.CH3,nRet);
+              nRet := ControlDio.CheckPreOCPanelDetectCh(DefCommon.CH4, 1);
+              g_CommPLC.EQP_UnloadBeforeCh(DefCommon.CH_BOTTOM,DefCommon.CH4,nRet);
+            end;
+            Common.StatusInfo.StageStep[JIG_A]:= STAGE_STEP_EXCHANGE;
+            g_CommPLC.ROBOT_Exchange_Request(COMMPLC_CH_34);
           end;
-          Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_EXCHANGE;
-          g_CommPLC.ROBOT_Exchange_Request(COMMPLC_CH_12);
+
         end;
 
       end;
-
-      Sleep(10);
-      if nCh = 1 then begin
-        if not CheckLoad_Used(nStage, COMMPLC_CH_34) then begin
-          //사용 안할 경우
-          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Not Used Pair=1');
-        end
-        else begin
-          //Last Product 갑자기 변경하는 현상에 대한 방어 - Start 여부 확인
-          if CheckStage_Started(COMMPLC_CH_34) then begin
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Do not Request - Script is Running');
-            Exit;
-          end;
-
-          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, format('Request Exchange %s 1', [chr(ord('A') + nStage)]));
-          if not CheckProbe(COMMPLC_CH_34) then begin
-            if Common.SystemInfo.OCType = DefCommon.OCType  then  begin
-              nRet := 0;
-              nRet := ControlDio.ProbeBackward(2);
-              if nRet > 0 then begin
-                SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'ProbeBackward CH 3- NG');
-                Exit;
-              end;
-              nRet := ControlDio.UnlockCarrier(2,true);
-              if nRet > 0 then begin
-                SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockCarrier CH 3 - NG');
-                Exit;
-              end;
-              nRet := ControlDio.ProbeBackward(3);
-              if nRet > 0 then begin
-                SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'ProbeBackward CH 4 - NG');
-                Exit;
-              end;
-              nRet := ControlDio.UnlockCarrier(3,true);
-              if nRet > 0 then begin
-                SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockCarrier CH 4 - NG');
-                Exit;
-              end;
-            end
-            else begin
-              nRet := 0;
-              nRet := ControlDio.MovingProbe(DefCommon.CH_BOTTOM,true);
-              if nRet > 0 then begin
-                SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'MovingProbe UP CH 3,4 - NG');
-                Exit;
-              end;
-              nRet := ControlDio.MovingShutter(DefCommon.CH_BOTTOM,true);
-              if nRet > 0 then begin
-                SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'MovingShutter UP CH 3,4 - NG');
-                Exit;
-              end;
-              if not CheckPinBlock(1) then begin
-                nRet := ControlDio.VaccumOFF(DefCommon.CH3);
-                if nRet > 0 then begin
-                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'VaccumOFF CH 3 - NG');
-                  Exit;
-                end;
-                nRet := ControlDio.VaccumOFF(DefCommon.CH4);
-                if nRet > 0 then begin
-                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'VaccumOFF CH 4 - NG');
-                  Exit;
-                end;
-                nRet := ControlDio.UnlockPinBlock(DefCommon.CH3);
-                if nRet > 0 then begin
-                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockPinBlock CH 3 - NG');
-                  Exit;
-                end;
-                nRet := ControlDio.UnlockPinBlock(DefCommon.CH4);
-                if nRet > 0 then begin
-                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockPinBlock CH 4 - NG');
-                  Exit;
-                end;
-                nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH3);
-                if nRet > 0 then begin
-                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 3 - NG');
-                  Exit;
-                end;
-                nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH4);
-                if nRet > 0 then begin
-                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock Close Prev. UP CH 4 - NG');
-                  Exit;
-                end;
-              end;
-            end;
-          end;
-
-          if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
-//            nRet := ControlDio.CheckOpenPinBlock(DefCommon.CH1);
-            bStep := true;
-            nRet := ControlDio.CheckPreOcUnloadStatus(DefCommon.CH3);
-            if nRet > 0 then begin
-              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock Close Status CH 3 - NG');
-//              Exit;
-              bStep := False;
-            end;
-            nRet := ControlDio.CheckPreOcUnloadStatus(DefCommon.CH4);
-            if nRet > 0 then begin
-              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock Close Status CH 4 - NG');
-//              Exit;
-              bStep := False;
-            end;
-            if not bStep then begin
-              Exit;
-            end;
-          end;
-
-          frmTest4ChOC[nStage].ClearChData(2);
-          frmTest4ChOC[nStage].ClearChData(3);
-          frmTest4ChOC[nStage].DisplayResult(2, -3, 0, 'Request Exchange');
-          frmTest4ChOC[nStage].DisplayResult(3, -3, 0, 'Request Exchange');
-
-          sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[2 + nStage*4]);
-          //Common.MLog(2 + nStage*4, sMsg);
-          //frmTest4ChOC[nStage].AddLog(sMsg, 2);
-          SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 2, sMsg);
-          sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[3 + nStage*4]);
-          //Common.MLog(3 + nStage*4, sMsg);
-          //frmTest4ChOC[nStage].AddLog(sMsg, 3);
-          SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 3, sMsg);
-
-          if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
-            // Added by sam81 2023-05-04 오후 1:17:23  ch 별 unloading
-            nRet := ControlDio.CheckPreOCPanelDetectCh(DefCommon.CH3, 1);
-            g_CommPLC.EQP_UnloadBeforeCh(DefCommon.CH_BOTTOM,DefCommon.CH3,nRet);
-            nRet := ControlDio.CheckPreOCPanelDetectCh(DefCommon.CH4, 1);
-            g_CommPLC.EQP_UnloadBeforeCh(DefCommon.CH_BOTTOM,DefCommon.CH4,nRet);
-          end;
-          Common.StatusInfo.StageStep[JIG_A]:= STAGE_STEP_EXCHANGE;
-          g_CommPLC.ROBOT_Exchange_Request(COMMPLC_CH_34);
-        end;
-
-      end;
-
-    end;
 
     //둘다 사용하지 않을 경우
     //Common.StatusInfo.Loading:= Falses;
-except
-  on E: Exception do SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Exception: Robot_Request_Exchange ' + E.Message);
-end;
+    except
+      on E: Exception do SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Exception: Robot_Request_Exchange ' + E.Message);
+    end;
   end); //ThreadTask(procedure begin
 
 end;
@@ -5171,11 +5178,11 @@ try
 
           sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[0 + nStage*4]);
           Common.MLog(0 + nStage*4, sMsg);
-          frmTest4ChOC[nStage].AddLog(sMsg, 0);
+//          frmTest4ChOC[nStage].AddLog(sMsg, 0);
           SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 0, sMsg);
           sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[1 + nStage*4]);
           Common.MLog(1 + nStage*4, sMsg);
-          frmTest4ChOC[nStage].AddLog(sMsg, 1);
+//          frmTest4ChOC[nStage].AddLog(sMsg, 1);
           SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 1, sMsg);
 
           Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_UNLOADING;
@@ -5273,7 +5280,7 @@ try
 
         sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[nCH]);
         Common.MLog(nCH, sMsg);
-        frmTest4ChOC[nStage].AddLog(sMsg, 0);
+//        frmTest4ChOC[nStage].AddLog(sMsg, 0);
         SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 0, sMsg);
 
         Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_UNLOADING;
@@ -5543,12 +5550,6 @@ begin
 //  ShowMessage('File enable');
 end;
 
-procedure TfrmMain_OC.Button4Click(Sender: TObject);
-begin
-  Common.AutoReStart := not Common.AutoReStart;
-  CheckBox1.Checked := Common.AutoReStart;
-end;
-
 procedure TfrmMain_OC.SaveCsvSummaryLog(nCh: Integer);
 var
   sFilePath, sFileName : String;
@@ -5790,6 +5791,10 @@ begin
         for i := 0 to 1 do begin
           frmTest4ChOC[0].SetIonizer(i,True);
         end;
+      end
+      else begin
+        Set_AlarmData(DefDio.IN_GIB_CH_12_LIGHTCURTAIN, 0,0);   //LIGHTCURTAIN 초기화
+        Set_AlarmData(DefDio.IN_GIB_CH_34_LIGHTCURTAIN, 0,0);
       end;
       chkCH;
       for I := DefCommon.CH1 to DefCommon.MAX_CH do
@@ -6472,6 +6477,8 @@ begin
     end;
 //    end;
   end;
+  Common.AutoReStart := false;
+  chkAutoReStart.Checked := Common.AutoReStart;
 
   // system Message window configuration.
 //  frmSysEtc.Left := 0;
@@ -6979,9 +6986,7 @@ begin
               DefCommon.CH4 : begin
                 ledCam4.FalseColor := clGray;
                 ledCam4.Value := False;
-
               end;
-
             end;
           end
           else begin
