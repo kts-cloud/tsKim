@@ -1365,6 +1365,8 @@ begin
     output[1] := -1;
     Result := output;
   end;
+
+  SetLength(Lv_Gray_per_band, 0);
 end;
 
 procedure TfrmMainter.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
@@ -3365,6 +3367,7 @@ begin
   wdRet :=  Pg[nPgNo].SendFlashRead(nStartAddr,nLength, @SerialNoBuf[0]);
   SetString(sAnsiStr, PAnsiChar(@SerialNoBuf[0]), nLength);
   sAnsiStr := Copy(sAnsiStr,1,nLength);
+  SetLength(SerialNoBuf,0);
   Result := string(Trim(sAnsiStr));
 end;
 
@@ -3406,10 +3409,6 @@ begin
 
   Result := Lv_Gray_per_band; // 수정: 배열을 반환하도록 변경
 end;
-
-
-
-
 
 
 
@@ -3584,6 +3583,7 @@ begin
     SaveCsvMeasureLog(nFPgNo,sSerialNo,sDataHeader,sData);
 
   end;
+  SetLength(output,0);
 end;
 
 

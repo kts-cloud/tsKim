@@ -1309,6 +1309,8 @@ object frmMain_OC: TfrmMain_OC
       ShowPercent = True
       BlinkIntervalOff = 1000
       BlinkIntervalOn = 1000
+      ExplicitLeft = 252
+      ExplicitTop = 5
     end
     object RzClockStatus1: TRzClockStatus
       Left = 0

@@ -6,7 +6,7 @@ uses
 
   Winapi.Windows, Winapi.ShellAPI, System.Classes, System.UITypes, System.SysUtils,
   Vcl.Forms,Vcl.Dialogs, Winapi.WinSock, Vcl.StdCtrls, psAPI,System.IOUtils,IdGlobal,
-  System.IniFiles,  CodeSiteLogging, StrUtils,  DefCommon, system.zip,DefPG,
+  System.IniFiles,  CodeSiteLogging, StrUtils,  DefCommon, system.zip,DefPG, TLHelp32, ComObj, Variants,PdhExample,
 
   Graphics,  IdSocketHandle, DateUtils, Winapi.ActiveX, System.Generics.Collections,
   Winapi.Messages,DongaPattern,Registry, SyncObjs,Vcl.Imaging.pngimage, Vcl.Imaging.jpeg,Math; //, AdvGrid, AdvObj, AdvGridWorkbook, , ScrMemo; //, DefScript;
@@ -19,6 +19,7 @@ const
   R2REODSNAME :  array[0..23] of string = ('OC_W600_X','OC_W600_Y','OC_W600_Z','OC_R600_X','OC_R600_Y','OC_R600_Z','OC_G600_X','OC_G600_Y','OC_G600_Z','OC_B600_X','OC_B600_Y','OC_B600_Z',
   'MPO_W600_L','MPO_W600_X','MPO_W600_Y','MPO_R600_L','MPO_R600_X','MPO_R600_Y','MPO_G600_L','MPO_G600_X','MPO_G600_Y','MPO_B600_L','MPO_B600_X','MPO_B600_Y');
 
+  NVMWriteSequence = 0;
 type
 
   TArrayChannelString = array[0..DefCommon.MAX_CH] of String;
@@ -45,6 +46,7 @@ type
   TSystemInfo = record
     DAELoadWizardPath   : string; // Added by KTS 2022-12-27 오후 2:40:16 DAELoadWizard 설치 경로
     Password            : String;
+    SupervisorPassword  : string;
     TestModel           : String;   // Test Model & ÆíÁý¿ë
     PatGrp              : string;
     LGD_DLLVER_Name      : string;
@@ -98,6 +100,7 @@ type
     R2R_RemoteSubject   : string;
     Service_Cnt : integer;
     MES_CODE_Cnt : Integer;
+    PopupMsgTime : Integer;
     MesModelInfo        : string; //PCHK에서 Model_Info 값에  사용할 모델 이름. 혼입 방지용  - LH606WF2
 //    Language						: Integer;
     Loader_Index				: string;
@@ -606,6 +609,7 @@ type
     UseCheckVer : Boolean; // Added by KTS 2023-07-13 오전 8:30:17 Config별 SW / DLL Version Interlock
     UseCheckReProgramming : Boolean;
     UseCkNVMWriteSequence : Integer;
+    UseTconWriteChecksum : Boolean;
     GetDLLBin : string;
     Is_3200NitDOE : Boolean;
 
@@ -672,6 +676,9 @@ type
 //    TestModelInfo  : TMODELINFO; // Download 하기위한 buffer.
 //    TestModelInfo2 :  TMODELINFO2;
   //	TestScriptInfo  : TSCRIPTINFO;
+
+    SupervisorMode : Boolean;
+
     nPatInfoSize : Integer;
     _lcid     : LCID;
     PatternData  : array [0.. DefCommon.MAX_CH] of TPATTERNDATA;
@@ -692,9 +699,12 @@ type
     m_nCsvFileCnt : Integer;
     m_nCsvLineCnt : Integer;
     m_bModelInfoNg : Boolean;
+    CriticalSection: array [0.. DefCommon.MAX_PG_CNT + 1] of  TCriticalSection;
     procedure SetResolution(nH, nV : Word);
     procedure LoadOcTables(nIdxOcTables : Integer);
     function LoadMesCode : Integer;
+    function IsExcelProcess(const ProcessID: DWORD): Boolean;
+
   public
     AutoReStart : Boolean;
     loadAllPat    : TDongaPat;
@@ -735,6 +745,8 @@ type
     procedure ReadOpticInfo;
 
     function ReadLGDDLLSummaryLog(sPid,sSn,sDate : string; nCh : Integer) : string;
+    function ReadLGDDLLSummaryLog_New(sPid,sSn,sDate : string; nCh : Integer) : string;
+
     function CheckFileAccess(const Path: string; Mode: Word): Boolean;
     function CanOpenFile(const FilePath: string; FileMode: Word = fmOpenRead): Boolean;
     function FindLGDSummaryCsvFile(sFolderPath : String; sData : string):String;
@@ -826,6 +838,9 @@ type
     function Find_Gray_index_Near_Target(fDBV, Target_Lv: Double): TArray<Double>;
     procedure SaveCsvMeasureLog(nCh: Integer; sFileCsv,sSerialNo,sDataHeader,sData : string);
     procedure GetBoxPtnSizeinfo(nModel,mBand : Integer; var nStartX,nStartY,nEndX,nEndY : Integer);
+    function GetMemoryUsagePercentage: Double;
+    function GetCPUUsage: Double;
+    procedure CheckAndTerminateExcel(sExcelFileName : string);
   end;
 
 var
@@ -1323,12 +1338,17 @@ begin
 end;
 
 constructor TCommon.Create;
+var
+  I: Integer;
 begin
   m_bModelInfoNg := False;
   _lcid := GetUserDefaultLCID;
   loadAllPat    := TDongaPat.Create(nil);
   scrSequnce      := TStringList.Create;
   LoadBaseData;
+
+  for I := 0 to DefCommon.MAX_PG_CNT do
+    CriticalSection[i] := TCriticalSection.Create;
 
   m_csvLine :=	0;
   m_csvFile :=	0;
@@ -1484,11 +1504,15 @@ end;
 
 
 destructor TCommon.Destroy;
+var
+  I: Integer;
 begin
 
   SetLength(m_OcParam.OcParam,0);
   SetLength(m_OcParam.OcVerify,0);
   SetLength(SystemInfo.ConfigVer,0);
+  for I := 0 to DefCommon.MAX_PG_CNT do
+    CriticalSection[i].Free;
   m_Ver.psu_Date := '';
   m_Ver.psu_Crc  := '';
   m_Ver.isu_Date := '';
@@ -2447,7 +2471,7 @@ begin
   if LoadMesCode < SystemInfo.MES_CODE_Cnt then  // MES CODE 갯수 로
     ShowMessage('<SYSTEM> Please check MES_CODE.CSV');
   //LoadPLCInfo; //임시 주석
-  LoadCompiledFiles;
+//  LoadCompiledFiles;
 end;
 
 procedure TCommon.LoadCheckSumNData(sFileName: string; var dCheckSum: dword; var TotalSize: Integer; var Data: TArray<System.Byte>);
@@ -3170,10 +3194,13 @@ begin
           with EdModelInfoPG.PgPwrSeq do begin
             sSection := 'POWER_SEQUENCE';
             for i := 0 to DefPG.PWR_SEQ_MAX do begin
-            //SeqType   := ReadInteger(sSection, 'PWR_SEQ_TYPE', 0); //obsoleted!!!
-              SeqOn[i]  := ReadInteger(sSection, Format('PWR_SEQ_ON_%d',[i]), 0);
-              SeqOff[i] := ReadInteger(sSection, Format('PWR_SEQ_OFF_%d',[i]),0);
+//              SeqOn[i]  := ReadInteger(sSection, Format('PWR_SEQ_ON_%d',[i]), 0);
+//              SeqOff[i] := ReadInteger(sSection, Format('PWR_SEQ_OFF_%d',[i]),0);
             end;
+            SeqOn[0]  := 6;         // Added by KTS 2023-12-05 오후 2:33:17 23/12/05 - 14:17분  우상용 책임 요청 고정
+            SeqOff[0] := 58;
+            SeqOn[1]  := 10;
+            SeqOff[1] := 42;
           end;
         end; //PG_TYPE_DP860
         with EdModelInfoFLOW do begin
@@ -3190,7 +3217,9 @@ begin
           UseNvmInit :=           Readinteger(sSection, 'NVMINITMODE',2);
           UseCheckVer :=          ReadBool(sSection, 'USE_CHECK_VERSION', False);
           UseCheckReProgramming := ReadBool(sSection, 'USE_CHECK_ReProgramming',False);
-          UseCkNVMWriteSequence := ReadInteger(sSection, 'USE_CHECK_NVMWriteSequence',0);
+//          UseCkNVMWriteSequence := ReadInteger(sSection, 'USE_CHECK_NVMWriteSequence',0);
+          UseCkNVMWriteSequence := NVMWriteSequence;
+          UseTconWriteChecksum := ReadBool(sSection, 'USE_CHECK_TCONWRITECHECKSUM',False);
           //
         end;
         {$ENDIF}
@@ -3918,51 +3947,232 @@ begin
   end;
 end;
 
-procedure TCommon.MLog(nCh : Integer;const Msg: String);
-var
-  _infile : TextFile;
-  sInputData, sFileName, sDate, sFilePath: String;
-//  nCurTime, nFreq : Int64;
-//	dElapse : Double;
-begin
-//  DebugMessage('[MLog] ' + Msg);
-  if CheckDir(Path.MLOG) then begin
-    Exit;
-  end;
-  sDate := FormatDateTime('yyyymmdd', Now);
-  sFilePath := Path.MLOG + sDate + '\';
-  if CheckDir(sFilePath) then begin
-    Exit;
-  end;
-  case nCh of
-    DefCommon.MAX_SYSTEM_LOG  : sFileName := sFilePath + Format('SystemLog_%s_%s.txt',[systemInfo.EQPId,sDate]);
-    DefCommon.MAX_PLC_LOG     : sFileName := sFilePath + Format('PLC_%s_%s.txt',[systemInfo.EQPId,sDate])
-    else begin
-      sFileName := sFilePath + Format('MLog_%s_%s_Ch%d.txt',[systemInfo.EQPId,sDate,nCh + 1]);
-    end;
-  end;
 
+function TCommon.IsExcelProcess(const ProcessID: DWORD): Boolean;
+var
+  FSWbemLocator: Variant;
+  FWMIService: Variant;
+  FWbemObjectSet: Variant;
+  FWbemObject: Variant;
+begin
+  Result := False;
   try
-    try
-      AssignFile(_infile, sFileName);
-      if not FileExists(sFileName) then
-        Rewrite(_infile)
-      else
-        Append(_infile);
-      sInputData := FormatDateTime('(hh:mm:ss.zzz) : ', Now) + Msg;
-      WriteLn(_infile, sInputData);
-    except
-      on E: Exception do  begin
-//        Sleep(10); //MLog 충돌 방지- IO 103
-        if nCh <> MAX_SYSTEM_LOG then begin
-//          MLog(MAX_SYSTEM_LOG, format('Exception On Mlog Ch=%d, Err=%s', [nCh, E.Message]));
-        end;
-      end;
+    FSWbemLocator := CreateOleObject('WbemScripting.SWbemLocator');
+    FWMIService := FSWbemLocator.ConnectServer('localhost', 'root\CIMv2', '', '');
+    FWbemObjectSet := FWMIService.ExecQuery(Format('SELECT * FROM Win32_Process WHERE ProcessId = %d', [ProcessID]), 'WQL', 0);
+    if not VarIsNull(FWbemObjectSet) and (FWbemObjectSet.Count > 0) then
+    begin
+      FWbemObject := FWbemObjectSet.ItemIndex(0);
+      if not VarIsNull(FWbemObject) then
+        Result := Pos('EXCEL.EXE', UpperCase(FWbemObject.Caption)) > 0;
     end;
-  finally
-    CloseFile(_infile);
+  except
+    // Handle exception as needed
   end;
 end;
+
+
+
+
+function IsProcessRunning(const ProcessName: string): Boolean;
+var
+  FSnapshotHandle: THandle;
+  FProcessEntry32: TProcessEntry32;
+begin
+  Result := False;
+  FSnapshotHandle := CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+  FProcessEntry32.dwSize := SizeOf(FProcessEntry32);
+  if Process32First(FSnapshotHandle, FProcessEntry32) then
+  begin
+    repeat
+      if SameText(ExtractFileName(FProcessEntry32.szExeFile), ProcessName) then
+      begin
+        Result := True;
+        Break;
+      end;
+    until not Process32Next(FSnapshotHandle, FProcessEntry32);
+  end;
+  CloseHandle(FSnapshotHandle);
+end;
+
+procedure TerminateProcessesByFileName(const FileName: string);
+var
+  ContinueLoop: BOOL;
+  FSnapshotHandle: THandle;
+  FProcessEntry32: TProcessEntry32;
+begin
+  FSnapshotHandle := CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+  FProcessEntry32.dwSize := SizeOf(FProcessEntry32);
+  ContinueLoop := Process32First(FSnapshotHandle, FProcessEntry32);
+  while Integer(ContinueLoop) <> 0 do
+  begin
+    if SameText(ExtractFileName(FProcessEntry32.szExeFile), FileName) then
+    begin
+//      ShowMessage(Format('Terminating process (PID: %d)...', [FProcessEntry32.th32ProcessID]));
+      TerminateProcess(OpenProcess(PROCESS_TERMINATE, BOOL(0), FProcessEntry32.th32ProcessID), 0);
+    end;
+    ContinueLoop := Process32Next(FSnapshotHandle, FProcessEntry32);
+  end;
+  CloseHandle(FSnapshotHandle);
+end;
+
+
+
+procedure TCommon.CheckAndTerminateExcel(sExcelFileName : string);
+begin
+    TerminateProcessesByFileName(sExcelFileName);
+end;
+
+function TCommon.GetMemoryUsagePercentage: Double;
+var
+  MemoryStatus: TMemoryStatusEx;
+begin
+  // TMemoryStatusEx 구조체를 초기화
+  ZeroMemory(@MemoryStatus, SizeOf(TMemoryStatusEx));
+  MemoryStatus.dwLength := SizeOf(TMemoryStatusEx);
+
+  // GlobalMemoryStatusEx 함수를 사용하여 메모리 정보 가져오기
+  if GlobalMemoryStatusEx(MemoryStatus) then
+  begin
+    // 전체 물리 메모리와 사용 가능한 물리 메모리의 비율 계산
+    Result := 100.0 * (1.0 - MemoryStatus.ullAvailPhys / MemoryStatus.ullTotalPhys);
+  end
+  else
+  begin
+    Result := 0.0; // 정보를 가져오지 못한 경우 0으로 설정
+  end;
+end;
+
+
+function TCommon.GetCPUUsage: Double;
+var
+  IdleTime, KernelTime, UserTime: FILETIME;
+  SystemTime: TDateTime;
+  TotalTime, IdleTimeDelta, TotalTimeDelta: Int64;
+begin
+  // 초기 CPU 시간 정보 얻기
+  if not GetSystemTimes(IdleTime, KernelTime, UserTime) then
+    RaiseLastOSError;
+
+  // 초기 전체 CPU 시간 계산
+  TotalTime := Int64(UserTime) + Int64(KernelTime);
+
+  // 짧은 지연 후 CPU 시간 다시 얻기
+  Sleep(100);
+  if not GetSystemTimes(IdleTime, KernelTime, UserTime) then
+    RaiseLastOSError;
+
+  // 전체 CPU 시간 및 유휴 시간 간격 계산
+  TotalTimeDelta := (Int64(UserTime) + Int64(KernelTime)) - TotalTime;
+  IdleTimeDelta := Int64(IdleTime) - Int64(IdleTime);
+
+  // CPU 사용량 계산
+  if TotalTimeDelta > 0 then
+    Result := 1.0 - IdleTimeDelta / TotalTimeDelta
+  else
+    Result := 0.0;
+end;
+
+
+
+// MLog 함수 개선
+procedure TCommon.MLog(nCh: Integer; const Msg: String);
+var
+  _infile: TextFile;
+  sInputData, sFileName, sDate, sFilePath: String;
+  MyClass: TComponent;
+begin
+//  try
+//    CriticalSection[nCh].Enter;
+    try
+      if CheckDir(Path.MLOG) then
+        Exit;
+
+      sDate := FormatDateTime('yyyymmdd', Now);
+      sFilePath := Path.MLOG + sDate + '\';
+
+      if CheckDir(sFilePath) then
+        Exit;
+
+      case nCh of
+        DefCommon.MAX_SYSTEM_LOG: sFileName := sFilePath + Format('SystemLog_%s_%s.txt', [systemInfo.EQPId, FormatDateTime('ddhh', Now)]);
+        DefCommon.MAX_PLC_LOG: sFileName := sFilePath + Format('PLC_%s_%s.txt', [systemInfo.EQPId, FormatDateTime('ddhh', Now)]);
+        else
+          sFileName := sFilePath + Format('MLog_%s_%s_Ch%d.txt', [systemInfo.EQPId, FormatDateTime('ddhh', Now), nCh + 1]);
+      end;
+
+      AssignFile(_infile, sFileName);
+
+      try
+        if not FileExists(sFileName) then
+          Rewrite(_infile)
+        else
+          Append(_infile);
+
+        sInputData := FormatDateTime('(hh:mm:ss.zzz) : ', Now) + Msg;
+        WriteLn(_infile, sInputData);
+      finally
+        CloseFile(_infile);
+      end;
+
+    except
+      on E: Exception do
+      begin
+
+      end;
+    end;
+//  finally
+//    CriticalSection[nCh].Leave;
+//  end;
+
+end;
+
+//procedure TCommon.MLog(nCh : Integer;const Msg: String);
+//var
+//  _infile : TextFile;
+//  sInputData, sFileName, sDate, sFilePath: String;
+////  nCurTime, nFreq : Int64;
+////	dElapse : Double;
+//begin
+//  try
+//
+//    if CheckDir(Path.MLOG) then begin
+//      Exit;
+//    end;
+//    sDate := FormatDateTime('yyyymmdd', Now);
+//    sFilePath := Path.MLOG + sDate + '\';
+//    if CheckDir(sFilePath) then begin
+//      Exit;
+//    end;
+//    case nCh of
+//      DefCommon.MAX_SYSTEM_LOG  : sFileName := sFilePath + Format('SystemLog_%s_%s.txt',[systemInfo.EQPId,sDate]);
+//      DefCommon.MAX_PLC_LOG     : sFileName := sFilePath + Format('PLC_%s_%s.txt',[systemInfo.EQPId,sDate])
+//      else begin
+//        sFileName := sFilePath + Format('MLog_%s_%s_Ch%d.txt',[systemInfo.EQPId,sDate,nCh + 1]);
+//      end;
+//    end;
+//
+//
+//    try
+//      AssignFile(_infile, sFileName);
+//      if not FileExists(sFileName) then
+//        Rewrite(_infile)
+//      else
+//        Append(_infile);
+//      sInputData := FormatDateTime('(hh:mm:ss.zzz) : ', Now) + Msg;
+//      WriteLn(_infile, sInputData);
+//    except
+//      on E: Exception do  begin
+////        Sleep(10); //MLog 충돌 방지- IO 103
+//        if nCh <> MAX_SYSTEM_LOG then begin
+////          MLog(MAX_SYSTEM_LOG, format('Exception On Mlog Ch=%d, Err=%s', [nCh, E.Message]));
+//        end;
+//      end;
+//    end;
+//  finally
+//    CloseFile(_infile);
+//  end;
+//end;
 
 procedure TCommon.HWCIDLogLog(nCh : Integer;const sPID,sSN, sData: String);
 var
@@ -4160,6 +4370,110 @@ begin
   end;
 end;
 
+function TCommon.ReadLGDDLLSummaryLog_New(sPid, sSn, sDate: string; nCh: Integer): string;
+var
+  asSummaryHeader, asSummaryGroupHeader, asSummaryAPDRData, asSummaryData: TArray<String>;
+  sFileName, sCopyFileName: String;
+  sLine, sResult: String;
+  txtFile: TEXTFILE;
+  i, nlineCount: Integer;
+begin
+  try
+    Result := '';
+    sResult := '';
+
+    sFileName := Common.Path.LGDDLL + format('Oclog\SummaryLog\%s_Summary_Log_', [Common.SystemInfo.EQPId]) + sDate + '.csv';
+
+    if not FileExists(sFileName) then
+      Exit;
+
+    sCopyFileName := Common.Path.LGDDLL + format('Oclog\SummaryLog\%s_Summary_Log_%s_%d.csv', [Common.SystemInfo.EQPId, sDate, nCh]);
+    CopyFile(PChar(sFileName), Pchar(sCopyFileName), False);
+
+    if not FileExists(sCopyFileName) then
+      Exit;
+
+    AssignFile(txtFile, sCopyFileName);
+
+    try
+      Reset(txtFile);
+      nlineCount := 0;
+
+      // 초기화를 한번만 수행하도록 수정
+      asSummaryAPDRData := nil;
+
+      while not Eof(txtFile) do
+      begin
+        ReadLn(txtFile, sLine);
+        asSummaryData := sLine.Split([',']);
+        Inc(nlineCount);
+
+        if asSummaryData[0] = 'BIN_VER' then
+          asSummaryHeader := sLine.Split([','])
+        else if asSummaryData[0] = 'BIN' then
+          asSummaryGroupHeader := sLine.Split([','])
+        else if (sPid = asSummaryData[4]) or (sSn = asSummaryData[5]) then
+          asSummaryAPDRData := sLine.Split([',']);
+      end;
+
+      if Length(asSummaryAPDRData) = 0 then
+        Exit;
+
+      // StringBuilder 사용
+      with TStringBuilder.Create do
+      begin
+        try
+
+          for i := 0 to System.Length(asSummaryAPDRData) -1 do
+          begin
+            if Common.SystemInfo.OCType = DefCommon.PreOCType then
+            begin
+              if System.Length(asSummaryGroupHeader[i]) = 0 then
+                asSummaryGroupHeader[i] := 'OC';
+
+              Append(asSummaryGroupHeader[i])
+                .Append(':')
+                .Append(asSummaryHeader[i])
+                .Append(':')
+                .Append(asSummaryAPDRData[i]);
+
+            end
+            else
+            begin
+              asSummaryGroupHeader[i] := 'OC';
+
+              if asSummaryAPDRData = nil then
+                Exit;
+
+              Append(asSummaryGroupHeader[i])
+                .Append(':')
+                .Append(asSummaryHeader[i])
+                .Append(':')
+                .Append(asSummaryAPDRData[i]);
+            end;
+
+            if i < System.Length(asSummaryAPDRData) - 1 then
+              Append(',');
+          end;
+
+          sResult := ToString;
+        finally
+          Free;
+        end;
+      end;
+
+    finally
+      CloseFile(txtFile);
+
+      // 파일 삭제
+      if FileExists(sCopyFileName) then
+        DeleteFile(sCopyFileName);
+    end;
+
+  finally
+    Result := sResult;
+  end;
+end;
 
 
 
@@ -4455,7 +4769,9 @@ begin
   else begin
     fSys := TIniFile.Create(Path.SysInfo);
     try
+
       SystemInfo.Password             := Decrypt(fSys.ReadString('SYSTEMDATA', 'PASSWORD', Encrypt('LED', 17307)), 17307);
+      SystemInfo.SupervisorPassword   := Decrypt(fSys.ReadString('SYSTEMDATA', 'SUPERVISORPASSWORD', Encrypt('LED', 18307)), 18307);
       SystemInfo.DAELoadWizardPath    := fSys.ReadString('SYSTEMDATA', 	'DAELoadWizardPath','');
       SystemInfo.TestModel            := fSys.ReadString('SYSTEMDATA', 	'TESTING_MODEL','');
       SystemInfo.Com_IrTempSensor     := fSys.ReadInteger('SYSTEMDATA', 'COM_IR_TEMP_SENSOR',0);
@@ -4582,6 +4898,7 @@ begin
 
       SystemInfo.MES_CODE_Cnt         := fSys.ReadInteger('SYSTEMDATA', 		'MES_CODE_Cnt',  3181);  // MES_code 갯수 불러오기
 
+      SystemInfo.PopupMsgTime         := fSys.ReadInteger('SYSTEMDATA',     'POPUPMSGTIME',0);
       {$IFDEF CA410_USE}
 //      SystemInfo.Ca410MemCh := fsys.ReadInteger('SYSTEMDATA', 'CA410_CH', 3);
       for i := DefCommon.CH1 to DefCommon.MAX_CH do begin
@@ -4864,6 +5181,8 @@ begin
           WriteBool(sSection, 'USE_CHECK_VERSION',     UseCheckVer);
           WriteBool(sSection, 'USE_CHECK_ReProgramming',     UseCheckReProgramming);
           WriteInteger(sSection, 'USE_CHECK_NVMWriteSequence',     UseCkNVMWriteSequence);
+          WriteBool(sSection, 'USE_CHECK_TCONWRITECHECKSUM',     UseTconWriteChecksum);
+
 
         end;
 
@@ -5035,6 +5354,9 @@ begin
     try
       encrypt_passwd := Encrypt(SystemInfo.Password, 17307);
       WriteString ('SYSTEMDATA', 'PASSWORD',      				encrypt_passwd);
+      encrypt_passwd := Encrypt(SystemInfo.SupervisorPassword, 18307);
+      WriteString ('SYSTEMDATA', 'SUPERVISORPASSWORD',      				encrypt_passwd);
+
       WriteString ('SYSTEMDATA', 'DAELoadWizardPath',     SystemInfo.DAELoadWizardPath);
       WriteString ('SYSTEMDATA', 'TESTING_MODEL', 				SystemInfo.TestModel);
       for i := DefCommon.CH1 to DefCommon.MAX_CH do begin
@@ -5162,6 +5484,8 @@ begin
       WriteInteger('SYSTEMDATA',  'R2RCa410MemCh',  		SystemInfo.R2RCa410MemCh); // Added by KTS 2023-01-17 오후 5:12:27 B접점 반전 해야되는 신호 목록
 
       WriteInteger('SYSTEMDATA',  'MES_CODE_Cnt',  		SystemInfo.MES_CODE_Cnt);
+
+      WriteInteger('SYSTEMDATA',  'POPUPMSGTIME', SystemInfo.PopupMsgTime);
 
 
 

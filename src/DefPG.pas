@@ -105,6 +105,15 @@ type
     TConOcWriteTX    : Integer;
     //
     ContTConOcWrite  : Integer;
+
+    TconReadArrayDllCall  : Integer;
+    TconWriteArrayDllCall : Integer;
+
+    TconMultiWriteDllCall : Integer;
+    TconSeqWriteDllCall : Integer;
+
+
+
   end;
 
 	//------------------------------------- PG TX/RX Data
@@ -1292,6 +1301,7 @@ const
   PG_CMDID_ALPDP_DBV            = 101;  PG_CMDSTR_ALPDP_DBV            = 'alpdp.dbv'; //TBD:DP860? TBD:2023-02-02? alpdp.dbv?
   PG_CMDID_BIST_DBV             = 102;  PG_CMDSTR_BIST_DBV             = 'bist.dbv'; //TBD:DP860? TBD:2023-02-02? alpdp.dbv?
   PG_CMDID_REPROGRAMING         = 103;  PG_CMDSTR_REPROGRAMING         = 'programming.write';
+  PG_CMDID_CHK_ENABLE           = 104;  PG_CMDSTR_CHK_ENABLE           = 'chk.enable';
 	//------------------------------------------ System Commands
   // BMP list
   PG_CMDID_GET_BMP_LIST         = 110;  PG_CMDSTR_GET_BMP_LIST         = 'bmp'; //TBD:DP860?

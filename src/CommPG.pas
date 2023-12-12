@@ -402,6 +402,7 @@ type
     function DP860_SendTconMultiWrite(nDataCnt: Integer; arRegAddr : array of integer; arDataW: TIDBytes; nWaitMS: Integer=0; nRetry: Integer=0): DWORD;
     function DP860_SendTconSeqWrite(nMode,nSeqIdx,nDataCnt: Integer; arRegAddr : array of integer; arDataW: TIDBytes; nWaitMS: Integer=0; nRetry: Integer=0): DWORD;
     function DP860_SendProgrammingWrite(nDevaddr,nRegAddr,nDataCnt: Integer; arDataW: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
+    function DP860_SendChkEnable(nEnable: Integer; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
 
     //------------------------------------------------------ PG_DP860 Command (Flash)
   {$IFDEF FEATURE_FLASH_ACCESS}
@@ -728,74 +729,14 @@ end;
 //		- procedure TUdpServerPG.UdpSvrSend(nPg: Integer; sData: string);
 //
 
-procedure TUdpServerPG.UdpSvrSend(nBindIdx, nPg: Integer; sData: string);
-var
-  sPeerIP   : string;
-  nLocalPort, nPeerPort : Integer;
-
-  nDebugMsgType: Integer;
-  sLocal, sRemote, logMessage: string;
-  MaxRetries: Integer;
-begin
-  if udpSvr = nil then Exit;
-
-  nLocalPort := udpSvr.Bindings[nBindIdx].Port;
-  sPeerIP    := PG[nPg].PG_IPADDR;
-  nPeerPort  := PG[nPg].PG_IPPORT;
-
-  // Debug/maint log
-  nDebugMsgType := DEBUG_LOG_MSGTYPE_INSPECT;
-
-
-  sLocal  := Format('%d', [nLocalPort]);
-  sRemote := Format('%d', [nPeerPort]);
-  logMessage := Format('TX %s/%s: %s', [sLocal, sRemote, sData]);
-
-  if (Common.m_nDebugLogLevelActive >= nDebugMsgType) then
-    Common.DebugLog(nPg, nDebugMsgType, 'TX', sLocal,sRemote, sData);
-
-  {$IFDEF PG_DP860}
-  if PG[nPg].FIsMainter and Assigned(PG[nPg].OnTxMaintEventPG) and (nDebugMsgType = DEBUG_LOG_MSGTYPE_INSPECT) then
-    PG[nPg].OnTxMaintEventPG(nPg, sLocal, sRemote, sData);
-  {$ENDIF}
-
-  MaxRetries := 3; // Adjust the number of retries as needed
-  while MaxRetries > 0 do
-  begin
-    try
-      udpSvr.Bindings[nBindIdx].SendTo(PG[nPg].PG_IPADDR, PG[nPg].PG_IPPORT, sData);
-      // Packet sent successfully
-      Exit;
-    except
-      on E: Exception do
-      begin
-        // 예외 처리 코드 추가
-        PG[nPg].ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG, 'UdpSvrSend : Error: ' + E.Message);
-        if (Common.m_nDebugLogLevelActive >= nDebugMsgType) then
-          Common.DebugLog(nPg, nDebugMsgType, 'TX', sLocal,sRemote, sData+' ...TX_NG');
-        {$IFDEF PG_DP860}
-        if PG[nPg].FIsMainter and Assigned(PG[nPg].OnTxMaintEventPG) and (nDebugMsgType = DEBUG_LOG_MSGTYPE_INSPECT) then
-          PG[nPg].OnTxMaintEventPG(nPg, sLocal, sRemote, sData + ' ...TX_NG');
-        {$ENDIF}
-      end;
-    end;
-
-    // Wait and then retry (you can adjust the sleep duration as needed)
-    Sleep(1000); // Sleep for 1 second before retrying
-    Dec(MaxRetries);
-  end;
-
-  // If all retries fail, handle the failure appropriately (e.g., log the failure)
-  // ...
-end;
-
 //procedure TUdpServerPG.UdpSvrSend(nBindIdx, nPg: Integer; sData: string);
 //var
 //  sPeerIP   : string;
-//	nLocalPort, nPeerPort : Integer;
+//  nLocalPort, nPeerPort : Integer;
 //
-//  nDebugMsgType : integer;
-//  sLocal, sRemote : string;
+//  nDebugMsgType: Integer;
+//  sLocal, sRemote, logMessage: string;
+//  MaxRetries: Integer;
 //begin
 //  if udpSvr = nil then Exit;
 //
@@ -803,41 +744,101 @@ end;
 //  sPeerIP    := PG[nPg].PG_IPADDR;
 //  nPeerPort  := PG[nPg].PG_IPPORT;
 //
-//  // debug/maint log
+//  // Debug/maint log
 //  nDebugMsgType := DEBUG_LOG_MSGTYPE_INSPECT;
-//{$IFDEF DP860_TBD_XXXX} //TBD:DP860?
-//  if (btSigId = DefPG.SIG_PG_CONN_CHECK)        then nDebugMsgType := DEBUG_LOG_MSGTYPE_CONNCHECK
-//  else if (btSigId = DefPG.SIG_PG_READ_VOLTCUR) then nDebugMsgType := DEBUG_LOG_MSGTYPE_POWERREAD;
-//{$ENDIF}
-////sLocal     := Format('%s/%d',[DefPG.CommPG_PC_IPADDR,nLocalPort]);
-////sRemote    := Format('%s/%d',[sPeerIP,nPeerPort]);
-//  sLocal     := Format('%d',[nLocalPort]);
-//  sRemote    := Format('%d',[nPeerPort]);
-//  if (Common.m_nDebugLogLevelActive >= nDebugMsgType) then
-//		Common.DebugLog(nPg, nDebugMsgType, 'TX', sLocal,sRemote, sData);
-//    {$IFDEF PG_DP860}
-//    if PG[nPg].FIsMainter and Assigned(PG[nPg].OnTxMaintEventPG) and (nDebugMsgType = DEBUG_LOG_MSGTYPE_INSPECT) then begin
-//      PG[nPg].OnTxMaintEventPG(nPg, sLocal,sRemote, sData);
-//    end;
-//    {$ENDIF}
 //
-//  try
-//    udpSvr.Bindings[nBindIdx].SendTo(PG[nPg].PG_IPADDR,PG[nPg].PG_IPPORT, sData);
-//  except
-//    on E: Exception do
-//    begin
-//      // 예외 처리 코드 추가
-//      PG[nPg].ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG,'UdpSvrSend : Error : '+ E.Message);
-//      if (Common.m_nDebugLogLevelActive >= nDebugMsgType) then
-//        Common.DebugLog(nPg, nDebugMsgType, 'TX', sLocal,sRemote, sData+' ...TX_NG');
-//      {$IFDEF PG_DP860}
-//      if PG[nPg].FIsMainter and Assigned(PG[nPg].OnTxMaintEventPG) and (nDebugMsgType = DEBUG_LOG_MSGTYPE_INSPECT) then begin
-//        PG[nPg].OnTxMaintEventPG(nPg, sLocal,sRemote, sData+' ...TX_NG');
+//
+//  sLocal  := Format('%d', [nLocalPort]);
+//  sRemote := Format('%d', [nPeerPort]);
+//  logMessage := Format('TX %s/%s: %s', [sLocal, sRemote, sData]);
+//
+//  if (Common.m_nDebugLogLevelActive >= nDebugMsgType) then
+//    Common.DebugLog(nPg, nDebugMsgType, 'TX', sLocal,sRemote, sData);
+//
+//  {$IFDEF PG_DP860}
+//  if PG[nPg].FIsMainter and Assigned(PG[nPg].OnTxMaintEventPG) and (nDebugMsgType = DEBUG_LOG_MSGTYPE_INSPECT) then
+//    PG[nPg].OnTxMaintEventPG(nPg, sLocal, sRemote, sData);
+//  {$ENDIF}
+//
+//  MaxRetries := 3; // Adjust the number of retries as needed
+//  while MaxRetries > 0 do
+//  begin
+//    try
+//      udpSvr.Bindings[nBindIdx].SendTo(PG[nPg].PG_IPADDR, PG[nPg].PG_IPPORT, sData);
+//      // Packet sent successfully
+//      Exit;
+//    except
+//      on E: Exception do
+//      begin
+//        // 예외 처리 코드 추가
+//        PG[nPg].ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG, 'UdpSvrSend : Error: ' + E.Message);
+//        if (Common.m_nDebugLogLevelActive >= nDebugMsgType) then
+//          Common.DebugLog(nPg, nDebugMsgType, 'TX', sLocal,sRemote, sData+' ...TX_NG');
+//        {$IFDEF PG_DP860}
+//        if PG[nPg].FIsMainter and Assigned(PG[nPg].OnTxMaintEventPG) and (nDebugMsgType = DEBUG_LOG_MSGTYPE_INSPECT) then
+//          PG[nPg].OnTxMaintEventPG(nPg, sLocal, sRemote, sData + ' ...TX_NG');
+//        {$ENDIF}
 //      end;
-//      {$ENDIF}
 //    end;
+//
+//    // Wait and then retry (you can adjust the sleep duration as needed)
+//    Sleep(1000); // Sleep for 1 second before retrying
+//    Dec(MaxRetries);
 //  end;
+
+  // If all retries fail, handle the failure appropriately (e.g., log the failure)
+  // ...
 //end;
+
+procedure TUdpServerPG.UdpSvrSend(nBindIdx, nPg: Integer; sData: string);
+var
+  sPeerIP   : string;
+	nLocalPort, nPeerPort : Integer;
+
+  nDebugMsgType : integer;
+  sLocal, sRemote : string;
+begin
+  if udpSvr = nil then Exit;
+
+  nLocalPort := udpSvr.Bindings[nBindIdx].Port;
+  sPeerIP    := PG[nPg].PG_IPADDR;
+  nPeerPort  := PG[nPg].PG_IPPORT;
+
+  // debug/maint log
+  nDebugMsgType := DEBUG_LOG_MSGTYPE_INSPECT;
+{$IFDEF DP860_TBD_XXXX} //TBD:DP860?
+  if (btSigId = DefPG.SIG_PG_CONN_CHECK)        then nDebugMsgType := DEBUG_LOG_MSGTYPE_CONNCHECK
+  else if (btSigId = DefPG.SIG_PG_READ_VOLTCUR) then nDebugMsgType := DEBUG_LOG_MSGTYPE_POWERREAD;
+{$ENDIF}
+//sLocal     := Format('%s/%d',[DefPG.CommPG_PC_IPADDR,nLocalPort]);
+//sRemote    := Format('%s/%d',[sPeerIP,nPeerPort]);
+  sLocal     := Format('%d',[nLocalPort]);
+  sRemote    := Format('%d',[nPeerPort]);
+  if (Common.m_nDebugLogLevelActive >= nDebugMsgType) then
+		Common.DebugLog(nPg, nDebugMsgType, 'TX', sLocal,sRemote, sData);
+    {$IFDEF PG_DP860}
+    if PG[nPg].FIsMainter and Assigned(PG[nPg].OnTxMaintEventPG) and (nDebugMsgType = DEBUG_LOG_MSGTYPE_INSPECT) then begin
+      PG[nPg].OnTxMaintEventPG(nPg, sLocal,sRemote, sData);
+    end;
+    {$ENDIF}
+
+  try
+    udpSvr.Bindings[nBindIdx].SendTo(PG[nPg].PG_IPADDR,PG[nPg].PG_IPPORT, sData);
+  except
+    on E: Exception do
+    begin
+      // 예외 처리 코드 추가
+      PG[nPg].ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG,'UdpSvrSend : Error : '+ E.Message);
+      if (Common.m_nDebugLogLevelActive >= nDebugMsgType) then
+        Common.DebugLog(nPg, nDebugMsgType, 'TX', sLocal,sRemote, sData+' ...TX_NG');
+      {$IFDEF PG_DP860}
+      if PG[nPg].FIsMainter and Assigned(PG[nPg].OnTxMaintEventPG) and (nDebugMsgType = DEBUG_LOG_MSGTYPE_INSPECT) then begin
+        PG[nPg].OnTxMaintEventPG(nPg, sLocal,sRemote, sData+' ...TX_NG');
+      end;
+      {$ENDIF}
+    end;
+  end;
+end;
 
 //##############################################################################
 {$ENDIF} //PG_DP860 ############################################################
@@ -995,6 +996,7 @@ begin
     SendPowerOn(CMD_POWER_OFF,False{bPowerReset},0,0);
   end;
 
+  sPreviousCommand := '';
 {$IFDEF PG_AF9}
   {$IFDEF INSPECTOR_POCB}
   if Common.SysInfo.PG.PG_TYPE = PG_TYPE_AF9 then
@@ -3200,11 +3202,19 @@ function TCommPG.DP860_SendPowerSeq(nWaitMS: Integer=3000; nRetry: Integer=0): D
 var
 	nCmdId : Integer;
 	sCmdName, sCommand, sDebug, sEtcMsg : string;
+  sCmdParam : string;
 begin
 	nCmdId   := DefPG.PG_CMDID_POWER_SEQ;
 	sCmdName := DefPG.PG_CMDSTR_POWER_SEQ; // 'power.seq'
 	sEtcMsg  := '';
 	//
+  with Common.TestModelInfoPG.PgPwrSeq do
+  begin
+    sCmdParam := Format('Power On Sequence : VCC -> (%dms) -> PWR_DWN -> (%dms) -> VIN',[SeqOn[0] ,SeqOn[1]]);  // SeqOn[0]  ~ SeqOn[1]
+    sCmdParam := sCmdParam + #13#10 + Format('Power Off Sequence : PWR_DWN -> (%dms) -> VIN -> (%dms) -> VCC',[SeqOff[0],SeqOff[1]]); // SeqOff[0] ~ SeqOff[1]
+  end;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING,0, sCmdParam);
+
 	sCommand := sCmdName  + ' ' + DP860_MakeCmdParam_PowerSeq;
 	Result := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
   if Result <> WAIT_OBJECT_0 then begin
@@ -4021,6 +4031,7 @@ var
   arTemp   : TArray<string>;
   i        : Integer;
 begin
+
 	nCmdId   := DefPG.PG_CMDID_TCON_READ;
 	sCmdName := DefPG.PG_CMDSTR_TCON_READ;
 	sEtcMsg  := '';
@@ -4058,31 +4069,87 @@ begin
   end;
 end;
 
+function ExtractAlphabets(const inputString: string): string;
+var
+  i: Integer;
+begin
+  Result := '';
+
+  // 문자열에서 알파벳만 추출
+  for i := 1 to Length(inputString) do
+  begin
+    if CharInSet(inputString[i], ['A'..'Z', 'a'..'z', '0'..'9']) then
+      Result := Result + inputString[i];
+  end;
+
+  // 만약 추출된 문자열이 없으면 'Not found' 반환
+  if Result = '' then
+    Result := 'Not found';
+end;
+
 function TCommPG.DP860_SendTconWrite(nRegAddr,nDataCnt: Integer; arDataW: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
 var
 	nCmdId : Integer;
 	sCmdName, sCommand, sDebug, sEtcMsg : string;
-	i : Integer;
+	i,nCrcData,nDataPGW : Integer;
+
+  arCmdAck : TArray<string>;
+  arTemp   : TArray<string>;
 begin
 	nCmdId   := DefPG.PG_CMDID_TCON_WRITE;
 	sCmdName := DefPG.PG_CMDSTR_TCON_WRITE;
 	sEtcMsg  := '';
+  nCrcData := 0;
 	//
 	sCommand := sCmdName + ' ' + Format('0x%0.4x %d',[nRegAddr,nDataCnt]); // 'tcon.write <reg_addr> <write_length> <write_data0> <write_data1>…'
 	for i := 0 to Pred(nDataCnt) do begin
 		sCommand := sCommand + ' ' + Format('0x%0.2x',[arDataW[i]]);
+    nCrcData := nCrcData + arDataW[i];
 	end;
+  if Common.TestModelInfoFLOW.UseTconWriteChecksum then begin
+    nCrcData := $FFFF and (nCrcData + nRegAddr);
+    sCommand := sCommand + ' ' + Format('0x%0.4x',[nCrcData]);
+  end;
 	Result := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
   Inc(TconRWCnt.TconWriteTX); //2023-03-28 jhhwang (for T/T Test)
   TconRWCnt.ContTConOcWrite := 0; //2023-03-28 jhhwang (for T/T Test)
+
+  try
+    if Common.TestModelInfoFLOW.UseTconWriteChecksum then begin
+      arCmdAck := FTxRxPG.RxAckStr.Split([#$0D]);
+      arTemp   := arCmdAck[0].Split([' ']);
+      if Length(arCmdAck) > 2 then begin
+        if nDataCnt = StrToInt('$'+ExtractAlphabets(arTemp[0])) then begin
+          arTemp   := arCmdAck[1].Split([' ']);
+          arTemp[0] := ExtractAlphabets(arTemp[0]);
+          nDataPGW := StrToInt('$'+ arTemp[0]);
+          if nCrcData <> nDataPGW then  begin
+            sEtcMsg :=  sEtcMsg + format('(nCrcData : Data : 0x%0.4x PG_Return : %0x%0.4x)',[nCrcData,nDataPGW]);
+            Result  := WAIT_FAILED;
+          end;
+        end
+        else begin
+          sEtcMsg :=  sEtcMsg + format('(nCrcData : Data Length : %d PG_Return Length : %d',[nDataCnt,StrToIntDef('$'+ExtractAlphabets(arTemp[0]),0)]);
+          Result  := WAIT_FAILED;
+        end;
+      end;
+    end;
+  except
+
+  end;
+
   if Result <> WAIT_OBJECT_0 then begin
-    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+    sEtcMsg := sEtcMsg + '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr) +'-' + FTxRxPG.RxPrevStr+']';
   end;
   //
   if ((Common.SystemInfo.DebugLogLevelConfig > 0) and Common.SystemInfo.PG_TconWriteLogDisplay) or (Result <> 0) then begin
+//    sDebug := '<PG> Previous Command : ' + sPreviousCommand;
+//    ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
     sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
     ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
   end;
+  if Result = 0 then
+    sPreviousCommand := sCommand;
 end;
 
 function TCommPG.DP860_SendProgrammingWrite(nDevaddr,nRegAddr,nDataCnt: Integer; arDataW: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
@@ -4104,6 +4171,27 @@ begin
   sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr) +'-' + FTxRxPG.RxPrevStr+']';
 
   sDebug := '<PG> ' + sCommand + #13#10 + DP860_GetStrCmdResult(Result) + sEtcMsg;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+
+end;
+
+function TCommPG.DP860_SendChkEnable(nEnable: Integer; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+	i : Integer;
+begin
+	nCmdId   := DefPG.PG_CMDID_CHK_ENABLE;
+	sCmdName := DefPG.PG_CMDSTR_CHK_ENABLE;
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName + ' ' + Format('%d',[nEnable]); // 'chk.enable 1'
+
+	Result := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+
+  sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr) +'-' + FTxRxPG.RxPrevStr+']';
+
+  sDebug := '<PG> ' + sCommand +' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
   ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
 
 end;
@@ -4205,8 +4293,8 @@ begin
   //
   if (Common.SystemInfo.DebugLogLevelConfig > 0) or (Result <> 0) then begin
 //  if ((Common.SystemInfo.DebugLogLevelConfig > 0) and Common.SystemInfo.PG_TconWriteLogDisplay) or (Result <> 0) then begin
-    sDebug := '<PG> Previous Command : ' + sPreviousCommand;
-    ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+//    sDebug := '<PG> Previous Command : ' + sPreviousCommand;
+//    ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
     sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
     ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
   end;
@@ -4615,6 +4703,13 @@ begin
     TConOcWriteTX    := 0;
     //
     ContTConOcWrite  := 0;
+
+    TconReadArrayDllCall  := 0;
+    TconWriteArrayDllCall := 0;
+
+    TconMultiWriteDllCall := 0;
+    TconSeqWriteDllCall := 0;
+
   end;
 end;
 
@@ -4638,7 +4733,7 @@ begin
   sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
   with TconRWCnt do begin
     if nState = 1 then DP860_ClearOcTconRWCnt; //OC DLL Start
-    sDebug := sDebug + Format('[SW:DllRead(%d)DllWrite(%d),ReadTX(%d)Write(%d)OcWrite(%d)]',[TconReadDllCall,TconWriteDllCall,TconReadTX,TConWriteTX,TConOcWriteTX]);
+    sDebug := sDebug + Format('[SW:DllRead(%d)DllWrite(%d),ReadTX(%d)Write(%d)OcWrite(%d)ReadArray(%d)WriteArray(%d)MultiWrite(%d)SeqWrite(%d)]',[TconReadDllCall,TconWriteDllCall,TconReadTX,TConWriteTX,TConOcWriteTX,TconReadArrayDllCall,TconWriteArrayDllCall,TconMultiWriteDllCall,TconSeqWriteDllCall]);
   end;
   ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
 end;
@@ -4836,13 +4931,15 @@ begin
               end;
               if Result = WAIT_OBJECT_0 then begin
           			Result := DP860_SendPowerOn(nWaitMS,nRetry);
+                if Result = WAIT_OBJECT_0 then begin
+                  DP860_SendTconInfo(1000{nWaitMS},0{Retry});
+                  Sleep(100);
+                  DP860_SendSendNvmInit(Common.TestModelInfoFLOW.UseNvmInit,nWaitMS,nRetry);
+                end;
               end
               else begin
                 Result := DP860_SendPowerOff({nMode}nWaitMS,nRetry);
                 Result := DP860_SendInterposerOff({nMode}nWaitMS,nRetry);
-              end;
-              if Result = WAIT_OBJECT_0 then begin
-          			DP860_SendTconInfo(1000{nWaitMS},0{Retry});
               end;
             end;
           end
@@ -4963,7 +5060,6 @@ begin
               Result := DP860_SendInterposerOn(nWaitMS,nRetry);
             end;
 
-//              Result := 0;
             if Result = WAIT_OBJECT_0 then begin
               Sleep(DELAY_POWER_INTERPOSER_ON);
               {$IFDEF INSPECTOR_POCB}
@@ -4976,16 +5072,17 @@ begin
               end;
               if Result = WAIT_OBJECT_0 then begin
           			Result := DP860_SendPowerBistOn(nWaitMS,nRetry);
+                if Result = WAIT_OBJECT_0 then begin
+                  DP860_SendTconInfo(1000{nWaitMS},0{Retry});
+                  Sleep(100);
+                  DP860_SendSendNvmInit(Common.TestModelInfoFLOW.UseNvmInit,nWaitMS,nRetry);
+                end;
               end
               else begin
                 Result := DP860_SendPowerBistOff({nMode}nWaitMS,nRetry);
                 Result := DP860_SendInterposerOff({nMode}nWaitMS,nRetry);
               end;
-              if Result = WAIT_OBJECT_0 then begin
-          			DP860_SendTconInfo(1000{nWaitMS},0{Retry});
-                Sleep(100);
-                DP860_SendSendNvmInit(Common.TestModelInfoFLOW.UseNvmInit,nWaitMS,nRetry);
-              end;
+
             end;
           end
           else begin
@@ -5721,7 +5818,8 @@ var
   btaData : TIdBytes;
 begin
   Result := WAIT_FAILED;
-	if Length(arDataR) < nDataCnt then begin
+
+if Length(arDataR) < nDataCnt then begin
 		sDebug := Format('SendI2CRead NG(ReadDataCnt:%d < ReadDataBuf.Length:%d)',[nDataCnt,Length(arDataR)]);
   	ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
 		Exit;
@@ -5889,229 +5987,330 @@ end;
 //==============================================================================
 // FLOW-SPECIFIC (Flash)
 //------------------------------------------------------------------------------
-// procedure/function: 
+// procedure/function:
 //		- function TCommPG.SendFlashRead(nAddr,nSize: DWORD; pData: PByte; nWaitMS: Integer=5000; nRetry: Integer=0): DWORD;
 //		- function TCommPG.SendFlashWrite(nAddr,nSize: DWORD; const pData: PByte; nWaitMS: Integer=100000; nRetry: Integer=0): DWORD;
 //		- function TCommPG.GetFlashDataBuf(nAddr,nLen: DWORD; pDataBuf: PByte): DWORD;
 //		- function TCommPG.UpdateFlashDataBuf(nAddr,nLen: DWORD; pData: PByte): DWORD;
 //
 {$IFDEF FEATURE_FLASH_ACCESS}
-function TCommPG.SendFlashRead(nAddr,nSize: DWORD; pData: PByte; nWaitMS: Integer=5000; nRetry: Integer=0): DWORD;
+//function TCommPG.SendFlashRead(nAddr,nSize: DWORD; pData: PByte; nWaitMS: Integer=5000; nRetry: Integer=0): DWORD;
+//var
+//  btApiRtn : Byte;
+//  nTry : Integer;
+//  sFunc, sDebug,sDate,sPID : string;
+//  sRemotePath, sRemoteFile, sLocalPath, sLocalFile, sLocalFullName,sRemoteBackupFile, sLocalPathBackUp,sLocalFullBackupName : string;
+//  //
+//  mtData : TMemoryStream;
+//  rxData : array of Byte;
+//  fs   : TFileStream;
+//begin
+//  Result := WAIT_FAILED;
+//  sFunc  := Format('FlashRead(Addr=%d,Size=%d) ',[nAddr,nSize]);
+//
+//  try
+//    FIsOnFlashAccess := True;
+//    //
+//    for nTry := 0 to nRetry do begin
+//  		case PG_TYPE of
+//  			{$IFDEF PG_AF9}
+//  			DefPG.PG_TYPE_AF9 : begin //---------------- AF9
+//      		btApiRtn := AF9_FLASHRead(pData, nAddr,(nAddr+nSize-1){nEndAddr});
+//      		if btApiRtn = DefPG.AF9API_RESULT_OK then begin
+//    				Result := WAIT_OBJECT_0;
+//  					break;
+//  				end;
+//  			end;
+//  			{$ENDIF}
+//  			{$IFDEF PG_DP860}
+//  			DefPG.PG_TYPE_DP860 : begin //-------------- DP860
+//  				if nSize < 256 then begin
+//  					Result := DP860_SendNvmRead(nAddr,nSize, pData, nWaitMS,nRetry);
+//  				end
+//  				else begin
+//            // Send flash.read2file
+//  					sRemoteFile := Format('FlashR_A0x%x_L%d.bin',[nAddr,nSize]);
+//  					Result := DP860_SendNvmReadFile(nAddr,nSize, sRemoteFile, nWaitMS,nRetry);
+//  					if Result <> WAIT_OBJECT_0 then begin
+//              //TBD?
+//              break;
+//            end;
+//  					// Get flash read data file from PG
+//  					sRemotePath := '/home/upload';
+//  					sLocalPath  := Common.Path.FLASH;
+//  					sLocalFile  := Format('CH%d_',[m_nPG+1]) + sRemoteFile;
+//            sLocalFullName := Trim(sLocalPath + sLocalFile);
+//  					Result := DP860_FileGetPG2PC(sRemotePath,sRemoteFile, sLocalFullName, False{bClearAfterGet}, True{nEndDisc} {,nWaitMS,nRetry});
+//  					if Result <> WAIT_OBJECT_0 then begin
+//              //TBD?
+//              break;
+//            end;
+//            // Get Flash data from bin file
+//            mtData := TMemoryStream.Create;
+//            try
+//              mtData.LoadFromFile(sLocalFullName);
+//              if mtData.Size <> nSize then begin
+//                //TBD? RxDataSizeNG
+//              end;
+//              SetLength(rxData,nSize);
+//              mtData.Position := 0;
+//              mtData.Read(rxData[0],mtData.Size);
+//              CopyMemory(pData,@rxData[0],nSize);
+//            finally
+//              mtData.Free;
+//            end;
+//
+//            break;
+//  				end;
+//  			end;
+//  			{$ENDIF}
+//	  	end;
+//  	end;
+//  finally
+//    FIsOnFlashAccess := False;
+//  end;
+//
+//	//
+//  if (Result <> WAIT_OBJECT_0) then begin
+//    sDebug := sFunc + '...NG';
+//    ShowTestWindow(DefCommon.MSG_MODE_WORKING,DefCommon.LOG_TYPE_NG, sDebug);
+//    Exit;
+//  end;
+//end;
+
+function TCommPG.SendFlashRead(nAddr, nSize: DWORD; pData: PByte; nWaitMS: Integer = 5000; nRetry: Integer = 0): DWORD;
 var
-  btApiRtn : Byte;
-  nTry : Integer;
-  sFunc, sDebug,sDate,sPID : string;
-  sRemotePath, sRemoteFile, sLocalPath, sLocalFile, sLocalFullName,sRemoteBackupFile, sLocalPathBackUp,sLocalFullBackupName : string;
-  //
-  mtData : TMemoryStream;
-  rxData : array of Byte;
-  fs   : TFileStream;
+  btApiRtn: Byte;
+  nTry: Integer;
+  sFunc, sDebug, sDate, sPID: string;
+  sRemoteFile, sLocalFile, sLocalFullName, sRemoteBackupFile, sLocalPathBackUp, sLocalFullBackupName: string;
+  mtData: TMemoryStream;
+  rxData: TBytes;
 begin
   Result := WAIT_FAILED;
-  sFunc  := Format('FlashRead(Addr=%d,Size=%d) ',[nAddr,nSize]);
+  sFunc := Format('FlashRead(Addr=%d,Size=%d) ', [nAddr, nSize]);
 
   try
     FIsOnFlashAccess := True;
-    //
-    for nTry := 0 to nRetry do begin
-  		case PG_TYPE of
-  			{$IFDEF PG_AF9}
-  			DefPG.PG_TYPE_AF9 : begin //---------------- AF9
-      		btApiRtn := AF9_FLASHRead(pData, nAddr,(nAddr+nSize-1){nEndAddr});
-      		if btApiRtn = DefPG.AF9API_RESULT_OK then begin
-    				Result := WAIT_OBJECT_0;
-  					break;
-  				end;
-  			end;
-  			{$ENDIF}
-  			{$IFDEF PG_DP860}
-  			DefPG.PG_TYPE_DP860 : begin //-------------- DP860
-  				if nSize < 256 then begin
-  					Result := DP860_SendNvmRead(nAddr,nSize, pData, nWaitMS,nRetry);
-  				end
-  				else begin
-            // Send flash.read2file
-  					sRemoteFile := Format('FlashR_A0x%x_L%d.bin',[nAddr,nSize]);
-  					Result := DP860_SendNvmReadFile(nAddr,nSize, sRemoteFile, nWaitMS,nRetry);
-  					if Result <> WAIT_OBJECT_0 then begin
-              //TBD?
-              break;
+
+    for nTry := 0 to nRetry do
+    begin
+      case PG_TYPE of
+        {$IFDEF PG_AF9}
+        DefPG.PG_TYPE_AF9:
+          begin //---------------- AF9
+            btApiRtn := AF9_FLASHRead(pData, nAddr, (nAddr + nSize - 1){nEndAddr});
+            if btApiRtn = DefPG.AF9API_RESULT_OK then
+            begin
+              Result := WAIT_OBJECT_0;
+              Break;
             end;
-  					// Get flash read data file from PG
-  					sRemotePath := '/home/upload';
-  					sLocalPath  := Common.Path.FLASH;
-  					sLocalFile  := Format('CH%d_',[m_nPG+1]) + sRemoteFile;
-            sLocalFullName := Trim(sLocalPath + sLocalFile);
-  					Result := DP860_FileGetPG2PC(sRemotePath,sRemoteFile, sLocalFullName, False{bClearAfterGet}, True{nEndDisc} {,nWaitMS,nRetry});
-  					if Result <> WAIT_OBJECT_0 then begin
-              //TBD?
-              break;
-            end;
-            // Get Flash data from bin file
-            mtData := TMemoryStream.Create;
-            try
-              mtData.LoadFromFile(sLocalFullName);
-              if mtData.Size <> nSize then begin
-                //TBD? RxDataSizeNG
+          end;
+        {$ENDIF}
+        {$IFDEF PG_DP860}
+        DefPG.PG_TYPE_DP860:
+          begin //-------------- DP860
+            if nSize < 256 then
+              Result := DP860_SendNvmRead(nAddr, nSize, pData, nWaitMS, nRetry)
+            else
+            begin
+              sRemoteFile := Format('FlashR_A0x%x_L%d.bin', [nAddr, nSize]);
+              Result := DP860_SendNvmReadFile(nAddr, nSize, sRemoteFile, nWaitMS, nRetry);
+
+              if Result <> WAIT_OBJECT_0 then
+                Break;
+
+              sLocalFullName := Trim(Common.Path.FLASH + Format('CH%d_', [m_nPG + 1]) + sRemoteFile);
+              Result := DP860_FileGetPG2PC('/home/upload', sRemoteFile, sLocalFullName, False, True);
+
+              if Result <> WAIT_OBJECT_0 then
+                Break;
+
+              mtData := TMemoryStream.Create;
+              try
+                mtData.LoadFromFile(sLocalFullName);
+                if mtData.Size <> nSize then
+                begin
+                  // Handle size mismatch
+                  // TBD? RxDataSizeNG
+                end;
+
+                SetLength(rxData, nSize);
+                mtData.Position := 0;
+                mtData.ReadBuffer(rxData[0], mtData.Size);
+                Move(rxData[0], pData^, nSize);
+
+              finally
+                SetLength(rxData, 0);
+                mtData.Free;
               end;
-              SetLength(rxData,nSize);
-              mtData.Position := 0;
-              mtData.Read(rxData[0],mtData.Size);
-              CopyMemory(pData,@rxData[0],nSize);
-            finally
-              mtData.Free;
+
+              // Additional backup logic (TBD?)
+              // ...
+
+              Break;
             end;
-//            if length(PasScr[m_nPg].TestInfo.RTN_PID) > 0 then
-//              sPID := PasScr[m_nPg].TestInfo.RTN_PID
-//            else sPID := FormatDateTime('HHNN\', Now);
-//
-//            sRemoteBackupFile := Format('FlashR_A0x%x_L%d_',[nAddr,nSize]) + FormatDateTime('HHNNSS', Now) + '.bin';
-//            sDate := FormatDateTime('yymmdd', Now);
-//            sLocalPathBackUp := Common.Path.FLASHBackup + sDate + '\' + sPID;
-//            sLocalFullBackupName := sLocalPathBackUp + Format('CH%d_%s',[m_nPG+1,sRemoteBackupFile]) ;
-//
-//            if not Common.CheckDir(sLocalPathBackUp) then begin
-//              fs := TFileStream.Create(sLocalFullBackupName, fmCreate);
-//              try
-//                fs.Write(rxData[0], nSize);
-//              finally
-//                fs.Free;
-//                fs := nil;
-//              end;
-//            end;
-            break;
-  				end;
-  			end;
-  			{$ENDIF}
-	  	end;
-  	end;
+          end;
+        {$ENDIF}
+      end;
+    end;
+
   finally
     FIsOnFlashAccess := False;
   end;
 
-	//
-  if (Result <> WAIT_OBJECT_0) then begin
+  if Result <> WAIT_OBJECT_0 then
+  begin
     sDebug := sFunc + '...NG';
-    ShowTestWindow(DefCommon.MSG_MODE_WORKING,DefCommon.LOG_TYPE_NG, sDebug);
-    Exit;
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG, sDebug);
   end;
 end;
 
 
-function TCommPG.SendFlashWrite(nAddr,nSize: DWORD; pData: PByte; nWaitMS: Integer=100000; nRetry: Integer=0): DWORD; //TBD:DP860?
+function TCommPG.SendFlashWrite(nAddr, nSize: DWORD; pData: PByte; nWaitMS: Integer = 100000; nRetry: Integer = 0): DWORD;
 var
-  btApiRtn : Byte;
-  i, nTry  : integer;
-  CalcCRC, RxCRC : Word; //Word?
-  pTemp : PByte;
-  sFunc, sDebug,sDate,sPID : string;
-  sRemotePath, sRemoteFile, sLocalPath,sLocalPathBackUp, sLocalFile, sLocalFullName, sLocalFullBackupName, sRemoteBackupFile : string;
-  bVerifyPG, bErasePG : Boolean;
-  {$IFDEF PG_DP860}
-  fs   : TFileStream;
-  arData : array of Byte;
-  {$ENDIF}
+  btApiRtn: Byte;
+  i, nTry: integer;
+  CalcCRC, RxCRC: Word;
+  sFunc, sDebug, sRemotePath, sRemoteFile, sLocalPath, sLocalPathBackUp, sLocalFile, sLocalFullName, sLocalFullBackupName, sRemoteBackupFile: string;
+  bVerifyPG, bErasePG: Boolean;
+  arData: TBytes;
+  fs: TFileStream;
 begin
   Result := WAIT_FAILED;
 
   // Calc SumCRC
   CalcCRC := 0;
-  pTemp := pData;
-  for i := 0 to Pred(nSize) do begin
-    CalcCRC := Word((CalcCRC + pTemp^) and $FFFF);
-    Inc(pTemp);
-  end;
-  sFunc := Format('SendFlashWrite(Addr=0x%x,Size=%d, Retry=%d)(CRC=0x%x:%d)',[nAddr,nSize,nRetry,CalcCRC,CalcCRC]);
+  for i := 0 to Pred(nSize) do
+    CalcCRC := Word((CalcCRC + pData[i]) and $FFFF);
+
+  sFunc := Format('SendFlashWrite(Addr=0x%x,Size=%d, Retry=%d)(CRC=0x%x:%d)', [nAddr, nSize, nRetry, CalcCRC, CalcCRC]);
 
   try
     FIsOnFlashAccess := True;
-    //
-    for nTry := 0 to nRetry do begin
-  		case PG_TYPE of
-  			{$IFDEF PG_AF9}
-  			DefPG.PG_TYPE_AF9 : begin //---------------- AF9
-          // Send CRC + HEX
-      		btApiRtn := AF9_SendHexFileCRC(CalcCRC);
-      		if btApiRtn = DefPG.AF9API_RESULT_OK then begin
-  					m_FlashData.Checksum := CalcCRC; //2022-09-20
-        		Sleep(20); //!!!
-        		btApiRtn := AF9_SendHexFile(pData, nSize);
-        		if btApiRtn = DefPG.AF9API_RESULT_OK then begin
-          		Result := WAIT_OBJECT_0;
-          		break;
-        		end;
-      		end;
-        end;
-  			{$ENDIF}
-  			{$IFDEF PG_DP860}
-  			DefPG.PG_TYPE_DP860 : begin //-------------- DP860
-  			//if nSize < 256 then begin
-  			//	Result := DP860_SendNvmWrite(nAddr,nSize, pData, nWaitMS,nRetry);
-  			//end
-  			//else begin
-  					sRemotePath := '/home/upload';
-            sRemoteFile := Format('FlashW_A0x%x_L%d.bin',[nAddr,nSize]);
-  					// Make flash data file
-  					sLocalPath  := Common.Path.FLASH; //TBD?
-  					sLocalFile  := Format('CH%d_',[m_nPG+1]) + sRemoteFile;
-            sLocalFullName := sLocalPath + sLocalFile;
-            //
-            SetLength(arData, nSize);
-            CopyMemory(@arData[0],pData,nSize);
-            fs := TFileStream.Create(sLocalFullName, fmCreate);
-            try
-              fs.Write(arData[0], nSize);
-            finally
-              fs.Free;
-              fs := nil;
-            end;
-//            if length(PasScr[m_nPg].TestInfo.RTN_PID) > 0 then
-//              sPID := PasScr[m_nPg].TestInfo.RTN_PID
-//            else sPID := FormatDateTime('HHNN\', Now);
-//            sRemoteBackupFile := Format('FlashW_A0x%x_L%d_',[nAddr,nSize]) + FormatDateTime('HHNNSS', Now) + '.bin';
-//            sDate := FormatDateTime('yymmdd', Now)  + '\' + sPID;
-//            sLocalPathBackUp := Common.Path.FLASHBackup + sDate;
-//            sLocalFullBackupName := sLocalPathBackUp + Format('CH%d_%s',[m_nPG+1,sRemoteBackupFile]) ;
-//            if not Common.CheckDir(sLocalPathBackUp) then begin
-//              fs := TFileStream.Create(sLocalFullBackupName, fmCreate);
-//              try
-//                fs.Write(arData[0], nSize);
-//              finally
-//                fs.Free;
-//                fs := nil;
-//              end;
-//            end;
 
-  					// FTP Put to PG
-            Result := DP860_FilePutPC2PG(sLocalFullName, sRemotePath,sRemoteFile, True{bClearBeforePut}, True{nEndDisc} {,nWaitMS,nRetry});
-   					if Result <> WAIT_OBJECT_0 then begin
-              //TBD?
-              break;
-            end;
-            // Send flash.write2file
-            bVerifyPG := True; //TBD:DP860?
-            bErasePG  := True; //TBD:DP860?
-  					Result := DP860_SendNvmWriteFile(nAddr,nSize, sRemoteFile, bVerifyPG,bErasePG, nWaitMS,nRetry);
-  					if Result <> WAIT_OBJECT_0 then begin
-              //TBD?
-              break;
-            end;
-  			//end;
-  			end;
-  			{$ENDIF}
-    	end;
-  	end;
+    for nTry := 0 to nRetry do
+    begin
+      sRemotePath := '/home/upload';
+      sRemoteFile := Format('FlashW_A0x%x_L%d.bin', [nAddr, nSize]);
+      sLocalPath := Common.Path.FLASH;
+      sLocalFile := Format('CH%d_', [m_nPG + 1]) + sRemoteFile;
+      sLocalFullName := sLocalPath + sLocalFile;
+
+      // Create TBytes array from pData
+      SetLength(arData, nSize);
+      Move(pData^, arData[0], nSize);
+
+      // Write the data to a file using TFile.WriteAllBytes
+      fs := TFileStream.Create(sLocalFullName, fmCreate or fmOpenWrite);
+      try
+        fs.WriteBuffer(pData^, nSize);
+      finally
+        fs.Free;
+      end;
+
+      // FTP Put to PG
+      Result := DP860_FilePutPC2PG(sLocalFullName, sRemotePath, sRemoteFile, True, True);
+      if Result <> WAIT_OBJECT_0 then
+        Break;
+
+      // Send flash.write2file
+      bVerifyPG := True; //TBD:DP860?
+      bErasePG := True; //TBD:DP860?
+      Result := DP860_SendNvmWriteFile(nAddr, nSize, sRemoteFile, bVerifyPG, bErasePG, nWaitMS, nRetry);
+      if Result <> WAIT_OBJECT_0 then
+        Break;
+    end;
+
   finally
     FIsOnFlashAccess := False;
   end;
 
-  //
-  if (Result <> WAIT_OBJECT_0) then begin
+  // Free the memory allocated for arData explicitly
+  SetLength(arData, 0);
+
+  if Result <> WAIT_OBJECT_0 then
+  begin
     sDebug := sFunc + '...NG';
-    ShowTestWindow(DefCommon.MSG_MODE_WORKING,DefCommon.LOG_TYPE_NG, sDebug);
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG, sDebug);
     Exit;
   end;
 end;
+
+
+//function TCommPG.SendFlashWrite(nAddr,nSize: DWORD; pData: PByte; nWaitMS: Integer=100000; nRetry: Integer=0): DWORD; //TBD:DP860?
+//var
+//  btApiRtn : Byte;
+//  i, nTry  : integer;
+//  CalcCRC, RxCRC : Word; //Word?
+//  pTemp : PByte;
+//  sFunc, sDebug,sDate,sPID : string;
+//  sRemotePath, sRemoteFile, sLocalPath,sLocalPathBackUp, sLocalFile, sLocalFullName, sLocalFullBackupName, sRemoteBackupFile : string;
+//  bVerifyPG, bErasePG : Boolean;
+//
+//  fs   : TFileStream;
+//  arData : array of Byte;
+//begin
+//  Result := WAIT_FAILED;
+//
+//  // Calc SumCRC
+//  CalcCRC := 0;
+//  pTemp := pData;
+//  for i := 0 to Pred(nSize) do begin
+//    CalcCRC := Word((CalcCRC + pTemp^) and $FFFF);
+//    Inc(pTemp);
+//  end;
+//  sFunc := Format('SendFlashWrite(Addr=0x%x,Size=%d, Retry=%d)(CRC=0x%x:%d)',[nAddr,nSize,nRetry,CalcCRC,CalcCRC]);
+//
+//  try
+//    FIsOnFlashAccess := True;
+//    //
+//    for nTry := 0 to nRetry do begin
+//      sRemotePath := '/home/upload';
+//      sRemoteFile := Format('FlashW_A0x%x_L%d.bin',[nAddr,nSize]);
+//      // Make flash data file
+//      sLocalPath  := Common.Path.FLASH; //TBD?
+//      sLocalFile  := Format('CH%d_',[m_nPG+1]) + sRemoteFile;
+//      sLocalFullName := sLocalPath + sLocalFile;
+//      //
+//      SetLength(arData, nSize);
+//      CopyMemory(@arData[0],pData,nSize);
+//      fs := TFileStream.Create(sLocalFullName, fmCreate);
+//      try
+//        fs.Write(arData[0], nSize);
+//      finally
+//        fs.Free;
+//        fs := nil;
+//      end;
+//
+//
+//      // FTP Put to PG
+//      Result := DP860_FilePutPC2PG(sLocalFullName, sRemotePath,sRemoteFile, True{bClearBeforePut}, True{nEndDisc} {,nWaitMS,nRetry});
+//      if Result <> WAIT_OBJECT_0 then begin
+//        //TBD?
+//        break;
+//      end;
+//      // Send flash.write2file
+//      bVerifyPG := True; //TBD:DP860?
+//      bErasePG  := True; //TBD:DP860?
+//      Result := DP860_SendNvmWriteFile(nAddr,nSize, sRemoteFile, bVerifyPG,bErasePG, nWaitMS,nRetry);
+//      if Result <> WAIT_OBJECT_0 then begin
+//        //TBD?
+//        break;
+//      end;
+//
+//  	end;
+//  finally
+//    FIsOnFlashAccess := False;
+//  end;
+//
+//  //
+//  if (Result <> WAIT_OBJECT_0) then begin
+//    sDebug := sFunc + '...NG';
+//    ShowTestWindow(DefCommon.MSG_MODE_WORKING,DefCommon.LOG_TYPE_NG, sDebug);
+//    Exit;
+//  end;
+//end;
 
 {$IFDEF PG_AF9}
 function TCommPG.GetFlashData(nAddr,nLen: DWORD; pData: PByte): DWORD;

@@ -111,7 +111,7 @@ object VirtualBcr: TVirtualBcr
   end
   object Button1: TButton
     Left = 512
-    Top = 24
+    Top = 22
     Width = 53
     Height = 25
     Caption = 'SEND'

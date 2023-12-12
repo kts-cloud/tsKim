@@ -17,6 +17,7 @@ type
     { Private declarations }
   public
     { Public declarations }
+    procedure FormAutoClose;
   end;
 
 var
@@ -28,6 +29,11 @@ implementation
 {$R *.dfm}
 
 procedure TfrmNgMsg.btnCloseClick(Sender: TObject);
+begin
+  Close;
+end;
+
+procedure TfrmNgMsg.FormAutoClose;
 begin
   Close;
 end;

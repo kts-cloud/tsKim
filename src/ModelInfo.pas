@@ -405,6 +405,7 @@ type
     cbNVMWriteSequence: TRzCheckBox;
     cboNVMWriteSequence: TRzComboBox;
     RzPanel9: TRzPanel;
+    cbTconWritechecksum: TRzCheckBox;
     procedure mmProgramAllDragOver(Sender, Source: TObject; X, Y: Integer; State: TDragState; var Accept: Boolean);
     procedure FormCreate(Sender: TObject);
     procedure btnCompileScriptClick(Sender: TObject);
@@ -565,19 +566,19 @@ end;
 
 procedure TfrmModelInfo.btn3Click(Sender: TObject);
 begin
-  if Common.m_bIsChanged then begin
-    btnManualFusing_ScriptClick(Self);
-    Common.Delay(50);
-  end;
+//  if Common.m_bIsChanged then begin
+//    btnManualFusing_ScriptClick(Self);
+//    Common.Delay(50);
+//  end;
   Close;
 end;
 
 procedure TfrmModelInfo.btnCloseModelSetPGClick(Sender: TObject);
 begin
-  if Common.m_bIsChanged then begin
-    btnManualFusing_ScriptClick(Self);
-    Common.Delay(50);
-  end;
+//  if Common.m_bIsChanged then begin
+//    btnManualFusing_ScriptClick(Self);
+//    Common.Delay(50);
+//  end;
   Close;
 end;
 
@@ -2024,20 +2025,11 @@ begin
     cbCheckVer.Checked := UseCheckVer;
     cbReProgramming.Checked := UseCheckReProgramming;
     cboNVMWriteSequence.ItemIndex := UseCkNVMWriteSequence;
+    cbTconWritechecksum.Checked := UseTconWriteChecksum;
     //
 
   end;
 
-//  chkUseOcparam.Checked   := Common.TempModelInfo2.useOcParam;
-//  chkUseOcVerify.Checked  := Common.TempModelInfo2.useOcVerify;
-//  chkUseOtpTable.Checked  := Common.TempModelInfo2.useOtpTable;
-//  chkUseOcOffset.Checked  := Common.TempModelInfo2.useOcOffset;
-//
-//  cboCa310Channel.ItemIndex := common.TempModelInfo2.Ca310MemCh;
-
-
-
-  //edZxis.Text             := Format('%d',[common.TempModelInfo2.Zxis]);
 end;
 
 //procedure TfrmModelInfo.DisplayVddDelayValue(nIdx: Integer; bModel: Boolean);
@@ -2256,6 +2248,9 @@ begin
     sTemp := Format('%d',[i]);
     cboCa310Channel.Items.Add(sTemp);
   end;
+
+  if Common.SupervisorMode then
+    pgModelSetPG.TabVisible := True;
 
 //  cboCa310Channel.Items.Clear;
 //  for i := 0 to 99 do cboCa310Channel.Items.Add(Format('%d',[i]));
@@ -2658,10 +2653,10 @@ end;
 
 procedure TfrmModelInfo.RzBitBtn6Click(Sender: TObject);
 begin
-  if Common.m_bIsChanged then begin
-    btnManualFusing_ScriptClick(Self);
-    Common.Delay(50);
-  end;
+//  if Common.m_bIsChanged then begin
+//    btnManualFusing_ScriptClick(Self);
+//    Common.Delay(50);
+//  end;
   Close;
 end;
 
@@ -2940,6 +2935,7 @@ begin
       SeqOff[0] := StrToIntDef(Trim(edPowerSeqOffSeq1.Text),0);
       SeqOff[1] := StrToIntDef(Trim(edPowerSeqOffSeq2.Text),0);
       SeqOff[2] := StrToIntDef(Trim(edPowerSeqOffSeq3.Text),0);
+
     end;
   end;
   {$ENDIF}
@@ -2956,6 +2952,7 @@ begin
     UseCheckVer := cbCheckVer.Checked;
     UseCheckReProgramming := cbReProgramming.Checked;
     UseCkNVMWriteSequence := cboNVMWriteSequence.ItemIndex;
+    UseTconWriteChecksum := cbTconWriteChecksum.Checked;
   end;
 
 

@@ -555,7 +555,12 @@ var
   dX, dY, dLv : Double;
   sErrMsg : string;
 begin
-  if not m_bConnection[nCh] then Exit(DefCaSdk.DISCONNECTION_CODE);
+  if not m_bConnection[nCh] then begin
+    sErrMsg := Format('Cannel %d CA410 Connection NG',[nCh+1]);
+    ShowMainForm(DefCommon.MSG_MODE_CA310_STATUS,nCh,True,sErrMsg);
+    ShowTestForm(DefCommon.MSG_MODE_WORKING,nCh,True,sErrMsg);
+    Exit(DefCaSdk.DISCONNECTION_CODE);
+  end;
   nRet := set_Measure(FSetupCnt.SetupList[nCh].Ca410Ch);
   if nRet = 0 then begin
     nRet := get_sXylvVal(FSetupCnt.SetupList[nCh].Ca410Ch, dX, dY, dLv);
@@ -660,7 +665,7 @@ function TCA_SDK2.SetSyncMode(nCh : Integer; nSync : Integer; dFrea : Double; nI
 begin
   if not m_bConnection[nCh] then Exit(DefCaSdk.DISCONNECTION_CODE);
 
-  Result := Set_SyncMode(nCh,nSync,dFrea,nIntegTime);
+  Result := Set_SyncMode(FSetupCnt.SetupList[nCh].Ca410Ch,nSync,dFrea,nIntegTime);
 end;
 
 function TCA_SDK2.UsrCalReady(nCh, nMemCh : Integer) : Integer;

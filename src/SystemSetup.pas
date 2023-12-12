@@ -147,7 +147,6 @@ type
     RzPanel24: TRzPanel;
     RzNumericEdit3: TRzNumericEdit;
     RzPanel26: TRzPanel;
-    chkMIPILog: TRzCheckBox;
     RzPanel3: TRzPanel;
     RzPanel6: TRzPanel;
     RzPanel8: TRzPanel;
@@ -184,10 +183,8 @@ type
     edtLoginID: TRzEdit;
     RzPanel13: TRzPanel;
     RzPanel15: TRzPanel;
-    cboRetryCount: TComboBox;
     cboNGAlarmCount: TComboBox;
     RzPanel19: TRzPanel;
-    edtECS_Timeout: TRzEdit;
     RzGroupBox5: TRzGroupBox;
     RzPanel21: TRzPanel;
     edEQPID_MGIB: TRzEdit;
@@ -197,7 +194,6 @@ type
     edEQPID_INLINE: TRzEdit;
     cboEQPId_Type: TComboBox;
     RzPanel20: TRzPanel;
-    Label1: TLabel;
     RzPanel35: TRzPanel;
     edEasLocalSubject: TRzEdit;
     chkInlineGIB: TCheckBox;
@@ -268,6 +264,7 @@ type
     chkVerInterlock: TRzCheckBox;
     edMESCodeCnt: TRzEdit;
     RzPanel50: TRzPanel;
+    edPopupMsgTime: TRzEdit;
 
     procedure FormCreate(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -814,6 +811,8 @@ begin
 
     MES_CODE_Cnt := StrToIntDef(edMESCodeCnt.Text,0);
 
+    PopupMsgTime := StrToIntDef(edPopupMsgTime.Text,0);
+
     case EQPId_Type of
       0: begin
         if EQPId_INLINE = '' then begin
@@ -876,10 +875,10 @@ begin
     DLLVerInterlock := chkVerInterlock.Checked;
     DLLVerInterlockList := edVerInterlock.Text;
     UseEQCC       := chkEQCC.Checked;
-    MIPILog       := chkMIPILog.Checked;
+//    MIPILog       := chkMIPILog.Checked;
     NGAlarmCount  := cboNGAlarmCount.ItemIndex;
-    RetryCount    := cboRetryCount.ItemIndex;
-    ECS_Timeout   := StrToIntDef(edtECS_Timeout.Text, 10000);
+//    RetryCount    := cboRetryCount.ItemIndex;
+//    ECS_Timeout   := StrToIntDef(edtECS_Timeout.Text, 10000);
 
     Use_MES       := rgSelectReport.ItemIndex = 1;
     Use_ECS       := rgSelectReport.ItemIndex = 0;
@@ -1305,6 +1304,8 @@ begin
 
     edMESCodeCnt.Text  := IntToStr(MES_CODE_Cnt);
 
+    edPopupMsgTime.Text := IntToStr(PopupMsgTime);
+
 (*
     edRobotARev.Text  := RobotRevA;
     edRobotBRev.Text  := RobotRevB;
@@ -1328,10 +1329,10 @@ begin
     edAutoBackup.Text     := AutoBackupList;
 
     cboNGAlarmCount.ItemIndex:= NGAlarmCount;
-    cboRetryCount.ItemIndex:= RetryCount;
-    edtECS_Timeout.Text:=  IntToStr(ECS_Timeout);
+//    cboRetryCount.ItemIndex:= RetryCount;
+//    edtECS_Timeout.Text:=  IntToStr(ECS_Timeout);
 
-    chkMIPILog.Checked     := MIPILog;
+//    chkMIPILog.Checked     := MIPILog;
     if Use_ECS then rgSelectReport.ItemIndex:= 0
     else rgSelectReport.ItemIndex:= 1;
 

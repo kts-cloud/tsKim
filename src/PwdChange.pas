@@ -23,6 +23,7 @@ type
     procedure btnCancelClick(Sender: TObject);
     procedure btnChangeClick(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure FormCreate(Sender: TObject);
   private
     { Private declarations }
     function chk_password : Boolean;
@@ -55,7 +56,10 @@ begin
     chk_pass := True;
 
   if chk_pass then begin
-    Common.SystemInfo.password := edChangePw.Text;
+    if Common.SupervisorMode then
+      Common.SystemInfo.SupervisorPassword := edChangePw.Text
+    else
+      Common.SystemInfo.password := edChangePw.Text;
     Common.SaveSystemInfo;
     edCurPw.Text := '';
     edChangePw.Text := '';
@@ -67,11 +71,21 @@ end;
 
 function TfrmChangePassword.chk_password: Boolean;
 begin
-  if Common.SystemInfo.password <> edCurPw.Text then begin
-    Result := False;
-    MessageDlg(#13#10 + 'Current Password is not matched!', mtError, [mbOK], 0);
-    edCurPw.SetFocus;
-    Exit;
+  if Common.SupervisorMode then begin
+    if Common.SystemInfo.SupervisorPassword <> edCurPw.Text then begin
+      Result := False;
+      MessageDlg(#13#10 + 'Current Password is not matched!', mtError, [mbOK], 0);
+      edCurPw.SetFocus;
+      Exit;
+    end;
+  end
+  else begin
+    if Common.SystemInfo.Password <> edCurPw.Text then begin
+      Result := False;
+      MessageDlg(#13#10 + 'Current Password is not matched!', mtError, [mbOK], 0);
+      edCurPw.SetFocus;
+      Exit;
+    end;
   end;
   if edChangePw.Text <> edConfirmPw.Text then begin
     Result := False;
@@ -85,6 +99,13 @@ end;
 procedure TfrmChangePassword.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
   Action := caFree;
+end;
+
+procedure TfrmChangePassword.FormCreate(Sender: TObject);
+begin
+ if Common.SupervisorMode then
+  grpSystem.Caption := 'Supervisor Change Password'
+ else grpSystem.Caption := 'Change Password';
 end;
 
 procedure TfrmChangePassword.FormDestroy(Sender: TObject);

@@ -89,7 +89,8 @@ type
     function ProbeForward(nCh: Integer): Integer; // Added by KTS 2022-10-28 오전 11:41:06    OC ProbeForward FLow
     function ProbeBackward(nCh: Integer): Integer; // Added by KTS 2022-11-14 오전 9:54:19    OC ProbeBackward Flow
 
-    function MovingProbe(nGroup: Integer; bIsUp : Boolean): Integer; // Added by KTS 2022-10-28 오전 11:41:06         Pre OC ProbeUP FLow
+    function MovingProbe(nGroup: Integer; bIsUp : Boolean): Integer; // Added by KTS 2022-10-28 오전 11:41:06
+    function MovingAll(nGroup: Integer; bIsUp : Boolean): Integer; // Added by KTS 2022-10-28 오전 11:41:06
     function UnlockPinBlock(nCh: Integer): Integer;// Added by KTS 2022-11-28 오후 2:24:14  Pre OC Pinblack backward flow
     function LockPinBlock(nCh: Integer): Integer;// Added by KTS 2022-11-28 오후 2:24:14  Pre OC Pinblack backward flow
     function CheckOpenPinBlock(nCh : Integer) : Integer;
@@ -346,19 +347,17 @@ begin
     else begin
       SendAlarm(MSG_MODE_SYSTEM_ALARAM, nAlarmNo, 0);
     end;
-    if Common.StatusInfo.AutoMode then begin
-      nAlarmNo := DefDio.IN_GIB_CH_12_LIGHTCURTAIN;
-      if (not CheckDi(DefDio.IN_GIB_CH_12_LIGHTCURTAIN)) and (not CheckDi(DefDio.IN_GIB_CH_12_MUTING_LAMP)) then begin
-        nRet := nAlarmNo;
-        SendAlarm(MSG_MODE_DISPLAY_ALARAM, nAlarmNo, 1);
-      end;
 
-      nAlarmNo := DefDio.IN_GIB_CH_34_LIGHTCURTAIN;
-      if not CheckDi(DefDio.IN_GIB_CH_34_LIGHTCURTAIN) and (not CheckDi(DefDio.IN_GIB_CH_34_MUTING_LAMP)) then begin
-        nRet := nAlarmNo;
-        SendAlarm(MSG_MODE_DISPLAY_ALARAM, nAlarmNo, 1);
-      end;
+    nAlarmNo := DefDio.IN_GIB_CH_12_LIGHTCURTAIN;
+    if (not CheckDi(DefDio.IN_GIB_CH_12_LIGHTCURTAIN)) and (not CheckDi(DefDio.IN_GIB_CH_12_MUTING_LAMP)) then begin
+      nRet := nAlarmNo;
+      SendAlarm(MSG_MODE_DISPLAY_ALARAM, nAlarmNo, 1);
+    end;
 
+    nAlarmNo := DefDio.IN_GIB_CH_34_LIGHTCURTAIN;
+    if not CheckDi(DefDio.IN_GIB_CH_34_LIGHTCURTAIN) and (not CheckDi(DefDio.IN_GIB_CH_34_MUTING_LAMP)) then begin
+      nRet := nAlarmNo;
+      SendAlarm(MSG_MODE_DISPLAY_ALARAM, nAlarmNo, 1);
     end;
 
     nAlarmNo:= DefDio.IN_GIB_CH_12_MC_MONITORING;
@@ -2092,6 +2091,11 @@ var
   bRet : Boolean;
 begin
   if Common.SystemInfo.OCType <> DefCommon.PreOCType  then Exit(2);
+  if Common.AutoReStart then begin         // 자동 재시작 모드UnlockPinBlock skip
+    SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Unlock PinBlock  AutoReStart - Skip CH = '+ IntToStr(nCh));
+    Exit(0);
+  end;
+
   nWaitingCount:= 50; //100ms * nWaitingCount
   // Return ==> 0 : OK. 1 ==> NG.
 
@@ -2176,7 +2180,7 @@ begin
   // Return ==> 0 : OK. 1 ==> NG.
   // for lock.
 
-    if  (not ReadInSig(DefDio.IN_GIB_CH_1_CARRIER_SENSOR +nCh*8)) then begin  // 제품 미감지 시 NG 발생
+  if  (not ReadInSig(DefDio.IN_GIB_CH_1_CARRIER_SENSOR +nCh*8)) then begin  // 제품 미감지 시 NG 발생
     SendAlarm(MSG_MODE_DISPLAY_ALARAM, IN_GIB_CH_1_CARRIER_SENSOR + nCh*8, 1, '');
     Exit(1);
   end;
@@ -2428,6 +2432,149 @@ begin
   end;
 end;
 
+function TControlDio.MovingAll(nGroup: Integer; bIsUp: Boolean): Integer;
+var
+  i: Integer;
+  nWaitingCount: Integer;
+  sCH : string;
+  bStateProbe,bStateShutter : Boolean;
+begin
+  bStateShutter := false;
+  bStateProbe := False;
+  if Common.SystemInfo.OCType <> DefCommon.PreOCType  then Exit(2);
+  if not CheckDi(DefDio.IN_GIB_CH_12_MC_MONITORING + nGroup) then Exit(2);
+  if nGroup = DefCommon.CH_TOP  then sCH := ' CH 1,2 '
+                                else sCH := 'CH 3,4 ';
+
+  //if ErrorCheck > 0 then Exit(1);
+  nWaitingCount:= 100; //100ms * nWaitingCount
+
+
+  if bIsUp then begin
+    SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Probe and Shutter  UP Start ' + sCH);
+
+    if ReadInSig(DefDio.IN_GIB_CH_12_ROBOT_SENSOR + nGroup) then begin
+      SendMsgMain(COMMDIO_MSG_LOG, 0, 1, 'Do not MovingShutter - Sensing ROBOT_SENSOR ' + sCH);
+      Exit(3);
+    end;
+    ClearOutDioSig(DefDio.OUT_GIB_CH_12_SHUTTER_DN_SOL + nGroup *4);
+    ClearOutDioSig(DefDio.OUT_GIB_CH_12_PROBE_DN_SOL + nGroup *4);
+    if not ReadInSig(DefDio.IN_GIB_CH_12_SHUTTER_UP_SENSOR + nGroup *4) then begin
+      SendMsgMain(COMMDIO_MSG_LOG, 0, 0,Format('Shutter UP Finish %s- Already',[sCH]));
+      bStateShutter := True;
+    end;
+
+    if not ReadInSig(DefDio.IN_GIB_CH_12_PROBE_UP_SENSOR + nGroup *4) then begin
+      SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format('Probe UP Finish %s - Already', [sCH]));
+      bStateProbe := True;
+    end;
+    if bStateShutter and bStateProbe then
+      Exit(0);
+
+    WriteDioSig(DefDio.OUT_GIB_CH_12_SHUTTER_UP_SOL + nGroup *4);
+    WriteDioSig(DefDio.OUT_GIB_CH_12_PROBE_UP_SOL + nGroup *4);
+
+
+    for i := 0 to nWaitingCount do begin
+      Sleep(100);
+      if not ReadInSig(DefDio.IN_GIB_CH_12_PROBE_UP_SENSOR + nGroup *4) then begin
+        SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format(sCH + 'Probe UP OK. Step=%d', [i]));
+        bStateProbe := True;
+      end;
+      if not ReadInSig(DefDio.IN_GIB_CH_12_SHUTTER_UP_SENSOR + nGroup *4) then begin
+        SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format('Shutter UP OK. %s Step=%d', [sCH,i]));
+        bStateShutter := True;
+      end;
+      if bStateShutter and bStateProbe then
+        Break;
+    end;
+
+    if  ReadInSig(DefDio.IN_GIB_CH_12_PROBE_UP_SENSOR + nGroup *4) then begin
+      //SetAlarmMsg(DefDio.ERR_LIST_SHUTTER_UP_SENSOR);
+      SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_GIB_CH_12_PROBE_UP_SENSOR + nGroup *4, 1, '');
+    end;
+    if ReadInSig(DefDio.IN_GIB_CH_12_SHUTTER_UP_SENSOR + nGroup *4) then begin
+      //SetAlarmMsg(DefDio.ERR_LIST_SHUTTER_UP_SENSOR);
+      SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_GIB_CH_12_SHUTTER_UP_SENSOR + nGroup *4, 1, '');
+    end;
+    if bStateShutter and bStateProbe then begin
+      SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Shutter UP Finish ' + sCH);
+      SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Probe UP Finish ' + sCH);
+    end
+    else begin
+      Exit(2);
+    end;
+
+  end
+  else begin
+
+    if ReadInSig(DefDio.IN_GIB_CH_12_ROBOT_SENSOR + nGroup) then begin
+      SendMsgMain(COMMDIO_MSG_LOG, 0, 1, 'Do not MovingShutter - Sensing ROBOT_SENSOR ' + sCH);
+      Exit(3);
+    end;
+
+    if g_CommPLC.IsBusy_Robot(nGroup) then begin
+      SendMsgMain(COMMDIO_MSG_LOG, 0, 1, 'Do not MovingShutter - Robot Busy ' + sCH);
+      Exit(3);
+    end;
+
+    if (ReadInSig(DefDio.IN_GIB_CH_1_TILTING_SENSOR +16 * nGroup)) or (ReadInSig(DefDio.IN_GIB_CH_2_TILTING_SENSOR + 16 * nGroup)) then begin
+      SendMsgMain(COMMDIO_MSG_LOG, 0, 1, 'Do not MovingProbe - Sensing TILTING_SENSOR ' + sCH);
+      Exit(3);
+    end;
+
+    SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Probe DN and Shutter DN Start ' + sCH);
+    ClearOutDioSig(DefDio.OUT_GIB_CH_12_PROBE_UP_SOL + nGroup *4);
+    ClearOutDioSig(DefDio.OUT_GIB_CH_12_SHUTTER_UP_SOL + nGroup *4);
+    if not ReadInSig(DefDio.IN_GIB_CH_12_PROBE_DN_SENSOR + nGroup *4) then begin
+      SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format('Probe DN Finish %s - Already', [sCH]));
+      bStateProbe := True;
+    end;
+    if not ReadInSig(DefDio.IN_GIB_CH_12_SHUTTER_DN_SENSOR + nGroup *4) then begin
+      SendMsgMain(COMMDIO_MSG_LOG, 0, 0,Format('Shutter DN Finish %s - Already',[sCH]));
+      bStateShutter := True;
+    end;
+
+    if bStateShutter and bStateProbe then
+      Exit(0);
+
+    WriteDioSig(DefDio.OUT_GIB_CH_12_PROBE_DN_SOL + nGroup *4);
+    WriteDioSig(DefDio.IN_GIB_CH_12_SHUTTER_DN_SENSOR + nGroup *4);
+
+    for i := 0 to nWaitingCount do begin
+      Sleep(100);
+      if not ReadInSig(DefDio.IN_GIB_CH_12_PROBE_DN_SENSOR + nGroup *4) then begin
+        SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format('Probe DN OK. Step=%d', [i]));
+        bStateProbe := True;
+      end;
+      if not ReadInSig(DefDio.IN_GIB_CH_12_SHUTTER_DN_SENSOR + nGroup *4) then begin
+        SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format('Shutter DN OK. %s Step=%d', [sCH,i]));
+        bStateShutter := True;
+      end;
+      if bStateShutter and bStateProbe then
+        Break;
+    end;
+
+    if  ReadInSig(DefDio.IN_GIB_CH_12_PROBE_DN_SENSOR + nGroup *4) then begin
+      //SetAlarmMsg(DefDio.ERR_LIST_SHUTTER_DN_SENSOR);
+      SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_GIB_CH_12_PROBE_DN_SENSOR + nGroup *4, 1, '');
+    end;
+    if ReadInSig(DefDio.IN_GIB_CH_12_SHUTTER_DN_SENSOR + nGroup *4) then begin
+      //SetAlarmMsg(DefDio.ERR_LIST_SHUTTER_DN_SENSOR);
+      SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_GIB_CH_12_SHUTTER_DN_SENSOR + nGroup *4, 1, '');
+    end;
+
+    if bStateShutter and bStateProbe then begin
+      SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Shutter DN Finish ' + sCH);
+      SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Probe DN Finish ' + sCH);
+    end
+    else begin
+      Exit(2);
+    end;
+  end;
+  Result := 0;
+end;
+
 function TControlDio.MovingProbe(nGroup: Integer; bIsUp: Boolean): Integer;
 var
   i: Integer;
@@ -2444,7 +2591,7 @@ begin
 
 
   if bIsUp then begin
-    SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Probe UP Start ' + sCH);
+      SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Probe UP Start ' + sCH);
     ClearOutDioSig(DefDio.OUT_GIB_CH_12_PROBE_DN_SOL + nGroup *4);
     if not ReadInSig(DefDio.IN_GIB_CH_12_PROBE_UP_SENSOR + nGroup *4) then begin
       SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format('Probe UP Finish %s - Already', [sCH]));

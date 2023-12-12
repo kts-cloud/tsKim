@@ -48,7 +48,7 @@ object frmMainter: TfrmMainter
     Width = 1470
     Height = 920
     Hint = ''
-    ActivePage = tbCA410Measurement
+    ActivePage = TabSheet1
     ActivePageDefault = TabSheet1
     Align = alClient
     Font.Charset = DEFAULT_CHARSET
@@ -58,11 +58,15 @@ object frmMainter: TfrmMainter
     Font.Style = []
     ParentFont = False
     SoftCorners = True
-    TabIndex = 7
+    TabIndex = 0
     TabOrder = 1
     FixedDimension = 25
     object TabSheet1: TRzTabSheet
       Caption = 'Communication PG - Script Testing'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object RzGroupBox1: TRzGroupBox
         Left = 24
         Top = 6
@@ -1406,9 +1410,17 @@ object frmMainter: TfrmMainter
     end
     object tabLoaderPlcComm: TRzTabSheet
       Caption = 'PLC Map - Communication'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
     end
     object tabIoMap: TRzTabSheet
       Caption = 'DIO Map - Communication'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object grpDioIn: TRzGroupBox
         Left = 14
         Top = 3
@@ -3101,6 +3113,10 @@ object frmMainter: TfrmMainter
     end
     object TabSheet2: TRzTabSheet
       Caption = 'CA-410'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object btnCal0: TRzBitBtn
         Left = 664
         Top = 760
@@ -5202,6 +5218,10 @@ object frmMainter: TfrmMainter
     end
     object TabSheet3: TRzTabSheet
       Caption = 'Ionizer'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object gbIonizer: TRzGroupBox
         Left = 35
         Top = 18
@@ -5384,6 +5404,10 @@ object frmMainter: TfrmMainter
     end
     object tbSystemInfo: TRzTabSheet
       Caption = 'System Information'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object RzGroupBox4: TRzGroupBox
         Left = 14
         Top = 5
@@ -10346,6 +10370,10 @@ object frmMainter: TfrmMainter
     end
     object TabSheet4: TRzTabSheet
       Caption = 'R2R System'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object Panel1: TPanel
         Left = 0
         Top = 0
@@ -11078,6 +11106,10 @@ object frmMainter: TfrmMainter
     end
     object tbCA410Measurement: TRzTabSheet
       Caption = 'CA410 Measurement'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object cboBandCount: TRzComboBox
         Left = 424
         Top = 41

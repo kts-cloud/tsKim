@@ -3117,6 +3117,7 @@ begin
 
     for nJigCh := DefCommon.CH1 to DefCommon.MAX_CH do begin
       //To-do: Carrier Detect 확인 추가 필요
+
       if (pnlSerials[nJigCh].Caption = DefCommon.MSG_SCAN_BCR) then begin
         if PasScr[nJigCh] <> nil then begin
           sDebug := Format('<HAND-BCR> input Data Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
@@ -3358,7 +3359,7 @@ end;
 
 procedure TfrmTest4ChOC.OnTotalTimer(Sender: TObject);
 var
-  nSec, nMin : Integer;
+  nSec, nMin,nPopupMsgTime : Integer;
 begin
 
   Inc(m_nTotalTact[DefCommon.CH1]);
@@ -3366,6 +3367,11 @@ begin
   nMin := (m_nTotalTact[DefCommon.CH1] div 60);
 //  nMin := m_nTotalTact;
   pnlNowValues[DefCommon.CH1].Caption := Format('%0.3d : %0.2d',[nMin, nSec]);
+  nPopupMsgTime := Common.SystemInfo.PopupMsgTime;
+  if nPopupMsgTime <> 0 then begin
+    if (m_nTotalTact[DefCommon.CH1] = nPopupMsgTime) and (Common.SystemInfo.OCType = DefCommon.PreOCType) and (m_nUnitTact[DefCommon.CH1] = 0) then   // 30초때PopUp 창
+      ShowNgMessage(format('CH : %d been %d seconds!!',[1,nPopupMsgTime]));
+  end;
 end;
 
 procedure TfrmTest4ChOC.OnUnitTimer(Sender: TObject);
@@ -3399,35 +3405,51 @@ end;
 
 procedure TfrmTest4ChOC.OnTotal2Timer(Sender: TObject);
 var
-  nSec, nMin : Integer;
+  nSec, nMin,nPopupMsgTime : Integer;
 begin
   Inc(m_nTotalTact[DefCommon.CH2]);
   nSec := m_nTotalTact[DefCommon.CH2] mod 60;
   nMin := (m_nTotalTact[DefCommon.CH2] div 60);
 //  nMin := m_nTotalTact;
   pnlNowValues[DefCommon.CH2].Caption := Format('%0.3d : %0.2d',[nMin, nSec]);
+
+  nPopupMsgTime := Common.SystemInfo.PopupMsgTime;
+  if nPopupMsgTime <> 0 then begin
+    if (m_nTotalTact[DefCommon.CH2] = nPopupMsgTime) and (Common.SystemInfo.OCType = DefCommon.PreOCType) and (m_nUnitTact[DefCommon.CH2] = 0)  then   // 30초때PopUp 창
+      ShowNgMessage(format('CH : %d been %d seconds!!',[2,nPopupMsgTime]));
+  end;
 end;
 
 procedure TfrmTest4ChOC.OnTotal3Timer(Sender: TObject);
 var
-  nSec, nMin : Integer;
+  nSec, nMin,nPopupMsgTime : Integer;
 begin
   Inc(m_nTotalTact[DefCommon.CH3]);
   nSec := m_nTotalTact[DefCommon.CH3] mod 60;
   nMin := (m_nTotalTact[DefCommon.CH3] div 60);
 //  nMin := m_nTotalTact;
   pnlNowValues[DefCommon.CH3].Caption := Format('%0.3d : %0.2d',[nMin, nSec]);
+  nPopupMsgTime := Common.SystemInfo.PopupMsgTime;
+  if nPopupMsgTime <> 0 then begin
+    if (m_nTotalTact[DefCommon.CH3] = nPopupMsgTime) and (Common.SystemInfo.OCType = DefCommon.PreOCType) and (m_nUnitTact[DefCommon.CH3] = 0)  then   // 30초때PopUp 창
+      ShowNgMessage(format('CH : %d been %d seconds!!',[3,nPopupMsgTime]));
+  end;
 end;
 
 procedure TfrmTest4ChOC.OnTotal4Timer(Sender: TObject);
 var
-  nSec, nMin : Integer;
+  nSec, nMin,nPopupMsgTime : Integer;
 begin
   Inc(m_nTotalTact[DefCommon.CH4]);
   nSec := m_nTotalTact[DefCommon.CH4] mod 60;
   nMin := (m_nTotalTact[DefCommon.CH4] div 60);
 //  nMin := m_nTotalTact;
   pnlNowValues[DefCommon.CH4].Caption := Format('%0.3d : %0.2d',[nMin, nSec]);
+  nPopupMsgTime := Common.SystemInfo.PopupMsgTime;
+  if nPopupMsgTime <> 0 then begin
+    if (m_nTotalTact[DefCommon.CH3] = nPopupMsgTime) and (Common.SystemInfo.OCType = DefCommon.PreOCType) and (m_nUnitTact[DefCommon.CH4] = 0)  then   // 30초때PopUp 창
+      ShowNgMessage(format('CH : %d been %d seconds!!',[4,nPopupMsgTime]));
+  end;
 end;
 
 procedure TfrmTest4ChOC.OnUnit2Timer(Sender: TObject);
@@ -4280,155 +4302,120 @@ begin
           pnlNowDelayTimes[nCh].Caption := Trim(PGuiDLL(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg)
         end;
 
+        DefCommon.MSG_MODE_WORK_DONE : begin
+          sTemp := CSharpDll.MainOC_GetSummaryLogData(nCh,'DEFECT_CODE');   // ERROR CODE 불러오기
+          if 'XXXX' <> sTemp then
+            PasScr[nCh].m_nNgCode:= GetNGCode_ByErroCode(sTemp)
+          else PasScr[nCh].m_nNgCode:= 0;
+          AddLog(format('GetSummaryLogData : %s GetNGCode_ByErroCode: %d',[sTemp,PasScr[nCh].m_nNgCode]),nCh);
+
+          if DongaGmes <> nil then begin
+            if DongaGmes.m_bDoneEODS[nCH] then begin   // R2R Data Down 확인 후
+              DongaGmes.SendR2REoda(nCh,WriteR2RData(nCH));
+            end;
+          end;
+
+          pnlNowDelayTimes[nCh].Caption := '0'; // DLL Delay Time 0 표시
+          PasScr[nCH].TestInfo.EndTime := now;  // Added by KTS 2023-05-19 오후 1:09:57 End Time
+          PG[nCH].DP860_SendOcOnOff(0{end},2000,0); //2023-03-28 jhhwang (for T/T Test)
+          PG[nCH].SetCyclicTimer(True); //2023-03-28 jhhwang (for T/T Test)
+          CSharpDll.m_bIsProcessDone[nCH] := true;    // CH 종료 확인
+          PasScr[nCH].m_First_Process_DONE := false;  //Pre OC First_Process 진행 여부 확인 초기화
+          AddLog(format('DLL DONE : %d, NG Code=%d', [nCH +1, PasScr[nCh].m_nNgCode]), nCH, 0);
+          // Added by sam81 2023-04-24 오후 3:40:07 oc 보상 종료 시 Tact time stop
+          StopTotalTimer(tmUnitTactTime[nCh],nCh,2);
+          tmUnitTactTime[nCh].Enabled := False;
+          if (Common.SystemInfo.OCType = DefCommon.OCType) and (not Common.PLCInfo.InlineGIB) then begin
+            tmCheckIRTemp[nCh].Enabled := False;   // IR 센서 저장 종료
+            ControlDio.WriteDioSig(DefDio.OUT_CH1_PMIC_FAN_ON + 16 * nCH,True); // FAN DIO OFF
+            SaveCsvTempStatus(nCh,'END',m_bFanOnOff[nCh]);
+          end;
+          DisplayPGStatuses(nCh,PasScr[nCh].m_nNgCode); // 종료 시 바로 결과 Display
+
+          case nCH of
+            0,1 :
+            begin
+              if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
+                SendMessageMain(STAGE_MODE_UNLOAD,nCH, 2,0, 'OC Flow Process_Finish',nil);
+                CSharpDll.m_bIsProcessDone[nCH] := false;
+              end
+              else begin
+                for I := DefCommon.CH1 to DefCommon.CH2 do  begin
+                  if not PasScr[i].m_bUse then CSharpDll.m_bIsProcessDone[i] := true;
+                end;
+                if CSharpDll.m_bIsProcessDone[DefCommon.CH1] and CSharpDll.m_bIsProcessDone[DefCommon.CH2] then  begin
+
+                  SendMessageMain(STAGE_MODE_UNLOAD,0, 2,0, 'OC Flow Process_Finish',nil);
+
+                  CSharpDll.m_bIsProcessDone[DefCommon.CH1] := false;
+                  CSharpDll.m_bIsProcessDone[DefCommon.CH2] := false;
+                end;
+                if COmmon.SystemInfo.OCType = DefCommon.PreOCType then begin
+                  if (nCh mod 2) = 0 then begin
+                    nPair:= nCh + 1;
+                  end
+                  else begin
+                    nPair:= nCh - 1;
+                  end;
+                  if not PasScr[nPair].TestInfo.OCDllCall then begin
+                    SendMessageMain(STAGE_MODE_UNLOAD,0, 2,0, 'OC Flow Process_Finish(2)',nil);
+                    CSharpDll.m_bIsProcessDone[nCh] := false;
+                    CSharpDll.m_bIsProcessDone[nPair] := false;
+                  end;
+                end;
+              end;
+
+            end;
+            2,3 :
+            begin
+              if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
+                SendMessageMain(STAGE_MODE_UNLOAD, nCH, 2,0, 'OC Flow Process_Finish',nil);
+                CSharpDll.m_bIsProcessDone[nCH] := false;
+              end
+              else begin
+                for I := DefCommon.CH3 to DefCommon.CH4 do  begin
+                  if not PasScr[i].m_bUse then CSharpDll.m_bIsProcessDone[i] := true;
+                end;
+                if CSharpDll.m_bIsProcessDone[DefCommon.CH3] and CSharpDll.m_bIsProcessDone[DefCommon.CH4] then begin
+                  SendMessageMain(STAGE_MODE_UNLOAD, 1, 2,0, 'OC Flow Process_Finish',nil);
+
+                  CSharpDll.m_bIsProcessDone[DefCommon.CH3] := false;
+                  CSharpDll.m_bIsProcessDone[DefCommon.CH4] := false;
+                end;
+                if COmmon.SystemInfo.OCType = DefCommon.PreOCType then begin
+                  if (nCh mod 2) = 0 then begin
+                    nPair:= nCh + 1;
+                  end
+                  else begin
+                    nPair:= nCh - 1;
+                  end;
+                  if not PasScr[nPair].TestInfo.OCDllCall then begin
+                    SendMessageMain(STAGE_MODE_UNLOAD,1, 2,0, 'OC Flow Process_Finish(2)',nil);
+                    CSharpDll.m_bIsProcessDone[nCh] := false;
+                    CSharpDll.m_bIsProcessDone[nPair] := false;
+                  end;
+                end;
+              end;
+            end;
+
+          end;
+
+        end;
+
         DefCommon.MSG_MODE_WORKING : begin
           sMsg := Trim(PGuiDLL(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
           if nTemp = 10 then begin
             Common.MLog(nCh+self.Tag*4,sMsg);
             Exit;
           end;
+
           AddLog('[DLL] ' + sMsg, nCh, nTemp);
 
-//          if Pos('ErrCode:',sMsg) > 0 then begin
-//            //ErrCode:AXXX
-//            sTemp:= Copy(sMsg, 9, 4); //AXXX
-//            PasScr[nCh].m_nNgCode:= GetNGCode_ByErroCode(sTemp);
-//            AddLog(format('GetNGCode_ByErroCode: %d',[PasScr[nCh].m_nNgCode]),nCh);
-//          end;
-//          if ContainsText(sMsg,'Please Check Bin File Version') then begin
-//            if PasScr[nCh].m_nNgCode = 0 then begin
-//              PasScr[nCh].m_nNgCode:= 3181; //Other
-//            end;
-//          end;
-//          if (Pos('Total OC Tact Time',sMsg) > 0)
-//            or (Pos('[OCException]',sMsg) > 0)
-//            or (Pos('[Exception]',sMsg) > 0)then begin
-//            //Total OC Tact Time : 18 min 18 sec
-//            //[OCException] : PreSet NG
-//            if (Pos('Total OC Tact Time : 0 min 0 sec', sMsg) > 0) or (Pos('Total OC Tact Time : 0 min 1 sec', sMsg) > 0) then begin
-//              if PasScr[nCh].m_nNgCode = 0 then begin
-//                PasScr[nCh].m_nNgCode:= 3181; //Other
-//              end;
-//            end
-//            else if (Pos('Total OC Tact Time',sMsg) > 0) then begin
-//              PasScr[nCh].m_nNgCode := 0;
-//            end
-//            else if Pos('[OCException]',sMsg) > 0 then begin
-//              if PasScr[nCh].m_nNgCode = 0 then begin
-//                PasScr[nCh].m_nNgCode:= 3181; //Other
-//              end;
-//            end;
-//
-//          end;
-
-          if Pos('OKFLOW_END',sMsg) > 0 then begin
-            sTemp := CSharpDll.MainOC_GetSummaryLogData(nCh,'DEFECT_CODE');   // ERROR CODE 불러오기
-            if 'XXXX' <> sTemp then
-              PasScr[nCh].m_nNgCode:= GetNGCode_ByErroCode(sTemp)
-            else PasScr[nCh].m_nNgCode:= 0;
-            AddLog(format('GetSummaryLogData : %s GetNGCode_ByErroCode: %d',[sTemp,PasScr[nCh].m_nNgCode]),nCh);
-
-            if DongaGmes <> nil then begin
-              if DongaGmes.m_bDoneEODS[nCH] then begin   // R2R Data Down 확인 후
-                DongaGmes.SendR2REoda(nCh,WriteR2RData(nCH));
-              end;
-            end;
-
-            pnlNowDelayTimes[nCh].Caption := '0'; // DLL Delay Time 0 표시
-            PasScr[nCH].TestInfo.EndTime := now;  // Added by KTS 2023-05-19 오후 1:09:57 End Time
-            PG[nCH].DP860_SendOcOnOff(0{end},2000,0); //2023-03-28 jhhwang (for T/T Test)
-            PG[nCH].SetCyclicTimer(True); //2023-03-28 jhhwang (for T/T Test)
-            CSharpDll.m_bIsProcessDone[nCH] := true;    // CH 종료 확인
-            PasScr[nCH].m_First_Process_DONE := false;  //Pre OC First_Process 진행 여부 확인 초기화
-            AddLog(format('DLL DONE : %d, NG Code=%d', [nCH +1, PasScr[nCh].m_nNgCode]), nCH, 0);
-            // Added by sam81 2023-04-24 오후 3:40:07 oc 보상 종료 시 Tact time stop
-            StopTotalTimer(tmUnitTactTime[nCh],nCh,2);
-            tmUnitTactTime[nCh].Enabled := False;
-            if (Common.SystemInfo.OCType = DefCommon.OCType) and (not Common.PLCInfo.InlineGIB) then begin
-              tmCheckIRTemp[nCh].Enabled := False;   // IR 센서 저장 종료
-              ControlDio.WriteDioSig(DefDio.OUT_CH1_PMIC_FAN_ON + 16 * nCH,True); // FAN DIO OFF
-              SaveCsvTempStatus(nCh,'END',m_bFanOnOff[nCh]);
-            end;
-            DisplayPGStatuses(nCh,PasScr[nCh].m_nNgCode); // 종료 시 바로 결과 Display
-
-            case nCH of
-              0,1 :
-              begin
-                if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
-                  SendMessageMain(STAGE_MODE_UNLOAD,nCH, 2,0, 'OC Flow Process_Finish',nil);
-                  CSharpDll.m_bIsProcessDone[nCH] := false;
-                end
-                else begin
-                  for I := DefCommon.CH1 to DefCommon.CH2 do  begin
-                    if not PasScr[i].m_bUse then CSharpDll.m_bIsProcessDone[i] := true;
-                  end;
-                  if CSharpDll.m_bIsProcessDone[DefCommon.CH1] and CSharpDll.m_bIsProcessDone[DefCommon.CH2] then  begin
-
-                    SendMessageMain(STAGE_MODE_UNLOAD,0, 2,0, 'OC Flow Process_Finish',nil);
-
-                    CSharpDll.m_bIsProcessDone[DefCommon.CH1] := false;
-                    CSharpDll.m_bIsProcessDone[DefCommon.CH2] := false;
-                  end;
-                  if COmmon.SystemInfo.OCType = DefCommon.PreOCType then begin
-                    if (nCh mod 2) = 0 then begin
-                      nPair:= nCh + 1;
-                    end
-                    else begin
-                      nPair:= nCh - 1;
-                    end;
-                    if not PasScr[nPair].TestInfo.OCDllCall then begin
-                      SendMessageMain(STAGE_MODE_UNLOAD,0, 2,0, 'OC Flow Process_Finish(2)',nil);
-                      CSharpDll.m_bIsProcessDone[nCh] := false;
-                      CSharpDll.m_bIsProcessDone[nPair] := false;
-                    end;
-                  end;
-                end;
-
-              end;
-              2,3 :
-              begin
-                if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
-                  SendMessageMain(STAGE_MODE_UNLOAD, nCH, 2,0, 'OC Flow Process_Finish',nil);
-                  CSharpDll.m_bIsProcessDone[nCH] := false;
-                end
-                else begin
-                  for I := DefCommon.CH3 to DefCommon.CH4 do  begin
-                    if not PasScr[i].m_bUse then CSharpDll.m_bIsProcessDone[i] := true;
-                  end;
-                  if CSharpDll.m_bIsProcessDone[DefCommon.CH3] and CSharpDll.m_bIsProcessDone[DefCommon.CH4] then begin
-                    SendMessageMain(STAGE_MODE_UNLOAD, 1, 2,0, 'OC Flow Process_Finish',nil);
-//                    if NOT Common.AutoReStart  then  begin
-                      SendMessageMain(STAGE_MODE_UNLOAD, 1, 2,0, 'OC Flow Process_Finish',nil);
-//                    end
-//                    else begin
-//                      SendMessageMain(STAGE_MODE_TEST_START, 1, 0, 0, '', nil);
-//                      AutoLogicStart(1);
-//                    end;
-                    CSharpDll.m_bIsProcessDone[DefCommon.CH3] := false;
-                    CSharpDll.m_bIsProcessDone[DefCommon.CH4] := false;
-                  end;
-                  if COmmon.SystemInfo.OCType = DefCommon.PreOCType then begin
-                    if (nCh mod 2) = 0 then begin
-                      nPair:= nCh + 1;
-                    end
-                    else begin
-                      nPair:= nCh - 1;
-                    end;
-                    if not PasScr[nPair].TestInfo.OCDllCall then begin
-                      SendMessageMain(STAGE_MODE_UNLOAD,1, 2,0, 'OC Flow Process_Finish(2)',nil);
-                      CSharpDll.m_bIsProcessDone[nCh] := false;
-                      CSharpDll.m_bIsProcessDone[nPair] := false;
-                    end;
-                  end;
-                end;
-              end;
-
-            end;
-
-          end;
           if Pos('OC PGM Ver',sMsg) > 0 then begin
             sVer := Copy(sMsg,Pos('OC PGM Ver',sMsg),length(sMsg));
             SendMessageMain(MSG_TYPE_DLL, nCh, 0,0, sVer,nil);
           end;
+
         end;
       end;
     end;
@@ -4816,8 +4803,8 @@ begin
                             SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, 1 , 1 , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
                           end
                           else begin
-                            SendMessageMain(STAGE_MODE_TEST_START, 0, 0, 0, '', nil);
-                            AutoLogicStart(0);
+                            SendMessageMain(STAGE_MODE_TEST_START, 1, 0, 0, '', nil);
+                            AutoLogicStart(1);
                           end;
                             CSharpDll.m_bIsProcessDone[DefCommon.CH3] := false;
                             CSharpDll.m_bIsProcessDone[DefCommon.CH4] := false;
@@ -4831,6 +4818,60 @@ begin
                   end
                 end;
               end;//if Common.StatusInfo.AutoMode then begin
+            10 : begin
+              case nCH of
+                0, 1 :
+                begin
+                  for i := DefCommon.CH1 to DefCommon.CH2 do begin
+                    if PasScr[i].m_bIsScriptWork then begin
+                      Common.MLog(i, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(nCh));
+                      Exit;
+                    end;
+                  end;
+
+                  JigLogic[0].StartIspd_TOP(DefScript.SEQ_KEY_4);
+
+                end;
+                2,3 :
+                begin
+                  for i := DefCommon.CH3 to DefCommon.CH4 do begin
+                    if PasScr[i].m_bIsScriptWork then begin
+                      Common.MLog(i, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(nCh));
+                      Exit;
+                    end;
+                  end;
+                  JigLogic[0].StartIspd_BOTTOM(DefScript.SEQ_KEY_4);
+
+                end;
+              end;
+            end;
+            11 : begin
+              case nCH of
+                0, 1 :
+                begin
+                  for i := DefCommon.CH1 to DefCommon.CH2 do begin
+                    if PasScr[i].m_bIsScriptWork then begin
+                      Common.MLog(i, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(nCh));
+                      Exit;
+                    end;
+                  end;
+
+                  JigLogic[0].StartIspd_TOP(DefScript.SEQ_KEY_9);
+
+                end;
+                2,3 :
+                begin
+                  for i := DefCommon.CH3 to DefCommon.CH4 do begin
+                    if PasScr[i].m_bIsScriptWork then begin
+                      Common.MLog(i, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(nCh));
+                      Exit;
+                    end;
+                  end;
+                  JigLogic[0].StartIspd_BOTTOM(DefScript.SEQ_KEY_9);
+
+                end;
+              end;
+            end;
             5 : begin // Added by sam81 2023-05-08 오전 11:14:03  PRE OC Only AJIG , BJIG
               SyncJigUnload(nCh);
             end;

@@ -3,7 +3,7 @@ unit JigControl;
 interface
 {$I Common.inc}
 uses
-  Winapi.Windows, Winapi.Messages, System.Classes, System.SysUtils, DefCommon, {CodeSiteLogging,}
+  Winapi.Windows, Winapi.Messages, System.Classes, System.SysUtils, DefCommon,NgMsg, {CodeSiteLogging,}
   CommonClass, GMesCom, LogicVh, pasScriptClass, DefScript,Forms,CommPLC_ECS, {UdpServerClient,}CommPG,DefPG,  DefDio
 {$IFDEF CA310_USE}
   , Ca310
@@ -391,6 +391,8 @@ begin
           Exit(False);
         end;
       end;
+      if frmNgMsg <> nil then
+        frmNgMsg.FormAutoClose;
       g_CommPLC.EQP_Clear_ROBOT_Request(0);
     end;
   end;
@@ -470,6 +472,8 @@ begin
           Exit(False);
         end;
       end;
+      if frmNgMsg <> nil then
+        frmNgMsg.FormAutoClose;
       g_CommPLC.EQP_Clear_ROBOT_Request(1);
     end;
   end;

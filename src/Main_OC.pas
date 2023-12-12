@@ -1064,6 +1064,8 @@ begin
   Common.StatusInfo.LogIn:= False;
   Common.StatusInfo.AutoMode:= False;
 
+  chkAutoReStart.Visible := False;
+
 
   Common.GetReProgrammingData;
 
@@ -1435,11 +1437,16 @@ begin
   {$ENDIF}
 end;
 
+
+
+
+
 procedure TfrmMain_OC.FormCreate(Sender: TObject);
 var
   i : Integer;
   sDebug : string;
   aTask : TThread;
+  sFileName : string;
 begin
 //  Self.WindowState := wsMaximized;// wsNormal;
   Common := TCommon.Create;
@@ -1452,6 +1459,8 @@ begin
 //  pnlUserName.Caption := '';
   sDebug := '#################################### Turn On ISPD Program (';
   sDebug := sDebug + Common.GetVersionDate + ') ####################################';
+  for i := DefCommon.CH1 to DefCommon.MAX_CH do common.MLog(i,sDebug);
+  sDebug := 'Memory usage : ' + Format('%0.2f%%', [Common.GetMemoryUsagePercentage]);
   for i := DefCommon.CH1 to DefCommon.MAX_CH do common.MLog(i,sDebug);
   ShowSysLog('[ Turn On Program ] - Version ' + Common.GetVersionDate);
     // 현재 설정 되어 있는 Local IP Display 하자.
@@ -1479,11 +1488,14 @@ begin
   procedure begin
     Common.SearchForFilesWithText(Common.Path.RootSW,'LGD_OC_');
     Common.SearchForFilesWithText(Common.Path.RootSW,'OC_Converter');
+
   end);
   aTask.FreeOnTerminate := True;
   aTask.Start;
 
   CreateClassData;
+
+  Common.CheckAndTerminateExcel('EXCEL.EXE');    //실행 중인 EXCEL.EXE 종료
 
   Application.OnException := MyExceptionHandler;         // Added by KTS 2021-12-21 오후 3:34:52
   {
@@ -1498,6 +1510,7 @@ begin
   SetPriorityClass(GetCurrentProcess,HIGH_PRIORITY_CLASS);// Added by sam81 2023-04-28 오후 3:49:29 CPU 우선순위 높임
 //  tmrDisplayTestForm.Interval := 100;
 //  tmrDisplayTestForm.Enabled := True;
+
   m_csWriteCsvLog := TCriticalSection.Create;
 end;
 
@@ -1553,7 +1566,8 @@ end;
 
 procedure TfrmMain_OC.grpDIODblClick(Sender: TObject);
 begin
- chkAutoReStart.Visible := not chkAutoReStart.Visible;
+  if Common.SupervisorMode  then
+    chkAutoReStart.Visible := not chkAutoReStart.Visible;
 end;
 
 procedure TfrmMain_OC.Execute_AutoStart(nCH : Integer) ;
@@ -3024,12 +3038,16 @@ begin
     end;
     DefGmes.EAS_APDR : begin
       sPID := DongaGmes.MesData[nCh].PchkRtnPID;
+      PasScr[nCh].TestInfo.ApdrData := '';
       if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
         sSN := Format('%s_PCB_ID_CH_%d',[PasScr[nCh].TestInfo.SerialNo,nCh+1]);
-        PasScr[nCh].TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog(sPID,sSN,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
+//        PasScr[nCh].TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog(sPID,sSN,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
+//        ShowSysLog('ReadLGDDLLSummaryLog : ' + PasScr[nCh].TestInfo.ApdrData);
+        PasScr[nCh].TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog_New(sPID,sSN,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
+//        ShowSysLog('ReadLGDDLLSummaryLog_New : ' + PasScr[nCh].TestInfo.ApdrData);
       end
       else begin
-        PasScr[nCh].TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog(sPID,PasScr[nCh].TestInfo.SerialNo,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
+        PasScr[nCh].TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog_New(sPID,PasScr[nCh].TestInfo.SerialNo,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
       end;
       DongaGmes.MesData[nCh].ApdrData := PasScr[nCh].TestInfo.ApdrData;
       DongaGmes.SendEasApdr(PasScr[nCh].TestInfo.SerialNo, nCh);
@@ -3320,11 +3338,11 @@ try
                   Exit;
                 end;
 
-                nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH1);
-                if nRet > 0 then begin
-                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 1 - NG');
-                  Exit;
-                end;
+//                nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH1);
+//                if nRet > 0 then begin
+//                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 1 - NG');
+//                  Exit;
+//                end;
               end;
             end;
           end;
@@ -3380,11 +3398,11 @@ try
                   SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockPinBlock CH 1 - NG');
                   Exit;
                 end;
-                nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH1);
-                if nRet > 0 then begin
-                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 1 - NG');
-                  Exit;
-                end;
+//                nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH1);
+//                if nRet > 0 then begin
+//                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 1 - NG');
+//                  Exit;
+//                end;
               end;
             end;
           end;
@@ -3470,16 +3488,16 @@ try
                   SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockPinBlock CH 2 - NG');
                   Exit;
                 end;
-                nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH1);
-                if nRet > 0 then begin
-                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 1 - NG');
-                  Exit;
-                end;
-                nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH2);
-                if nRet > 0 then begin
-                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 2 - NG');
-                  Exit;
-                end;
+//                nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH1);
+//                if nRet > 0 then begin
+//                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 1 - NG');
+//                  Exit;
+//                end;
+//                nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH2);
+//                if nRet > 0 then begin
+//                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 2 - NG');
+//                  Exit;
+//                end;
               end;
             end;
           end;
@@ -3560,16 +3578,16 @@ try
                   SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockPinBlock CH 2 - NG');
                   Exit;
                 end;
-                nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH1);
-                if nRet > 0 then begin
-                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 1 - NG');
-                  Exit;
-                end;
-                nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH2);
-                if nRet > 0 then begin
-                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 2 - NG');
-                  Exit;
-                end;
+//                nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH1);
+//                if nRet > 0 then begin
+//                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 1 - NG');
+//                  Exit;
+//                end;
+//                nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH2);
+//                if nRet > 0 then begin
+//                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 2 - NG');
+//                  Exit;
+//                end;
               end;
             end;
           end;
@@ -3695,16 +3713,16 @@ try
                   SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockPinBlock CH 4 - NG');
                   Exit;
                 end;
-                nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH3);
-                if nRet > 0 then begin
-                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 3 - NG');
-                  Exit;
-                end;
-                nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH4);
-                if nRet > 0 then begin
-                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 4 - NG');
-                  Exit;
-                end;
+//                nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH3);
+//                if nRet > 0 then begin
+//                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 3 - NG');
+//                  Exit;
+//                end;
+//                nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH4);
+//                if nRet > 0 then begin
+//                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 4 - NG');
+//                  Exit;
+//                end;
               end;
             end;
           end;
@@ -3806,16 +3824,16 @@ try
                   SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockPinBlock CH 4 - NG');
                   Exit;
                 end;
-                nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH3);
-                if nRet > 0 then begin
-                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 3 - NG');
-                  Exit;
-                end;
-                nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH4);
-                if nRet > 0 then begin
-                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock Close Prev. UP CH 4 - NG');
-                  Exit;
-                end;
+//                nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH3);
+//                if nRet > 0 then begin
+//                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 3 - NG');
+//                  Exit;
+//                end;
+//                nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH4);
+//                if nRet > 0 then begin
+//                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock Close Prev. UP CH 4 - NG');
+//                  Exit;
+//                end;
               end;
             end;
           end;
@@ -3928,11 +3946,11 @@ begin
                   Exit;
                 end;
 
-                nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH1);
-                if nRet > 0 then begin
-                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 1 - NG');
-                  Exit;
-                end;
+//                nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH1);
+//                if nRet > 0 then begin
+//                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 1 - NG');
+//                  Exit;
+//                end;
               end;
             end;
           end;
@@ -4015,16 +4033,16 @@ begin
                     SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockPinBlock CH 2 - NG');
                     Exit;
                   end;
-                  nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH1);
-                  if nRet > 0 then begin
-                    SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 1 - NG');
-                    Exit;
-                  end;
-                  nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH2);
-                  if nRet > 0 then begin
-                    SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 2 - NG');
-                    Exit;
-                  end;
+//                  nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH1);
+//                  if nRet > 0 then begin
+//                    SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 1 - NG');
+//                    Exit;
+//                  end;
+//                  nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH2);
+//                  if nRet > 0 then begin
+//                    SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 2 - NG');
+//                    Exit;
+//                  end;
                 end;
               end;
             end;
@@ -4112,16 +4130,16 @@ begin
                     SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockPinBlock CH 4 - NG');
                     Exit;
                   end;
-                  nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH3);
-                  if nRet > 0 then begin
-                    SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 3 - NG');
-                    Exit;
-                  end;
-                  nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH4);
-                  if nRet > 0 then begin
-                    SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 4 - NG');
-                    Exit;
-                  end;
+//                  nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH3);
+//                  if nRet > 0 then begin
+//                    SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 3 - NG');
+//                    Exit;
+//                  end;
+//                  nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH4);
+//                  if nRet > 0 then begin
+//                    SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 4 - NG');
+//                    Exit;
+//                  end;
                 end;
               end;
             end;
@@ -4242,11 +4260,11 @@ begin
                   SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockPinBlock CH 1 - NG');
                   Exit;
                 end;
-                nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH1);
-                if nRet > 0 then begin
-                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 1 - NG');
-                  Exit;
-                end;
+//                nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH1);
+//                if nRet > 0 then begin
+//                  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 1 - NG');
+//                  Exit;
+//                end;
               end;
             end;
           end;
@@ -4333,16 +4351,16 @@ begin
                     SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockPinBlock CH 2 - NG');
                     Exit;
                   end;
-                  nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH1);
-                  if nRet > 0 then begin
-                    SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 1 - NG');
-                    Exit;
-                  end;
-                  nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH2);
-                  if nRet > 0 then begin
-                    SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 2 - NG');
-                    Exit;
-                  end;
+//                  nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH1);
+//                  if nRet > 0 then begin
+//                    SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 1 - NG');
+//                    Exit;
+//                  end;
+//                  nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH2);
+//                  if nRet > 0 then begin
+//                    SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 2 - NG');
+//                    Exit;
+//                  end;
                 end;
               end;
             end;
@@ -4464,16 +4482,16 @@ begin
                     SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'UnlockPinBlock CH 4 - NG');
                     Exit;
                   end;
-                  nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH3);
-                  if nRet > 0 then begin
-                    SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 3 - NG');
-                    Exit;
-                  end;
-                  nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH4);
-                  if nRet > 0 then begin
-                    SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock Close Prev. UP CH 4 - NG');
-                    Exit;
-                  end;
+//                  nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH3);
+//                  if nRet > 0 then begin
+//                    SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock CLose Prev. UP CH 3 - NG');
+//                    Exit;
+//                  end;
+//                  nRet := ControlDio.CLOSE_Up_PinBlock(DefCommon.CH4);
+//                  if nRet > 0 then begin
+//                    SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'PinBlock Close Prev. UP CH 4 - NG');
+//                    Exit;
+//                  end;
                 end;
               end;
             end;
@@ -5507,93 +5525,110 @@ var
   sFileName : string;
   sSerialId : String;
 begin
-// Edit1.Text := IntToStr(CSharpDll.MainOC_GetOCFlowIsAlive(0));
-////  if DongaGmes <> nil then
-////   DongaGmes.SendR2REodsTest;
-////
+
   CSharpDll.MainOC_ChangeDLL('LGD_OC_X2146_v61.081_VARGB_1.5');
   Edit1.Text := PAnsiChar(CSharpDll.m_GetOCversion);
    Exit;
-
-
-
-
-
-//  sFileName := 'D:\Project\ITOLED\IT_OLED_OC\LGDDLL\OCLog\SummaryLog\12345_Summary_Log_2023_05_03.csv';
-//  sSerialId := 'TEST1234567890_1';
-//  sSerialId := 'PPPGU500011EEEEEEE000000ABNAA00000S00B12C00000000000000000003XA000000C43GQA0009R00000EL+3+T32LL1GM750D7R00000EN+1GJ6GLL0022B00000EPGJ6GPE0014M00000EQTHAGPG000MT00000EKF3111111112C1LY1GTS255720000273J1LLL3125AJY043010304T0MHU0S00ML341WL013L';
-//  sSerialId := '340600164';
-  sSerialId :=  Edit1.Text;
-
-//  frmTest4ChOC[0].GetNGCode_ByErroCode(sSerialId);
-//  Common.ReadLGDDLLSummaryLog(sSerialId, 2);
-//  PasScr[0].TestInfo.ApdrData := 'AFM_VRR_OPTIMUM:BARCODE:PB5,AFM_VRR_OPTIMUM:SERIALNUMBER:PB503C7602A3K30044,AFM_VRR_OPTIMUM:BUILD:Band_DOE:2,AFM_VRR_OPTIMUM:CONFIG:##,AFM_VRR_OPTIMUM:EQUIPMENT:H9BMTL413A';
-  PasScr[0].TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog(sSerialId,sSerialId,FormatDateTime('yymmdd',PasScr[0].TestInfo.StartTime), 0);
-//  DongaGmes.MesData[0].ApdrData := PasScr[0].TestInfo.ApdrData;
-  PasScr[0].TestInfo.SerialNo := sSerialId;
-//  DongaGmes.MesData[0].ApdrData  := PasScr[0].TestInfo.ApdrData;
-//  DongaGmes.SendEasApdr(PasScr[0].TestInfo.SerialNo, 0);
-//  sFileName := 'D:\Small_Insp\2.VH\ISPD\DOC\ECS\Error Level 참조_v0.1.xls';
-//  nStartTick := GetTickCount;
-//  while True do begin
-////    if Common.CheckFileAccess(sFileName,2) then begin
-//    if Common.CanOpenFile(sFileName) then begin
-//      Break;
-//    end;
-//    nEndTick := GetTickCount;
-//    Sleep(100);
-//    if nEndTick - nStartTick > 5000 then begin
-//      ShowMessage('File Timeout');
-//      break;
-//    end;
-//  end;
-//  ShowMessage('File enable');
 end;
 
 procedure TfrmMain_OC.SaveCsvSummaryLog(nCh: Integer);
 var
-  sFilePath, sFileName : String;
+  sFilePath, sFileName: String;
   sLine: String;
-  txtF                 : Textfile;
-  i : integer;
+  txtF: TextFile;
+  i: Integer;
 begin
-//  m_csWriteCsvLog.Acquire; // 메인에서 sync 처리 되어서 들어옴
-  sFilePath := Common.Path.SumCsv + FormatDateTime('yyyymm',now) + '\';
+  sFilePath := Common.Path.SumCsv + FormatDateTime('yyyymm', Now) + PathDelim;
   sFileName := sFilePath + PasScr[nCh].m_sFileCsv;
-  if Common.CheckDir(sFilePath) then Exit;
+
+  // 디렉토리가 없으면 생성하고, 생성 중 예외가 발생하면 예외 처리
+  if Common.CheckDir(sFilePath) then
+    Exit;
+
   try
+    FileSetReadOnly(sFileName,False);
+    AssignFile(txtF, sFileName);
+
     try
-      AssignFile(txtF, sFileName);
-      try
+      // 파일이 존재하지 않으면 헤더 생성
+      if not FileExists(sFileName) then
+      begin
+        Rewrite(txtF);
+        sLine := PasScr[nCh].TestInfo.InsCsv.Data[0, 0];
 
-        if not FileExists(sFileName) then begin
-          //Header 생성
-          Rewrite(txtF);
-          sLine:= PasScr[nCh].TestInfo.InsCsv.Data[0, 0];
-          for i:= 1 to Pred(PasScr[nCh].TestInfo.InsCsv.FColCnt) do begin
-            sLine:=  sLine + ',' + PasScr[nCh].TestInfo.InsCsv.Data[0, i];
-          end;
-          WriteLn(txtF, sLine);
+        for i := 1 to Pred(PasScr[nCh].TestInfo.InsCsv.FColCnt) do
+        begin
+          sLine := sLine + ',' + PasScr[nCh].TestInfo.InsCsv.Data[0, i];
         end;
 
-        //Data
-        Append(txtF);
-        sLine:= PasScr[nCh].TestInfo.InsCsv.Data[1, 0];
-        for i:= 1 to Pred(PasScr[nCh].TestInfo.InsCsv.FColCnt) do begin
-          sLine:=  sLine + ',' + PasScr[nCh].TestInfo.InsCsv.Data[1, i];
-        end;
         WriteLn(txtF, sLine);
-      except
-//        m_csWriteCsvLog.Release;
       end;
-    finally
-      CloseFile(txtF); // Close the file
-//      m_csWriteCsvLog.Release;
+
+      // 데이터 추가
+      Append(txtF);
+      sLine := PasScr[nCh].TestInfo.InsCsv.Data[1, 0];
+
+      for i := 1 to Pred(PasScr[nCh].TestInfo.InsCsv.FColCnt) do
+      begin
+        sLine := sLine + ',' + PasScr[nCh].TestInfo.InsCsv.Data[1, i];
+      end;
+
+      WriteLn(txtF, sLine);
+    except
+      // 파일 작업 중 예외 발생 시 예외 처리
     end;
-  except
-//    m_csWriteCsvLog.Release;
+  finally
+    CloseFile(txtF); // 파일 핸들을 안전하게 닫음
+    FileSetReadOnly(sFileName,true);
   end;
 end;
+
+
+//
+//procedure TfrmMain_OC.SaveCsvSummaryLog(nCh: Integer);
+//var
+//  sFilePath, sFileName : String;
+//  sLine: String;
+//  txtF                 : Textfile;
+//  i : integer;
+//begin
+////  m_csWriteCsvLog.Acquire; // 메인에서 sync 처리 되어서 들어옴
+//  sFilePath := Common.Path.SumCsv + FormatDateTime('yyyymm',now) + '\';
+//  sFileName := sFilePath + PasScr[nCh].m_sFileCsv;
+//  if Common.CheckDir(sFilePath) then Exit;
+//  try
+//    try
+//      AssignFile(txtF, sFileName);
+//      try
+//
+//        if not FileExists(sFileName) then begin
+//          //Header 생성
+//          Rewrite(txtF);
+//          sLine:= PasScr[nCh].TestInfo.InsCsv.Data[0, 0];
+//          for i:= 1 to Pred(PasScr[nCh].TestInfo.InsCsv.FColCnt) do begin
+//            sLine:=  sLine + ',' + PasScr[nCh].TestInfo.InsCsv.Data[0, i];
+//          end;
+//          WriteLn(txtF, sLine);
+//        end;
+//
+//        //Data
+//        Append(txtF);
+//        sLine:= PasScr[nCh].TestInfo.InsCsv.Data[1, 0];
+//        for i:= 1 to Pred(PasScr[nCh].TestInfo.InsCsv.FColCnt) do begin
+//          sLine:=  sLine + ',' + PasScr[nCh].TestInfo.InsCsv.Data[1, i];
+//        end;
+//        WriteLn(txtF, sLine);
+//      except
+////        m_csWriteCsvLog.Release;
+//      end;
+//    finally
+//      CloseFile(txtF); // Close the file
+////      m_csWriteCsvLog.Release;
+//    end;
+//  except
+////    m_csWriteCsvLog.Release;
+//  end;
+//end;
 
 procedure TfrmMain_OC.SendMsgAddLog(nMsgMode, nParam, nParam2: Integer; sMsg: String; pData: Pointer);
 var
@@ -6253,7 +6288,7 @@ begin
       for I := 0 to DefCommon.MAX_CH do begin
         ControlDio.MovingProbe(i mod 2, True);
         ControlDio.UnlockPinBlock(i);
-        ControlDio.CLOSE_Up_PinBlock(i);
+//        ControlDio.CLOSE_Up_PinBlock(i);
       end;
     end;
   end);
@@ -7344,13 +7379,13 @@ begin
     Common.StatusInfo.AlarmMsg[3]:= 'FAN_4_INTAKE ERROR (DI03)';
     Common.StatusInfo.AlarmMsg[4]:= 'CH 1,2 EMO_SWITCH (DI04)';
     Common.StatusInfo.AlarmMsg[5]:= 'CH 3,4 EMO_SWITCH (DI05)';
-    Common.StatusInfo.AlarmMsg[6]:= 'CH 1,2 LIGHT CURTAIN (DI06)';
-    Common.StatusInfo.AlarmMsg[7]:= 'CH 3,4 LIGHT CURTAIN (DI07)';
+    Common.StatusInfo.AlarmMsg[6]:= 'CH 1,2 LIGHT CURTAIN (DI06 - SI4, SI5)';
+    Common.StatusInfo.AlarmMsg[7]:= 'CH 3,4 LIGHT CURTAIN (DI07 - SI6, SI7)';
 
     Common.StatusInfo.AlarmMsg[8]:= 'CH 1,2 MUTING sensing (DI08)';
     Common.StatusInfo.AlarmMsg[9]:= 'CH 3,4 MUTING sensing (DI09)';
     Common.StatusInfo.AlarmMsg[10]:= 'CH 1,2 MC MONITORING (DI10) - NEED RESET BUTTON (DO06)';
-    Common.StatusInfo.AlarmMsg[11]:= 'CH 3,4 MC MONITORING (DI11) - NEED RESET BUTTON (DI07)';
+    Common.StatusInfo.AlarmMsg[11]:= 'CH 3,4 MC MONITORING (DI11) - NEED RESET BUTTON (DO07)';
     Common.StatusInfo.AlarmMsg[12]:= 'TEMPERATURE ALARM (DI12)';
     Common.StatusInfo.AlarmMsg[13]:= 'N/A 13';
     Common.StatusInfo.AlarmMsg[14]:= 'N/A 14';

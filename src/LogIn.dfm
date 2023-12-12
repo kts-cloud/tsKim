@@ -1713,7 +1713,7 @@ object frmLogIn: TfrmLogIn
   end
   object btnOK: TRzBitBtn
     Left = 14
-    Top = 94
+    Top = 91
     Width = 99
     Height = 29
     Default = True

@@ -678,6 +678,7 @@ end;
 
 
 procedure TScrCls.DefineMethodFunc(SetPaScript : TatPascalScripter);
+
 var
   sParamHint : string;
   nValue : integer;
@@ -931,6 +932,7 @@ begin
 
   SetPaScript.AddVariable('c_NVMWriteSequence',Common.TestModelInfoFLOW.UseCkNVMWriteSequence);
 
+//  SetPaScript.AddVariable('c_NVMWriteSequence',nNVMWriteSequence);
   //문자열 속성 반환 p_Values[0], 필요 시 Get, Set에서 추가
   SetPaScript.DefineProp('c_Values',tkVariant, Get_PropValues_Proc, Set_PropValues_Proc, nil, False, 1); //checkmate 20191030
 
@@ -1395,6 +1397,11 @@ begin
 {$ENDIF}
 
       begin // CONFIRM_RESULT_REPORT_TO_HOST ??/
+        if Common.AutoReStart then begin
+         ReturnOutputArg(0);
+         exit;
+        end;
+
         if nRet = 0 then
         begin
           SendTestGuiDisplay(DefCommon.MSG_MODE_SHOW_CONFIRM_EICR, '', '', 0,
@@ -2131,6 +2138,11 @@ begin
   //sDebug := sDebug + Format(', Psu(%s/%s), Oc_Param(%s)',[Common.m_Ver.psu_Date,Common.m_Ver.psu_Crc,Common.m_Ver.OcParam]);
   //sDebug := sDebug + Format(', Oc_Verify(%s), Otp_Table(%s)',[Common.m_Ver.OcVerify,Common.m_Ver.OtpTable]);
   //sDebug := sDebug + Format(', Oc_Offset(%s), MES_CODE(%s)',[Common.m_Ver.OcOffSet,Common.m_Ver.MES_CSV]);
+  Common.MLog(FPgNo,sDebug);
+
+  sDebug := Format('PGSetting Check : PG_TconWriteLogDisplay(%s), PG_TconWriteCmdType(%d)',[BoolToStr(Common.SystemInfo.PG_TconWriteLogDisplay,True),Common.SystemInfo.PG_TconWriteCmdType]);
+  sDebug := sDebug + Format(', PG_TconOcWriteDelayMsec(%d), PG_TconOcWriteDelayMicroSec(%d)',[Common.SystemInfo.PG_TconOcWriteDelayMsec,Common.SystemInfo.PG_TconOcWriteDelayMicroSec]);
+
   Common.MLog(FPgNo,sDebug);
 
   TestInfo.SW_Ver:= Common.ExeVersion; // Common.GetVersionDate;
@@ -3119,6 +3131,14 @@ begin
 
     PG[Self.FPgNo].DP860_SendOcOnOff(1{start},2000,0); //2023-03-28 jhhwang (for T/T Test)
     PG[FPgNo].SetCyclicTimer(False);
+//    if Common.TestModelInfoFLOW.UseTconWriteChecksum then begin
+//      Common.MLog(self.FPgNo,'[Source Code] TconWriteChecksum : On');
+//      PG[Self.FPgNo].DP860_SendChkEnable(1{start},2000,0);
+//    end
+//    else begin
+//      Common.MLog(self.FPgNo,'[Source Code] TconWriteChecksum : OFF');
+//      PG[Self.FPgNo].DP860_SendChkEnable(0,2000,0);
+//    end;
 //    for I := DefCommon.CH1 to DefCommon.CH4 do
 //      PG[i].SetCyclicTimer(False);
 
@@ -3126,10 +3146,14 @@ begin
     case InputArgCount of
       2 : begin
         sPID := GetInputArgAsstring(0);
-        sSerialNumber := GetInputArgAsstring(1);
-        sSerialNumber := Trim(sSerialNumber);
-        if DongaGmes <> nil then
+        sSerialNumber := Trim(GetInputArgAsstring(1));
+        if DongaGmes <> nil then  begin
           sPID :=  DongaGmes.MesData[FPgNo].PchkRtnPID; // Added by KTS 2023-05-19 오후 5:32:48 PCHK 받은 RYN_PID
+          if (sSerialNumber <> DongaGmes.MesData[FPgNo].PchkRtnSerialNo) or (Length(sSerialNumber) <> Common.TestModelInfoFLOW.SerialNoFlashInfo.nLength ) then begin
+            if Common.SystemInfo.OCType = DefCommon.OCType then
+              CSharpDll.m_OCCkSerialNB[FPgNo] := True;
+          end;
+        end;
         if Length(sPID) = 0 then sPID := Copy(sSerialNumber,1,3);
         if Common.SystemInfo.OCType = DefCommon.PreOCType then
           sSerialNumber := Format('%s_PCB_ID_CH_%d',[sSerialNumber,Self.FPgNo+1])
@@ -3217,6 +3241,7 @@ begin
         SetString(sAnsiStr, PAnsiChar(@SerialNoBuf[0]), nLength);
         sAnsiStr := Copy(sAnsiStr,1,nLength);
         sSerialNo := string(Trim(sAnsiStr));
+        SetLength(SerialNoBuf,0);
 
 //        {$IFDEF SIMULATOR}
 //          sSerialNo := Format('PPPGU500011EEEEEEE000000ABNAA00000S00B12C00000000000000000003XA000000C43GQA0009R00000EL+3+T32LL1GM750D7R00000EN+1GJ6GLL0022B00000EPGJ6GPE0014M00000EQTHAGPG000MT00000EKF3111111112C1LY1GTS255720000273J1LLL3125AJY043010304T0MHU0S00ML341WL013L_%d',[FPgNo]);
@@ -4191,6 +4216,23 @@ begin
       m_bIsSyncSeq := False;
     end;
   end;
+  if (Common.AutoReStart) and (Common.SystemInfo.OCType = DefCommon.PreOCType) then begin
+    if (CurrentSEQ in [SEQ_KEY_9]) or (CurrentSEQ in [SEQ_KEY_START]) then begin
+      if CSharpDll.MainOC_GetOCFlowIsAlive(FPgNo) = 0 then begin
+        SendTestGuiDisplay(DefCommon.MSG_MODE_SYNC_WORK,'','', 10, CurrentSEQ);
+        SendTestGuiDisplay(DefCommon.MSG_MODE_BARCODE_READY,'','',1);
+        Sleep(100);
+        frmTest4ChOC[0].getBcrData2(FormatDateTime('hh_nn_ss',now)+format('_%d',[FPgNo]));
+      end;
+    end;
+    if CurrentSEQ in [SEQ_KEY_4] then begin
+
+      SendTestGuiDisplay(DefCommon.MSG_MODE_SYNC_WORK,'','', 11, CurrentSEQ);
+    end;
+
+  end;
+
+
 
   //Auto Mode일 경우 Load 요청을위한 알림
   //if Common.StatusInfo.AutoMode then begin
@@ -6275,9 +6317,8 @@ begin
   With AMachine do begin
     nSearch_Lv := GetInputArgAsInteger(0);
     fSearch_Lv := nSearch_Lv/10;
-
-    sFileCsv :=  format('%s_CH%d_CEL_NY_%f_GrayScale_',[Common.SystemInfo.EQPId,FPgNo+1,fSearch_Lv]) + formatDateTime('yyMMddHHmmss',now) + '.csv';
     sSerialNo := TestInfo.SerialNo;
+    sFileCsv :=  format('%s_CH%d_CEL_NY_%f_GrayScale_',[copy(sSerialNo,1,25),FPgNo+1,fSearch_Lv]) + formatDateTime('yyMMddHHmmss',now) + '.csv';
     sSerialNo := Format('sSerialNo : %s',[sSerialNo]);
     sDataHeader := 'DBV,DBV_Nits,Gray,Measure_Lv,x,y';
 
@@ -6602,10 +6643,11 @@ begin
 
           15 :wdRet := ControlDio.CLOSE_Up_PinBlock(Self.FPgNo);
           16 :wdRet := ControlDio.CLOSE_DN_PinBlock(Self.FPgNo);
+
+          17 : wdRet := ControlDio.MovingAll(nGroup,true);
+          18 : wdRet := ControlDio.MovingAll(nGroup,False);
         end;
-//        {$IFDEF DEBUG}
-//        wdRet := 0;
-//        {$ENDIF}
+
         ReturnOutputArg( wdRet);
       end;
     except

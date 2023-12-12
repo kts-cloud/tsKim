@@ -69,14 +69,29 @@ begin
   //패스워드 설정 안돼있는 경우는?
 
 {$ELSE}
-  if CompareText(edPassword.Text, Common.SystemInfo.Password) <> 0 then begin
-		MessageDlg(#13#10 + 'Incorrect Admin Password!', mtError, [mbOk], 0);
-		edPassword.Text := '';
-		edPassword.SelectAll;
-		edPassword.SetFocus;
+  if edUserId.Text = 'ADMIN' then  begin
+    if CompareText(edPassword.Text, Common.SystemInfo.Password) <> 0 then begin
+      MessageDlg(#13#10 + 'Incorrect Admin Password!', mtError, [mbOk], 0);
+      edPassword.Text := '';
+      edPassword.SelectAll;
+      edPassword.SetFocus;
+    end
+    else
+      ModalResult := mrOK;
   end
-  else
-		ModalResult := mrOK;
+  else if edUserId.Text = 'SUPV' then begin
+
+    if CompareText(edPassword.Text, Common.SystemInfo.SupervisorPassword) <> 0 then begin
+      MessageDlg(#13#10 + 'Incorrect Admin Password!', mtError, [mbOk], 0);
+      edPassword.Text := '';
+      edPassword.SelectAll;
+      edPassword.SetFocus;
+    end
+    else begin
+      Common.SupervisorMode := True;
+      ModalResult := mrOK;
+    end;
+  end;
 {$ENDIF}
 end;
 
@@ -100,6 +115,7 @@ end;
 procedure TfrmLogIn.FormCreate(Sender: TObject);
 begin
   SetBounds(200, 60, 446, 164);
+  Common.SupervisorMode := false;
   //self.Height := 164;
   lblManFlag.Caption := 'Input Admin password (Số nhân viên)';
   pnlUserId.Caption  := 'User ID(Số nhân viê)';
@@ -112,7 +128,7 @@ begin
 
 	lblManFlag.Caption := 'Input Admin Password...';
 	edUserId.Text    := 'ADMIN';
-	edUserId.Enabled := False;
+//	edUserId.Enabled := False;
 	edPassword.SetFocus;
 end;
 

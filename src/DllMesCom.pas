@@ -206,8 +206,14 @@ begin
 end;
 
 function TCommTibRv64.Send_Data(nCH : integer; sMsg: string): Boolean;
+var
+bRet : boolean;
 begin
-  Result := m_Send_Data(nCH,StringToPAnsiChar(sMsg));
+  bRet := m_Send_Data(nCH,StringToPAnsiChar(sMsg));
+  if not bRet then
+    bRet := m_Send_Data(nCH,StringToPAnsiChar(sMsg));
+  Result := bRet;
+
 end;
 
 procedure TCommTibRv64.SetFunction;
