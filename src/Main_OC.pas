@@ -263,6 +263,7 @@ type
     procedure chkCH;
   public
     { Public declarations }
+
     PollingDoorOpened : Boolean;
     function CheckEmpty_Pair(nStage, nPair: Integer): Boolean;
     function CheckProbe(nCH: Integer): Boolean;
@@ -287,7 +288,9 @@ procedure TfrmMain_OC.AddLog_AllCh(sLog: String);
 var
   i: Integer;
 begin
-  for i := DefCommon.CH1 to DefCommon.MAX_CH do common.MLog(i, 'Program InitialAll');
+  for i := DefCommon.CH1 to DefCommon.MAX_CH do
+//    common.MLog(i, 'Program InitialAll');
+    SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, 0, i, 'Program InitialAll');
 end;
 
 procedure TfrmMain_OC.ApplicationEvents1ShortCut(var Msg: TWMKey; var Handled: Boolean);
@@ -376,7 +379,9 @@ begin
   if MessageDlg(sMsg, mtConfirmation, [mbYes, mbNo], 0) = mrYes then begin
     sDebug := '[Click Event] Initialize';
     ShowSysLog(sDebug);
-    for i := DefCommon.CH1 to DefCommon.MAX_CH do common.MLog(i,sDebug);
+    for i := DefCommon.CH1 to DefCommon.MAX_CH do
+//    common.MLog(i,sDebug);
+      SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, 0, i, sDebug);
     InitialAll;
   end;
 end;
@@ -412,7 +417,9 @@ begin
     ReleaseReadyModOnPlc;
     sDebug := '[Click Event] Maint';
     ShowSysLog(sDebug);
-    for i := DefCommon.CH1 to DefCommon.MAX_CH do common.MLog(i,sDebug);
+    for i := DefCommon.CH1 to DefCommon.MAX_CH do
+//    common.MLog(i,sDebug);
+      SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, 0, i, sDebug);
 //    if Common.SystemInfo.UIType <> DefCommon.UI_WIN10_NOR then TStyleManager.SetStyle('Windows10');
     frmMainter := TfrmMainter.Create(Application);
     try
@@ -462,7 +469,9 @@ begin
 //    tolGroupMain.Enabled := False;
     sDebug := '[Click Event] M/C : Old Model - '+sOldModel +' ===> New Model - ' + Common.SystemInfo.TestModel;
     ShowSysLog(sDebug);
-    for i := DefCommon.CH1 to DefCommon.MAX_CH do common.MLog(i,sDebug);
+    for i := DefCommon.CH1 to DefCommon.MAX_CH do
+//    common.MLog(i,sDebug);
+      SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, 0, i, sDebug);
 
     // Fusing model Data.
     Common.LoadModelInfo(Common.SystemInfo.TestModel);
@@ -513,7 +522,9 @@ begin
     if Common.m_bIsChanged or (Common.SystemInfo.UIType <> DefCommon.UI_WIN10_NOR) then begin
       sDebug := '[Click Event] Model Info';
       ShowSysLog(sDebug);
-      for i := DefCommon.CH1 to DefCommon.MAX_CH do common.MLog(i,sDebug);
+      for i := DefCommon.CH1 to DefCommon.MAX_CH do
+//      common.MLog(i,sDebug);
+        SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, 0, i, sDebug);
       InitialAll;
     end;
 //    Common.LoadModelInfo(Common.SystemInfo.TestModel);
@@ -540,7 +551,9 @@ begin
   if CheckAdminPasswd then begin
     sDebug := '[Click Event] System Info';
     ShowSysLog(sDebug);
-    for i := DefCommon.CH1 to DefCommon.MAX_CH do common.MLog(i,sDebug);
+    for i := DefCommon.CH1 to DefCommon.MAX_CH do
+//    common.MLog(i,sDebug);
+      SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, 0, i, sDebug);
 //    if Common.SystemInfo.UIType <> DefCommon.UI_WIN10_NOR then TStyleManager.SetStyle('Windows10');
     frmSystemSetup := TfrmSystemSetup.Create(nil);
     try
@@ -1614,93 +1627,17 @@ begin
     Exit;
   end;
 
-
-  if Common.StatusInfo.AABMode then begin
-    ShowSysLog('Execute_AutoStart - AAB Mode');
-    //AAB Mode일 경우 이전 검사가 OK일 경우 재 검사 skip
-    nCurSeq:= 0;
-    for i := 0 to 1 do begin
-      //현재 차수 구하기
-      g_CommPLC.GetGlassData_Processing_Status(g_CommPLC.GlassData[i + nStage*4],1, nSeq, 3);
-      if nCurSeq < nSeq then begin
-        nCurSeq:=  nSeq;
-      end;
-    end;
-
-    for i := 0 to 1 do begin
-      nStation:= g_CommPLC.GetGlassData_Processing_Status(g_CommPLC.GlassData[i + nStage*4],1, nSeq, 3);
-      nJudge:= g_CommPLC.GlassData[i + nStage*4].GlassJudge; //, ord('G'));
-      //ShowSysLog(format('AABMode Station=%d, Seq=%d, nJudge=%d', [nStation, nSeq, nJudge]));
-      Common.MLog(i + nStage*4, format('AABMode Station=%d, CurSeq=%d, Seq=%d, nJudge=%d', [nStation, nCurSeq, nSeq, nJudge]));
-      if (nSeq < nCurSeq) and (nJudge = ord('G'))  then begin
-        //2차 검사이고 이전 검사가 'G'인 경우
-        //ShowSysLog(format('AABMode Skip Ch %d - Pre OK ', [i]));
-        PasScr[i + nStage*4].InitialData; //시작 안되므로 미리 클리어
-        Common.MLog(i + nStage*4, format('AABMode Skip Ch %d - Pre OK ', [i]));
-        PasScr[i + nStage*4].m_bUse:= false; //해당 채널 임시 검사 skip
-      end;
-    end;
-
-    nCurSeq:= 0;
-    for i := 2 to 3 do begin
-      //현재 차수 구하기
-      g_CommPLC.GetGlassData_Processing_Status(g_CommPLC.GlassData[i + nStage*4],1, nSeq, 3);
-      if nCurSeq < nSeq then begin
-        nCurSeq:=  nSeq;
-      end;
-    end;
-
-    for i := 2 to 3 do begin
-      nStation:= g_CommPLC.GetGlassData_Processing_Status(g_CommPLC.GlassData[i + nStage*4],1, nSeq, 3);
-      nJudge:= g_CommPLC.GlassData[i + nStage*4].GlassJudge; //, ord('G'));
-      Common.MLog(i + nStage*4, format('AABMode Station=%d, CurSeq=%d, Seq=%d, nJudge=%d', [nStation, nCurSeq, nSeq, nJudge]));
-      if (nSeq < nCurSeq) and (nJudge = ord('G'))  then begin
-        //2차 검사이고 이전 검사가 'G'인 경우
-        //ShowSysLog(format('AABMode Skip Ch %d - Pre OK ', [i]));
-        PasScr[i + nStage*4].InitialData; //시작 안되므로 미리 클리어
-        Common.MLog(i + nStage*4, format('AABMode Skip Ch %d - Pre OK ', [i]));
-        PasScr[i + nStage*4].m_bUse:= false; //해당 채널 임시 검사 skip
-      end;
-    end;
-
-    case nStage of
-      JIG_A : begin
-        ShowSysLog('AABMode - AutoLogicStart A');
-        Common.StatusInfo.StageStep[JIG_A]:= STAGE_STEP_LOADZONE;
-        frmTest4ChOC[DefCommon.JIG_A].AutoLogicStart(0);
-      end;
-//      JIG_B : begin
-//        ShowSysLog('AABMode - AutoLogicStart B');
-//        Common.StatusInfo.StageStep[JIG_B]:= STAGE_STEP_LOADZONE;
-//        frmTest4ChOC[DefCommon.JIG_B].AutoLogicStart;
-//      end;
-      else begin
-        ShowSysLog('Turnning is not Complete', 1);
-      end;
-    end;
-
-    //임시 검사 skip 원복
-    for i := 0 to MAX_JIG_CH do begin
-      Common.StatusInfo.UseChannel[i]:= frmTest4ChOC[0].chkChannelUse[i].Checked;
-      if (not PasScr[i + nStage*4].m_bUse) and Common.StatusInfo.UseChannel[i + nStage*4] then begin
-        frmTest4ChOC[nStage].AddLog('AABMode Skip', i);
-      end;
-      PasScr[i + nStage*4].m_bUse := Common.StatusInfo.UseChannel[i + nStage*4];
-    end;
-
-  end  //if Common.StatusInfo.AABMode then begin
-  else begin
-    case nStage of
-      JIG_A : begin
-        Common.StatusInfo.StageStep[JIG_A]:= STAGE_STEP_LOADZONE;
+  case nStage of
+    JIG_A : begin
+      Common.StatusInfo.StageStep[JIG_A]:= STAGE_STEP_LOADZONE;
 //        g_CommPLC.ECS_Accessory_Unit_Status(0, 1, 0); //Stage A
-        frmTest4ChOC[DefCommon.JIG_A].AutoLogicStart(nCH);
-      end;
-      else begin
-        ShowSysLog('Turnning is not Complete', 1);
-      end;
+      frmTest4ChOC[DefCommon.JIG_A].AutoLogicStart(nCH);
+    end;
+    else begin
+      ShowSysLog('Turnning is not Complete', 1);
     end;
   end;
+
 end;
 
 
@@ -4939,12 +4876,12 @@ try
           frmTest4ChOC[nStage].DisplayResult(1, -3, 0, 'Request UnLoad');
 
           sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[0 + nStage*4]);
-          Common.MLog(0 + nStage*4, sMsg);
-          frmTest4ChOC[nStage].AddLog(sMsg, 0);
+//          Common.MLog(0 + nStage*4, sMsg);
+//          frmTest4ChOC[nStage].AddLog(sMsg, 0);
           SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 0, sMsg);
           sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[1 + nStage*4]);
-          Common.MLog(1 + nStage*4, sMsg);
-          frmTest4ChOC[nStage].AddLog(sMsg, 1);
+//          Common.MLog(1 + nStage*4, sMsg);
+//          frmTest4ChOC[nStage].AddLog(sMsg, 1);
           SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 1, sMsg);
 
           Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_UNLOADING;
@@ -5110,8 +5047,8 @@ try
         frmTest4ChOC[nStage].DisplayResult(nCH, -3, 0, 'Request UnLoad');
 
         sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[nCH]);
-        Common.MLog(nCH, sMsg);
-        frmTest4ChOC[nStage].AddLog(sMsg, 0);
+//        Common.MLog(nCH, sMsg);
+//        frmTest4ChOC[nStage].AddLog(sMsg, 0);
         SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 0, sMsg);
 
         Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_UNLOADING;
@@ -5195,11 +5132,11 @@ try
           frmTest4ChOC[nStage].DisplayResult(1, -3, 0, 'Request UnLoad');
 
           sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[0 + nStage*4]);
-          Common.MLog(0 + nStage*4, sMsg);
+//          Common.MLog(0 + nStage*4, sMsg);
 //          frmTest4ChOC[nStage].AddLog(sMsg, 0);
           SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 0, sMsg);
           sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[1 + nStage*4]);
-          Common.MLog(1 + nStage*4, sMsg);
+//          Common.MLog(1 + nStage*4, sMsg);
 //          frmTest4ChOC[nStage].AddLog(sMsg, 1);
           SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 1, sMsg);
 
@@ -5297,7 +5234,7 @@ try
         frmTest4ChOC[nStage].DisplayResult(nCH, -3, 0, 'Request UnLoad');
 
         sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[nCH]);
-        Common.MLog(nCH, sMsg);
+//        Common.MLog(nCH, sMsg);
 //        frmTest4ChOC[nStage].AddLog(sMsg, 0);
         SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 0, sMsg);
 
@@ -5986,6 +5923,7 @@ begin
     sDebug := FormatDateTime('[HH:MM:SS.zzz] ',now) + sMsg;
     Common.MLog(DefCommon.MAX_SYSTEM_LOG, sMsg);
 
+
     mmoSysLog.Lines.Add(sDebug);
     //mmoSysLog.Perform(EM_SCROLL,SB_LINEDOWN,0);
     mmoSysLog.Perform(WM_VSCROLL, SB_BOTTOM, 0);
@@ -5993,7 +5931,7 @@ begin
     //유효하지 않은 문자열일 경우 오류(madException) 방지: RichEdit line insertion error.
     on E: Exception do  begin
 //      Sleep(10); //MLog 충돌 방지 딜레이
-      Common.MLog(DefCommon.MAX_SYSTEM_LOG, 'MLog Exception:' + E.Message + #13#10 + sMsg);
+//      Common.MLog(DefCommon.MAX_SYSTEM_LOG, 'MLog Exception:' + E.Message + #13#10 + sMsg);
     end;
   end;
   //mmoSysLog.EnableAlign;
@@ -7088,7 +7026,8 @@ begin
 
         DefCommon.MSG_MODE_CA310_NG : begin
           if PSyncCa(PCopyDataStruct(Msg.LParam)^.lpData)^.bError then begin
-            Common.MLog(DefCommon.MAX_SYSTEM_LOG,PSyncCa(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
+//            Common.MLog(DefCommon.MAX_SYSTEM_LOG,PSyncCa(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
+            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, PSyncCa(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
           end;
         end;
       end;

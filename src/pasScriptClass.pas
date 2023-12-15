@@ -437,7 +437,8 @@ type
 //    procedure EnableVoltSet_Proc(AMachine: TatVirtualMachine);  // Added by KTS 2022-12-14 오전 9:38:15 기능 확인
 
     procedure SendMainGuiDisplay(nGuiMode : Integer; nP1: Integer = 0; nP2: Integer = 0; nP3 : Integer = 0);
-    procedure SendTestGuiDisplay(nGuiMode : Integer; sMsg: string = ''; sMsg2: string = ''; nParam: Integer = 0; nParam2 : Integer = 0);
+    procedure SendTestGuiDisplay(nGuiMode : Integer; sMsg: string = ''; sMsg2: string = ''; nParam: Integer = 0; nParam2 : Integer = 0);   overload;
+    procedure SendTestGuiDisplay(nMsgType,nGuiMode : Integer; sMsg: string = ''; sMsg2: string = ''; nParam: Integer = 0; nParam2 : Integer = 0); overload;
     procedure SendDisplayGuiDisplay(nGuiMode : Integer; nParam : Integer = 0;sMsg : string = '');
 
     function CheckLastIndexStop(nIndex : integer) : Boolean;
@@ -931,6 +932,9 @@ begin
   SetPaScript.AddVariable('c_bCEL_Stop',m_bCEL_Stop);
 
   SetPaScript.AddVariable('c_NVMWriteSequence',Common.TestModelInfoFLOW.UseCkNVMWriteSequence);
+
+  SetPaScript.AddVariable('c_IdleModeDTime',Common.TestModelInfoFLOW.IdleModeDTime);
+
 
 //  SetPaScript.AddVariable('c_NVMWriteSequence',nNVMWriteSequence);
   //문자열 속성 반환 p_Values[0], 필요 시 Get, Set에서 추가
@@ -2125,7 +2129,8 @@ begin
   end;
   sDebug := '[INSPECTION START] Test Model : ' + ' ------------------------------------------------- ' ;
   sDebug := sDebug +Common.SystemInfo.TestModel+' ------------------------------------------------- ';
-  Common.MLog(FPgNo,sDebug);
+//  Common.MLog(FPgNo,sDebug);
+  SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,sDebug);
   // Version for MLog.
 //  sPgVer := Trim(Copy(PG[FPgNo].m_PgVer,2,4));
 //  sPgVer := sPgVer + '/' + Trim(Copy(PG[FPgNo].m_sFwVer,7,4));
@@ -2138,12 +2143,14 @@ begin
   //sDebug := sDebug + Format(', Psu(%s/%s), Oc_Param(%s)',[Common.m_Ver.psu_Date,Common.m_Ver.psu_Crc,Common.m_Ver.OcParam]);
   //sDebug := sDebug + Format(', Oc_Verify(%s), Otp_Table(%s)',[Common.m_Ver.OcVerify,Common.m_Ver.OtpTable]);
   //sDebug := sDebug + Format(', Oc_Offset(%s), MES_CODE(%s)',[Common.m_Ver.OcOffSet,Common.m_Ver.MES_CSV]);
-  Common.MLog(FPgNo,sDebug);
+//  Common.MLog(FPgNo,sDebug);
+  SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,sDebug);
 
   sDebug := Format('PGSetting Check : PG_TconWriteLogDisplay(%s), PG_TconWriteCmdType(%d)',[BoolToStr(Common.SystemInfo.PG_TconWriteLogDisplay,True),Common.SystemInfo.PG_TconWriteCmdType]);
   sDebug := sDebug + Format(', PG_TconOcWriteDelayMsec(%d), PG_TconOcWriteDelayMicroSec(%d)',[Common.SystemInfo.PG_TconOcWriteDelayMsec,Common.SystemInfo.PG_TconOcWriteDelayMicroSec]);
 
-  Common.MLog(FPgNo,sDebug);
+//  Common.MLog(FPgNo,sDebug);
+  SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,sDebug);
 
   TestInfo.SW_Ver:= Common.ExeVersion; // Common.GetVersionDate;
   TestInfo.PG_Ver:= sPgVer;
@@ -2291,7 +2298,8 @@ begin
         end;
       except
         on E: Exception do begin
-          Common.MLog(self.FPgNo, 'Runtime Error Convert_VariantToAscii: ' + E.Message);
+//          Common.MLog(self.FPgNo, 'Runtime Error Convert_VariantToAscii: ' + E.Message);
+          SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'Runtime Error Convert_VariantToAscii: ' + E.Message);
         end;
       end;
     end;
@@ -2326,7 +2334,8 @@ begin
         end;
       except
         on E: Exception do begin
-          Common.MLog(self.FPgNo, 'Runtime Error Convert_VariantToHex: ' + E.Message);
+//          Common.MLog(self.FPgNo, 'Runtime Error Convert_VariantToHex: ' + E.Message);
+          SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'Runtime Error Convert_VariantToAscii: ' + E.Message);
         end;
       end;
     end;
@@ -2913,7 +2922,8 @@ begin
   With AMachine do begin
     try
       if Common.TestModelInfoFLOW.UseCkNVMWriteSequence = 0 then begin
-        Common.MLog(self.FPgNo, 'NVM Verify Sequence - SKIP');
+//        Common.MLog(self.FPgNo, 'NVM Verify Sequence - SKIP');
+        SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING, 'NVM Verify Sequence - SKIP');
         dwRtn := 0;
         Exit;
       end;
@@ -3048,7 +3058,8 @@ begin
     try
       dwRtn := 1;
       if Common.TestModelInfoFLOW.UseCkNVMWriteSequence = 0 then begin
-        Common.MLog(self.FPgNo, 'NVM Write Sequence - SKIP');
+//        Common.MLog(self.FPgNo, 'NVM Write Sequence - SKIP');
+        SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING, 'NVM Write Sequence - SKIP');
         dwRtn := 0;
         Exit;
       end;
@@ -3158,7 +3169,8 @@ begin
         if Common.SystemInfo.OCType = DefCommon.PreOCType then
           sSerialNumber := Format('%s_PCB_ID_CH_%d',[sSerialNumber,Self.FPgNo+1])
         else begin
-          Common.MLog(self.FPgNo,'[Source Code] CheckIRTemp : Set Temp : '+ IntToStr(Common.SystemInfo.SetTemperature));
+//          Common.MLog(self.FPgNo,'[Source Code] CheckIRTemp : Set Temp : '+ IntToStr(Common.SystemInfo.SetTemperature));
+          SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'[Source Code] CheckIRTemp : Set Temp : '+ IntToStr(Common.SystemInfo.SetTemperature));
           frmTest4ChOC[0].tmCheckIRTemp[FPgNo].Enabled := True;
           frmTest4ChOC[0].m_nTempIrTact[FPgNo] := 0;
           frmTest4ChOC[0].SaveCsvTempStatus(FPgNo,'START',frmTest4ChOC[0].m_bFanOnOff[FPgNo]);
@@ -3168,8 +3180,9 @@ begin
         sUSERID := Common.SystemInfo.AutoLoginID;
         if Length(sEquipment) = 0 then sEquipment :=  Format('Equipment:%d',[Self.FPgNo]);
 
-        Common.MLog(self.FPgNo,'[Source Code] OC_Converter_DLL_Name : '+ Common.SystemInfo.OC_Converter_Name); // OC_Converter_DLL Name 표시
+//        Common.MLog(self.FPgNo,'[Source Code] OC_Converter_DLL_Name : '+ Common.SystemInfo.OC_Converter_Name); // OC_Converter_DLL Name 표시
 
+        SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'[Source Code] OC_Converter_DLL_Name : '+ Common.SystemInfo.OC_Converter_Name);
         TestInfo.PreOcReStart := False; // Added by KTS 2023-06-09 오후 4:20:10 ReStart 초기화
         case FPgNo of
           0:         wdRet := CSharpDll.MainOC_Start_CH1(Self.FPgNo,sPID,sSerialNumber,sUSERID,sEquipment);
@@ -3234,8 +3247,8 @@ begin
         wdRet := 1;
         nStartAddr := Common.TestModelInfoFLOW.SerialNoFlashInfo.nAddr;
         nLength :=  Common.TestModelInfoFLOW.SerialNoFlashInfo.nLength;
-        Common.MLog(self.FPgNo,format('OCThreadFlash_READ_Proc nStartAddr : %d nLength : %d ',[nStartAddr,nLength]));
-
+//        Common.MLog(self.FPgNo,format('OCThreadFlash_READ_Proc nStartAddr : %d nLength : %d ',[nStartAddr,nLength]));
+        SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,format('OCThreadFlash_READ_Proc nStartAddr : %d nLength : %d ',[nStartAddr,nLength]));
         SetLength(SerialNoBuf,nLength);
         wdRet :=  Pg[FPgNo].SendFlashRead(nStartAddr,nLength, @SerialNoBuf[0]);
         SetString(sAnsiStr, PAnsiChar(@SerialNoBuf[0]), nLength);
@@ -3252,7 +3265,8 @@ begin
           SendTestGuiDisplay(defCommon.MSG_MODE_WORKING,format('Unable to convert characters CH : %d',[Self.FPgNo]));
         end;
         TestInfo.SerialNo := sSerialNo;
-        Common.MLog(self.FPgNo,format('OCThreadFlash_READ_Proc SerialNo : %s ',[sSerialNo]));
+//        Common.MLog(self.FPgNo,format('OCThreadFlash_READ_Proc SerialNo : %s ',[sSerialNo]));
+        SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,format('OCThreadFlash_READ_Proc SerialNo : %s ',[sSerialNo]));
       end;
     end;
     ReturnOutputArg( Integer(wdRet));
@@ -3277,7 +3291,9 @@ begin
           nLength :=  Common.TestModelInfoFLOW.SerialNoFlashInfo.nLength;
           sLog := format('OCThreadFlash_WRITE_Proc nStartAddr : 0x%x nLength : %d ',[nStartAddr,nLength]);
           sLog := sLog + Format(' SerialNo : %s',[PasScr[FPgNo].TestInfo.SerialNo]);
-          Common.MLog(FPgNo,sLog);
+//          Common.MLog(FPgNo,sLog);
+          SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,sLog);
+
           SerialNoBuf := Common.StringToIdBytes(PasScr[FPgNo].TestInfo.SerialNo);
           if nLength <> Length(SerialNoBuf) then
             nLength := Length(SerialNoBuf);
@@ -4080,7 +4096,8 @@ begin
   end;
   if m_bLockThread then Exit(DefScript.SEQ_ERR_RUNNING);
   sDebug := Format('Ch%d --- Run Seq : Idx(%d), status(%d)',[Self.FPgNo+1,nIdx,Integer(SeqStatus[nIdx].Status) ]);
-  Common.MLog(Self.FPgNo,sDebug);
+//  Common.MLog(Self.FPgNo,sDebug);
+  SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,sDebug);
   m_bToMaint := False;
   SeqStatus[nIdx].Status := ssNone;
   if SeqStatus[nIdx].Status = ssNone then begin
@@ -4226,12 +4243,13 @@ begin
       end;
     end;
     if CurrentSEQ in [SEQ_KEY_4] then begin
-
       SendTestGuiDisplay(DefCommon.MSG_MODE_SYNC_WORK,'','', 11, CurrentSEQ);
     end;
-
   end;
 
+  if (CurrentSEQ in [SEQ_KEY_9]) or (CurrentSEQ in [SEQ_KEY_START]) and m_bIDLE then begin
+    SendTestGuiDisplay(defCommon.MSG_TYPE_DLL,defCommon.MSG_MODE_WORK_DONE,'OKFLOW_END');
+  end;
 
 
   //Auto Mode일 경우 Load 요청을위한 알림
@@ -4241,7 +4259,8 @@ begin
         SendTestGuiDisplay(DefCommon.MSG_MODE_SYNC_WORK,'','', 3, CurrentSEQ);
       end
       else begin
-        Common.MLog(self.FPgNo, 'SEQ_UNLOAD_ZONE Done - PreOcReStart');
+//        Common.MLog(self.FPgNo, 'SEQ_UNLOAD_ZONE Done - PreOcReStart');
+        SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'SEQ_UNLOAD_ZONE Done - PreOcReStart');
       end;
     end;
 //    if CurrentSEQ in [SEQ_Finish] then begin
@@ -4294,7 +4313,8 @@ begin
           TestInfo.ApdrData := MakeApdrData;
 
           if not Common.StatusInfo.LogIn then begin
-            Common.MLog(self.FPgNo, 'APDR SKIP - OFF');
+//            Common.MLog(self.FPgNo, 'APDR SKIP - OFF');
+            SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'APDR SKIP - OFF');
             ReturnOutputArg(0);
             Exit;
           end;
@@ -4342,7 +4362,8 @@ begin
             Exit;
           end;
           if not Common.StatusInfo.LogIn then begin
-            Common.MLog(self.FPgNo, 'APDR_EAS SKIP - OFF');
+//            Common.MLog(self.FPgNo, 'APDR_EAS SKIP - OFF');
+            SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'APDR_EAS SKIP - OFF');
             ReturnOutputArg(0);
             Exit;
           end;
@@ -4417,7 +4438,8 @@ begin
         sTemp := sTemp + Trim(TestInfo.CarrierId);
 
         if not Common.StatusInfo.LogIn then begin
-          Common.MLog(self.FPgNo, 'EICR SKIP - OFF');
+//          Common.MLog(self.FPgNo, 'EICR SKIP - OFF');
+          SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'EICR SKIP - OFF');
           ReturnOutputArg(0);
           Exit;
         end;
@@ -4465,7 +4487,8 @@ begin
         nRet := GetInputArgAsInteger(0);
 
         if not Common.StatusInfo.LogIn then begin
-          Common.MLog(self.FPgNo, 'EIJR SKIP - OFF');
+//          Common.MLog(self.FPgNo, 'EIJR SKIP - OFF');
+          SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'EIJR SKIP - OFF');
           ReturnOutputArg(0);
           Exit;
         end;
@@ -4479,22 +4502,26 @@ begin
               else nEQP_ID := 2;
               if nEQP_ID = 1 then begin
                 if nValue and $7 = 0 then begin
-                  Common.MLog(self.FPgNo, 'AABMode - A Mode- EIJR SKIP');
+//                  Common.MLog(self.FPgNo, 'AABMode - A Mode- EIJR SKIP');
+                  SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'AABMode - A Mode- EIJR SKIP');
                   Exit;
                 end;
                 if nValue and $38 = 0 then  begin
-                  Common.MLog(self.FPgNo, 'AABMode - AA Mode EIJR SKIP');
+//                  Common.MLog(self.FPgNo, 'AABMode - AA Mode EIJR SKIP');
+                  SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'AABMode - AA Mode EIJR SKIP');
                   Exit;
                 end;
               end
               else begin
 
                 if nValue and $1C00 = 0 then begin
-                  Common.MLog(self.FPgNo, 'AABMode - A Mode- EIJR SKIP');
+//                  Common.MLog(self.FPgNo, 'AABMode - A Mode- EIJR SKIP');
+                  SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'AABMode - A Mode- EIJR SKIP');
                   Exit;
                 end;
                 if nValue and $E000 = 0 then  begin
-                  Common.MLog(self.FPgNo, 'AABMode - AA Mode EIJR SKIP');
+//                  Common.MLog(self.FPgNo, 'AABMode - AA Mode EIJR SKIP');
+                  SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'AABMode - AA Mode EIJR SKIP');
                   Exit;
                 end;
 
@@ -4590,7 +4617,8 @@ begin
         SendTestGuiDisplay(DefCommon.MSG_MODE_SHOW_SERIAL_NUMBER,TestInfo.SerialNo);
 
         if not Common.StatusInfo.LogIn then begin
-          Common.MLog(self.FPgNo, 'PCHK SKIP - OFF');
+//          Common.MLog(self.FPgNo, 'PCHK SKIP - OFF');
+          SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'PCHK SKIP - OFF');
           ReturnOutputArg(0);
           Exit;
         end;
@@ -4638,7 +4666,8 @@ begin
     SendTestGuiDisplay(DefCommon.MSG_MODE_SHOW_SERIAL_NUMBER, TestInfo.SerialNo);
 
     if not Common.StatusInfo.LogIn then begin
-      Common.MLog(self.FPgNo, 'INSPCHK SKIP - OFF');
+//      Common.MLog(self.FPgNo, 'INSPCHK SKIP - OFF');
+      SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'INSPCHK SKIP - OFF');
       ReturnOutputArg(0);
       Exit;
     end;
@@ -4729,7 +4758,8 @@ begin
         SendTestGuiDisplay(DefCommon.MSG_MODE_SHOW_SERIAL_NUMBER,TestInfo.CarrierId +' / '+TestInfo.SerialNo);
 
         if not Common.StatusInfo.LogIn then begin
-          Common.MLog(self.FPgNo, 'ECS_PCHK SKIP - OFF');
+//          Common.MLog(self.FPgNo, 'ECS_PCHK SKIP - OFF');
+          SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'ECS_PCHK SKIP - OFF');
           ReturnOutputArg(0);
           Exit;
         end;
@@ -4751,7 +4781,8 @@ begin
           WAIT_OBJECT_0 : begin
             //OK
             if m_MESItemValue.Ack = 0 then begin
-              Common.MLog(self.FPgNo, 'ECS_PCHK OK');
+//              Common.MLog(self.FPgNo, 'ECS_PCHK OK');
+              SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'ECS_PCHK OK');
               //TestInfo.CarrierId:= Trim(g_CommPLC.ECS_GlassData[FPgNo].CarrierID);
               TestInfo.RTN_PID:= Trim(g_CommPLC.ECS_GlassData[FPgNo].GlassID);
               TestInfo.LCM_ID:= Trim(g_CommPLC.ECS_GlassData[FPgNo].LCM_ID);
@@ -4792,7 +4823,8 @@ begin
         Exit;
       end;
       nNgCode := GetInputArgAsInteger(0);
-      Common.MLog(self.FPgNo, 'ECS_SetGlassData NgCode=' + IntToStr(nNgCode));
+//      Common.MLog(self.FPgNo, 'ECS_SetGlassData NgCode=' + IntToStr(nNgCode));
+      SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'ECS_SetGlassData NgCode=' + IntToStr(nNgCode));
       if Common.SystemInfo.Use_GIB then begin
         g_CommPLC.SetGlassData_CheckRLogistics(FPgNo,g_CommPLC.GlassData[FPgNo],0);
       end;
@@ -5413,6 +5445,26 @@ begin
   ccd.lpData      := @GuiData;
   SendMessage(m_TestHandle,WM_COPYDATA,0, LongInt(@ccd));
 end;
+
+
+procedure TScrCls.SendTestGuiDisplay(nMsgType, nGuiMode: Integer; sMsg, sMsg2: string; nParam, nParam2: Integer);
+var
+  ccd         : TCopyDataStruct;
+  GuiData    : RGuiScript;
+begin
+  GuiData.MsgType := nMsgType;
+  GuiData.Channel := self.FPgNo;
+  GuiData.Mode    := nGuiMode;
+  GuiData.Msg     := sMsg;
+  GuiData.Msg2    := sMsg2;
+  GuiData.nParam  := nParam;
+  GuiData.nParam2 := nParam2;
+  ccd.dwData      := 0;
+  ccd.cbData      := SizeOf(GuiData);
+  ccd.lpData      := @GuiData;
+  SendMessage(m_TestHandle,WM_COPYDATA,0, LongInt(@ccd));
+end;
+
 procedure TScrCls.SendTouchInfo_Proc(AMachine: TatVirtualMachine);
 var
   nSeq : Integer;
@@ -5777,7 +5829,8 @@ begin
         SendTestGuiDisplay(DefCommon.MSG_MODE_SHOW_SERIAL_NUMBER,TestInfo.SerialNo);
 
         if not Common.StatusInfo.LogIn then begin
-          Common.MLog(self.FPgNo, 'LPIR SKIP - OFF');
+//          Common.MLog(self.FPgNo, 'LPIR SKIP - OFF');
+          SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'LPIR SKIP - OFF');
           ReturnOutputArg(0);
           Exit;
         end;

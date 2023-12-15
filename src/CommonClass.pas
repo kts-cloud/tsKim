@@ -8,6 +8,8 @@ uses
   Vcl.Forms,Vcl.Dialogs, Winapi.WinSock, Vcl.StdCtrls, psAPI,System.IOUtils,IdGlobal,
   System.IniFiles,  CodeSiteLogging, StrUtils,  DefCommon, system.zip,DefPG, TLHelp32, ComObj, Variants,PdhExample,
 
+  System.Threading,
+
   Graphics,  IdSocketHandle, DateUtils, Winapi.ActiveX, System.Generics.Collections,
   Winapi.Messages,DongaPattern,Registry, SyncObjs,Vcl.Imaging.pngimage, Vcl.Imaging.jpeg,Math; //, AdvGrid, AdvObj, AdvGridWorkbook, , ScrMemo; //, DefScript;
 {$I Common.inc}
@@ -101,6 +103,7 @@ type
     Service_Cnt : integer;
     MES_CODE_Cnt : Integer;
     PopupMsgTime : Integer;
+
     MesModelInfo        : string; //PCHK에서 Model_Info 값에  사용할 모델 이름. 혼입 방지용  - LH606WF2
 //    Language						: Integer;
     Loader_Index				: string;
@@ -606,6 +609,8 @@ type
     Ca410MemCh : Integer;
     UseNvmInit : integer; // Added by KTS 2023-06-13 오후 12:32:10
 
+    IdleModeDTime : Integer;
+
     UseCheckVer : Boolean; // Added by KTS 2023-07-13 오전 8:30:17 Config별 SW / DLL Version Interlock
     UseCheckReProgramming : Boolean;
     UseCkNVMWriteSequence : Integer;
@@ -645,6 +650,11 @@ type
 {$IFDEF FEATURE_PSR_ONOFF}
     PSROnOffUse         : Boolean;
 {$ENDIF}
+
+  end;
+  TLogItem = record
+    FileName: string;
+    Msg: string;
   end;
 
 
@@ -696,6 +706,8 @@ type
     {$ENDIF}
 
   private
+
+
     m_nCsvFileCnt : Integer;
     m_nCsvLineCnt : Integer;
     m_bModelInfoNg : Boolean;
@@ -705,7 +717,12 @@ type
     function LoadMesCode : Integer;
     function IsExcelProcess(const ProcessID: DWORD): Boolean;
 
+
+    procedure LogWorker;
+
   public
+    FLogQueue: TQueue<TLogItem>;
+    FLogThread: TThread;
     AutoReStart : Boolean;
     loadAllPat    : TDongaPat;
     actual_resolution_hv : array[0..1] of Word;
@@ -1350,6 +1367,12 @@ begin
   for I := 0 to DefCommon.MAX_PG_CNT do
     CriticalSection[i] := TCriticalSection.Create;
 
+
+  FLogQueue := TQueue<TLogItem>.Create;
+  FLogThread := TThread.CreateAnonymousThread(LogWorker);
+  FLogThread.FreeOnTerminate := False;
+  FLogThread.Start;
+
   m_csvLine :=	0;
   m_csvFile :=	0;
   m_nCurPosZAxis := 0;
@@ -1511,6 +1534,12 @@ begin
   SetLength(m_OcParam.OcParam,0);
   SetLength(m_OcParam.OcVerify,0);
   SetLength(SystemInfo.ConfigVer,0);
+
+  FLogThread.Terminate;
+  FLogThread.WaitFor;
+  FLogThread.Free;
+  FLogQueue.Free;
+
   for I := 0 to DefCommon.MAX_PG_CNT do
     CriticalSection[i].Free;
   m_Ver.psu_Date := '';
@@ -3220,6 +3249,8 @@ begin
 //          UseCkNVMWriteSequence := ReadInteger(sSection, 'USE_CHECK_NVMWriteSequence',0);
           UseCkNVMWriteSequence := NVMWriteSequence;
           UseTconWriteChecksum := ReadBool(sSection, 'USE_CHECK_TCONWRITECHECKSUM',False);
+
+          IdleModeDTime := Readinteger(sSection, 'IDLEMODEDTIME',0);
           //
         end;
         {$ENDIF}
@@ -3642,6 +3673,45 @@ begin
   else begin
     MessageDlg(#13#10 + '[' + sFileName + '] Cannot find the file.!' , mtError, [mbOk], 0);
     m_bModelInfoNg := True;
+  end;
+end;
+
+procedure TCommon.LogWorker;
+var
+  LogItem: TLogItem;
+  _infile: TextFile;
+  sInputData: string;
+begin
+  while not TThread.CheckTerminated do
+  begin
+    if FLogQueue.Count > 0 then
+    begin
+      LogItem := FLogQueue.Dequeue;
+      try
+        if CheckDir(ExtractFilePath(LogItem.FileName)) then
+          Continue;
+
+        AssignFile(_infile, LogItem.FileName);
+        try
+          if not FileExists(LogItem.FileName) then
+            Rewrite(_infile)
+          else
+            Append(_infile);
+
+          sInputData := FormatDateTime('(hh:mm:ss.zzz) : ', Now) + LogItem.Msg;
+          WriteLn(_infile, sInputData);
+        finally
+          CloseFile(_infile);
+        end;
+      except
+        // Handle exceptions as needed
+      end;
+    end
+    else
+    begin
+      // Sleep or yield to avoid high CPU usage when the queue is empty
+      Sleep(1);
+    end;
   end;
 end;
 
@@ -4074,58 +4144,83 @@ begin
 end;
 
 
-
-// MLog 함수 개선
 procedure TCommon.MLog(nCh: Integer; const Msg: String);
 var
-  _infile: TextFile;
-  sInputData, sFileName, sDate, sFilePath: String;
-  MyClass: TComponent;
+  LogItem: TLogItem;
+  sDate,sFilePath : string;
 begin
-//  try
-//    CriticalSection[nCh].Enter;
-    try
-      if CheckDir(Path.MLOG) then
-        Exit;
+  try
+    // Enqueue log item for asynchronous processing
+    if CheckDir(Path.MLOG) then
+      Exit;
 
-      sDate := FormatDateTime('yyyymmdd', Now);
-      sFilePath := Path.MLOG + sDate + '\';
+    sDate := FormatDateTime('yyyymmdd', Now);
+    sFilePath := Path.MLOG + sDate + '\';
 
-      if CheckDir(sFilePath) then
-        Exit;
+    if CheckDir(sFilePath) then
+      Exit;
 
-      case nCh of
-        DefCommon.MAX_SYSTEM_LOG: sFileName := sFilePath + Format('SystemLog_%s_%s.txt', [systemInfo.EQPId, FormatDateTime('ddhh', Now)]);
-        DefCommon.MAX_PLC_LOG: sFileName := sFilePath + Format('PLC_%s_%s.txt', [systemInfo.EQPId, FormatDateTime('ddhh', Now)]);
-        else
-          sFileName := sFilePath + Format('MLog_%s_%s_Ch%d.txt', [systemInfo.EQPId, FormatDateTime('ddhh', Now), nCh + 1]);
-      end;
-
-      AssignFile(_infile, sFileName);
-
-      try
-        if not FileExists(sFileName) then
-          Rewrite(_infile)
-        else
-          Append(_infile);
-
-        sInputData := FormatDateTime('(hh:mm:ss.zzz) : ', Now) + Msg;
-        WriteLn(_infile, sInputData);
-      finally
-        CloseFile(_infile);
-      end;
-
-    except
-      on E: Exception do
-      begin
-
-      end;
+    case nCh of
+      DefCommon.MAX_SYSTEM_LOG: LogItem.FileName := sFilePath + Format('SystemLog_%s.txt', [systemInfo.EQPId]);
+      DefCommon.MAX_PLC_LOG: LogItem.FileName := sFilePath + Format('PLC_%s.txt', [systemInfo.EQPId]);
+      else
+        LogItem.FileName := sFilePath + Format('MLog_%s_Ch%d.txt', [systemInfo.EQPId, nCh + 1]);
     end;
-//  finally
-//    CriticalSection[nCh].Leave;
-//  end;
-
+    LogItem.Msg := Msg;
+    FLogQueue.Enqueue(LogItem);
+  except
+    // Handle exceptions as needed
+  end;
 end;
+
+
+// MLog 함수 개선
+//procedure TCommon.MLog(nCh: Integer; const Msg: String);
+//var
+//  _infile: TextFile;
+//  sInputData, sFileName, sDate, sFilePath: String;
+//  MyClass: TComponent;
+//begin
+//
+//    try
+//      if CheckDir(Path.MLOG) then
+//        Exit;
+//
+//      sDate := FormatDateTime('yyyymmdd', Now);
+//      sFilePath := Path.MLOG + sDate + '\';
+//
+//      if CheckDir(sFilePath) then
+//        Exit;
+//
+//      case nCh of
+//        DefCommon.MAX_SYSTEM_LOG: sFileName := sFilePath + Format('SystemLog_%s_%s.txt', [systemInfo.EQPId, FormatDateTime('ddhh', Now)]);
+//        DefCommon.MAX_PLC_LOG: sFileName := sFilePath + Format('PLC_%s_%s.txt', [systemInfo.EQPId, FormatDateTime('ddhh', Now)]);
+//        else
+//          sFileName := sFilePath + Format('MLog_%s_%s_Ch%d.txt', [systemInfo.EQPId, FormatDateTime('ddhh', Now), nCh + 1]);
+//      end;
+//
+//      AssignFile(_infile, sFileName);
+//
+//      try
+//        if not FileExists(sFileName) then
+//          Rewrite(_infile)
+//        else
+//          Append(_infile);
+//
+//        sInputData := FormatDateTime('(hh:mm:ss.zzz) : ', Now) + Msg;
+//        WriteLn(_infile, sInputData);
+//      finally
+//        CloseFile(_infile);
+//      end;
+//
+//    except
+//      on E: Exception do
+//      begin
+//
+//      end;
+//    end;
+//
+//end;
 
 //procedure TCommon.MLog(nCh : Integer;const Msg: String);
 //var
@@ -4899,6 +4994,7 @@ begin
       SystemInfo.MES_CODE_Cnt         := fSys.ReadInteger('SYSTEMDATA', 		'MES_CODE_Cnt',  3181);  // MES_code 갯수 불러오기
 
       SystemInfo.PopupMsgTime         := fSys.ReadInteger('SYSTEMDATA',     'POPUPMSGTIME',0);
+
       {$IFDEF CA410_USE}
 //      SystemInfo.Ca410MemCh := fsys.ReadInteger('SYSTEMDATA', 'CA410_CH', 3);
       for i := DefCommon.CH1 to DefCommon.MAX_CH do begin
@@ -5182,6 +5278,9 @@ begin
           WriteBool(sSection, 'USE_CHECK_ReProgramming',     UseCheckReProgramming);
           WriteInteger(sSection, 'USE_CHECK_NVMWriteSequence',     UseCkNVMWriteSequence);
           WriteBool(sSection, 'USE_CHECK_TCONWRITECHECKSUM',     UseTconWriteChecksum);
+
+          WriteInteger(sSection, 'IDLEMODEDTIME',     IdleModeDTime);
+
 
 
         end;
@@ -5486,8 +5585,6 @@ begin
       WriteInteger('SYSTEMDATA',  'MES_CODE_Cnt',  		SystemInfo.MES_CODE_Cnt);
 
       WriteInteger('SYSTEMDATA',  'POPUPMSGTIME', SystemInfo.PopupMsgTime);
-
-
 
       WriteInteger('DEBUG', 'DEBUG_LOG_LEVEL_PG', SystemInfo.DebugLogLevelConfig);
 {$IFDEF DFS_HEX}

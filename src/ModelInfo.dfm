@@ -692,7 +692,7 @@ object frmModelInfo: TfrmModelInfo
         Left = 376
         Top = 279
         Width = 289
-        Height = 306
+        Height = 336
         Caption = 'ETC'
         Color = clWhite
         Font.Charset = DEFAULT_CHARSET
@@ -1739,6 +1739,43 @@ object frmModelInfo: TfrmModelInfo
           Transparent = True
           UseCustomGlyphs = True
           WordWrap = True
+        end
+        object RzPanel19: TRzPanel
+          Left = -6
+          Top = 288
+          Width = 106
+          Height = 29
+          BorderOuter = fsFlatRounded
+          Caption = 'Idle mode delay time (s)'
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clBlack
+          Font.Height = -11
+          Font.Name = 'Verdana'
+          Font.Style = []
+          ParentFont = False
+          TabOrder = 14
+        end
+        object edIdleModeDTime: TRzEdit
+          Left = 106
+          Top = 292
+          Width = 127
+          Height = 22
+          Text = '0'
+          Alignment = taRightJustify
+          Ctl3D = True
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clBlack
+          Font.Height = -12
+          Font.Name = 'Verdana'
+          Font.Style = [fsBold]
+          FocusColor = 14283263
+          FrameHotTrack = True
+          FrameVisible = True
+          ImeName = 'Microsoft IME 2010'
+          MaxLength = 2
+          ParentCtl3D = False
+          ParentFont = False
+          TabOrder = 15
         end
       end
       object RzGroupBox5: TRzGroupBox
@@ -6630,7 +6667,7 @@ object frmModelInfo: TfrmModelInfo
           Font.Name = 'Tahoma'
           Font.Style = []
           ParentFont = False
-          TabOrder = 2
+          TabOrder = 0
           Transparent = True
           object btn1: TRzBitBtn
             Left = 1226

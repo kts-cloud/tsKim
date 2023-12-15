@@ -1729,7 +1729,7 @@ object frmSystemSetup: TfrmSystemSetup
       end
       object RzGroupBox2: TRzGroupBox
         Left = 424
-        Top = 310
+        Top = 309
         Width = 400
         Height = 134
         Caption = 'ETC'
@@ -1855,22 +1855,6 @@ object frmSystemSetup: TfrmSystemSetup
             '4'
             '5')
         end
-        object RzPanel19: TRzPanel
-          Left = 4
-          Top = 105
-          Width = 106
-          Height = 21
-          BorderOuter = fsFlatRounded
-          Caption = 'ECS Timeout'
-          Font.Charset = ANSI_CHARSET
-          Font.Color = clBlack
-          Font.Height = -11
-          Font.Name = 'Verdana'
-          Font.Style = []
-          ParentFont = False
-          TabOrder = 6
-          Visible = False
-        end
         object edPopupMsgTime: TRzEdit
           Left = 116
           Top = 28
@@ -1891,7 +1875,7 @@ object frmSystemSetup: TfrmSystemSetup
           MaxLength = 2
           ParentCtl3D = False
           ParentFont = False
-          TabOrder = 7
+          TabOrder = 6
         end
       end
       object RzGroupBox4: TRzGroupBox

@@ -4,7 +4,8 @@ interface
 {$I Common.inc}
 
 uses Winapi.Windows, System.Classes, System.SysUtils,  IdGlobal,Vcl.ExtCtrls,Forms,
-   Messages, Vcl.Dialogs,CA_SDK2,DefCommon,DefPG,CommPG,LogicVh,CommonClass,RegularExpressions
+   Messages, Vcl.Dialogs,CA_SDK2,DefCommon,DefPG,CommPG,LogicVh,CommonClass,RegularExpressions,
+   System.Variants,Vcl.Controls, Vcl.StdCtrls
 {$IFDEF OC_TT_TEST}
     ,System.Generics.Collections
 {$ENDIF}
@@ -125,6 +126,7 @@ type
     m_hDll  : HWND;
     m_hMain : HWND;
     FNgMsg: string;
+    FDataArray: array of TArray<Integer>;
     m_GetSummaryLogData : function (nCH : Integer; sParameter : PAnsiChar): PAnsiChar; cdecl;
 
     m_GetOCConverterVersion : function : PAnsiChar; cdecl;
@@ -173,12 +175,14 @@ type
     procedure SetNgMsg(const Value: string);
     procedure ThreadTask(Task: TProc);
     procedure SetOnRevSwData(nCH : Integer; const Value: TCallBackTextChanged);
-    procedure SendTestGuiDisplay(nCh,nGuiMode: Integer; sMsg: string; nParam: Integer);
+    procedure SendTestGuiDisplay(nCh,nGuiMode: Integer; sMsg: string = ''; nParam: Integer = 0);
     procedure SendMainGuiDisplay(nCh,nGuiMode: Integer; sMsg: string; nParam: Integer);
     procedure OntmGetOCFlowIsAlive1(Sender : TObject);
     procedure OntmGetOCFlowIsAlive2(Sender : TObject);
     procedure OntmGetOCFlowIsAlive3(Sender : TObject);
     procedure OntmGetOCFlowIsAlive4(Sender : TObject);
+
+
 
   public
     m_GetDBVdata : function(nBand : Integer): Integer; cdecl;
@@ -317,7 +321,9 @@ var
 
 begin
   sDllFile := sDLLPath+sFileName;
-  Common.MLog(DefCommon.MAX_SYSTEM_LOG,Format('TCSharpDll.Create sDllFile : %s',[sDllFile]));
+//  Common.MLog(DefCommon.MAX_SYSTEM_LOG,Format('TCSharpDll.Create sDllFile : %s',[sDllFile]));
+  SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,MAX_SYSTEM_LOG,Format('TCSharpDll.Create sDllFile : %s',[sDllFile]));
+
   m_MainHandle := hMain;
   m_TestHandle := hTest;
   SetLength(m_bIsProcessDone,4);
@@ -370,8 +376,13 @@ begin
 
   m_Init(Common.StringToPAnsiChar(sDLLPath));
 
-  common.MLog(DefCommon.MAX_SYSTEM_LOG,'TCSharpDll.Create End');
+//  common.MLog(DefCommon.MAX_SYSTEM_LOG,'TCSharpDll.Create End');
+  SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,MAX_SYSTEM_LOG,'TCSharpDll.Create End');
+
 end;
+
+
+
 
 procedure TCSharpDll.OntmGetOCFlowIsAlive1(Sender: TObject);
 var
@@ -380,13 +391,15 @@ begin
   nPGCH := 0;
   if (m_OCFlowStart[nPGCH]) and Pg[nPGCH].bIsReProgramming  then begin
     Pg[nPGCH].bIsReProgramming := False;
-    common.MLog(DefCommon.CH1,'<SEQUENCE> ReProgramming - NG');
+//    common.MLog(DefCommon.CH1,'<SEQUENCE> ReProgramming - NG');
+    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPGCH,'<SEQUENCE> ReProgramming - NG');
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',0);
     CSharpDll.MainOC_Stop_CH1(nPGCH);
   end;
   if (m_OCFlowStart[nPGCH]) and  m_OCCkSerialNB[nPGCH] then begin
     m_OCCkSerialNB[nPGCH] := False;
-    common.MLog(nPGCH,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sFlagString[nPGCH])]));
+//    common.MLog(nPGCH,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sFlagString[nPGCH])]));
+    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPGCH,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sFlagString[nPGCH])]));
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',0);
     CSharpDll.MainOC_Stop_CH1(nPGCH);
   end;
@@ -397,12 +410,14 @@ begin
     m_nFlagCount[nPGCH] := 0;
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_WORK_DONE,'OKFLOW_END',0);
   end;
-  m_nFlagCount[nPGCH] := m_nFlagCount[nPGCH] + 1;
-  if m_nFlagCount[nPGCH] > 60 then begin
-    Common.MLog(nPGCH,CSharpDll.m_sFlagString[nPGCH]);
-    Common.MLog(nPGCH,format(' CH : %d  FlagCheck time out : 60s', [nPGCH]));
-    m_nFlagCount[nPGCH] := 0;
-  end;
+//  m_nFlagCount[nPGCH] := m_nFlagCount[nPGCH] + 1;
+//  if (m_nFlagCount[nPGCH] > 60) then begin
+//    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPGCH,CSharpDll.m_sFlagString[nPGCH]);
+//    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPGCH,format(' CH : %d  FlagCheck time out : 60s', [nPGCH]));
+////    Common.MLog(nPGCH,CSharpDll.m_sFlagString[nPGCH]);
+////    Common.MLog(nPGCH,format(' CH : %d  FlagCheck time out : 60s', [nPGCH]));
+//    m_nFlagCount[nPGCH] := 0;
+//  end;
 
 
 end;
@@ -414,13 +429,15 @@ begin
   nPGCH := 1;
   if (m_OCFlowStart[nPGCH]) and Pg[nPGCH].bIsReProgramming then begin
     Pg[nPGCH].bIsReProgramming := False;
-    common.MLog(DefCommon.CH2,'<SEQUENCE> ReProgramming - NG');
+//    common.MLog(DefCommon.CH2,'<SEQUENCE> ReProgramming - NG');
+    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPGCH,'<SEQUENCE> ReProgramming - NG');
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',0);
     CSharpDll.MainOC_Stop_CH2(nPGCH);
   end;
   if (m_OCFlowStart[nPGCH]) and  m_OCCkSerialNB[nPGCH] then begin
     m_OCCkSerialNB[nPGCH] := False;
-    common.MLog(nPGCH,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sFlagString[nPGCH])]));
+//    common.MLog(nPGCH,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sFlagString[nPGCH])]));
+    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPGCH,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sFlagString[nPGCH])]));
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',0);
     CSharpDll.MainOC_Stop_CH2(nPGCH);
   end;
@@ -432,12 +449,14 @@ begin
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_WORK_DONE,'OKFLOW_END',0);
 
   end;
-  m_nFlagCount[nPGCH] := m_nFlagCount[nPGCH] + 1;
-  if m_nFlagCount[nPGCH] > 60 then begin
-    Common.MLog(nPGCH,CSharpDll.m_sFlagString[nPGCH]);
-    Common.MLog(nPGCH,format(' CH : %d  FlagCheck time out : 60s', [nPGCH]));
-    m_nFlagCount[nPGCH] := 0;
-  end;
+//  m_nFlagCount[nPGCH] := m_nFlagCount[nPGCH] + 1;
+//  if (m_nFlagCount[nPGCH] > 60)  then begin
+//    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPGCH,CSharpDll.m_sFlagString[nPGCH]);
+//    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPGCH,format(' CH : %d  FlagCheck time out : 60s', [nPGCH]));
+////    Common.MLog(nPGCH,CSharpDll.m_sFlagString[nPGCH]);
+////    Common.MLog(nPGCH,format(' CH : %d  FlagCheck time out : 60s', [nPGCH]));
+//    m_nFlagCount[nPGCH] := 0;
+//  end;
 
 end;
 
@@ -448,13 +467,15 @@ begin
   nPGCH := 2;
   if (m_OCFlowStart[nPGCH]) and Pg[nPGCH].bIsReProgramming then begin
     Pg[nPGCH].bIsReProgramming := False;
-    common.MLog(nPGCH,'<SEQUENCE> ReProgramming - NG');
+//    common.MLog(nPGCH,'<SEQUENCE> ReProgramming - NG');
+    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPGCH,'<SEQUENCE> ReProgramming - NG');
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',0);
     CSharpDll.MainOC_Stop_CH3(nPGCH);
   end;
   if (m_OCFlowStart[nPGCH]) and  m_OCCkSerialNB[nPGCH] then begin
     m_OCCkSerialNB[nPGCH] := False;
-    common.MLog(nPGCH,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sFlagString[nPGCH])]));
+//    common.MLog(nPGCH,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sFlagString[nPGCH])]));
+    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPGCH,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sFlagString[nPGCH])]));
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',0);
     CSharpDll.MainOC_Stop_CH3(nPGCH);
   end;
@@ -465,12 +486,14 @@ begin
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_WORK_DONE,'OKFLOW_END',0);
 
   end;
-  m_nFlagCount[nPGCH] := m_nFlagCount[nPGCH] + 1;
-  if m_nFlagCount[nPGCH] > 60 then begin
-    Common.MLog(nPGCH,CSharpDll.m_sFlagString[nPGCH]);
-    Common.MLog(nPGCH,format(' CH : %d  FlagCheck time out : 60s', [nPGCH]));
-    m_nFlagCount[nPGCH] := 0;
-  end;
+//  m_nFlagCount[nPGCH] := m_nFlagCount[nPGCH] + 1;
+//  if (m_nFlagCount[nPGCH] > 60)  then begin
+//    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPGCH,CSharpDll.m_sFlagString[nPGCH]);
+//    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPGCH,format(' CH : %d  FlagCheck time out : 60s', [nPGCH]));
+////    Common.MLog(nPGCH,CSharpDll.m_sFlagString[nPGCH]);
+////    Common.MLog(nPGCH,format(' CH : %d  FlagCheck time out : 60s', [nPGCH]));
+//    m_nFlagCount[nPGCH] := 0;
+//  end;
 
 end;
 
@@ -481,13 +504,15 @@ begin
   nPGCH := 3;
   if (m_OCFlowStart[nPGCH]) and Pg[nPGCH].bIsReProgramming then begin
     Pg[nPGCH].bIsReProgramming := False;
-    common.MLog(nPGCH,'<SEQUENCE> ReProgramming - NG');
+//    common.MLog(nPGCH,'<SEQUENCE> ReProgramming - NG');
+    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPGCH,'<SEQUENCE> ReProgramming - NG');   
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',0);
     CSharpDll.MainOC_Stop_CH4(nPGCH);
   end;
   if (m_OCFlowStart[nPGCH]) and  m_OCCkSerialNB[nPGCH] then begin
     m_OCCkSerialNB[nPGCH] := False;
-    common.MLog(nPGCH,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sFlagString[nPGCH])]));
+//    common.MLog(nPGCH,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sFlagString[nPGCH])]));
+    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPGCH,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sFlagString[nPGCH])]));
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',0);
     CSharpDll.MainOC_Stop_CH4(nPGCH);
   end;
@@ -498,12 +523,14 @@ begin
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_WORK_DONE,'OKFLOW_END',0);
 
   end;
-  m_nFlagCount[nPGCH] := m_nFlagCount[nPGCH] + 1;
-  if m_nFlagCount[nPGCH] > 60 then begin
-    Common.MLog(nPGCH,CSharpDll.m_sFlagString[nPGCH]);
-    Common.MLog(nPGCH,format(' CH : %d  FlagCheck time out : 60s', [nPGCH+1]));
-    m_nFlagCount[nPGCH] := 0;
-  end;
+//  m_nFlagCount[nPGCH] := m_nFlagCount[nPGCH] + 1;
+//  if (m_nFlagCount[nPGCH] > 60) then begin
+//    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPGCH,CSharpDll.m_sFlagString[nPGCH]);
+//    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPGCH,format(' CH : %d  FlagCheck time out : 60s', [nPGCH]));
+////    Common.MLog(nPGCH,CSharpDll.m_sFlagString[nPGCH]);
+////    Common.MLog(nPGCH,format(' CH : %d  FlagCheck time out : 60s', [nPGCH+1]));
+//    m_nFlagCount[nPGCH] := 0;
+//  end;
 
 end;
 
@@ -631,7 +658,6 @@ begin
   SetLength(arRData,nDataCnt);
   arrData[0] := data;
   sTxData := Format(' 0x%0.2x',[arrData[0]]);
-
 
   for I := 0 to 2 do begin
     nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nDataCnt, arrData, nWaitMS,nRetry);
@@ -1826,7 +1852,7 @@ arRData : TIdBytes;
 begin
   nDataCnt := 1;
   sDebug := Format('Flash Erase:  StartSeg(0x%0.4x) Length(%d)',[nStartSeg,nLength]);
-  Common.MLog(nChannel,sDebug);
+//  Common.MLog(nChannel,sDebug);
   Result := Pg[nChannel].DP860_SendNvmErase(nStartSeg,nLength);
 
 end;
@@ -1839,7 +1865,7 @@ arRData : TIdBytes;
 begin
   nDataCnt := 1;
   sDebug := Format('Flash Erase:  StartSeg(0x%0.4x) Length(%d)',[nStartSeg,nLength]);
-  Common.MLog(nChannel,sDebug);
+//  Common.MLog(nChannel,sDebug);
   Result := Pg[nChannel].DP860_SendNvmErase(nStartSeg,nLength);
 
 end;
@@ -1852,7 +1878,7 @@ arRData : TIdBytes;
 begin
   nDataCnt := 1;
   sDebug := Format('Flash Erase:  StartSeg(0x%0.4x) Length(%d)',[nStartSeg,nLength]);
-  Common.MLog(nChannel,sDebug);
+//  Common.MLog(nChannel,sDebug);
   Result := Pg[nChannel].DP860_SendNvmErase(nStartSeg,nLength);
 
 end;
@@ -1865,7 +1891,7 @@ arRData : TIdBytes;
 begin
   nDataCnt := 1;
   sDebug := Format('Flash Erase:  StartSeg(0x%0.4x) Length(%d)',[nStartSeg,nLength]);
-  Common.MLog(nChannel,sDebug);
+//  Common.MLog(nChannel,sDebug);
   Result := Pg[nChannel].DP860_SendNvmErase(nStartSeg,nLength);
 
 end;

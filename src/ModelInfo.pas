@@ -406,6 +406,8 @@ type
     cboNVMWriteSequence: TRzComboBox;
     RzPanel9: TRzPanel;
     cbTconWritechecksum: TRzCheckBox;
+    RzPanel19: TRzPanel;
+    edIdleModeDTime: TRzEdit;
     procedure mmProgramAllDragOver(Sender, Source: TObject; X, Y: Integer; State: TDragState; var Accept: Boolean);
     procedure FormCreate(Sender: TObject);
     procedure btnCompileScriptClick(Sender: TObject);
@@ -2026,6 +2028,7 @@ begin
     cbReProgramming.Checked := UseCheckReProgramming;
     cboNVMWriteSequence.ItemIndex := UseCkNVMWriteSequence;
     cbTconWritechecksum.Checked := UseTconWriteChecksum;
+    edIdleModeDTime.Text  := IntToStr(IdleModeDTime);
     //
 
   end;
@@ -2953,6 +2956,8 @@ begin
     UseCheckReProgramming := cbReProgramming.Checked;
     UseCkNVMWriteSequence := cboNVMWriteSequence.ItemIndex;
     UseTconWriteChecksum := cbTconWriteChecksum.Checked;
+
+    IdleModeDTime := StrToIntDef(edIdleModeDTime.Text,0);
   end;
 
 

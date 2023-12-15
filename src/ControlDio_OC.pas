@@ -2386,7 +2386,6 @@ begin
       end;
     end
     else begin
-      if  PasScr[nCh].m_bIDLE then Result:= True;
 
       if nCH = 0 then begin
         if ControlDio.ReadInSig(IN_GIB_CH_1_CARRIER_SENSOR)

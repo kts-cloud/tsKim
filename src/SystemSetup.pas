@@ -184,7 +184,6 @@ type
     RzPanel13: TRzPanel;
     RzPanel15: TRzPanel;
     cboNGAlarmCount: TComboBox;
-    RzPanel19: TRzPanel;
     RzGroupBox5: TRzGroupBox;
     RzPanel21: TRzPanel;
     edEQPID_MGIB: TRzEdit;
@@ -812,6 +811,7 @@ begin
     MES_CODE_Cnt := StrToIntDef(edMESCodeCnt.Text,0);
 
     PopupMsgTime := StrToIntDef(edPopupMsgTime.Text,0);
+
 
     case EQPId_Type of
       0: begin

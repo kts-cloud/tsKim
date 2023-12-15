@@ -4813,7 +4813,7 @@ begin
 //   - > 해당 Panel 작업 이후 배출 시 해당 Bit Off 하여 배출 한다.
   Result:= 0;
   if Get_Bit(GlassData.GlassSpecificData[2], 2) > 0 then begin  //역물류 초기화 진행
-    Common.MLog(nCH,Format('CH : %d Reverse Logistics' ,[nCH +1]));
+    AddLog(Format('CH : %d Reverse Logistics' ,[nCH +1]));
     GlassData.GlassProcessingStatus[0] := 0;
     GlassData.PreviousUnitProcessing[0] := 0;
     Set_Bit(GlassData.GlassSpecificData[2], 2, 0);

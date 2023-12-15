@@ -394,7 +394,7 @@ begin
 
   except
     //유효하지 않은 문자열일 경우 오류(madException) 방지: RichEdit line insertion error.
-    on E: Exception do  Common.MLog(nCh+self.Tag*4, 'AddLog Exception:' + E.Message + #13#10 + sMsg);
+//    on E: Exception do  Common.MLog(nCh+self.Tag*4, 'AddLog Exception:' + E.Message + #13#10 + sMsg);
   end;
 
   try
@@ -402,7 +402,7 @@ begin
     mmChannelLog[nCh].Perform(WM_VSCROLL, SB_BOTTOM, 0);
   except
     //유효하지 않은 문자열일 경우 오류(madException) 방지: RichEdit line insertion error.
-    on E: Exception do  Common.MLog(nCh+self.Tag*4, 'AddLog Exception:' + E.Message + #13#10 + sMsg);
+//    on E: Exception do  Common.MLog(nCh+self.Tag*4, 'AddLog Exception:' + E.Message + #13#10 + sMsg);
   end;
 
 end;
@@ -3368,7 +3368,7 @@ begin
 //  nMin := m_nTotalTact;
   pnlNowValues[DefCommon.CH1].Caption := Format('%0.3d : %0.2d',[nMin, nSec]);
   nPopupMsgTime := Common.SystemInfo.PopupMsgTime;
-  if nPopupMsgTime <> 0 then begin
+  if (nPopupMsgTime <> 0) and (not PasScr[DefCommon.CH1].m_bIDLE) then begin
     if (m_nTotalTact[DefCommon.CH1] = nPopupMsgTime) and (Common.SystemInfo.OCType = DefCommon.PreOCType) and (m_nUnitTact[DefCommon.CH1] = 0) then   // 30초때PopUp 창
       ShowNgMessage(format('CH : %d been %d seconds!!',[1,nPopupMsgTime]));
   end;
@@ -3414,7 +3414,7 @@ begin
   pnlNowValues[DefCommon.CH2].Caption := Format('%0.3d : %0.2d',[nMin, nSec]);
 
   nPopupMsgTime := Common.SystemInfo.PopupMsgTime;
-  if nPopupMsgTime <> 0 then begin
+  if (nPopupMsgTime <> 0) and (not PasScr[DefCommon.CH2].m_bIDLE) then begin
     if (m_nTotalTact[DefCommon.CH2] = nPopupMsgTime) and (Common.SystemInfo.OCType = DefCommon.PreOCType) and (m_nUnitTact[DefCommon.CH2] = 0)  then   // 30초때PopUp 창
       ShowNgMessage(format('CH : %d been %d seconds!!',[2,nPopupMsgTime]));
   end;
@@ -3430,7 +3430,7 @@ begin
 //  nMin := m_nTotalTact;
   pnlNowValues[DefCommon.CH3].Caption := Format('%0.3d : %0.2d',[nMin, nSec]);
   nPopupMsgTime := Common.SystemInfo.PopupMsgTime;
-  if nPopupMsgTime <> 0 then begin
+  if (nPopupMsgTime <> 0) and (not PasScr[DefCommon.CH3].m_bIDLE) then begin
     if (m_nTotalTact[DefCommon.CH3] = nPopupMsgTime) and (Common.SystemInfo.OCType = DefCommon.PreOCType) and (m_nUnitTact[DefCommon.CH3] = 0)  then   // 30초때PopUp 창
       ShowNgMessage(format('CH : %d been %d seconds!!',[3,nPopupMsgTime]));
   end;
@@ -3446,8 +3446,8 @@ begin
 //  nMin := m_nTotalTact;
   pnlNowValues[DefCommon.CH4].Caption := Format('%0.3d : %0.2d',[nMin, nSec]);
   nPopupMsgTime := Common.SystemInfo.PopupMsgTime;
-  if nPopupMsgTime <> 0 then begin
-    if (m_nTotalTact[DefCommon.CH3] = nPopupMsgTime) and (Common.SystemInfo.OCType = DefCommon.PreOCType) and (m_nUnitTact[DefCommon.CH4] = 0)  then   // 30초때PopUp 창
+  if (nPopupMsgTime <> 0) and (not PasScr[DefCommon.CH4].m_bIDLE) then begin
+    if (m_nTotalTact[DefCommon.CH4] = nPopupMsgTime) and (Common.SystemInfo.OCType = DefCommon.PreOCType) and (m_nUnitTact[DefCommon.CH4] = 0)  then   // 30초때PopUp 창
       ShowNgMessage(format('CH : %d been %d seconds!!',[4,nPopupMsgTime]));
   end;
 end;
@@ -4529,20 +4529,6 @@ begin
           end;
 
           AddLog(sMsg, nCh, nTemp);
-          if Pos('Process_Contact Failed',sMsg) >0  then begin
-//            CSharpDll.m_bIsProcessDone[nCh] := True;
-//            if CSharpDll.m_bIsProcessDone[DefCommon.CH1] and CSharpDll.m_bIsProcessDone[DefCommon.CH2] then  begin
-//              SendMessageMain(STAGE_MODE_UNLOAD, 0, 2,0, 'OC Flow Process_Finish',nil);
-//              CSharpDll.m_bIsProcessDone[DefCommon.CH1] := false;
-//              CSharpDll.m_bIsProcessDone[DefCommon.CH2] := false;
-//            end;
-//            if CSharpDll.m_bIsProcessDone[DefCommon.CH3] and CSharpDll.m_bIsProcessDone[DefCommon.CH4] then begin
-//              SendMessageMain(STAGE_MODE_UNLOAD, 1, 2,0, 'OC Flow Process_Finish',nil);
-//              CSharpDll.m_bIsProcessDone[DefCommon.CH3] := false;
-//              CSharpDll.m_bIsProcessDone[DefCommon.CH4] := false;
-//            end;
-
-          end;
 
         end;
 
