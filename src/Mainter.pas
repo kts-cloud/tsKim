@@ -3219,6 +3219,7 @@ var
   cdCal : LibCa410Option.TCalValue;
 begin
 //    CtrlCa410.TestExample(RzComboBox1.ItemIndex,cboCa310Channel.ItemIndex,sRet); // 0 is channel num.
+
     CtrlCa410.ReadR2R(RzComboBox1.ItemIndex,cboCa310Channel.ItemIndex,sRet);
     mmoLog.Lines.Add('----------------');
     mmoLog.Lines.Add(Format('CH : %d Memory CH %d :',[RzComboBox1.ItemIndex+1,cboCa310Channel.ItemIndex+1])+sRet);

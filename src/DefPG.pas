@@ -112,6 +112,9 @@ type
     TconMultiWriteDllCall : Integer;
     TconSeqWriteDllCall : Integer;
 
+    TconRetryReadCall : Integer;
+    TconRetryWriteCall : Integer;
+
 
 
   end;

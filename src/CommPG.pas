@@ -4106,32 +4106,30 @@ begin
 		sCommand := sCommand + ' ' + Format('0x%0.2x',[arDataW[i]]);
     nCrcData := nCrcData + arDataW[i];
 	end;
-  if Common.TestModelInfoFLOW.UseTconWriteChecksum then begin
-    nCrcData := $FFFF and (nCrcData + nRegAddr);
-    sCommand := sCommand + ' ' + Format('0x%0.4x',[nCrcData]);
-  end;
+
+  nCrcData := $FFFF and (nCrcData + nRegAddr);
+  sCommand := sCommand + ' ' + Format('0x%0.4x',[nCrcData]);
+
 	Result := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
   Inc(TconRWCnt.TconWriteTX); //2023-03-28 jhhwang (for T/T Test)
   TconRWCnt.ContTConOcWrite := 0; //2023-03-28 jhhwang (for T/T Test)
 
   try
-    if Common.TestModelInfoFLOW.UseTconWriteChecksum then begin
-      arCmdAck := FTxRxPG.RxAckStr.Split([#$0D]);
-      arTemp   := arCmdAck[0].Split([' ']);
-      if Length(arCmdAck) > 2 then begin
-        if nDataCnt = StrToInt('$'+ExtractAlphabets(arTemp[0])) then begin
-          arTemp   := arCmdAck[1].Split([' ']);
-          arTemp[0] := ExtractAlphabets(arTemp[0]);
-          nDataPGW := StrToInt('$'+ arTemp[0]);
-          if nCrcData <> nDataPGW then  begin
-            sEtcMsg :=  sEtcMsg + format('(nCrcData : Data : 0x%0.4x PG_Return : %0x%0.4x)',[nCrcData,nDataPGW]);
-            Result  := WAIT_FAILED;
-          end;
-        end
-        else begin
-          sEtcMsg :=  sEtcMsg + format('(nCrcData : Data Length : %d PG_Return Length : %d',[nDataCnt,StrToIntDef('$'+ExtractAlphabets(arTemp[0]),0)]);
+    arCmdAck := FTxRxPG.RxAckStr.Split([#$0D]);
+    arTemp   := arCmdAck[0].Split([' ']);
+    if Length(arCmdAck) > 2 then begin
+      if nDataCnt = StrToInt('$'+ExtractAlphabets(arTemp[0])) then begin
+        arTemp   := arCmdAck[1].Split([' ']);
+        arTemp[0] := ExtractAlphabets(arTemp[0]);
+        nDataPGW := StrToInt('$'+ arTemp[0]);
+        if nCrcData <> nDataPGW then  begin
+          sEtcMsg :=  sEtcMsg + format('(nCrcData : Data : 0x%0.4x PG_Return : %0x%0.4x)',[nCrcData,nDataPGW]);
           Result  := WAIT_FAILED;
         end;
+      end
+      else begin
+        sEtcMsg :=  sEtcMsg + format('(nCrcData : Data Length : %d PG_Return Length : %d',[nDataCnt,StrToIntDef('$'+ExtractAlphabets(arTemp[0]),0)]);
+        Result  := WAIT_FAILED;
       end;
     end;
   except
@@ -4710,6 +4708,9 @@ begin
     TconMultiWriteDllCall := 0;
     TconSeqWriteDllCall := 0;
 
+    TconRetryReadCall := 0;
+    TconRetryWriteCall := 0;
+
   end;
 end;
 
@@ -4726,14 +4727,15 @@ begin
 	sCommand := sCmdName + ' ' + Format('%d',[nState]); // 'oc.onoff <number>' number:1(start), 0(end)
 	Result := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
 
-  if Result <> WAIT_OBJECT_0 then begin
-    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
-  end;
+//  if Result <> WAIT_OBJECT_0 then begin
+  sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+//  end;
   //
   sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
   with TconRWCnt do begin
     if nState = 1 then DP860_ClearOcTconRWCnt; //OC DLL Start
-    sDebug := sDebug + Format('[SW:DllRead(%d)DllWrite(%d),ReadTX(%d)Write(%d)OcWrite(%d)ReadArray(%d)WriteArray(%d)MultiWrite(%d)SeqWrite(%d)]',[TconReadDllCall,TconWriteDllCall,TconReadTX,TConWriteTX,TConOcWriteTX,TconReadArrayDllCall,TconWriteArrayDllCall,TconMultiWriteDllCall,TconSeqWriteDllCall]);
+    sDebug := sDebug + Format('[SW:DllRead(%d)DllWrite(%d),ReadTX(%d)Write(%d)OcWrite(%d)ReadArray(%d)WriteArray(%d)MultiWrite(%d)SeqWrite(%d)',[TconReadDllCall,TconWriteDllCall,TconReadTX,TConWriteTX,TConOcWriteTX,TconReadArrayDllCall,TconWriteArrayDllCall,TconMultiWriteDllCall,TconSeqWriteDllCall]);
+    sDebug := sDebug + Format('RetryRead(%d)RetryWrite(%d)',[TconRetryReadCall,TconRetryWriteCall]);
   end;
   ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
 end;

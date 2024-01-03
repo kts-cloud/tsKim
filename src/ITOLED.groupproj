@@ -6,10 +6,10 @@
         <Projects Include="ITOLED_OC_Simulator.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="ITOLED_OC.dproj">
+        <Projects Include="ITOLED_PreOC.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="ITOLED_PreOC.dproj">
+        <Projects Include="ITOLED_OC.dproj">
             <Dependencies/>
         </Projects>
     </ItemGroup>
@@ -29,15 +29,6 @@
     <Target Name="ITOLED_OC_Simulator:Make">
         <MSBuild Projects="ITOLED_OC_Simulator.dproj" Targets="Make"/>
     </Target>
-    <Target Name="ITOLED_OC">
-        <MSBuild Projects="ITOLED_OC.dproj"/>
-    </Target>
-    <Target Name="ITOLED_OC:Clean">
-        <MSBuild Projects="ITOLED_OC.dproj" Targets="Clean"/>
-    </Target>
-    <Target Name="ITOLED_OC:Make">
-        <MSBuild Projects="ITOLED_OC.dproj" Targets="Make"/>
-    </Target>
     <Target Name="ITOLED_PreOC">
         <MSBuild Projects="ITOLED_PreOC.dproj"/>
     </Target>
@@ -47,14 +38,23 @@
     <Target Name="ITOLED_PreOC:Make">
         <MSBuild Projects="ITOLED_PreOC.dproj" Targets="Make"/>
     </Target>
+    <Target Name="ITOLED_OC">
+        <MSBuild Projects="ITOLED_OC.dproj"/>
+    </Target>
+    <Target Name="ITOLED_OC:Clean">
+        <MSBuild Projects="ITOLED_OC.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ITOLED_OC:Make">
+        <MSBuild Projects="ITOLED_OC.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="ITOLED_OC_Simulator;ITOLED_OC;ITOLED_PreOC"/>
+        <CallTarget Targets="ITOLED_OC_Simulator;ITOLED_PreOC;ITOLED_OC"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="ITOLED_OC_Simulator:Clean;ITOLED_OC:Clean;ITOLED_PreOC:Clean"/>
+        <CallTarget Targets="ITOLED_OC_Simulator:Clean;ITOLED_PreOC:Clean;ITOLED_OC:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="ITOLED_OC_Simulator:Make;ITOLED_OC:Make;ITOLED_PreOC:Make"/>
+        <CallTarget Targets="ITOLED_OC_Simulator:Make;ITOLED_PreOC:Make;ITOLED_OC:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

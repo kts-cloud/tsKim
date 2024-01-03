@@ -1738,6 +1738,7 @@ object frmModelInfo: TfrmModelInfo
           TabOrder = 13
           Transparent = True
           UseCustomGlyphs = True
+          Visible = False
           WordWrap = True
         end
         object RzPanel19: TRzPanel
@@ -6667,7 +6668,7 @@ object frmModelInfo: TfrmModelInfo
           Font.Name = 'Tahoma'
           Font.Style = []
           ParentFont = False
-          TabOrder = 0
+          TabOrder = 2
           Transparent = True
           object btn1: TRzBitBtn
             Left = 1226

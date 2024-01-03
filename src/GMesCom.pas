@@ -2172,7 +2172,10 @@ begin
       }
       //sSendMsg := sSendMsg  + ' SERIAL_NO=';
       if Common.SystemInfo.OCType = DefCommon.OCType then begin
-        sSendMsg := sSendMsg  + ' SERIAL_NO='+sSerialNo;
+        if PasScr[nPg].m_sMateriID <> '' then
+          sSendMsg := sSendMsg  + ' ZIG_ID='+PasScr[nPg].m_sMateriID
+         else
+          sSendMsg := sSendMsg  + ' SERIAL_NO='+sSerialNo;
       end
       else begin
         sSendMsg := sSendMsg  + ' PID=';
@@ -2384,7 +2387,7 @@ begin
     end;
     DefGmes.R2R_EAYT : begin
       sSendMsg := 'EAYT';
-      sSendMsg := sSendMsg  + ' ADDR=' + m_sR2RLocal;
+      sSendMsg := sSendMsg  + ' ADDR=' + m_sR2RLocal +  ',' + m_sR2RRemote;
       sSendMsg := sSendMsg  + ' EQP=' + FSystemNo;
       sSendMsg := sSendMsg  + ' NET_IP=' + Common.SystemInfo.R2R_Network + ' NET_PORT=' + m_sR2RServicePort;//' NET_IP=' + GetLocalIP + ' NET_PORT=' + m_sServicePort;
       sSendMsg := sSendMsg  + ' MODE=AUTO';

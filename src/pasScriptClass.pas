@@ -507,6 +507,7 @@ type
     m_RgbAvrInfo : RRgbAvrInfo;
     m_sFileCsv        : string;
     m_sApdrCsv        : string;
+    m_sMateriID       : string;
     m_nScriptPgNo   : Integer;      // FPgNo
     m_First_Process_DONE  : Boolean; // First_Process 체크
     m_sCarrierId          : String; // EEPROM Carrier Id (set by Script)
@@ -2099,7 +2100,7 @@ begin
     TestInfo.NGCount:= 0;
   end;
   m_dtInitialData:= Now;
-
+  m_sMateriID := '';
   m_sMesPchkModel     := '';
   g_bIsBcrReady       := False;
   m_nNgCode           := 0; // Ã³À½¿¡´Â Ç×»ó OK·Î ¼³Á¤ ÇÏÀÚ.
@@ -3142,34 +3143,34 @@ begin
 
     PG[Self.FPgNo].DP860_SendOcOnOff(1{start},2000,0); //2023-03-28 jhhwang (for T/T Test)
     PG[FPgNo].SetCyclicTimer(False);
-//    if Common.TestModelInfoFLOW.UseTconWriteChecksum then begin
-//      Common.MLog(self.FPgNo,'[Source Code] TconWriteChecksum : On');
-//      PG[Self.FPgNo].DP860_SendChkEnable(1{start},2000,0);
-//    end
-//    else begin
-//      Common.MLog(self.FPgNo,'[Source Code] TconWriteChecksum : OFF');
-//      PG[Self.FPgNo].DP860_SendChkEnable(0,2000,0);
-//    end;
-//    for I := DefCommon.CH1 to DefCommon.CH4 do
-//      PG[i].SetCyclicTimer(False);
 
-//      CSharpDll.m_bIsDLLWork[FPgNo] := true;
+
     case InputArgCount of
       2 : begin
         sPID := GetInputArgAsstring(0);
         sSerialNumber := Trim(GetInputArgAsstring(1));
         if DongaGmes <> nil then  begin
           sPID :=  DongaGmes.MesData[FPgNo].PchkRtnPID; // Added by KTS 2023-05-19 오후 5:32:48 PCHK 받은 RYN_PID
-          if (sSerialNumber <> DongaGmes.MesData[FPgNo].PchkRtnSerialNo) or (Length(sSerialNumber) <> Common.TestModelInfoFLOW.SerialNoFlashInfo.nLength ) then begin
-            if Common.SystemInfo.OCType = DefCommon.OCType then
-              CSharpDll.m_OCCkSerialNB[FPgNo] := True;
+          if Pos('TEST_CH',sSerialNumber) = 0 then begin
+            if (sSerialNumber <> DongaGmes.MesData[FPgNo].PchkRtnSerialNo) or (Length(sSerialNumber) <> Common.TestModelInfoFLOW.SerialNoFlashInfo.nLength ) then begin
+              if Common.SystemInfo.OCType = DefCommon.OCType then
+                CSharpDll.m_OCCkSerialNB[FPgNo] := True;
+            end;
           end;
+
         end;
         if Length(sPID) = 0 then sPID := Copy(sSerialNumber,1,3);
         if Common.SystemInfo.OCType = DefCommon.PreOCType then
           sSerialNumber := Format('%s_PCB_ID_CH_%d',[sSerialNumber,Self.FPgNo+1])
         else begin
 //          Common.MLog(self.FPgNo,'[Source Code] CheckIRTemp : Set Temp : '+ IntToStr(Common.SystemInfo.SetTemperature));
+
+          if g_CommPLC <> nil then  begin
+            if (g_CommPLC.GlassData[FPgNo].MateriID <> '') and (Pos('TEST_CH',sSerialNumber) > 0) then begin
+              sSerialNumber := g_CommPLC.GlassData[FPgNo].MateriID;
+              m_sMateriID := g_CommPLC.GlassData[FPgNo].MateriID;
+            end;
+          end;
           SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'[Source Code] CheckIRTemp : Set Temp : '+ IntToStr(Common.SystemInfo.SetTemperature));
           frmTest4ChOC[0].tmCheckIRTemp[FPgNo].Enabled := True;
           frmTest4ChOC[0].m_nTempIrTact[FPgNo] := 0;
@@ -4247,7 +4248,7 @@ begin
     end;
   end;
 
-  if (CurrentSEQ in [SEQ_KEY_9]) or (CurrentSEQ in [SEQ_KEY_START]) and m_bIDLE then begin
+  if ((CurrentSEQ in [SEQ_KEY_9]) or (CurrentSEQ in [SEQ_KEY_START])) and m_bIDLE then begin
     SendTestGuiDisplay(defCommon.MSG_TYPE_DLL,defCommon.MSG_MODE_WORK_DONE,'OKFLOW_END');
   end;
 

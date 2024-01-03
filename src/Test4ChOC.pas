@@ -4250,7 +4250,7 @@ begin
   cdCal.B_yy := StrToFloatDef(PasScr[nCH].FR2ROC_Data[23],0);
   CtrlCa410.CDCal := cdCal;
 
-  sReturn := CtrlCa410.TestExample(nCh,Common.SystemInfo.R2RCa410MemCh,sRet); // 0 is channel num.
+  sReturn := CtrlCa410.TestExample(nCh,StrToInt(Common.SystemInfo.CA410_MemoryCh[nCh]),sRet); // 0 is channel num.
 
   saReturn:= sReturn.Split([',']);
   if Length(saReturn) > 4 then  begin

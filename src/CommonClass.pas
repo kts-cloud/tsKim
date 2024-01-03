@@ -1438,17 +1438,22 @@ begin
 end;
 
 function TCommon.Decrypt(const S: String; Key: Word): String;
+
 var
   i: byte;
   FirstResult : String;
+
 begin
   FirstResult := HexToValue(S);
   SetLength( Result, Length(FirstResult) );
   for i := 1 to Length(FirstResult) do  begin
     Result[i] := char(byte(FirstResult[i]) xor (Key shr 8));
-    Key := (byte(FirstResult[i]) + Key) * DefCommon.C1 + DefCommon.C2;
+//    Key := (byte(FirstResult[i]) + Key) * DefCommon.C1 + DefCommon.C2;
+    Key := word((LongWord(byte(FirstResult[i]) + Key) * C1 + C2) and $FFFF);
+
   end;
 end;
+
 
 
 function TCommon.DecToOct(nGetVal: Integer): string;
@@ -1535,10 +1540,12 @@ begin
   SetLength(m_OcParam.OcVerify,0);
   SetLength(SystemInfo.ConfigVer,0);
 
-  FLogThread.Terminate;
-  FLogThread.WaitFor;
-  FLogThread.Free;
-  FLogQueue.Free;
+  if FLogThread <> nil then begin
+    FLogThread.Terminate;
+    FLogThread.WaitFor;
+    FLogThread.Free;
+    FLogQueue.Free;
+  end;
 
   for I := 0 to DefCommon.MAX_PG_CNT do
     CriticalSection[i].Free;
@@ -1660,7 +1667,9 @@ begin
   SetLength(FirstResult, Length(S)); // ¹®ÀÚ¿­ÀÇ Å©±â¸¦ ¼³Á¤
   for i := 1 to Length(S) do begin
     FirstResult[i] := char(byte(S[i]) xor (Key shr 8));
-    Key := word((byte(FirstResult[i]) + Key) * C1 + C2);
+//    Key := word((byte(FirstResult[i]) + Key) * C1 + C2);
+    Key := word((LongWord(byte(FirstResult[i]) + Key) * C1 + C2) and $FFFF);
+
   end;
   Result := ValueToHex(FirstResult);
 end;
@@ -3229,7 +3238,7 @@ begin
             SeqOn[0]  := 6;         // Added by KTS 2023-12-05 오후 2:33:17 23/12/05 - 14:17분  우상용 책임 요청 고정
             SeqOff[0] := 58;
             SeqOn[1]  := 10;
-            SeqOff[1] := 42;
+            SeqOff[1] := 38;
           end;
         end; //PG_TYPE_DP860
         with EdModelInfoFLOW do begin
@@ -4161,10 +4170,10 @@ begin
       Exit;
 
     case nCh of
-      DefCommon.MAX_SYSTEM_LOG: LogItem.FileName := sFilePath + Format('SystemLog_%s.txt', [systemInfo.EQPId]);
+      DefCommon.MAX_SYSTEM_LOG: LogItem.FileName := sFilePath + Format('SystemLog_%s_%s.txt', [systemInfo.EQPId,FormatDateTime('mmdd', Now)]);
       DefCommon.MAX_PLC_LOG: LogItem.FileName := sFilePath + Format('PLC_%s.txt', [systemInfo.EQPId]);
       else
-        LogItem.FileName := sFilePath + Format('MLog_%s_Ch%d.txt', [systemInfo.EQPId, nCh + 1]);
+        LogItem.FileName := sFilePath + Format('MLog_%s_%s_Ch%d.txt', [systemInfo.EQPId, FormatDateTime('mmdd', Now), nCh + 1]);
     end;
     LogItem.Msg := Msg;
     FLogQueue.Enqueue(LogItem);
@@ -4172,7 +4181,6 @@ begin
     // Handle exceptions as needed
   end;
 end;
-
 
 // MLog 함수 개선
 //procedure TCommon.MLog(nCh: Integer; const Msg: String);
@@ -4182,43 +4190,43 @@ end;
 //  MyClass: TComponent;
 //begin
 //
-//    try
-//      if CheckDir(Path.MLOG) then
-//        Exit;
+//  try
+//    if CheckDir(Path.MLOG) then
+//      Exit;
 //
-//      sDate := FormatDateTime('yyyymmdd', Now);
-//      sFilePath := Path.MLOG + sDate + '\';
+//    sDate := FormatDateTime('yyyymmdd', Now);
+//    sFilePath := Path.MLOG + sDate + '\';
 //
-//      if CheckDir(sFilePath) then
-//        Exit;
+//    if CheckDir(sFilePath) then
+//      Exit;
 //
-//      case nCh of
-//        DefCommon.MAX_SYSTEM_LOG: sFileName := sFilePath + Format('SystemLog_%s_%s.txt', [systemInfo.EQPId, FormatDateTime('ddhh', Now)]);
-//        DefCommon.MAX_PLC_LOG: sFileName := sFilePath + Format('PLC_%s_%s.txt', [systemInfo.EQPId, FormatDateTime('ddhh', Now)]);
-//        else
-//          sFileName := sFilePath + Format('MLog_%s_%s_Ch%d.txt', [systemInfo.EQPId, FormatDateTime('ddhh', Now), nCh + 1]);
-//      end;
-//
-//      AssignFile(_infile, sFileName);
-//
-//      try
-//        if not FileExists(sFileName) then
-//          Rewrite(_infile)
-//        else
-//          Append(_infile);
-//
-//        sInputData := FormatDateTime('(hh:mm:ss.zzz) : ', Now) + Msg;
-//        WriteLn(_infile, sInputData);
-//      finally
-//        CloseFile(_infile);
-//      end;
-//
-//    except
-//      on E: Exception do
-//      begin
-//
-//      end;
+//    case nCh of
+//      DefCommon.MAX_SYSTEM_LOG: sFileName := sFilePath + Format('SystemLog_%s_%s.txt', [systemInfo.EQPId, FormatDateTime('ddhh', Now)]);
+//      DefCommon.MAX_PLC_LOG: sFileName := sFilePath + Format('PLC_%s_%s.txt', [systemInfo.EQPId, FormatDateTime('ddhh', Now)]);
+//      else
+//        sFileName := sFilePath + Format('MLog_%s_%s_Ch%d.txt', [systemInfo.EQPId, FormatDateTime('ddhh', Now), nCh + 1]);
 //    end;
+//
+//    AssignFile(_infile, sFileName);
+//
+//    try
+//      if not FileExists(sFileName) then
+//        Rewrite(_infile)
+//      else
+//        Append(_infile);
+//
+//      sInputData := FormatDateTime('(hh:mm:ss.zzz) : ', Now) + Msg;
+//      WriteLn(_infile, sInputData);
+//    finally
+//      CloseFile(_infile);
+//    end;
+//
+//  except
+//    on E: Exception do
+//    begin
+//
+//    end;
+//  end;
 //
 //end;
 
