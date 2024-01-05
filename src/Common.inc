@@ -70,7 +70,7 @@
 
 {$IFDEF SIMULATOR}
   {$DEFINE SIMULATOR_DIO}
-  {$DEFINE SIMULATOR_PG}    // PG 연결 시험시, Commnet 처리
+//  {$DEFINE SIMULATOR_PG}    // PG 연결 시험시, Commnet 처리
   {$DEFINE SIMULATOR_BCR}
   {$DEFINE SIMULATOR_CAX10} // CAx10 연결 시험시, Commnet 처리
   {$DEFINE SIMULATOR_GMES}

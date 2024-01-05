@@ -22,6 +22,7 @@ const
   'MPO_W600_L','MPO_W600_X','MPO_W600_Y','MPO_R600_L','MPO_R600_X','MPO_R600_Y','MPO_G600_L','MPO_G600_X','MPO_G600_Y','MPO_B600_L','MPO_B600_X','MPO_B600_Y');
 
   NVMWriteSequence = 0;
+  VERSION_DLL = '3.1.6.1';   // OC_CON.DLL 적용 Ver 확인
 type
 
   TArrayChannelString = array[0..DefCommon.MAX_CH] of String;
@@ -575,6 +576,7 @@ type
     Version_FW     : string;
     Version_FPGA   : string;
     Version_Power  : string;
+    Version_DLL    : string;
   end;
   TModelInfoPG = record
 		//-------------- DP860,AF9
@@ -858,6 +860,7 @@ type
     function GetMemoryUsagePercentage: Double;
     function GetCPUUsage: Double;
     procedure CheckAndTerminateExcel(sExcelFileName : string);
+    function IfVersionIsLessThan(const currentVersion, targetVersion: string): Integer;
   end;
 
 var
@@ -4102,6 +4105,39 @@ begin
     TerminateProcessesByFileName(sExcelFileName);
 end;
 
+
+
+function TCommon.IfVersionIsLessThan(const currentVersion, targetVersion: string): Integer;
+var
+  currentVersionList, targetVersionList: TStringList;
+  i: Integer;
+begin
+  currentVersionList := TStringList.Create;
+  targetVersionList := TStringList.Create;
+  try
+    // '.'을 기준으로 버전 정보를 나눕니다.
+    ExtractStrings(['.'], [], PChar(currentVersion), currentVersionList);
+    ExtractStrings(['.'], [], PChar(targetVersion), targetVersionList);
+
+    // 각 부분별로 비교하여 버전을 확인합니다.
+    for i := 0 to Min(currentVersionList.Count - 1, targetVersionList.Count - 1) do
+    begin
+      if StrToIntDef(currentVersionList[i],0) < StrToIntdef(targetVersionList[i],1) then
+      begin
+        Exit(1);
+      end
+      else if StrToIntDef(currentVersionList[i],0) > StrToIntDef(targetVersionList[i],0) then
+        Break; // 현재 버전이 타겟 버전보다 높으면 더 이상 비교할 필요 없음
+    end;
+
+    // 모든 부분이 같거나 현재 버전이 더 높음
+    Result := 0;
+  finally
+    currentVersionList.Free;
+    targetVersionList.Free;
+  end;
+end;
+
 function TCommon.GetMemoryUsagePercentage: Double;
 var
   MemoryStatus: TMemoryStatusEx;
@@ -5081,6 +5117,7 @@ begin
       InterlockInfo.Version_FW        := fSys.ReadString('Interlock', 'Version_FW', '-');
       InterlockInfo.Version_FPGA      := fSys.ReadString('Interlock', 'Version_FPGA', '-');
       InterlockInfo.Version_Power     := fSys.ReadString('Interlock', 'Version_Power', '-');
+      InterlockInfo.Version_DLL       := fSys.ReadString('Interlock', 'Version_DLL', '');
 
       SimulateInfo.Use_PG              := fSys.ReadBool('SimulateInfo',    'USE_PG', False);
       SimulateInfo.Use_PLC             := fSys.ReadBool('SimulateInfo',    'USE_PLC', False);
@@ -5640,6 +5677,7 @@ begin
       WriteString('Interlock', 'Version_FW',         InterlockInfo.Version_FW);
       WriteString('Interlock', 'Version_FPGA',       InterlockInfo.Version_FPGA);
       WriteString('Interlock', 'Version_Power',      InterlockInfo.Version_Power);
+      WriteString('Interlock', 'Version_DLL',        InterlockInfo.Version_DLL);
 
     except
     end;

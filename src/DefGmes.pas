@@ -8,6 +8,7 @@ interface
   const
     // MES MESSAGE INDEX
     MES_UNKNOWN      = 0;   //JHHWANG-GMES: 2018-06-20
+    MES_STATE_FAIL   = 1;
     MES_EAYT         = 101;
     MES_UCHK         = 102;
     MES_EDTI         = 103;

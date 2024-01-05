@@ -486,6 +486,7 @@ type
     procedure PowerBistSet_Proc(AMachine: TatVirtualMachine);
     function CheckConfirmHostAck: DWORD;
 
+
 //    function SendPocbHexFile_D84X_Template(nPacketSize, nFirstAddr, nNormalAddr: Integer; var sHexCS: String): Integer;
 //    procedure SetRxData(const Value: TRxData);
 
@@ -966,7 +967,7 @@ end;
 destructor TScrCls.Destroy;
 begin
   TerminateScript;
-  sleep(100);
+  sleep(1000);
   if atPasScrpt.Running then begin
       atPasScrpt.Halt;
   end;
@@ -3149,37 +3150,36 @@ begin
       2 : begin
         sPID := GetInputArgAsstring(0);
         sSerialNumber := Trim(GetInputArgAsstring(1));
+
         if DongaGmes <> nil then  begin
           sPID :=  DongaGmes.MesData[FPgNo].PchkRtnPID; // Added by KTS 2023-05-19 오후 5:32:48 PCHK 받은 RYN_PID
-          if Pos('TEST_CH',sSerialNumber) = 0 then begin
-            if (sSerialNumber <> DongaGmes.MesData[FPgNo].PchkRtnSerialNo) or (Length(sSerialNumber) <> Common.TestModelInfoFLOW.SerialNoFlashInfo.nLength ) then begin
+          if (Pos('TEST_CH',sSerialNumber) = 0) and (Pos('Contact_NG',sSerialNumber) = 0)  then begin
+            if (sSerialNumber <> DongaGmes.MesData[FPgNo].PchkRtnSerialNo) or (Length(sSerialNumber) <> Common.TestModelInfoFLOW.SerialNoFlashInfo.nLength) then begin
               if Common.SystemInfo.OCType = DefCommon.OCType then
                 CSharpDll.m_OCCkSerialNB[FPgNo] := True;
             end;
           end;
-
         end;
         if Length(sPID) = 0 then sPID := Copy(sSerialNumber,1,3);
+
         if Common.SystemInfo.OCType = DefCommon.PreOCType then
           sSerialNumber := Format('%s_PCB_ID_CH_%d',[sSerialNumber,Self.FPgNo+1])
         else begin
 //          Common.MLog(self.FPgNo,'[Source Code] CheckIRTemp : Set Temp : '+ IntToStr(Common.SystemInfo.SetTemperature));
 
           if g_CommPLC <> nil then  begin
-            if (g_CommPLC.GlassData[FPgNo].MateriID <> '') and (Pos('TEST_CH',sSerialNumber) > 0) then begin
+            if (g_CommPLC.GlassData[FPgNo].MateriID <> '') and ((Pos('TEST_CH',sSerialNumber) > 0) or (Pos('Contact_NG',sSerialNumber) > 0)) then begin
               sSerialNumber := g_CommPLC.GlassData[FPgNo].MateriID;
               m_sMateriID := g_CommPLC.GlassData[FPgNo].MateriID;
             end;
           end;
           SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'[Source Code] CheckIRTemp : Set Temp : '+ IntToStr(Common.SystemInfo.SetTemperature));
-          frmTest4ChOC[0].tmCheckIRTemp[FPgNo].Enabled := True;
-          frmTest4ChOC[0].m_nTempIrTact[FPgNo] := 0;
-          frmTest4ChOC[0].SaveCsvTempStatus(FPgNo,'START',frmTest4ChOC[0].m_bFanOnOff[FPgNo]);
+          SendTestGuiDisplay(DefCommon.MSG_MODE_IRTEMP,'IRTEM : Start','',1);   //Start
+
         end;
         if Length(sSerialNumber) = 0 then sSerialNumber := 'TEST123456789012345678901';
         sEquipment := Common.SystemInfo.EQPId;
         sUSERID := Common.SystemInfo.AutoLoginID;
-        if Length(sEquipment) = 0 then sEquipment :=  Format('Equipment:%d',[Self.FPgNo]);
 
 //        Common.MLog(self.FPgNo,'[Source Code] OC_Converter_DLL_Name : '+ Common.SystemInfo.OC_Converter_Name); // OC_Converter_DLL Name 표시
 
@@ -3194,10 +3194,6 @@ begin
 
       end;
     end;
-    //CSharpDll.m_bIsDLLWork[Self.FPgNo] := False;
-//    PG[Self.FPgNo].SetCyclicTimer(True); //2023-03-28 jhhwang (for T/T Test)
-//    end
-//    else wdRet := 2;
     ReturnOutputArg( Integer(wdRet));
   end;
 end;
@@ -4830,6 +4826,11 @@ begin
         g_CommPLC.SetGlassData_CheckRLogistics(FPgNo,g_CommPLC.GlassData[FPgNo],0);
       end;
 
+      if g_CommPLC.GlassData[FPgNo].RecipeNumber = 0 then begin
+        SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'ECS_SetGlassData RecipeNumber: 0 - Skip');
+        ReturnOutputArg(0);
+        Exit;
+      end;
 
       if nNgCode = 0 then begin
         g_CommPLC.SetGlassData_JudgCode(g_CommPLC.GlassData[FPgNo], ord('G'));
@@ -6059,6 +6060,8 @@ begin
   end;
 end;
 
+
+
 procedure TScrCls.TactTime_Proc(AMachine: TatVirtualMachine);
 var
   nParam : Integer;
@@ -6129,7 +6132,7 @@ begin
   if m_bCallTerminate then begin
     ScriptThread('Seq_Terminate',0);
   end;
-  for i := 0 to 100 do begin
+  for i := 0 to 200 do begin
     Delay(10);
 //    Sleep(10);
     if not m_bTheadIsTerminated then Break;

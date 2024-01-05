@@ -884,12 +884,26 @@ var
 i : integer;
 begin
   Result := True;
-  for I := DefCommon.CH1 to DefCommon.MAX_CH do  begin
-    Common.StatusInfo.UseChannel[i]:= frmTest4ChOC[0].chkChannelUse[i].Checked;
+  if nStage = DefCommon.MAX_PG_CNT then begin
+    for I := DefCommon.CH1 to DefCommon.MAX_CH do  begin
+      Common.StatusInfo.UseChannel[i]:= frmTest4ChOC[0].chkChannelUse[i].Checked;
 
-    if Common.StatusInfo.UseChannel[i]  then begin
-      if Pg[i] <> nil then begin
-        if (Pg[i].StatusPG <> pgReady) then begin
+      if Common.StatusInfo.UseChannel[i]  then begin
+        if Pg[i] <> nil then begin
+          if (Pg[i].StatusPG <> pgReady) then begin
+            Result:= False;
+            Exit;
+          end;
+        end;
+      end;
+    end;
+  end
+  else begin
+    Common.StatusInfo.UseChannel[nStage]:= frmTest4ChOC[0].chkChannelUse[nStage].Checked;
+
+    if Common.StatusInfo.UseChannel[nStage]  then begin
+      if Pg[nStage] <> nil then begin
+        if (Pg[nStage].StatusPG <> pgReady) then begin
           Result:= False;
           Exit;
         end;
@@ -1622,7 +1636,7 @@ begin
 //  g_CommPLC.ECS_Glass_Processing(True);   // Added by KTS 2023-04-04 오후 6:56:26
   nStage:= 0;
 
-  if not CheckPG_Connect(nStage) then begin
+  if not CheckPG_Connect(DefCommon.MAX_PG_CNT) then begin
     ShowSysLog('Do not Auto Start - PG Disconnected');
     Exit;
   end;
@@ -2949,21 +2963,21 @@ begin
     DefGmes.MES_PCHK : begin
       //sDebug := 'MSG_TYPE_HOST, MES_PCHK, PG'+IntToStr(nCh+1); Common.MLog(DefCommon.MAX_SYSTEM_LOG,sDebug); //IMSI
       DongaGmes.MesSerialType := PasScr[nCh].TestInfo.nSerialType;
-      DongaGmes.SendHostPchk(PasScr[nCh].TestInfo.SerialNo, nCh);
+      DongaGmes.SendHostPchk(PasScr[nCh].TestInfo.SerialNo, nCh,PasScr[nCh].m_sMateriID);
     end;
     DefGmes.MES_LPIR : begin
       DongaGmes.SendHostLpir(PasScr[nCh].TestInfo.SerialNo, nCh);
     end;
     DefGmes.MES_INS_PCHK : begin
       //sDebug := 'MSG_TYPE_HOST, MES_INS_PCHK, PG'+IntToStr(nCh+1); Common.MLog(DefCommon.MAX_SYSTEM_LOG,sDebug); //IMSI
-      DongaGmes.SendHostIns_Pchk(PasScr[nCh].TestInfo.SerialNo, nCh);
+      DongaGmes.SendHostIns_Pchk(PasScr[nCh].TestInfo.SerialNo, nCh,PasScr[nCh].m_sMateriID);
     end;
     DefGmes.MES_EICR : begin
       //sDebug := 'MSG_TYPE_HOST, MES_EICR, PG'+IntToStr(nCh+1); Common.MLog(DefCommon.MAX_SYSTEM_LOG,sDebug); //IMSI
-      DongaGmes.SendHostEicr(PasScr[nCh].TestInfo.SerialNo, nCh, PasScr[nCh].m_sCarrierId{.TestInfo.CarrierId});
+      DongaGmes.SendHostEicr(PasScr[nCh].TestInfo.SerialNo, nCh, PasScr[nCh].m_sMateriID{.TestInfo.CarrierId});
     end;
     Defgmes.MES_RPR_EIJR : begin
-      DongaGmes.SendHostRPr_Eijr(PasScr[nCh].TestInfo.SerialNo, nCh);
+      DongaGmes.SendHostRPr_Eijr(PasScr[nCh].TestInfo.SerialNo, nCh,PasScr[nCh].m_sMateriID);
     end;
     DefGmes.MES_APDR : begin
       DongaGmes.MesData[nCh].ApdrData := PasScr[nCh].TestInfo.ApdrData;
@@ -2997,7 +3011,8 @@ var
   nCHGoup, nAnother : Integer;
   nScriptSEQ: Integer;
   i: Integer;
-  sMsg : string;
+  sMsg,sDLLVer : string;
+
 begin
   //Application.ProcessMessages;
   nCHGoup:= pGUIMsg.Channel;
@@ -3015,6 +3030,7 @@ begin
       end
       else if pGUIMsg.Param = 2 then begin
         pnlOC_conVer.Caption :=  sMsg;
+
         if Length(sMsg) = 0 then
           ShowNgMessage('OC_OC_Converter.dll VER Verifying the Version');
       end;
@@ -4503,7 +4519,7 @@ begin
   //4채널 동시 진행으로 수정
   nStage:= GetStageNo_LoadZone;
 
-  ShowSysLog(format('Robot_Request_Load %d', [nCh +1]));
+  ShowSysLog(format('Robot_Request_Load %d', [nCh]));
 
   Common.StatusInfo.Loading:= True; //로딩 중 Interlock
 
@@ -5078,7 +5094,7 @@ begin
   //4채널 동시 진행으로 수정
   nStage:= GetStageNo_LoadZone;
 
-  ShowSysLog(format('Robot_Request_UnLoad %d', [nCh +1]));
+  ShowSysLog(format('Robot_Request_UnLoad %d', [nCh]));
 
   Common.StatusInfo.Loading:= True; //로딩 중 Interlock
   for I := 21 to 30 do
@@ -5709,7 +5725,7 @@ begin
       ShowSysLog('PLC not Connected', 1);
       Exit;
     end;
-    if not CheckPG_Connect(0) then begin
+    if not CheckPG_Connect(DefCommon.MAX_PG_CNT) then begin
       ShowSysLog('Do not Auto Start - PG Disconnected');
       Exit;
     end;
@@ -5719,7 +5735,7 @@ begin
       if Common.StatusInfo.AutoMode then Exit;
       g_CommPLC.IgnoreConnect:= False;
 
-      if not CheckPG_Connect(0) then begin
+      if not CheckPG_Connect(DefCommon.MAX_PG_CNT) then begin
         ShowSysLog('Do not Auto Start - PG Disconnected');
         Exit;
       end;
@@ -6616,7 +6632,8 @@ begin
       sMsg  := PGuiPg2Main(PCopyDataStruct(CopyMsg.LParam)^.lpData)^.sMsg;
       case nTemp of
         DefCommon.PG_CONN_DISCONNECTED : begin
-
+          if g_CommPLC <> nil then
+            Set_AlarmData(111, 1, 1);
 
         end;
         DefCommon.PG_CONN_CONNECTED : begin
@@ -6766,7 +6783,7 @@ end;
 procedure TfrmMain_OC.WMCopyData(var Msg: TMessage);
 var
   nType, nMode, nCh, nTemp : Integer;
-  sMsg,sSubMsg : string;
+  sMsg,sSubMsg,sDLLVer : string;
   pGUIMsg: PGUIMessage;
 begin
   nType := PGuiSwitch(PCopyDataStruct(Msg.LParam)^.lpData)^.MsgType;
@@ -6828,6 +6845,11 @@ begin
             pnlOC_conVer.Caption :=  sMsg;
             ShowSysLog(Format('DAE_DLLNam : %s',[sMsg]), 0);
             Common.SystemInfo.OC_Converter_Name := sMsg;
+
+            sDLLVer := Copy(sMsg,Pos(':',sMsg)+1,Length(sMsg));
+            if Common.IfVersionIsLessThan(Trim(sDLLVer),VERSION_DLL) <> 0 then
+              ShowNgMessage(format('Please use OC_Converter.dll VER (%s) or later.. Current VER(%s)',[VERSION_DLL,Trim(sDLLVer)]));
+
             if Length(sMsg) = 0 then
               ShowNgMessage('OC_Converter.dll VER Verifying the Version');
           end;

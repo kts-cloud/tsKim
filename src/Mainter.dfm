@@ -48,7 +48,7 @@ object frmMainter: TfrmMainter
     Width = 1470
     Height = 920
     Hint = ''
-    ActivePage = TabSheet4
+    ActivePage = TabSheet1
     ActivePageDefault = TabSheet1
     Align = alClient
     Font.Charset = DEFAULT_CHARSET
@@ -58,7 +58,7 @@ object frmMainter: TfrmMainter
     Font.Style = []
     ParentFont = False
     SoftCorners = True
-    TabIndex = 6
+    TabIndex = 0
     TabOrder = 1
     FixedDimension = 25
     object TabSheet1: TRzTabSheet
@@ -1928,11 +1928,13 @@ object frmMainter: TfrmMainter
             ImeName = 'Microsoft IME 2010'
             ParentFont = False
             TabOrder = 2
+            Text = 'Ch 1'
             Items.Strings = (
               'Ch 1'
               'Ch 2'
               'Ch 3'
               'Ch 4')
+            ItemIndex = 0
             Values.Strings = (
               'CH 1'
               'CH 2'

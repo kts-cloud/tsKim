@@ -167,7 +167,7 @@ type
     edtECS_Timeout_ECS: TRzEdit;
     RzGroupBox4: TRzGroupBox;
     chkInterlock_SW: TRzCheckBox;
-    edtVrsion_SW: TRzEdit;
+    edtVrsion_DLL: TRzEdit;
     RzPanel28: TRzPanel;
     RzPanel29: TRzPanel;
     edtVrsion_Script: TRzEdit;
@@ -983,9 +983,10 @@ begin
 
   with Common.InterlockInfo do begin
     Use             := chkInterlock_SW.Checked;
-    Version_SW      := edtVrsion_SW.Text;
+//    Version_SW      := edtVrsion_SW.Text;
     Version_Script  := edtVrsion_Script.Text;
     Version_FW      := edtVrsion_FW.Text;
+    Version_DLL     := edtVrsion_Dll.Text;
 //    Version_FPGA    := edtVrsion_FPGA.Text;
 //    Version_Power   := edtVrsion_Power.Text;
   end;
@@ -1415,7 +1416,8 @@ begin
 
   with Common.InterlockInfo do begin
     chkInterlock_SW.Checked  := Common.InterlockInfo.Use;
-    edtVrsion_SW.Text        := Common.InterlockInfo.Version_SW;
+    edtVrsion_DLL.Text        := Common.InterlockInfo.Version_DLL;
+
     edtVrsion_Script.Text    := Common.InterlockInfo.Version_Script;
     edtVrsion_FW.Text        := Common.InterlockInfo.Version_FW;
     //edtVrsion_FPGA.Text      := Common.InterlockInfo.Version_FPGA;

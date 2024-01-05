@@ -255,6 +255,8 @@ type
     procedure DisplayPGStatuses(nCH,nResult :Integer);
     function WriteR2RData(nCh : Integer): Integer;
     procedure ShowNgMessage(sMessage: string);
+
+    procedure ControlIRTemp (nCh,nTemp : Integer);
   public
     { Public declarations }
     /// <summary> Main 폼 Handle - WM_COPYDATA</summary>
@@ -858,6 +860,25 @@ begin
       pnlPrevResult[i, k].Font.Color    := clBlack;
     end;
   end;
+end;
+
+procedure TfrmTest4ChOC.ControlIRTemp(nCh,nTemp: Integer);
+begin
+  if nTemp = 1 then begin
+    if (Common.SystemInfo.OCType = DefCommon.OCType) and (not Common.PLCInfo.InlineGIB) then begin
+      tmCheckIRTemp[nCh].Enabled := True;
+      m_nTempIrTact[nCh] := 0;
+      SaveCsvTempStatus(nCh,'START',frmTest4ChOC[0].m_bFanOnOff[nCh]);
+    end;
+  end;
+  if nTemp = 0 then begin
+    if (Common.SystemInfo.OCType = DefCommon.OCType) and (not Common.PLCInfo.InlineGIB) then begin
+      tmCheckIRTemp[nCh].Enabled := False;   // IR 센서 저장 종료
+      ControlDio.WriteDioSig(DefDio.OUT_CH1_PMIC_FAN_ON + 16 * nCH,True); // FAN DIO OFF
+      SaveCsvTempStatus(nCh,'END',m_bFanOnOff[nCh]);
+    end;
+  end;
+
 end;
 
 procedure TfrmTest4ChOC.CreateGui;
@@ -2464,6 +2485,7 @@ var
         mmChannelLog[nCh].Lines.Add(sDebug);
         mmChannelLog[nCh].Perform(EM_SCROLL,SB_LINEDOWN,0);
         Common.MLog(nCh+self.Tag*4,'PG BOARD DISCONNECT NG : '+sMsg);
+
       end;
       DefCommon.PG_CONN_CONNECTED : begin
         ledPGStatuses[nCh].FalseColor := clYellow;
@@ -3055,7 +3077,7 @@ begin
         sDebug := Format('<HAND-BCR> Send PCHK Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
         Common.MLog(nJigCh,sDebug);
         Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
-        DongaGmes.SendHostPchk(sRemoveCr, nJigCh);
+        DongaGmes.SendHostPchk(sRemoveCr, nJigCh,'');
         pnlMESResults[nJigCh].Color      := clBtnFace;
         pnlMESResults[nJigCh].Font.Color := clBlack;
         pnlMESResults[nJigCh].Caption    := 'SEND PCHK';
@@ -3164,7 +3186,7 @@ begin
               pnlMESResults[nJigCh].Caption    := 'SEND LPIR';
             end;
 
-            DongaGmes.SendHostPchk(sRemoveCr, nJigCh);
+            DongaGmes.SendHostPchk(sRemoveCr, nJigCh,'');
             pnlMESResults[nJigCh].Color      := clBtnFace;
             pnlMESResults[nJigCh].Font.Color := clBlack;
             pnlMESResults[nJigCh].Caption    := 'SEND PCHK';
@@ -4316,20 +4338,17 @@ begin
           end;
 
           pnlNowDelayTimes[nCh].Caption := '0'; // DLL Delay Time 0 표시
-          PasScr[nCH].TestInfo.EndTime := now;  // Added by KTS 2023-05-19 오후 1:09:57 End Time
           PG[nCH].DP860_SendOcOnOff(0{end},2000,0); //2023-03-28 jhhwang (for T/T Test)
           PG[nCH].SetCyclicTimer(True); //2023-03-28 jhhwang (for T/T Test)
           CSharpDll.m_bIsProcessDone[nCH] := true;    // CH 종료 확인
           PasScr[nCH].m_First_Process_DONE := false;  //Pre OC First_Process 진행 여부 확인 초기화
           AddLog(format('DLL DONE : %d, NG Code=%d', [nCH +1, PasScr[nCh].m_nNgCode]), nCH, 0);
           // Added by sam81 2023-04-24 오후 3:40:07 oc 보상 종료 시 Tact time stop
+          PasScr[nCH].TestInfo.EndTime := now;  // Added by KTS 2023-05-19 오후 1:09:57 End Time
+          PasScr[nCH].TestInfo.EdUnitTact := Now;
           StopTotalTimer(tmUnitTactTime[nCh],nCh,2);
           tmUnitTactTime[nCh].Enabled := False;
-          if (Common.SystemInfo.OCType = DefCommon.OCType) and (not Common.PLCInfo.InlineGIB) then begin
-            tmCheckIRTemp[nCh].Enabled := False;   // IR 센서 저장 종료
-            ControlDio.WriteDioSig(DefDio.OUT_CH1_PMIC_FAN_ON + 16 * nCH,True); // FAN DIO OFF
-            SaveCsvTempStatus(nCh,'END',m_bFanOnOff[nCh]);
-          end;
+
           DisplayPGStatuses(nCh,PasScr[nCh].m_nNgCode); // 종료 시 바로 결과 Display
 
           case nCH of
@@ -4484,6 +4503,11 @@ begin
             Common.MLog(nCh+self.Tag*4,format('pnlMesConfirm[%d].Visible : false',[nCh]));
             PasScr[nCh].HostEvntConfirm(2);
           end;
+        end;
+
+        DefCommon.MSG_MODE_IRTEMP : begin
+          nTemp := PGuiScript(PCopyDataStruct(Msg.LParam)^.lpData)^.nParam;
+          ControlIRTemp(nCh,nTemp);
         end;
 
         DefCommon.MSG_MODE_ANGING_TIME : begin

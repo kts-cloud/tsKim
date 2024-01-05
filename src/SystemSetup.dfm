@@ -2034,9 +2034,9 @@ object frmSystemSetup: TfrmSystemSetup
           UseCustomGlyphs = True
           OnClick = chkAutoBackupClick
         end
-        object edtVrsion_SW: TRzEdit
-          Left = 110
-          Top = 44
+        object edtVrsion_DLL: TRzEdit
+          Left = 111
+          Top = 45
           Width = 282
           Height = 21
           Text = ''
@@ -2051,7 +2051,7 @@ object frmSystemSetup: TfrmSystemSetup
           Width = 99
           Height = 21
           BorderOuter = fsFlatRounded
-          Caption = 'S/W Version'
+          Caption = 'OC_DLL Version'
           Font.Charset = ANSI_CHARSET
           Font.Color = clBlack
           Font.Height = -11
@@ -2074,6 +2074,7 @@ object frmSystemSetup: TfrmSystemSetup
           Font.Style = []
           ParentFont = False
           TabOrder = 3
+          Visible = False
         end
         object edtVrsion_Script: TRzEdit
           Left = 110
@@ -2085,6 +2086,7 @@ object frmSystemSetup: TfrmSystemSetup
           FrameVisible = True
           ImeName = 'Microsoft IME 2010'
           TabOrder = 4
+          Visible = False
         end
         object RzPanel30: TRzPanel
           Left = 7
@@ -2100,6 +2102,7 @@ object frmSystemSetup: TfrmSystemSetup
           Font.Style = []
           ParentFont = False
           TabOrder = 5
+          Visible = False
         end
         object edtVrsion_FW: TRzEdit
           Left = 110
@@ -2111,6 +2114,7 @@ object frmSystemSetup: TfrmSystemSetup
           FrameVisible = True
           ImeName = 'Microsoft IME 2010'
           TabOrder = 6
+          Visible = False
         end
         object RzPanel31: TRzPanel
           Left = 7

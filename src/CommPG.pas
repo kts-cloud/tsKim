@@ -396,11 +396,11 @@ type
     //------------------------------------------------------ PG_DP860 Command (APL)
 		function DP860_SendBistAPL(nR,nG,nB,nStartX,nStartY,nEndX,nEndY: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
     //------------------------------------------------------ PG_DP860 Command (TCON)
-		function DP860_SendTconRead(nRegAddr,nDataCnt: Integer; var arDataR: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
-		function DP860_SendTconWrite(nRegAddr,nDataCnt: Integer; arDataW: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
+		function DP860_SendTconRead(nRegAddr,nDataCnt: Integer; var arDataR: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0;  nDebugLog : integer= 0): DWORD;
+		function DP860_SendTconWrite(nRegAddr,nDataCnt: Integer; arDataW: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0; nDebugLog : integer= 0): DWORD;
     function DP860_SendTconOCWrite(nRegAddr,nDataCnt: Integer; arDataW: TIDBytes; nWaitMS: Integer=0; nRetry: Integer=0): DWORD;
     function DP860_SendTconMultiWrite(nDataCnt: Integer; arRegAddr : array of integer; arDataW: TIDBytes; nWaitMS: Integer=0; nRetry: Integer=0): DWORD;
-    function DP860_SendTconSeqWrite(nMode,nSeqIdx,nDataCnt: Integer; arRegAddr : array of integer; arDataW: TIDBytes; nWaitMS: Integer=0; nRetry: Integer=0): DWORD;
+    function DP860_SendTconSeqWrite(nMode,nSeqIdx,nDataCnt: Integer; arRegAddr : array of integer; arDataW: TIDBytes; nWaitMS: Integer=0; nRetry: Integer=0;  nDebugLog : integer= 0): DWORD;
     function DP860_SendProgrammingWrite(nDevaddr,nRegAddr,nDataCnt: Integer; arDataW: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
     function DP860_SendChkEnable(nEnable: Integer; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
 
@@ -449,9 +449,9 @@ type
     function SendDimmingBist(nDimming: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
 		function SendPocbOnOff(bOn: Boolean; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //FEATURE_POCB_ONOFF
     //------------------------------------------------------ FLOW-SPECIFIC (I2C)
-    function SendI2CRead(nDevAddr,nRegAddr,nDataCnt: Integer; var arDataR: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
+    function SendI2CRead(nDevAddr,nRegAddr,nDataCnt: Integer; var arDataR: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0; nDebugLog : integer= 0): DWORD;
 	//{$IFDEF INSPECTOR_POCB}
-    function SendI2CWrite(nDevAddr,nRegAddr,nDataCnt: Integer; arDataW: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
+    function SendI2CWrite(nDevAddr,nRegAddr,nDataCnt: Integer; arDataW: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0; nDebugLog : integer= 0): DWORD;
     function SendI2CMultiWrite(nDevAddr,nDataCnt: Integer; arRegAddr : array of integer; arDataW: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
     function SendI2CSeqWrite(nMode,nSeqIdx,nDataCnt: Integer; arRegAddr : array of integer; arDataW: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
 
@@ -2613,6 +2613,7 @@ begin
       //
       InitPgVer;
 			ShowTestWindow(Defcommon.MSG_MODE_DISPLAY_CONNECTION, DefCommon.PG_CONN_DISCONNECTED, 'DP860 Disconnected');
+      ShowMainWindow(Defcommon.MSG_MODE_DISPLAY_CONNECTION, DefCommon.PG_CONN_DISCONNECTED, 'DP860 Disconnected');
       // Change ConnCheck Interval
   		tmConnCheck.Enabled  := False;
   		tmConnCheck.Interval := 1000;
@@ -4022,7 +4023,7 @@ end;
 //		- function TCommPG.DP860_SendTconRead(nRegAddr,nDataCnt: Integer; var arDataR: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
 //		- function TCommPG.DP860_SendTconWrite(nRegAddr,nDataCnt: Integer; arDataW: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
 //
-function TCommPG.DP860_SendTconRead(nRegAddr,nDataCnt: Integer; var arDataR: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
+function TCommPG.DP860_SendTconRead(nRegAddr,nDataCnt: Integer; var arDataR: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0; nDebugLog : integer= 0): DWORD;
 var
 	nCmdId : Integer;
 	sCmdName, sCommand, sDebug, sEtcMsg : string;
@@ -4063,7 +4064,7 @@ begin
     end;
   end;
   //
-  if {(Common.SystemInfo.DebugLogLevelConfig > 0) or} (Result <> 0) then begin
+  if (nDebugLog = 1) and {(Common.SystemInfo.DebugLogLevelConfig > 0) or} (Result <> 0) then begin
 	  sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
     ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
   end;
@@ -4087,7 +4088,7 @@ begin
     Result := 'Not found';
 end;
 
-function TCommPG.DP860_SendTconWrite(nRegAddr,nDataCnt: Integer; arDataW: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
+function TCommPG.DP860_SendTconWrite(nRegAddr,nDataCnt: Integer; arDataW: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0; nDebugLog : integer=0): DWORD;
 var
 	nCmdId : Integer;
 	sCmdName, sCommand, sDebug, sEtcMsg : string;
@@ -4140,7 +4141,7 @@ begin
     sEtcMsg := sEtcMsg + '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr) +'-' + FTxRxPG.RxPrevStr+']';
   end;
   //
-  if ((Common.SystemInfo.DebugLogLevelConfig > 0) and Common.SystemInfo.PG_TconWriteLogDisplay) or (Result <> 0) then begin
+  if (nDebugLog = 1) and (Common.SystemInfo.DebugLogLevelConfig > 0) and (Common.SystemInfo.PG_TconWriteLogDisplay) or (Result <> 0) then begin
 //    sDebug := '<PG> Previous Command : ' + sPreviousCommand;
 //    ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
     sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
@@ -4238,7 +4239,7 @@ begin
 		sCommand := sCommand + ' ' + Format('0x%0.4x 0x%0.2x',[arRegAddr[i],arDataW[i]]);
 	end;
 	Result := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
-  Inc(TconRWCnt.TconOcWriteTX);   //2023-03-28 jhhwang (for T/T Test)
+  Inc(TconRWCnt.TconMultiWriteDllCall);   //2023-03-28 jhhwang (for T/T Test)
   Inc(TconRWCnt.ContTConOcWrite); //2023-03-28 jhhwang (for T/T Test)
 
   if Result <> WAIT_OBJECT_0 then begin
@@ -4252,7 +4253,7 @@ begin
   end;
 end;
 
-function TCommPG.DP860_SendTconSeqWrite(nMode,nSeqIdx, nDataCnt: Integer; arRegAddr : array of integer; arDataW: TIDBytes; nWaitMS: Integer=0; nRetry: Integer=0): DWORD;
+function TCommPG.DP860_SendTconSeqWrite(nMode,nSeqIdx, nDataCnt: Integer; arRegAddr : array of integer; arDataW: TIDBytes; nWaitMS: Integer=0; nRetry: Integer=0; nDebugLog : integer= 0): DWORD;
 var
 	nCmdId : Integer;
 	sCmdName, sCommand, sDebug, sEtcMsg : string;
@@ -4281,15 +4282,15 @@ begin
   else begin
 
   end;
-  Inc(TconRWCnt.TconOcWriteTX);   //2023-03-28 jhhwang (for T/T Test)
-  Inc(TconRWCnt.ContTConOcWrite); //2023-03-28 jhhwang (for T/T Test)
+  Inc(TconRWCnt.TconSeqWriteDllCall);   //2023-03-28 jhhwang (for T/T Test)
+
 
   if Result <> WAIT_OBJECT_0 then begin
     sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr) +'-' + FTxRxPG.RxPrevStr+']';
 //    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
   end;
   //
-  if (Common.SystemInfo.DebugLogLevelConfig > 0) or (Result <> 0) then begin
+  if(nDebugLog = 1) and (Common.SystemInfo.DebugLogLevelConfig > 0) or (Result <> 0) then begin
 //  if ((Common.SystemInfo.DebugLogLevelConfig > 0) and Common.SystemInfo.PG_TconWriteLogDisplay) or (Result <> 0) then begin
 //    sDebug := '<PG> Previous Command : ' + sPreviousCommand;
 //    ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
@@ -4734,7 +4735,7 @@ begin
   sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
   with TconRWCnt do begin
     if nState = 1 then DP860_ClearOcTconRWCnt; //OC DLL Start
-    sDebug := sDebug + Format('[SW:DllRead(%d)DllWrite(%d),ReadTX(%d)Write(%d)OcWrite(%d)ReadArray(%d)WriteArray(%d)MultiWrite(%d)SeqWrite(%d)',[TconReadDllCall,TconWriteDllCall,TconReadTX,TConWriteTX,TConOcWriteTX,TconReadArrayDllCall,TconWriteArrayDllCall,TconMultiWriteDllCall,TconSeqWriteDllCall]);
+    sDebug := sDebug + Format('[SW:DllRead(%d)DllWrite(%d),ReadTX(%d)Write(%d)ReadArray(%d)WriteArray(%d)MultiWrite(%d)SeqWrite(%d)',[TconReadDllCall,TconWriteDllCall,TconReadTX,TConWriteTX,TconReadArrayDllCall,TconWriteArrayDllCall,TconMultiWriteDllCall,TconSeqWriteDllCall]);
     sDebug := sDebug + Format('RetryRead(%d)RetryWrite(%d)',[TconRetryReadCall,TconRetryWriteCall]);
   end;
   ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
@@ -5812,7 +5813,7 @@ end;
 //		- function TCommPG.SendI2CRead(nDevAddr,nRegAddr,nDataCnt: Integer; var arRData: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
 //		- function TCommPG.SendI2CWrite(nDevAddr,nRegAddr,nDataCnt: Integer; arWData: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
 //
-function TCommPG.SendI2CRead(nDevAddr,nRegAddr,nDataCnt: Integer; var arDataR: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
+function TCommPG.SendI2CRead(nDevAddr,nRegAddr,nDataCnt: Integer; var arDataR: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0; nDebugLog : integer= 0): DWORD;
 var
   sDebug  : string;
   i       : Integer;
@@ -5846,7 +5847,7 @@ if Length(arDataR) < nDataCnt then begin
       {$IF Defined(INSPECTOR_OC) or Defined(INSPECTOR_PreOC)} //2023-03-28 jhhwang (for OC T/T)
       if Common.SystemInfo.PG_TconWriteCmdType = 0 then Sleep(Common.SystemInfo.PG_TconReadBeforeDelayMsec); //2023-04-24 jhhwang (for T/T Test) (if oc.write)
   		{$ENDIF}
-			Result := DP860_SendTConRead(nRegAddr,nDataCnt,btaData, nWaitMS,nRetry);
+			Result := DP860_SendTConRead(nRegAddr,nDataCnt,btaData, nWaitMS,nRetry,nDebugLog);
 		end;
 		{$ENDIF}
 	end;
@@ -5860,7 +5861,7 @@ if Length(arDataR) < nDataCnt then begin
   end;
 end;
 
-function TCommPG.SendI2CWrite(nDevAddr,nRegAddr,nDataCnt: Integer; arDataW: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
+function TCommPG.SendI2CWrite(nDevAddr,nRegAddr,nDataCnt: Integer; arDataW: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0; nDebugLog : integer= 0): DWORD;
 var
 	{$IFDEF PG_AF9}
   nApiRtn : Integer;
@@ -5901,7 +5902,7 @@ begin
             end;
           end
           else begin
-            Result := DP860_SendTconWrite(nRegAddr,nDataCnt,arDataW, nWaitMS,nRetry);
+            Result := DP860_SendTconWrite(nRegAddr,nDataCnt,arDataW, nWaitMS,nRetry,nDebugLog);
             if Common.SystemInfo.PG_TconOcWriteDelayMsec > 0 then
               Sleep(Common.SystemInfo.PG_TconOcWriteDelayMsec)
             else if Common.SystemInfo.PG_TconOcWriteDelayMicroSec > 0 then
@@ -5912,7 +5913,7 @@ begin
           end;
         end;
         1 : begin // all tcon.write (ack)
-    			Result := DP860_SendTconWrite(nRegAddr,nDataCnt,arDataW, nWaitMS,nRetry);
+    			Result := DP860_SendTconWrite(nRegAddr,nDataCnt,arDataW, nWaitMS,nRetry,nDebugLog);
           if Common.SystemInfo.PG_TconOcWriteDelayMsec > 0 then
             Sleep(Common.SystemInfo.PG_TconOcWriteDelayMsec)
           else if Common.SystemInfo.PG_TconOcWriteDelayMicroSec > 0 then
@@ -5936,7 +5937,7 @@ begin
           end;
           //
           if bWriteSync then begin
-            Result := DP860_SendTconWrite(nRegAddr,nDataCnt,arDataW, nWaitMS,nRetry);
+            Result := DP860_SendTconWrite(nRegAddr,nDataCnt,arDataW, nWaitMS,nRetry,nDebugLog);
           end
           else begin
       			Result := DP860_SendTconOCWrite(nRegAddr,nDataCnt,arDataW, 0{nWaitMS},0);
@@ -5945,7 +5946,7 @@ begin
         end;
       end;
       {$ELSE}
-			Result := DP860_SendTconWrite(nRegAddr,nDataCnt,arDataW, nWaitMS,nRetry);
+			Result := DP860_SendTconWrite(nRegAddr,nDataCnt,arDataW, nWaitMS,nRetry,nDebugLog);
       {$ENDIF}
 		end;
 		{$ENDIF}

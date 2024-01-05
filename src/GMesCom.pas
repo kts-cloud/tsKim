@@ -21,6 +21,31 @@ type
     Key: string;
     Value: string;
   end;
+
+  /// <summary> ECS MES Item Value</summary>
+  TQueItemValue = record
+    State: Integer;
+    Kind: Integer; //MES_PCHK, MES_EICR ..
+    Tick: Cardinal;
+    Timeout: Cardinal;
+    Channel: Integer;
+    SerialNo: String;
+    CarrierID: String;
+    MESCode: String;
+    LpirProcessCode : string;
+    ApdrData: string;
+    InspectionResult: String;
+    BondingType: Integer;
+    PcbID: String;
+    Time_Start: TDateTime;
+    Time_End: TDateTime;
+    Tact: String;
+    SendData: String;
+    LCM_ID: String; //PCHK 응답 코드
+    //Return
+    Ack: Integer; //0=OK, other NG
+    EventHandle: HWND;
+  end;
 type
 
   TGmesDataPack = record
@@ -53,6 +78,9 @@ type
     ApdrRtnCode     : String; // PCHK_R.RTN_CD
     ApdrRtnSerialNo : String; // PCHK_R.RTN_SERIAL_NO
     LpirProcessCode : string; // LPIR Process Code
+    ErrMsg_Cd       : String; // Error Code
+    ErrMsg_Loc      : String; // Error Message Local
+    ErrMsg_Eng      : String; // Error Message English
   end;
 
   PSyncHost = ^RSyncHost;
@@ -89,6 +117,7 @@ type
     FMesModelInfo  : string;
     FMesRtnCd      : string;
     FMesRtnPID     : string;
+    FMesErrCd      : string;
     FMesErrMsgLc   : string;
     FMesZig_ID        : string;
     FMesCarrier_ID : string;
@@ -150,6 +179,12 @@ type
     // 내부적으로 Serial Number를 이용하여 PG Idx를 구하자.
     m_sPgSerial : array [DefCommon.CH1..DefCommon.MAX_CH] of string;
     FMesSerialType: Integer;
+    FRcpInfo: string;
+    FIsEdtiOn: boolean;
+
+    m_Queue : TQueue<TQueItemValue>;
+    m_nQueChannel: Integer;
+    m_MESItem: TQueItemValue;
 
     function GetLocalIp : string;
 
@@ -236,9 +271,9 @@ type
     procedure GetEasData(sMsg : string);
     procedure GetR2RData(sMsg: string);
     procedure SendHostEicr(sSerialNo : string; nPg : Integer; sJigId : string; bIsDelayed : Boolean = False);  //JHHWANG-GMES: 2018-06-20
-    procedure SendHostEijr(sSerialNo : string; nPg : Integer; bIsDelayed : Boolean = False);
-    procedure SendHostIns_Pchk(sSerialNo : string;nPg : Integer; bIsDelayed : Boolean = False);
-    procedure SendHostRPr_Eijr(sSerialNo : string; nPg : Integer; bIsDelayed : Boolean = False);
+    procedure SendHostEijr(sSerialNo : string; nPg : Integer; sJigId : string; bIsDelayed : Boolean = False);
+    procedure SendHostIns_Pchk(sSerialNo : string;nPg : Integer; sJigId : string; bIsDelayed : Boolean = False);
+    procedure SendHostRPr_Eijr(sSerialNo : string; nPg : Integer; sJigId : string; bIsDelayed : Boolean = False);
     procedure SendHostRpr_Vsir(sSerialNo : string;nPg : Integer);
     procedure SendHostRePn(sSerialNo: string; nPg: Integer); // Added by modong 2014-06-20 Label Print 통신 추가
     procedure SendHostEayt;
@@ -246,7 +281,7 @@ type
     procedure SendHostEqcc;
     procedure SendHostZset(sPid, sZigId : string);
     procedure SendHostSGEN(sSerialNo: string; nPg: Integer; bIsDelayed: Boolean= False);
-    procedure SendHostPchk(sSerialNo : string; nPg : Integer; bIsDelayed : Boolean = False);  //JHHWANG-GMES: 2018-06-20
+    procedure SendHostPchk(sSerialNo : string; nPg : Integer; sJigId : string; bIsDelayed : Boolean = False);  //JHHWANG-GMES: 2018-06-20
     procedure SendHostLpir(sSerialNo : string; nPg : Integer; bIsDelayed : Boolean = False);
     procedure SendHostFldr(sMsg : string);
     procedure SendHostApdr(sSerialNo : string; nPg : Integer; bIsDelayed : Boolean = False);
@@ -466,13 +501,17 @@ begin
     SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPgNo,'MES REV : ' + sMsg);
   end;
 
+  MesData[nPgNo].ErrMsg_Cd:= FMesErrCd;
+  MesData[nPgNo].ErrMsg_Loc:= FMesErrMsgLc;
+  MesData[nPgNo].ErrMsg_Eng:= FMesErrMsgEn;
+
   if FMesRtnCd = '0' then begin
 //		MesData[nPgNo].EICR := True;
     ReturnDataToTestForm(DefGmes.MES_EICR,nPgNo,False,EICR_OK_MSG);
   end
   else begin
 //		MesData[nPgNo].EICR := False;
-    ErrMsg := 'Error code:'+FMesRtnCd+' : '+FMesErrMsgLc + '('+ FMesErrMsgEn + ')';
+    ErrMsg := 'Error code:'+FMesRtnCd+':' + FMesErrCd + ':' +FMesErrMsgLc + '('+ FMesErrMsgEn + ')';
     ReturnDataToTestForm(DefGmes.MES_EICR,nPgNo,True,ErrMsg);
   end;
 
@@ -505,6 +544,10 @@ begin
 //    Common.MLog(nPgNo,sMsg);
     SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPgNo,sMsg);
   end;
+
+  MesData[nPgNo].ErrMsg_Cd:= FMesErrCd;
+  MesData[nPgNo].ErrMsg_Loc:= FMesErrMsgLc;
+  MesData[nPgNo].ErrMsg_Eng:= FMesErrMsgEn;
 
   if FMesRtnCd = '0' then begin
     ReturnDataToTestForm(DefGmes.MES_EIJR,nPgNo,False,EICR_OK_MSG);
@@ -583,6 +626,10 @@ begin
   end;
 
   MesData[nPgNo].Model := FMesModel;
+  MesData[nPgNo].ErrMsg_Cd:= FMesErrCd;
+  MesData[nPgNo].ErrMsg_Loc:= FMesErrMsgLc;
+  MesData[nPgNo].ErrMsg_Eng:= FMesErrMsgEn;
+
 	if FMesRtnCd = '0' then begin
     MesData[nPgNo].bPCHK := True;
     ReturnDataToTestForm(DefGmes.MES_INS_PCHK, nPgNo, False, PCHK_OK_MSG);
@@ -711,6 +758,9 @@ begin
   end;
 
   MesData[nPgNo].Model := FMesModel;
+  MesData[nPgNo].ErrMsg_Cd:= FMesErrCd;
+  MesData[nPgNo].ErrMsg_Loc:= FMesErrMsgLc;
+  MesData[nPgNo].ErrMsg_Eng:= FMesErrMsgEn;
 	if FMesRtnCd = '0' then begin
     MesData[nPgNo].bPCHK := True;
     ReturnDataToTestForm(DefGmes.MES_PCHK, nPgNo, False, PCHK_OK_MSG);
@@ -808,7 +858,9 @@ begin
   MesData[nPgNo].SerialNo       := sSerialNo;  // PCHK_R.RTN_SERIAL_NO
 
   MesData[nPgNo].MesSentMsg := MES_UNKNOWN; // JHHWANG-GMES 2018-06-27
-
+  MesData[nPgNo].ErrMsg_Cd:= FMesErrCd;
+  MesData[nPgNo].ErrMsg_Loc:= FMesErrMsgLc;
+  MesData[nPgNo].ErrMsg_Eng:= FMesErrMsgEn;
   if FMesRtnCd = '0' then begin
     ReturnDataToTestForm(DefGmes.MES_RPR_EIJR,nPgNo,False,RPR_EIJR_OK_MSG);
   end
@@ -1335,7 +1387,7 @@ begin
   tmGmesResponse.Interval := 3000;  // 100 msec
   tmGmesResponse.OnTimer := OnGemsResponseTimer;
   tmGmesResponse.Enabled := False;
-
+  m_Queue:= TQueue<TQueItemValue>.Create;
 end;
 
 destructor TGmes.Destroy;
@@ -1364,6 +1416,8 @@ begin
     tmGmesResponse := nil;
   end;
 
+  m_Queue.Clear;
+  m_Queue.Free;
 
 
 {$IFDEF WIN32}
@@ -1560,6 +1614,7 @@ begin
 //  end;
 
 //  if CompareStr(sMode,'APDR_R') = 0 then parse_APDR(nCh,sMsg,False);
+  m_MESItem.State:= MES_UNKNOWN; //아이템 작업 완료
 end;
 
 procedure TGmes.GetHostData(sMsg: string);
@@ -1605,6 +1660,8 @@ begin
   else if CompareStr(sMode,'EIJR_R') = 0 then	begin
     parse_EIJR(nCh,sMsg);
   end;
+
+  m_MESItem.State:= MES_UNKNOWN; //아이템 작업 완료
 //	else if CompareStr(sMode,'RPR_VS') = 0 then	begin //RPR_VSIR
 //		parse_EICR;
 //	end
@@ -1640,24 +1697,48 @@ end;
 procedure TGmes.SendEasApdr(sSerialNo: string; nPg: Integer; bIsDelayed : Boolean = False);
 var
   sConvertSerial : string;
+  item: TQueItemValue;
 begin
   FMesApdrPg  := nPg;
   sConvertSerial := StringReplace(sSerialNo,#$24, #$0a, [rfReplaceAll]);
   sConvertSerial := StringReplace(sConvertSerial,#$25,#$0d , [rfReplaceAll]);
-  SEND_MESG2HOST(DefGmes.EAS_APDR,sConvertSerial,'',nPg, bIsDelayed);  //JHHWANG-GMES 2018-06-20
+
+  //SEND_MESG2HOST(DefGmes.EAS_APDR,sConvertSerial,'',nPg, bIsDelayed);  //JHHWANG-GMES 2018-06-20
+  item.Channel:=    nPg;
+  item.Kind:=       EAS_APDR;
+  item.Timeout:=    3000;
+  item.SerialNo:=   sConvertSerial;
+  item.Tact:=   MesData[nPg].Tact;
+  item.MESCode:=    MesData[nPg].Rwk;
+  item.ApdrData:=     MesData[nPg].ApdrData;
+  m_Queue.Enqueue(item);
+  tmGmesChMsg.Enabled:= True;
 end;
 
 procedure TGmes.SendHostApdr(sSerialNo : string; nPg : Integer; bIsDelayed : Boolean = False);
 var
   sConvertSerial : string;
+  item: TQueItemValue;
 begin
   FMesApdrPg  := nPg;
   sConvertSerial := StringReplace(sSerialNo,#$24, #$0a, [rfReplaceAll]);
   sConvertSerial := StringReplace(sConvertSerial,#$25,#$0d , [rfReplaceAll]);
-  SEND_MESG2HOST(DefGmes.MES_APDR,sConvertSerial,'',nPg, bIsDelayed);  //JHHWANG-GMES 2018-06-20
+
+  //SEND_MESG2HOST(DefGmes.MES_APDR,sConvertSerial,'',nPg, bIsDelayed);  //JHHWANG-GMES 2018-06-20
+  item.Channel:=    nPg;
+  item.Kind:=       MES_APDR;
+  item.Timeout:=    3000;
+  item.SerialNo:=   sConvertSerial;
+  item.Tact:=   MesData[nPg].Tact;
+  item.MESCode:=    MesData[nPg].Rwk;
+  item.ApdrData:=     MesData[nPg].ApdrData;
+  m_Queue.Enqueue(item);
+  tmGmesChMsg.Enabled:= True;
 end;
 
 procedure TGmes.SendHostEayt;
+var
+  item: TQueItemValue;
 begin
   FMesPg          := 0;
   FMesApdrPg      := 0;
@@ -1675,6 +1756,7 @@ procedure TGmes.SendHostEicr(sSerialNo : string; nPg : Integer; sJigId : string;
 var
   sConvertSerial : string;
   sConvertJig    : string;
+  item: TQueItemValue;
 begin
   FMesPg  := nPg;
   sConvertSerial := StringReplace(sSerialNo,#$24, #$0a, [rfReplaceAll]);
@@ -1684,20 +1766,43 @@ begin
     sConvertJig := sConvertSerial;
   sConvertJig := StringReplace(sJigId,#$24, #$0a, [rfReplaceAll]);
   sConvertJig := StringReplace(sConvertJig,#$25,#$0d , [rfReplaceAll]);
-  SEND_MESG2HOST(DefGmes.MES_EICR,sConvertSerial,sConvertJig,nPg,bIsDelayed);  //JHHWANG-GMES: 2018-06-20
-  Common.Delay(40);
+  //SEND_MESG2HOST(DefGmes.MES_EICR,sConvertSerial,sConvertJig,nPg,bIsDelayed);  //JHHWANG-GMES: 2018-06-20
+  //Common.Delay(40);
+
+  item.Channel:=    nPg;
+  item.Kind:=       MES_EICR;
+  item.Timeout:=    3000;
+  item.SerialNo:=   sConvertSerial;
+  item.CarrierID:=   sConvertJig;
+  item.Tact:=       MesData[nPg].Tact;
+  item.MESCode:=    MesData[nPg].Rwk;
+  //item.ApdrData:=     MesData[nPg].ApdrData;
+  m_Queue.Enqueue(item);
+  tmGmesChMsg.Enabled:= True;
 end;
 
-procedure TGmes.SendHostEijr(sSerialNo : string; nPg : Integer;bIsDelayed : Boolean = False);
+procedure TGmes.SendHostEijr(sSerialNo : string; nPg : Integer; sJigId : string; bIsDelayed : Boolean = False);
 var
-  sConvertSerial : string;
+  sConvertSerial,sConvertJig: string;
+  item: TQueItemValue;
 begin
   FMesPg  := nPg;
   FEiJRSend := True;
   sConvertSerial := StringReplace(sSerialNo,#$24, #$0a, [rfReplaceAll]);
   sConvertSerial := StringReplace(sConvertSerial,#$25,#$0d , [rfReplaceAll]);
   m_sPgSerial[nPg] := sConvertSerial;
-  SEND_MESG2HOST(DefGmes.MES_EIJR,sConvertSerial,'',nPg, bIsDelayed);  //JHHWANG-GMES: 2018-06-20
+  if Length(sJigId) = 0 then
+    sConvertJig := sConvertSerial;
+  sConvertJig := StringReplace(sJigId,#$24, #$0a, [rfReplaceAll]);
+  sConvertJig := StringReplace(sConvertJig,#$25,#$0d , [rfReplaceAll]);
+  //SEND_MESG2HOST(DefGmes.MES_EIJR,sConvertSerial,'',nPg, bIsDelayed);  //JHHWANG-GMES: 2018-06-20
+
+  item.Channel:=      nPg;
+  item.Kind:=         MES_EIJR;
+  item.Timeout:=      3000;
+  item.SerialNo:=     sConvertSerial;
+  m_Queue.Enqueue(item);
+  tmGmesChMsg.Enabled:= True;
 
 //  Common.Delay(40);
 end;
@@ -1726,9 +1831,10 @@ begin
   SEND_MESG2HOST(DefGmes.MES_SGEN, sConvertSerial,'',nPg, bIsDelayed);
 end;
 
-procedure TGmes.SendHostPchk(sSerialNo : string; nPg : Integer; bIsDelayed : Boolean = False);  //JHHWANG-GMES: 2018-06-20
+procedure TGmes.SendHostPchk(sSerialNo : string; nPg : Integer; sJigId: string; bIsDelayed : Boolean = False);  //JHHWANG-GMES: 2018-06-20
 var
-  sConvertSerial : string;
+  sConvertSerial,sConvertJig : string;
+  item: TQueItemValue;
 begin
   if Length(sSerialNo) = 0 then
     Exit;
@@ -1736,12 +1842,25 @@ begin
   sConvertSerial := StringReplace(sSerialNo,#$24, #$0a, [rfReplaceAll]);
   sConvertSerial := StringReplace(sConvertSerial,#$25,#$0d , [rfReplaceAll]);
   m_sPgSerial[nPg] := sConvertSerial;
-  SEND_MESG2HOST(DefGmes.MES_PCHK,sConvertSerial,'',nPg, bIsDelayed);  //JHHWANG-GMES: 2018-06-20);
+  if Length(sJigId) = 0 then
+    sConvertJig := sConvertSerial;
+  sConvertJig := StringReplace(sJigId,#$24, #$0a, [rfReplaceAll]);
+  sConvertJig := StringReplace(sConvertJig,#$25,#$0d , [rfReplaceAll]);
+//  SEND_MESG2HOST(DefGmes.MES_PCHK,sConvertSerial,'',nPg, bIsDelayed);  //JHHWANG-GMES: 2018-06-20);
+
+  item.Channel:=      nPg;
+  item.Kind:=         MES_PCHK;
+  item.Timeout:=      3000;
+  item.SerialNo:=     sConvertSerial;
+  item.CarrierID:=    sConvertJig;
+  m_Queue.Enqueue(item);
+  tmGmesChMsg.Enabled:= True;
 end;
 
 procedure TGmes.SendHostLpir(sSerialNo : string; nPg : Integer; bIsDelayed : Boolean = False);
 var
   sConvertSerial : string;
+  item: TQueItemValue;
 begin
   if Length(sSerialNo) = 0 then
     Exit;
@@ -1749,18 +1868,38 @@ begin
   sConvertSerial := StringReplace(sSerialNo,#$24, #$0a, [rfReplaceAll]);
   sConvertSerial := StringReplace(sConvertSerial,#$25,#$0d , [rfReplaceAll]);
   m_sPgSerial[nPg] := sConvertSerial;
-  SEND_MESG2HOST(DefGmes.MES_LPIR,sConvertSerial,'',nPg, bIsDelayed);  //JHHWANG-GMES: 2018-06-20);
+//  SEND_MESG2HOST(DefGmes.MES_LPIR,sConvertSerial,'',nPg, bIsDelayed);  //JHHWANG-GMES: 2018-06-20);
+  item.Channel:=      nPg;
+  item.Kind:=         MES_LPIR;
+  item.Timeout:=      3000;
+  item.SerialNo:=     sConvertSerial;
+  m_Queue.Enqueue(item);
+  tmGmesChMsg.Enabled:= True;
 end;
 
-procedure TGmes.SendHostIns_Pchk(sSerialNo: string; nPg: Integer; bIsDelayed : Boolean = False);
+procedure TGmes.SendHostIns_Pchk(sSerialNo: string; nPg: Integer; sJigId : string; bIsDelayed : Boolean = False);
 var
-  sConvertSerial : string;
+  sConvertSerial,sConvertJig : string;
+  item: TQueItemValue;
 begin
   FMesPg  := nPg;
   sConvertSerial := StringReplace(sSerialNo,#$24, #$0a, [rfReplaceAll]); // 24 -> $
   sConvertSerial := StringReplace(sConvertSerial,#$25, #$0d , [rfReplaceAll]);  // 25 -> %
   m_sPgSerial[nPg] := sConvertSerial;
-  SEND_MESG2HOST(DefGmes.MES_INS_PCHK,sConvertSerial,'',nPg,bIsDelayed);  //JHHWANG-GMES: 2018-06-20);
+  if Length(sJigId) = 0 then
+    sConvertJig := sConvertSerial;
+  sConvertJig := StringReplace(sJigId,#$24, #$0a, [rfReplaceAll]);
+  sConvertJig := StringReplace(sConvertJig,#$25,#$0d , [rfReplaceAll]);
+
+  //SEND_MESG2HOST(DefGmes.MES_INS_PCHK,sConvertSerial,'',nPg,bIsDelayed);  //JHHWANG-GMES: 2018-06-20);
+  item.Channel:=      nPg;
+  item.Kind:=         MES_INS_PCHK;
+  item.Timeout:=      3000;
+  item.SerialNo:=     sConvertSerial;
+  item.CarrierID:=    sConvertJig;
+  item.LpirProcessCode:=  MesData[nPg].LpirProcessCode;
+  m_Queue.Enqueue(item);
+  tmGmesChMsg.Enabled:= True;
 end;
 
 procedure TGmes.SendHostRpr_Vsir(sSerialNo: string; nPg: Integer);
@@ -1832,17 +1971,29 @@ begin
 //  DongaYT.Delay(40);
 end;
 
-procedure TGmes.SendHostRPr_Eijr(sSerialNo: string; nPg: Integer; bIsDelayed : Boolean = False);
+procedure TGmes.SendHostRPr_Eijr(sSerialNo: string; nPg: Integer; sJigId : string; bIsDelayed : Boolean = False);
 var
-  sConvertSerial : string;
+  sConvertSerial, sConvertJig: string;
+  item: TQueItemValue;
 begin
   FMesPg  := nPg;
   FEiJRSend := True;
   sConvertSerial := StringReplace(sSerialNo,#$24, #$0a, [rfReplaceAll]);
   sConvertSerial := StringReplace(sConvertSerial,#$25,#$0d , [rfReplaceAll]);
   m_sPgSerial[nPg] := sConvertSerial;
-//  common.MLog(nPg,'[SendHostRPr_Eijr] : '+sConvertSerial);
-  SEND_MESG2HOST(DefGmes.MES_RPR_EIJR,sConvertSerial,'',nPg,bIsDelayed);
+  if Length(sJigId) = 0 then
+    sConvertJig := sConvertSerial;
+  sConvertJig := StringReplace(sJigId,#$24, #$0a, [rfReplaceAll]);
+  sConvertJig := StringReplace(sConvertJig,#$25,#$0d , [rfReplaceAll]);
+  //SEND_MESG2HOST(DefGmes.MES_RPR_EIJR,sConvertSerial,'',nPg,bIsDelayed);
+
+  item.Channel:=      nPg;
+  item.Kind:=         MES_RPR_EIJR;
+  item.Timeout:=      3000;
+  item.SerialNo:=     sConvertSerial;
+  item.CarrierID:=    sConvertJig;
+  m_Queue.Enqueue(item);
+  tmGmesChMsg.Enabled:= True;
 end;
 
 procedure TGmes.SendHostUchk;
@@ -1923,7 +2074,10 @@ begin
       if Common.SystemInfo.OCType = DefCommon.OCType then begin
         sSerialNo := Trim(Copy(sSerialNo,1,Common.TestModelInfoFLOW.SerialNoFlashInfo.nLength)); // length 변경
         sSendMsg := sSendMsg  + ' PID=';
-        sSendMsg := sSendMsg  + ' SERIAL_NO='+sSerialNo;
+        if Pos('TEST_CH',sSerialNo) > 0 then
+          sSendMsg := sSendMsg  + ' ZIG_ID='+sZigId
+         else
+          sSendMsg := sSendMsg  + ' SERIAL_NO='+sSerialNo;
       end
       else begin
         sSerialNo := Trim(Copy(sSerialNo,1,30));
@@ -2025,7 +2179,10 @@ begin
       if Common.SystemInfo.OCType = DefCommon.OCType then begin
         sSerialNo := Trim(Copy(sSerialNo,1,Common.TestModelInfoFLOW.SerialNoFlashInfo.nLength)); // length 변경
         sSendMsg := sSendMsg  + ' PID=';
-        sSendMsg := sSendMsg  + ' SERIAL_NO='+sSerialNo;
+        if Pos('TEST_CH',sSerialNo) > 0 then
+          sSendMsg := sSendMsg  + ' ZIG_ID='+sZigId
+         else
+          sSendMsg := sSendMsg  + ' SERIAL_NO='+sSerialNo;
       end
       else begin
 //        sSerialNo := Trim(Copy(sSerialNo,0,30));
@@ -2172,8 +2329,9 @@ begin
       }
       //sSendMsg := sSendMsg  + ' SERIAL_NO=';
       if Common.SystemInfo.OCType = DefCommon.OCType then begin
-        if PasScr[nPg].m_sMateriID <> '' then
-          sSendMsg := sSendMsg  + ' ZIG_ID='+PasScr[nPg].m_sMateriID
+        sSendMsg := sSendMsg  + ' PID=';
+        if Pos('TEST_CH',sSerialNo) > 0 then
+          sSendMsg := sSendMsg  + ' ZIG_ID='+sZigId
          else
           sSendMsg := sSendMsg  + ' SERIAL_NO='+sSerialNo;
       end
@@ -2850,7 +3008,51 @@ var
   bWaitResponse  : Boolean;
   bStopTimer : Boolean;
   sDebug : string;
+  tick: Cardinal;
 begin
+
+  if m_MESItem.State <> MES_UNKNOWN then begin
+    //현재 작업 중 Timeout 검사
+    tick:= GetTickCount;
+    if (tick - m_MESItem.Tick) > m_MESItem.Timeout then begin
+      //timeout 처리
+      if m_MESItem.Kind in [MES_EAYT, MES_EDTI, MES_EQCC, MES_FLDR, MES_UCHK] then begin
+        OnGmsEvent(m_MESItem.Kind, 0, False, 'Timeout');
+      end else begin
+        ReturnDataToTestForm(m_MESItem.Kind, m_MESItem.Channel, False, 'Timeout');
+      end;
+      m_MESItem.State:= MES_UNKNOWN;
+    end
+    else if m_MESItem.State = MES_STATE_FAIL then begin
+      //전송 실패일 경우 재전송
+      m_MESItem.State:= m_MESItem.Kind;
+      SEND_MESG2HOST(m_MESItem.Kind, m_MESItem.SerialNo, m_MESItem.CarrierID, m_MESItem.Channel);
+      Exit;
+    end;
+  end;
+
+  if m_Queue.Count > 0 then begin
+    m_MESItem:= m_Queue.Dequeue;
+    m_MESItem.State:= m_MESItem.Kind;
+    m_MESItem.Tick:= GetTickCount;
+
+      //MesData 값을 직접 설정하는 경우 대응 - 차후 이부분은 개선 필요
+    if m_MESItem.Channel < DefCommon.MAX_PG_CNT then begin
+      MesData[m_MESItem.Channel].Tact:= m_MESItem.Tact;
+      MesData[m_MESItem.Channel].Rwk:= m_MESItem.MESCode;
+      MesData[m_MESItem.Channel].ApdrData:= m_MESItem.ApdrData;
+      MesData[m_MESItem.Channel].LpirProcessCode:= m_MESItem.LpirProcessCode;
+    end;
+
+
+    SEND_MESG2HOST(m_MESItem.Kind, m_MESItem.SerialNo, m_MESItem.CarrierID, m_MESItem.Channel);
+  end
+  else begin
+    tmGmesChMsg.Enabled := False;
+  end;
+
+  Exit;
+
   // Check MES Timer Tick for each PG
   bWaitResponse := False;
   for nPg := DefCommon.CH1 to DefCommon.MAX_CH do begin
@@ -2894,7 +3096,7 @@ begin
     if MesData[nPg].MesPendingMsg <> MES_UNKNOWN then begin
       case MesData[nPg].MesPendingMsg of
         DefGmes.MES_PCHK : begin
-          SendHostPChk(MesData[nPg].SerialNo, nPg, True);
+          SendHostPChk(MesData[nPg].SerialNo, nPg,MesData[nPg].CarrierId, True);
           Break;
         end;
         DefGmes.MES_EICR : begin
@@ -2902,11 +3104,11 @@ begin
           Break;
         end;
         DefGmes.MES_INS_PCHK : begin
-          SendHostIns_Pchk(MesData[nPg].SerialNo, nPg,True);
+          SendHostIns_Pchk(MesData[nPg].SerialNo, nPg,MesData[nPg].CarrierId,True);
           Break;
         end;
         DefGmes.MES_RPR_EIJR : begin
-          SendHostRPr_Eijr(MesData[nPg].SerialNo, nPg,True);
+          SendHostRPr_Eijr(MesData[nPg].SerialNo, nPg,MesData[nPg].CarrierId,True);
           Break;
         end;
         DefGmes.MES_APDR : begin

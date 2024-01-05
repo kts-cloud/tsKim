@@ -1196,9 +1196,6 @@ begin
     grdStatus.Cells[4, 6] := 'Load Request';
     grdStatus.Cells[4, 7] := 'Load Complete Confirm';
 
-    grdStatus.Cells[4, 15] := 'Interlock' + sLineBreak+ 'PROBE + TT';
-    grdStatus.Cells[4, 16] := 'Interlock' + sLineBreak+ 'SHUTTER + LC';
-
     grdStatus.Cells[5, 1] := 'Unload' + sLineBreak + 'Enable';
     grdStatus.Cells[5, 2] := 'Glass Data Report';
     grdStatus.Cells[5, 5] := 'Unload Normal Status';
@@ -1206,6 +1203,9 @@ begin
     grdStatus.Cells[5, 7] := 'Unload Complete Confirm';
 
     if Common.SystemInfo.OCType = Defcommon.PreOCType then begin
+      grdStatus.Cells[4, 15] := 'Interlock' + sLineBreak+ 'PROBE + TT';
+      grdStatus.Cells[4, 16] := 'Interlock' + sLineBreak+ 'SHUTTER + LC';
+
       if Common.SystemInfo.CHReversal then begin
         grdStatus.Cells[5, 11] := 'UnLoad CH2';
         grdStatus.Cells[5, 12] := 'UnLoad CH1';
@@ -1222,9 +1222,6 @@ begin
     grdStatus.Cells[6, 6] := 'Load Request';
     grdStatus.Cells[6, 7] := 'Load Complete Confirm';
 
-    grdStatus.Cells[6, 15] := 'Interlock' + sLineBreak+ 'PROBE + TT';
-    grdStatus.Cells[6, 16] := 'Interlock' + sLineBreak+ 'SHUTTER + LC';
-
     grdStatus.Cells[7, 1] := 'Unload' + sLineBreak + 'Enable';
     grdStatus.Cells[7, 2] := 'Glass Data Report';
     grdStatus.Cells[7, 5] := 'Unload Normal Status';
@@ -1232,6 +1229,8 @@ begin
     grdStatus.Cells[7, 7] := 'Unload Complete Confirm';
 
     if Common.SystemInfo.OCType = Defcommon.PreOCType then begin
+      grdStatus.Cells[6, 15] := 'Interlock' + sLineBreak+ 'PROBE + TT';
+      grdStatus.Cells[6, 16] := 'Interlock' + sLineBreak+ 'SHUTTER + LC';
       if Common.SystemInfo.CHReversal then begin
         grdStatus.Cells[7, 11] := 'UnLoad CH4';
         grdStatus.Cells[7, 12] := 'UnLoad CH3';
