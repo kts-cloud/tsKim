@@ -403,7 +403,7 @@ type
     function DP860_SendTconSeqWrite(nMode,nSeqIdx,nDataCnt: Integer; arRegAddr : array of integer; arDataW: TIDBytes; nWaitMS: Integer=0; nRetry: Integer=0;  nDebugLog : integer= 0): DWORD;
     function DP860_SendProgrammingWrite(nDevaddr,nRegAddr,nDataCnt: Integer; arDataW: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
     function DP860_SendChkEnable(nEnable: Integer; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
-
+    function DP860_SendTconWriteRead(nRegAddr,nDataCnt,nVerify: Integer; var arDataW: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0; nDebugLog : integer= 0): DWORD;
     //------------------------------------------------------ PG_DP860 Command (Flash)
   {$IFDEF FEATURE_FLASH_ACCESS}
 		function DP860_SendNvmErase(nAddr,nSize:DWORD; nWaitMS: Integer=FLASH_ERASE_WAITMS_MINIMUM; nRetry: Integer=0): DWORD;
@@ -2862,7 +2862,7 @@ begin
   PTxRxData := @FTxRxPG;
   PTxRxData^.CmdState  := DefPG.PG_CMDSTATE_RX_ACK; //TBD:DP860?
   PTxRxData^.CmdResult := TernaryOp((UpperCase(arData[nLen-1]) = 'RET:OK'), DefPG.PG_CMDRESULT_OK, DefPG.PG_CMDRESULT_NG);
-  PTxRxData^.RxAckStr  := sCmdAck; //TBD:DP860?
+    PTxRxData^.RxAckStr  := sCmdAck; //TBD:DP860?
 
   if m_bWaitEvent then SetEvent(m_hEvent);
 
@@ -4064,7 +4064,7 @@ begin
     end;
   end;
   //
-  if (nDebugLog = 1) and {(Common.SystemInfo.DebugLogLevelConfig > 0) or} (Result <> 0) then begin
+  if ((nDebugLog = 1) and (Result <> 0)) or ((Common.SystemInfo.DebugLogLevelConfig > 0) and (Common.SystemInfo.PG_TconWriteLogDisplay)) then begin
 	  sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
     ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
   end;
@@ -4088,11 +4088,82 @@ begin
     Result := 'Not found';
 end;
 
+
+function TCommPG.DP860_SendTconWriteRead(nRegAddr,nDataCnt,nVerify: Integer; var arDataW: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0; nDebugLog : integer= 0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg,sTESTString: string;
+  //
+  arCmdAck : TArray<string>;
+  i,nCrcData       : Integer;
+  nDataPGW, nDataPGR : Integer;
+  btaData : TIdBytes;
+begin
+  SetLength(btaData,nDataCnt);
+  DP860_SendTConRead(nRegAddr,nDataCnt,btaData, nWaitMS,nRetry,nDebugLog);
+
+  sTESTString := Format('RegAddr : 0x%0.2x Write Data : 0x%0.2x Read Data : 0x%0.2x',[nRegAddr,arDataW[0],btaData[0]]);
+
+  SetLength(btaData,0);
+
+	nCmdId   := DefPG.PG_CMDID_TCON_WRITEREAD;
+	sCmdName := DefPG.PG_CMDSTR_TCON_WRITEREAD;
+	sEtcMsg  := '';
+	//
+  nCrcData := 0;
+	//
+	sCommand := sCmdName + ' ' + Format('%d 0x%0.4x %d',[nVerify,nRegAddr,nDataCnt]); // tcon.writeread 1 0xFF00 1 0x01 ----- tcon.writeread <verify_enable> <reg_addr> <write_length> <data0> <data_checksum>
+	for i := 0 to Pred(nDataCnt) do begin
+		sCommand := sCommand + ' ' + Format('0x%0.2x',[arDataW[i]]);
+    nCrcData := nCrcData + arDataW[i];
+	end;
+
+  nCrcData := $FFFF and (nCrcData + nRegAddr);
+  sCommand := sCommand + ' ' + Format('0x%0.4x',[nCrcData]);
+
+	Result := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+  Inc(TconRWCnt.TconWriteTX); //2023-03-28 jhhwang (for T/T Test)
+
+  if Result = WAIT_OBJECT_0 then begin
+    try
+      if nVerify = 1 then begin
+        arCmdAck := FTxRxPG.RxAckStr.Split([#$0D]);
+        if Length(arCmdAck) > 2 then begin
+          if nRegAddr = StrToInt('$'+ExtractAlphabets(arCmdAck[0])) then begin
+            nDataPGW := StrToInt('$'+ExtractAlphabets(arCmdAck[1]));
+            nDataPGR := StrToInt('$'+ExtractAlphabets(arCmdAck[2]));
+            if nDataPGR <> nDataPGW then  begin
+              sEtcMsg :=  sEtcMsg + format('(nRegAddr Data : 0x%0.4x DataPGW : Data : 0x%0.4x DataPGR : %0x%0.4x)',[nRegAddr,nDataPGW,nDataPGR]);
+              ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sEtcMsg);
+            end;
+          end;
+        end;
+      end;
+
+    finally
+    end;
+  end
+  else begin
+    sEtcMsg := sEtcMsg + '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr) +'-' + FTxRxPG.RxPrevStr+']';
+  end;
+  //
+  if ((nDebugLog = 1) and (Result <> 0)) or ((Common.SystemInfo.DebugLogLevelConfig > 0) and (Common.SystemInfo.PG_TconWriteLogDisplay)) then begin
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sTESTString);
+    sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+  end;
+  if Result = 0 then
+    sPreviousCommand := sCommand;
+end;
+
+
+
 function TCommPG.DP860_SendTconWrite(nRegAddr,nDataCnt: Integer; arDataW: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0; nDebugLog : integer=0): DWORD;
 var
 	nCmdId : Integer;
-	sCmdName, sCommand, sDebug, sEtcMsg : string;
+	sCmdName, sCommand, sDebug, sEtcMsg ,sTESTString: string;
 	i,nCrcData,nDataPGW : Integer;
+  btaData : TIdBytes;
 
   arCmdAck : TArray<string>;
   arTemp   : TArray<string>;
@@ -4115,33 +4186,42 @@ begin
   Inc(TconRWCnt.TconWriteTX); //2023-03-28 jhhwang (for T/T Test)
   TconRWCnt.ContTConOcWrite := 0; //2023-03-28 jhhwang (for T/T Test)
 
-  try
-    arCmdAck := FTxRxPG.RxAckStr.Split([#$0D]);
-    arTemp   := arCmdAck[0].Split([' ']);
-    if Length(arCmdAck) > 2 then begin
-      if nDataCnt = StrToInt('$'+ExtractAlphabets(arTemp[0])) then begin
-        arTemp   := arCmdAck[1].Split([' ']);
-        arTemp[0] := ExtractAlphabets(arTemp[0]);
-        nDataPGW := StrToInt('$'+ arTemp[0]);
-        if nCrcData <> nDataPGW then  begin
-          sEtcMsg :=  sEtcMsg + format('(nCrcData : Data : 0x%0.4x PG_Return : %0x%0.4x)',[nCrcData,nDataPGW]);
+  if Result = WAIT_OBJECT_0 then begin
+    try
+
+      arCmdAck := FTxRxPG.RxAckStr.Split([#$0D]);
+      arTemp   := arCmdAck[0].Split([' ']);
+      if Length(arCmdAck) > 2 then begin
+        if nDataCnt = StrToInt('$'+ExtractAlphabets(arTemp[0])) then begin
+          arTemp   := arCmdAck[1].Split([' ']);
+          arTemp[0] := ExtractAlphabets(arTemp[0]);
+          nDataPGW := StrToInt('$'+ arTemp[0]);
+          if nCrcData <> nDataPGW then  begin
+            sEtcMsg :=  sEtcMsg + format('(nCrcData : Data : 0x%0.4x PG_Return : %0x%0.4x)',[nCrcData,nDataPGW]);
+            Result  := WAIT_FAILED;
+          end;
+        end
+        else begin
+          sEtcMsg :=  sEtcMsg + format('(nCrcData : Data Length : %d PG_Return Length : %d',[nDataCnt,StrToIntDef('$'+ExtractAlphabets(arTemp[0]),0)]);
           Result  := WAIT_FAILED;
         end;
-      end
-      else begin
-        sEtcMsg :=  sEtcMsg + format('(nCrcData : Data Length : %d PG_Return Length : %d',[nDataCnt,StrToIntDef('$'+ExtractAlphabets(arTemp[0]),0)]);
-        Result  := WAIT_FAILED;
       end;
+
+//      DP860_SendTConRead(nRegAddr,nDataCnt,btaData, nWaitMS,nRetry,nDebugLog);
+//      if arDataW[0] <> btaData[0] then  begin
+//        sTESTString := Format('RegAddr : 0x%0.2x Write Data : 0x%0.2x Read Data : 0x%0.2x',[nRegAddr,arDataW[0],btaData[0]]);
+//        ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sTESTString);
+//      end;
+
+    finally
+//      SetLength(btaData,0);
     end;
-  except
-
-  end;
-
-  if Result <> WAIT_OBJECT_0 then begin
+  end
+  else begin
     sEtcMsg := sEtcMsg + '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr) +'-' + FTxRxPG.RxPrevStr+']';
   end;
   //
-  if (nDebugLog = 1) and (Common.SystemInfo.DebugLogLevelConfig > 0) and (Common.SystemInfo.PG_TconWriteLogDisplay) or (Result <> 0) then begin
+  if ((nDebugLog = 1) and (Result <> 0)) or ((Common.SystemInfo.DebugLogLevelConfig > 0) and (Common.SystemInfo.PG_TconWriteLogDisplay)) then begin
 //    sDebug := '<PG> Previous Command : ' + sPreviousCommand;
 //    ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
     sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
@@ -4290,7 +4370,7 @@ begin
 //    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
   end;
   //
-  if(nDebugLog = 1) and (Common.SystemInfo.DebugLogLevelConfig > 0) or (Result <> 0) then begin
+  if ((nDebugLog = 1) and (Result <> 0)) or ((Common.SystemInfo.DebugLogLevelConfig > 0) and (Common.SystemInfo.PG_TconWriteLogDisplay)) then begin
 //  if ((Common.SystemInfo.DebugLogLevelConfig > 0) and Common.SystemInfo.PG_TconWriteLogDisplay) or (Result <> 0) then begin
 //    sDebug := '<PG> Previous Command : ' + sPreviousCommand;
 //    ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
@@ -5914,6 +5994,16 @@ begin
         end;
         1 : begin // all tcon.write (ack)
     			Result := DP860_SendTconWrite(nRegAddr,nDataCnt,arDataW, nWaitMS,nRetry,nDebugLog);
+          if Common.SystemInfo.PG_TconOcWriteDelayMsec > 0 then
+            Sleep(Common.SystemInfo.PG_TconOcWriteDelayMsec)
+          else if Common.SystemInfo.PG_TconOcWriteDelayMicroSec > 0 then
+            Common.SleepMicro(Common.SystemInfo.PG_TconOcWriteDelayMicroSec)  // SleepMicro 적용
+          else begin
+
+          end;
+        end;
+        3 : begin // all tcon.writeRead (ack)
+    			Result := DP860_SendTconWriteRead(nRegAddr,nDataCnt,Common.CheckPGWriteReadPassAddr(nRegAddr),arDataW, nWaitMS,nRetry,nDebugLog);
           if Common.SystemInfo.PG_TconOcWriteDelayMsec > 0 then
             Sleep(Common.SystemInfo.PG_TconOcWriteDelayMsec)
           else if Common.SystemInfo.PG_TconOcWriteDelayMicroSec > 0 then

@@ -2239,9 +2239,6 @@ begin
             13 : sTemp := '';
             14 : sTemp := '';
             15 : sTemp := '';
-
-
-
           end;
         end;
 
@@ -2326,10 +2323,17 @@ begin
     btnOutSig[i].Caption       := 'On';
     btnOutSig[i].Tag           := i;
     btnOutSig[i].OnClick       := OnEvtOutBtn;
+    // 수동 제어 차단- 하단 버튼으로만 제어
     if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
       if (i = OUT_GIB_CH_12_SHUTTER_UP_SOL) or (i = OUT_GIB_CH_12_SHUTTER_DN_SOL) or (i = OUT_GIB_CH_34_SHUTTER_UP_SOL) or (i = OUT_GIB_CH_34_SHUTTER_DN_SOL)  then
         btnOutSig[i].Enabled := false;
+    end
+    else if (Common.SystemInfo.OCType = DefCommon.OCType) and (Common.PLCInfo.InlineGIB) then begin
+      if (i = OUT_CH_1_2_DOOR_LEFT_UNLOCK) or (i = OUT_CH_1_2_DOOR_LEFT_UNLOCK +1) or (i = OUT_CH_1_2_DOOR_LEFT_UNLOCK + 2) or (i = OUT_CH_1_2_DOOR_LEFT_UNLOCK + 3)  then
+        btnOutSig[i].Enabled := false;
     end;
+
+
 //    if  i in [28 .. 31] then begin // -1 : Range Error 발생... 아예 쓰지 말짜.
 //      ledOut[i].Visible      := False;
 //      pnlDioOut[i].Visible      := False;

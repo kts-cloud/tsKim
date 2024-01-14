@@ -1584,6 +1584,7 @@ begin
 //   if CompareStr(sMode,'EODS') = 0 then begin
   if CompareStr(sMode,'EODS') = 0 then begin
     SeperateData(sMsg,nCh);
+    SendTestGuiDisplay(R2R_LOG,nCh,sMsg);
     SeperateR2RData(StrToIntdef(FR2RUnit,1)-1,FR2RDatainfo);
     ReturnDataToTestForm(DefGmes.R2R_EODS, StrToIntdef(FR2RUnit,1)-1, False, 'R2R_DATA');
     parse_EODS;
@@ -1947,7 +1948,7 @@ var
   ccd         : TCopyDataStruct;
   GuiData    : RGuiScript;
 begin
-  GuiData.MsgType := defCommon.MSG_TYPE_SCRIPT;
+  GuiData.MsgType := defCommon.MSG_TYPE_HOST;
   GuiData.Channel := nCH;
   GuiData.Mode    := nGuiMode;
   GuiData.Msg     := sMsg;

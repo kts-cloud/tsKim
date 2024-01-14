@@ -158,6 +158,8 @@ Const
   MSG_TYPE_DLL    = 16;
   MSG_TYPE_AF9FPGA  = 17;
 
+  MSG_TYPE_MAIN = 21;
+
   MSG_MODE_LOAD = 1;
   MSG_MODE_CAL  = 2;
   MSG_MODE_ADDLOG      = 3;

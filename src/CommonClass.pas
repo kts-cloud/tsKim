@@ -15,9 +15,6 @@ uses
 {$I Common.inc}
 
 const
-  BandDBV: array[0..31] of Integer = (2047, 1850, 1644, 1461,1301,1158,1071,989,915,845,775,711,651,
-                                     598,553,513,489,443,400,362,328,296,268,243,219,198,180,168,157,146,136,119);
-
   R2REODSNAME :  array[0..23] of string = ('OC_W600_X','OC_W600_Y','OC_W600_Z','OC_R600_X','OC_R600_Y','OC_R600_Z','OC_G600_X','OC_G600_Y','OC_G600_Z','OC_B600_X','OC_B600_Y','OC_B600_Z',
   'MPO_W600_L','MPO_W600_X','MPO_W600_Y','MPO_R600_L','MPO_R600_X','MPO_R600_Y','MPO_G600_L','MPO_G600_X','MPO_G600_Y','MPO_B600_L','MPO_B600_X','MPO_B600_Y');
 
@@ -170,6 +167,7 @@ type
     SaveEnergy          : Integer;
     CHReversal          : Boolean; // 라인 반전으로 1 2 CH 반전 되어 들어오는 경우 처리
     SignalInversion     : string; // Added by KTS 2023-01-17 오후 5:14:33 B접점 반전 해야되는 신호 목록
+    PG_WriteReadPassAddr : string;
     PG_TconWriteLogDisplay    : Boolean; //2023-03-28 jhhwang (for T/T Test)
     PG_TconWriteCmdType       : Integer; //2023-03-28 jhhwang (for T/T Test) //0(all tcon.ocwrite), 1(all tcon.write), 2(defaul tcon.ocwrite + tcon.write only if SyncAddr)
     PG_TconOcWriteDelayMsec   : Integer; //2023-03-28 jhhwang (for T/T Test)
@@ -511,6 +509,7 @@ type
     EAS          : string;
     R2R          : string;
     MLOG     		 : string; //Mlog
+    R2RLOG       : string; //R2RLOG
     DebugLog     : string;     //DebugLog  //2020-09-16 DEBUG_LOG
     DIOLog       : string; // Added by sam81 2023-04-24 오후 4:06:54
 //    CommPG       : string;
@@ -742,6 +741,8 @@ type
     ComputerName : String;
     DLLVersion   : string;
 
+    PGWriteReadPassAddr : array of integer;
+
     CombiCodeData   : TCombiCodeData;
     DfsConfInfo     : TDfsConfInfo;
     TempDfsConfInfo : TDfsConfInfo;
@@ -762,6 +763,10 @@ type
     function ReadSWVer : Boolean;
     function ReadDLLSet : Boolean;
     procedure ReadOpticInfo;
+
+    procedure LoadPGWriteReadPassAddr;
+
+    function CheckPGWriteReadPassAddr(nAddr : Integer): Integer;
 
     function ReadLGDDLLSummaryLog(sPid,sSn,sDate : string; nCh : Integer) : string;
     function ReadLGDDLLSummaryLog_New(sPid,sSn,sDate : string; nCh : Integer) : string;
@@ -802,6 +807,7 @@ type
     procedure SaveModelInfoDLL(fName: String);
     procedure SaveModelInfo2(fName: String);
     procedure MLog(nCh : Integer;const Msg : String);
+    procedure R2RLog(nCh: Integer; const Msg: String);
     procedure RePGMLog(nCh : Integer;const sPID,sSN: String);
     procedure HWCIDLogLog(nCh : Integer;const sPID,sSN,sData: String);
     procedure MLogWaveformData(nCh : Integer;const Msg: String);
@@ -1218,6 +1224,19 @@ begin
   Result := True;
 end;
 
+function TCommon.CheckPGWriteReadPassAddr(nAddr: Integer): Integer;
+var
+i : Integer;
+begin
+  Result := 1;
+  for I := Low(PGWriteReadPassAddr) to High(PGWriteReadPassAddr) do begin
+    if nAddr = PGWriteReadPassAddr[i] then begin
+      Result := 0;
+      Exit;
+    end;
+  end;
+end;
+
 //procedure TCommon.CheckModelDownload(fname: String);
 //var
 //  pg : Integer;
@@ -1542,6 +1561,8 @@ begin
   SetLength(m_OcParam.OcParam,0);
   SetLength(m_OcParam.OcVerify,0);
   SetLength(SystemInfo.ConfigVer,0);
+  SetLength(PGWriteReadPassAddr,0);
+
 
   if FLogThread <> nil then begin
     FLogThread.Terminate;
@@ -2256,6 +2277,7 @@ begin
   Path.TempCsv        := Path.LOG + 'TempCsv\';
   Path.RePGMLog       := Path.LOG + 'ReProgrammingLOG\';
   Path.CEL            := Path.LOG + 'CEL\';
+  Path.R2RLOG            := Path.LOG + 'R2RLOG\';
   PATH.DATA 					:= Path.RootSW + 'DATA\';
   Path.PG_FW       		:= Path.DATA + 'PG_FW\';
   Path.PG_FPGA     		:= Path.DATA + 'PG_FPGA\';
@@ -2291,6 +2313,7 @@ begin
   CheckDir(Path.GMES);
   CheckDir(Path.EAS);
   CheckDir(Path.DATA);
+  CheckDir(Path.R2RLOG);
   CheckDir(Path.PG_FW);
   CheckDir(Path.PG_FPGA);
   CheckDir(Path.FLASH);
@@ -3663,6 +3686,19 @@ begin
 end;
 
 
+procedure TCommon.LoadPGWriteReadPassAddr;
+var
+saAddress: TArray<String>;
+i : Integer;
+begin
+  saAddress := SystemInfo.PG_WriteReadPassAddr.Split([',']);
+  if Length(saAddress) = 0 then Exit;
+
+  SetLength(PGWriteReadPassAddr,Length(saAddress));
+  for I := 0 to Pred(Length(saAddress)) do
+    PGWriteReadPassAddr[i]   := StrToIntDef(saAddress[i],0);
+end;
+
 procedure TCommon.LoadPsuFile;
 var
   sFileName : string;
@@ -3686,6 +3722,8 @@ begin
     MessageDlg(#13#10 + '[' + sFileName + '] Cannot find the file.!' , mtError, [mbOk], 0);
     m_bModelInfoNg := True;
   end;
+
+  LoadPGWriteReadPassAddr;
 end;
 
 procedure TCommon.LogWorker;
@@ -4186,6 +4224,30 @@ begin
     Result := 1.0 - IdleTimeDelta / TotalTimeDelta
   else
     Result := 0.0;
+end;
+
+procedure TCommon.R2RLog(nCh: Integer; const Msg: String);
+var
+  LogItem: TLogItem;
+  sDate,sFilePath : string;
+begin
+  try
+    // Enqueue log item for asynchronous processing
+    if CheckDir(Path.R2RLOG) then
+      Exit;
+
+    sDate := FormatDateTime('yyyymmdd', Now);
+    sFilePath := Path.R2RLOG + sDate + '\';
+
+    if CheckDir(sFilePath) then
+      Exit;
+    LogItem.FileName := sFilePath + Format('R2RLog_%s_%s_Ch%d.txt', [systemInfo.EQPId, FormatDateTime('mmdd', Now), nCh + 1]);
+
+    LogItem.Msg := Msg;
+    FLogQueue.Enqueue(LogItem);
+  except
+    // Handle exceptions as needed
+  end;
 end;
 
 
@@ -5089,6 +5151,8 @@ begin
       end;
 
       SystemInfo.SignalInversion	 		:= fSys.ReadString('SYSTEMDATA', 'SIGNAL_INVERSION_OC',    '0');
+
+      SystemInfo.PG_WriteReadPassAddr	 		:= fSys.ReadString('SYSTEMDATA', 'PG_WRTIEREAD_PASS_ADDR',    '');
 
 
       PLCInfo.EQP_ID              := fSys.ReadInteger('PLC',    'EQP_ID', 0);

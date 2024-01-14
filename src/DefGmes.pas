@@ -34,6 +34,7 @@ interface
     R2R_EODS_R       = 302; // Added by KTS 2023-02-24 오전 11:32:59 R2R 관련 추가
     R2R_EODA         = 303; // Added by KTS 2023-02-24 오전 11:32:59 R2R 관련 추가
     R2R_EAYT         = 304; // Added by KTS 2023-07-17 오후 5:46:15  R2R 관련 추가
+    R2R_LOG          = 305; // Added by KTS 2024-01-10 오전 11:17:17 R2R LOG 추가
     PREFIX_COMBI      = 'C_YT_ASSY_Module_China_';
     PREFIX_DEFECT     = 'TOTAL_DEFECT_CODE_';
     PREFIX_FULL_DEF   = 'TOTAL_DEFECT_CODE_FULL_';

@@ -360,6 +360,7 @@ begin
       SendAlarm(MSG_MODE_DISPLAY_ALARAM, nAlarmNo, 1);
     end;
 
+
     nAlarmNo:= DefDio.IN_GIB_CH_12_MC_MONITORING;
     if not CheckDi(nAlarmNo) then begin
       nRet := nAlarmNo;
@@ -2928,6 +2929,12 @@ begin
     nTowerLamp_B2 :=  DefDio.OUT_BUZZER_2;
   end
   else begin
+    nTowerLamp_R :=  DefDio.OUT_GIB_TOWER_LAMP_RED;
+    nTowerLamp_Y :=  DefDio.OUT_GIB_TOWER_LAMP_YELLOW;
+    nTowerLamp_G :=  DefDio.OUT_GIB_TOWER_LAMP_GREEN;
+    nTowerLamp_B1 :=  DefDio.OUT_GIB_BUZZER_1;
+    nTowerLamp_B2 :=  DefDio.OUT_GIB_BUZZER_2;
+
     if not ReadInSig(DefDio.IN_GIB_CH_12_MC_MONITORING) then begin
       nIdx := DefDio.OUT_CH_12_RESET_SWTCH_LED div 8;
       nPos := DefDio.OUT_CH_12_RESET_SWTCH_LED mod 8;
@@ -2955,15 +2962,19 @@ begin
 //      WriteDioSig(DefDio.OUT_CH_3_4_LAMP_OFF,false);
     end;
 
-    nTowerLamp_R :=  DefDio.OUT_GIB_TOWER_LAMP_RED;
-    nTowerLamp_Y :=  DefDio.OUT_GIB_TOWER_LAMP_YELLOW;
-    nTowerLamp_G :=  DefDio.OUT_GIB_TOWER_LAMP_GREEN;
-    nTowerLamp_B1 :=  DefDio.OUT_GIB_BUZZER_1;
-    nTowerLamp_B2 :=  DefDio.OUT_GIB_BUZZER_2;
+    if ReadInSig(DefDio.IN_GIB_CH_12_MUTING_LAMP) then begin
+      WriteDioSig(nTowerLamp_B1, False);
+    end
+    else begin
+      WriteDioSig(nTowerLamp_B1, True);
+    end;
+    if ReadInSig(DefDio.IN_GIB_CH_34_MUTING_LAMP) then begin
+      WriteDioSig(nTowerLamp_B1, False);
+    end
+    else begin
+      WriteDioSig(nTowerLamp_B1, True);
+    end;
   end;
-
-
-
 
   //사용하지 않을 경우 갱신 안함
   if not UseTowerLamp then Exit;

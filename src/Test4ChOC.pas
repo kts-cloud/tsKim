@@ -3,7 +3,7 @@
 interface
 {$I Common.inc}
 uses
-  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,DateUtils,UserUtils,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, RzPanel, ALed, RzButton, Vcl.ExtCtrls, RzRadChk, CommDIO_DAE,
   Vcl.StdCtrls, Vcl.Grids, AdvObj, BaseGrid, AdvGrid, RzCommon, SwitchBtn, JigControl, Vcl.Mask, RzEdit, AdvPanel,
   {UdpServerClient,} CommonClass, ScriptClass, DefScript, DefPG, DefCommon, ControlDio_OC, //PlcTcpPocb, defPlc,
@@ -257,6 +257,7 @@ type
     procedure ShowNgMessage(sMessage: string);
 
     procedure ControlIRTemp (nCh,nTemp : Integer);
+    procedure AddLog(sMsg: string; nCh:Integer; nType: Integer=0);
   public
     { Public declarations }
     /// <summary> Main 폼 Handle - WM_COPYDATA</summary>
@@ -308,7 +309,6 @@ type
 
 //    ledDetect  : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TPanel;
     /// <summary>로그창에 추가 및 저장. </summary>
-    procedure AddLog(sMsg: string; nCh:Integer; nType: Integer=0);
     procedure ShowGui(hMain : HWND);
     procedure SetHandleAgain(hMain : HWND);
     procedure DisplaySysInfo;
@@ -523,10 +523,17 @@ var
   nCH : Integer;
 begin
   nCH := (Sender as TRzButton).Tag;
-  if Common.StatusInfo.AutoMode then begin
+  if (Common.StatusInfo.AutoMode) then begin
     Application.MessageBox('Can not Excute On Auto Mode', 'Confirm', MB_OK+MB_ICONSTOP);
     Exit;
   end;
+
+
+  if (CSharpDll.MainOC_GetOCFlowIsAlive(2 *nCH) = 1) or (CSharpDll.MainOC_GetOCFlowIsAlive(2 *nCH + 1) = 1) then begin
+    Application.MessageBox('Unable to run if it is being inspected', 'Confirm', MB_OK+MB_ICONSTOP);
+    Exit;
+  end;
+
 
   if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
     SendMessageMain(STAGE_MODE_TEST_START, nCH, 0, 0, '', nil);
@@ -864,8 +871,11 @@ end;
 
 procedure TfrmTest4ChOC.ControlIRTemp(nCh,nTemp: Integer);
 begin
+  if Common.SystemInfo.Com_IrTempSensor = 0 then Exit;
+
   if nTemp = 1 then begin
     if (Common.SystemInfo.OCType = DefCommon.OCType) and (not Common.PLCInfo.InlineGIB) then begin
+      AddLog('[Source Code] CheckIRTemp : Set Temp : '+ IntToStr(Common.SystemInfo.SetTemperature),nCh);
       tmCheckIRTemp[nCh].Enabled := True;
       m_nTempIrTact[nCh] := 0;
       SaveCsvTempStatus(nCh,'START',frmTest4ChOC[0].m_bFanOnOff[nCh]);
@@ -2425,24 +2435,11 @@ var
 begin
   if nCh < Defcommon.CH1 then begin
     for i := DefCommon.CH1 to DefCommon.MAX_JIG_CH do begin
-      if bNg then begin
-        mmChannelLog[i].SelAttributes.Color := clRed;
-        mmChannelLog[i].SelAttributes.Style := [fsBold];
-      end;
-      mmChannelLog[i].Lines.Add(sMsg);
-      Common.MLog(i+self.Tag*4,sMsg);
-//      mmChannelLog[i].Perform(EM_SCROLL,SB_LINEDOWN,0);
-      CalcLogScroll(i,Length(sMsg));
+      AddLog(sMsg,i,TernaryOp(bNg = False,1,0));
     end;
   end
   else begin
-    if bNg then begin
-      mmChannelLog[nCh].SelAttributes.Color := clRed;
-      mmChannelLog[nCh].SelAttributes.Style := [fsBold];
-    end;
-    mmChannelLog[nCh].Lines.Add(sMsg);
-    Common.MLog(nCh+self.Tag*4,sMsg);
-    CalcLogScroll(nCh,Length(sMsg));
+    AddLog(sMsg,i,TernaryOp(bNg = False,1,0));
 //    mmChannelLog[nCh].Perform(EM_SCROLL,SB_LINEDOWN,0);
   end;
 end;
@@ -2480,11 +2477,7 @@ var
         pnlPGStatuses[nCh].Font.Name := 'Verdana';
         pnlPGStatuses[nCh].Font.Color := clYellow;
         sDebug := FormatDateTime('[HH:MM:SS.zzz] ',now) + 'PG BOARD DISCONNECT NG ';
-        mmChannelLog[nCh].SelAttributes.Color := clRed;
-        mmChannelLog[nCh].SelAttributes.Style := [fsBold];
-        mmChannelLog[nCh].Lines.Add(sDebug);
-        mmChannelLog[nCh].Perform(EM_SCROLL,SB_LINEDOWN,0);
-        Common.MLog(nCh+self.Tag*4,'PG BOARD DISCONNECT NG : '+sMsg);
+        AddLog(sDebug,nCh,1);
 
       end;
       DefCommon.PG_CONN_CONNECTED : begin
@@ -2510,20 +2503,22 @@ var
               if bPgVerMcsNG then begin
                 sTemp := 'AF9-MCS Ver NG '+ Format('(AF9:%0.3d,Model:%0.3d)', [PG[nCh].m_PgVer.AF9VerMCS, Common.TestModelInfoPG.PgVer.AF9VerMCS]);
                 sDebug := FormatDateTime('[HH:MM:SS.zzz] ',now) + sTemp;
-                mmChannelLog[nCh].SelAttributes.Color := clRed;
-                mmChannelLog[nCh].SelAttributes.Style := [fsBold];
-                mmChannelLog[nCh].Lines.Add(sDebug);
-                mmChannelLog[nCh].Perform(EM_SCROLL,SB_LINEDOWN,0);
-                Common.MLog(nCh,sTemp);
+                AddLog(sDebug,nCh,1);
+//                mmChannelLog[nCh].SelAttributes.Color := clRed;
+//                mmChannelLog[nCh].SelAttributes.Style := [fsBold];
+//                mmChannelLog[nCh].Lines.Add(sDebug);
+//                mmChannelLog[nCh].Perform(EM_SCROLL,SB_LINEDOWN,0);
+//                Common.MLog(nCh,sTemp);
               end;
               if bPgVerFpgaNG then begin
                 sTemp := 'AF9-API Ver NG '+ Format('(DLL:%0.3d,Model:%0.3d)', [PG[nCh].m_PgVer.AF9VerAPI, Common.TestModelInfoPG.PgVer.AF9VerAPI]);
                 sDebug := FormatDateTime('[HH:MM:SS.zzz] ',now) + sTemp;
-                mmChannelLog[nCh].SelAttributes.Color := clRed;
-                mmChannelLog[nCh].SelAttributes.Style := [fsBold];
-                mmChannelLog[nCh].Lines.Add(sDebug);
-                mmChannelLog[nCh].Perform(EM_SCROLL,SB_LINEDOWN,0);
-                Common.MLog(nCh,sTemp);
+                AddLog(sDebug,nCh,1);
+//                mmChannelLog[nCh].SelAttributes.Color := clRed;
+//                mmChannelLog[nCh].SelAttributes.Style := [fsBold];
+//                mmChannelLog[nCh].Lines.Add(sDebug);
+//                mmChannelLog[nCh].Perform(EM_SCROLL,SB_LINEDOWN,0);
+//                Common.MLog(nCh,sTemp);
               end;
             end
             else begin
@@ -2582,52 +2577,59 @@ var
               if bPgVerAllNG then begin
                 sTemp  := 'PG Version NG '+ Format('(PG:%s,Model:%s)', [PG[nCh].m_PgVer.VerAll, Common.TestModelInfoPG.PgVer.VerAll]);
                 sDebug := sDateTime + sTemp;
-                mmChannelLog[nCh].Lines.Add(sDebug);
-                mmChannelLog[nCh].Perform(EM_SCROLL,SB_LINEDOWN,0);
-                Common.MLog(nCh,sTemp);
+                AddLog(sDebug,nCh,0);
+//                mmChannelLog[nCh].Lines.Add(sDebug);
+//                mmChannelLog[nCh].Perform(EM_SCROLL,SB_LINEDOWN,0);
+//                Common.MLog(nCh,sTemp);
               end;
               {$IFDEF DP860_TBD_XXXXX}
               if bPgVerHwNG then begin
                 sTemp  := 'PG Version NG - HW '+ Format('(PG:%s,Model:%s)', [PG[nCh].m_PgVer.HW, Common.TestModelInfoPG.PgVer.HW]);
                 sDebug := sDateTime + sTemp;
-                mmChannelLog[nCh].Lines.Add(sDebug);
-                mmChannelLog[nCh].Perform(EM_SCROLL,SB_LINEDOWN,0);
-                Common.MLog(nCh,sTemp);
+                AddLog(sDebug,nCh,0);
+//                mmChannelLog[nCh].Lines.Add(sDebug);
+//                mmChannelLog[nCh].Perform(EM_SCROLL,SB_LINEDOWN,0);
+//                Common.MLog(nCh,sTemp);
               end;
               if bPgVerFwNG then begin
                 sTemp  := 'PG Version NG - FW '+ Format('(PG:%s,Model:%s)', [PG[nCh].m_PgVer.FW, Common.TestModelInfoPG.PgVer.FW]);
                 sDebug := sDateTime + sTemp;
-                mmChannelLog[nCh].Lines.Add(sDebug);
-                mmChannelLog[nCh].Perform(EM_SCROLL,SB_LINEDOWN,0);
-                Common.MLog(nCh,sTemp);
+                AddLog(sDebug,nCh,0);
+//                mmChannelLog[nCh].Lines.Add(sDebug);
+//                mmChannelLog[nCh].Perform(EM_SCROLL,SB_LINEDOWN,0);
+//                Common.MLog(nCh,sTemp);
               end;
               if bPgVerSubFwNG then begin
                 sTemp  := 'PG Version NG - SubFW '+ Format('(PG:%s,Model:%s)', [PG[nCh].m_PgVer.SubFW, Common.TestModelInfoPG.PgVer.SubFW]);
-                mmChannelLog[nCh].Lines.Add(sDebug);
-                mmChannelLog[nCh].Perform(EM_SCROLL,SB_LINEDOWN,0);
-                Common.MLog(nCh,sTemp);
+                AddLog(sTemp,nCh,0);
+//                mmChannelLog[nCh].Lines.Add(sDebug);
+//                mmChannelLog[nCh].Perform(EM_SCROLL,SB_LINEDOWN,0);
+//                Common.MLog(nCh,sTemp);
               end;
               if bPgVerFpgaNG then begin
                 sTemp  := 'PG Version NG - FPGA '+ Format('(PG:%s,Model:%s)', [PG[nCh].m_PgVer.FPGA, Common.TestModelInfoPG.PgVer.FPGA]);
                 sDebug := sDateTime + sTemp;
-                mmChannelLog[nCh].Lines.Add(sDebug);
-                mmChannelLog[nCh].Perform(EM_SCROLL,SB_LINEDOWN,0);
-                Common.MLog(nCh,sTemp);
+                AddLog(sDebug,nCh,0);
+//                mmChannelLog[nCh].Lines.Add(sDebug);
+//                mmChannelLog[nCh].Perform(EM_SCROLL,SB_LINEDOWN,0);
+//                Common.MLog(nCh,sTemp);
               end;
               if bPgVerPwrNG then begin
                 sTemp  := 'PG Version NG - POWER '+ Format('(PG:%s,Model:%s)', [PG[nCh].m_PgVer.PWR, Common.TestModelInfoPG.PgVer.PWR]);
                 sDebug := sDateTime + sTemp;
-                mmChannelLog[nCh].Lines.Add(sDebug);
-                mmChannelLog[nCh].Perform(EM_SCROLL,SB_LINEDOWN,0);
-                Common.MLog(nCh,sTemp);
+                AddLog(sDebug,nCh,0);
+//                mmChannelLog[nCh].Lines.Add(sDebug);
+//                mmChannelLog[nCh].Perform(EM_SCROLL,SB_LINEDOWN,0);
+//                Common.MLog(nCh,sTemp);
               end;
               {$ENDIF}
               if bPgVerScriptNG then begin
                 sTemp  := 'PG Model Script Version NG '+ Format('(PG:%s,Model:%s)', [PG[nCh].m_PgVer.VerScript, Common.TestModelInfoPG.PgVer.VerScript]);
                 sDebug := sDateTime + sTemp;
-                mmChannelLog[nCh].Lines.Add(sDebug);
-                mmChannelLog[nCh].Perform(EM_SCROLL,SB_LINEDOWN,0);
-                Common.MLog(nCh,sTemp);
+                AddLog(sDebug,nCh,0);
+//                mmChannelLog[nCh].Lines.Add(sDebug);
+//                mmChannelLog[nCh].Perform(EM_SCROLL,SB_LINEDOWN,0);
+//                Common.MLog(nCh,sTemp);
               end;
             end
             else begin
@@ -2863,9 +2865,6 @@ begin
   m_PlcStatus := psReadyPc;
   m_bAutoPlcProbeBack := False;
 
-
-
-
   m_bInitGetAvr := False;
   m_csBcrRead:= TCriticalSection.Create;
 end;
@@ -2956,14 +2955,17 @@ var
 begin
   try
     m_csBcrRead.Acquire; // Hand Bcr Thread event UI 컨트롤 방지
-    Common.MLog(DefCommon.MAX_SYSTEM_LOG, '<HAND-BCR> Read Data ' + sScanData);
+    AddLog( '<HAND-BCR> Read Data ' + sScanData,DefCommon.MAX_SYSTEM_LOG,0);
+//    Common.MLog(DefCommon.MAX_SYSTEM_LOG, '<HAND-BCR> Read Data ' + sScanData);
     sRemoveCr := StringReplace(sScanData,#$0a,'',[rfReplaceAll]);
     sRemoveCr := StringReplace(sRemoveCr,#$0d,'',[rfReplaceAll]);
-    Common.MLog(DefCommon.MAX_SYSTEM_LOG, '<HAND-BCR> Converting Read Data ' + sRemoveCr);
+    AddLog(  '<HAND-BCR> Converting Read Data ' + sRemoveCr,DefCommon.MAX_SYSTEM_LOG,0);
+//    Common.MLog(DefCommon.MAX_SYSTEM_LOG, '<HAND-BCR> Converting Read Data ' + sRemoveCr);
     for i := Defcommon.CH1 to DefCommon.MAX_CH do begin // 중복 채널 사전 검사 해서 빼기
       if pnlSerials[i].Caption = sRemoveCr then begin
         sDebug := Format('<HAND-BCR> Same Data Exsit skip(Ch:%d) data(%s)',[i + 1, sRemoveCr]);
-        Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+        AddLog( sDebug,DefCommon.MAX_SYSTEM_LOG,0);
+//        Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
         if PasScr[i] <> nil then begin // 혹시 모르니까 한번더
           PasScr[i].m_First_Process_DONE := True;
           PasScr[i].g_bIsBcrReady := True;
@@ -3043,12 +3045,14 @@ begin
 
       if PasScr[nJigCh] <> nil then begin
         sDebug := Format('<HAND-BCR> input Data Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
-        Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+        AddLog(sDebug,nJigCh,0);
+//        Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
         PasScr[nJigCh].TestInfo.SerialNo  := sRemoveCr;
       end
       else begin
         sDebug := Format('<HAND-BCR> Cant not input Data Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
-        Common.MLog(nJigCh,sDebug);
+        AddLog(sDebug,nJigCh,0);
+//        Common.MLog(nJigCh,sDebug);
       end;
 
       if (g_CommPLC <> nil) and (Common.StatusInfo.AutoMode) then begin
@@ -3058,7 +3062,8 @@ begin
         end;
 
         sDebug := Format('<HAND-BCR> MateriID Matching sRemoveCr : %s Length : %d sPCB_ID : %s Length : %d ',[sRemoveCr,Length(sRemoveCr),sPCB_ID,Length(sPCB_ID)]);
-        Common.MLog(nJigCh, sDebug);
+        AddLog(sDebug,nJigCh,0);
+//        Common.MLog(nJigCh, sDebug);
         if Pos(sRemoveCr,sPCB_ID) = 0 then begin
 
         end;
@@ -3066,8 +3071,9 @@ begin
 
 
       sDebug := Format('<HAND-BCR> Ui display Data Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
-      Common.MLog(nJigCh,sDebug);
-      Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+      AddLog(sDebug,nJigCh,0);
+//      Common.MLog(nJigCh,sDebug);
+//      Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
 
       pnlSerials[nJigCh].Caption := sRemoveCr;
       pnlSerials[nJigCh].Color := $0088AEFF;
@@ -3075,21 +3081,24 @@ begin
 
       if DongaGmes <> nil then begin
         sDebug := Format('<HAND-BCR> Send PCHK Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
-        Common.MLog(nJigCh,sDebug);
-        Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+        AddLog(sDebug,nJigCh,0);
+//        Common.MLog(nJigCh,sDebug);
+//        Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
         DongaGmes.SendHostPchk(sRemoveCr, nJigCh,'');
         pnlMESResults[nJigCh].Color      := clBtnFace;
         pnlMESResults[nJigCh].Font.Color := clBlack;
         pnlMESResults[nJigCh].Caption    := 'SEND PCHK';
       end;
       sDebug := Format('<HAND-BCR> Bcr Data flow End Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
-      Common.MLog(nJigCh,sDebug);
-      Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+      AddLog(sDebug,nJigCh,0);
+//      Common.MLog(nJigCh,sDebug);
+//      Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
       Break;
     end;
     if nJigCh = 4 then begin
       sDebug := Format('<HAND-BCR> NO have to Any Ready Ch BcrData:%s Exit',[sRemoveCr]);
-      Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+      AddLog(sDebug,DefCommon.MAX_SYSTEM_LOG,0);
+//      Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
       m_csBcrRead.Release;
       Exit;
     end
@@ -3109,7 +3118,8 @@ begin
       end;
     end;
     sDebug := Format('<HAND-BCR> Bcr Data input pasScr Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
-    Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+    AddLog(sDebug,DefCommon.MAX_SYSTEM_LOG,0);
+//    Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
   finally
     m_csBcrRead.Release;
   end;
@@ -3125,13 +3135,14 @@ begin
   //Common.MLog(DefCommon.MAX_SYSTEM_LOG, '<HAND-BCR> Read Data ' + sScanData);
     sRemoveCr := StringReplace(sScanData,#$0a,'',[rfReplaceAll]);
     sRemoveCr := StringReplace(sRemoveCr,#$0d,'',[rfReplaceAll]);
-    Common.MLog(DefCommon.MAX_SYSTEM_LOG, '<HAND-BCR> Converting Read Data ' + sRemoveCr);
-
+//    Common.MLog(DefCommon.MAX_SYSTEM_LOG, '<HAND-BCR> Converting Read Data ' + sRemoveCr);
+    AddLog('<HAND-BCR> Converting Read Data ' + sRemoveCr,DefCommon.MAX_SYSTEM_LOG,0);
   // 중복 채널 사전 검사 해서 빼기
     for i := Defcommon.CH1 to DefCommon.MAX_CH do begin
       if pnlSerials[i].Caption = sRemoveCr then begin
         sDebug := Format('<HAND-BCR> Same Data Exsit skip(Ch:%d) data(%s)',[i + 1, sRemoveCr]);
-        Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+        AddLog(sDebug,i,0);
+//        Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
         Exit;
       end;
     end;
@@ -3143,7 +3154,8 @@ begin
       if (pnlSerials[nJigCh].Caption = DefCommon.MSG_SCAN_BCR) then begin
         if PasScr[nJigCh] <> nil then begin
           sDebug := Format('<HAND-BCR> input Data Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
-          Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+          AddLog(sDebug,nJigCh,0);
+//          Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
           PasScr[nJigCh].TestInfo.SerialNo  := sRemoveCr;
           PasScr[nJigCh].m_First_Process_DONE := True;
           PasScr[nJigCh].g_bIsBcrReady := True;
@@ -3155,21 +3167,24 @@ begin
             end;
 
             sDebug := Format('<HAND-BCR> MateriID Matching sRemoveCr : %s Length : %d sPCB_ID : %s Length : %d ',[sRemoveCr,Length(sRemoveCr),sPCB_ID,Length(sPCB_ID)]);
-            Common.MLog(nJigCh, sDebug);
+            AddLog(sDebug,nJigCh,0);
+//            Common.MLog(nJigCh, sDebug);
             if Pos(sRemoveCr,sPCB_ID) = 0 then begin
               pnlSerials[nJigCh].Caption := sRemoveCr;
               pnlSerials[nJigCh].Color := clRed;
               pnlSerials[nJigCh].Font.Color := clBlack;
               sDebug := Format('<HAND-BCR> MateriID and ECRDATA DIFFERENT!! MateriID : %s BCR_Data : %s ',[sPCB_ID,sRemoveCr]);
-              Common.MLog(nJigCh, sDebug);
+              AddLog(sDebug,nJigCh,0);
+//              Common.MLog(nJigCh, sDebug);
               ShowNgMessage(Format('CH : %d MateriID(%s) and EcrData(%s) DIFFERENT!!',[nJigCh + 1,sPCB_ID,sRemoveCr]));
               Exit;
             end;
           end;
 
           sDebug := Format('<HAND-BCR> Ui display Data Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
-          Common.MLog(nJigCh,sDebug);
-          Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+          AddLog(sDebug,nJigCh,0);
+//          Common.MLog(nJigCh,sDebug);
+//          Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
 
           pnlSerials[nJigCh].Caption := sRemoveCr;
           pnlSerials[nJigCh].Color := $0088AEFF;
@@ -3177,8 +3192,9 @@ begin
 
           if DongaGmes <> nil then begin
             sDebug := Format('<HAND-BCR> Send PCHK Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
-            Common.MLog(nJigCh,sDebug);
-            Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+            AddLog(sDebug,nJigCh,0);
+//            Common.MLog(nJigCh,sDebug);
+//            Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
             if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.PreOCType)  then begin
               DongaGmes.SendHostLpir(sRemoveCr, nJigCh);
               pnlMESResults[nJigCh].Color      := clBtnFace;
@@ -3192,20 +3208,24 @@ begin
             pnlMESResults[nJigCh].Caption    := 'SEND PCHK';
           end;
           sDebug := Format('<HAND-BCR> Bcr Data flow End Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
-          Common.MLog(nJigCh,sDebug);
-          Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+          AddLog(sDebug,nJigCh,0);
+//          Common.MLog(nJigCh,sDebug);
+//          Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
         end
         else begin
           sDebug := Format('<HAND-BCR> Cant not input Data Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
-          Common.MLog(nJigCh,sDebug);
+          AddLog(sDebug,nJigCh,0);
+//          Common.MLog(nJigCh,sDebug);
         end;
         break; //Exit;
       end;
     end;
-    Common.MLog(DefCommon.MAX_SYSTEM_LOG, '<HAND-BCR> Finish');
+//    Common.MLog(DefCommon.MAX_SYSTEM_LOG, '<HAND-BCR> Finish');
+    AddLog('<HAND-BCR> Finish',DefCommon.MAX_SYSTEM_LOG,0);
   except
     on E: Exception do begin
-      Common.MLog(DefCommon.MAX_SYSTEM_LOG, 'getBcrData Exception: ' + E.Message);
+      AddLog( 'getBcrData Exception: ' + E.Message,DefCommon.MAX_SYSTEM_LOG,1);
+//      Common.MLog(DefCommon.MAX_SYSTEM_LOG, 'getBcrData Exception: ' + E.Message);
     end;
   end;
 end;
@@ -3366,7 +3386,8 @@ var
   nPgNo : integer;
 begin
   nPgNo := Self.Tag*4 + nCh;
-  common.MLog(nPgNo,Format('MakeUserEvent %d',[nPgNo]));
+  AddLog(Format('MakeUserEvent %d',[nPgNo]),nPgNo,0);
+//  common.MLog(nPgNo,Format('MakeUserEvent %d',[nPgNo]));
   PasScr[nPgNo].MakeTEndEvt(nIdxErr,sErrMessage);
 end;
 
@@ -3375,7 +3396,8 @@ var
   nPgNo : integer;
 begin
   nPgNo := self.Tag*4 + nCh;
-  common.MLog(nPgNo,Format('MakeUserEvent %d',[nPgNo]));
+  AddLog(Format('MakeUserEvent %d',[nPgNo]),nPgNo,0);
+//  common.MLog(nPgNo,Format('MakeUserEvent %d',[nPgNo]));
   PasScr[nPgNo].MakeTEndEvt(nIdxErr,sErrMessage);
 end;
 
@@ -3547,19 +3569,19 @@ var
   sDebug : string;
   i: Integer;
 begin
-  common.MLog(4,Format('AutoLogicStart CH : %d',[nCH]));
+//  common.MLog(4,Format('AutoLogicStart CH : %d',[nCH]));
+  AddLog(Format('AutoLogicStart CH : %d',[nCH]),DefCommon.MAX_SYSTEM_LOG,0);
   if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
     ClearChData(nCH);
     PasScr[nCH].TestInfo.StartTime := now;
-    common.MLog(nCH,Format('AutoLogicStart Process : %d',[nCH]));
+    AddLog(Format('AutoLogicStart Process : %d',[nCH]),nCH,0);
+//    common.MLog(nCH,Format('AutoLogicStart Process : %d',[nCH]));
 
     frmTest4ChOC[0].SetIonizer(nCH div 2,True);  //// 검사 종료 시 SetIonizer ON
 
     ControlDio.LampOnOff(nCH div 2,false); // Added by KTS 2023-01-02 오후 5:39:50 시작 전 Lamp 제어
-    common.MLog(4,Format('CH_TOP AutoLogicStart Start : %d',[nCH]));
     CSharpDll.m_bIsProcessDone[nCH] := False;
     StartScript(nCH,DefScript.SEQ_KEY_START);
-    common.MLog(4,Format('CH_TOP AutoLogicStart End : %d',[nCH]));
   end
   else begin
     if JigLogic[self.Tag] <> nil then begin
@@ -3583,25 +3605,20 @@ begin
           PasScr[i].TestInfo.StartTime := now;
         end;
       end;
-      common.MLog(4,Format('AutoLogicStart Process : %d',[nCH]));
 
       frmTest4ChOC[0].SetIonizer(nCH,True);  //// 검사 종료 시 SetIonizer ON
 
       ControlDio.LampOnOff(nCH,false); // Added by KTS 2023-01-02 오후 5:39:50 시작 전 Lamp 제어
       if nCH = DefCommon.CH_TOP then begin
-        common.MLog(4,Format('CH_TOP AutoLogicStart Start : %d',[nCH]));
         CSharpDll.m_bIsProcessDone[0] := False;
         CSharpDll.m_bIsProcessDone[1] := False;
         JigLogic[Self.Tag].StartIspd_TOP(DefScript.SEQ_KEY_START);
-        common.MLog(4,Format('CH_TOP AutoLogicStart End : %d',[nCH]));
 
       end
       else if nCH = DefCommon.CH_BOTTOM then  begin
-        common.MLog(4,Format('CH_BOTTOM AutoLogicStart Start : %d',[nCH]));
         CSharpDll.m_bIsProcessDone[2] := False;
         CSharpDll.m_bIsProcessDone[3] := False;
         JigLogic[Self.Tag].StartIspd_BOTTOM(DefScript.SEQ_KEY_START);
-        common.MLog(4,Format('CH_BOTTOM AutoLogicStart End : %d',[nCH]));
       end
 
       else begin
@@ -3763,15 +3780,10 @@ end;
 procedure TfrmTest4ChOC.ScriptLog(nCh: Integer; sDebug: string; isNg: Boolean);
 begin
   mmChannelLog[nCh].DisableAlign;
-  if isNg then begin
-    mmChannelLog[nCh].SelAttributes.Color := clRed;
-    mmChannelLog[nCh].SelAttributes.Style := [fsBold];
-    mmChannelLog[nCh].Perform(EM_SCROLL,SB_LINEDOWN,0);
-  end;
+
   sDebug := FormatDateTime('[HH:MM:SS.zzz] ',now) + sDebug;
-  mmChannelLog[nCh].Lines.Add(sDebug);
-  CalcLogScroll(nCh,Length(sDebug));
-  Common.MLog(nCh+self.Tag*4,sDebug);
+  AddLog(sDebug,nCh,TernaryOp(isNg = True,1,0));
+
   mmChannelLog[nCh].EnableAlign;
 end;
 
@@ -3872,7 +3884,7 @@ var
   aTask : TThread;
 begin
   CreateGui;
-
+  frmMain_OC.MessageHandle:= self.Handle;
   JigLogic[Self.Tag] := TJig.Create(Self.Tag,hMain,Self.Handle, self);
 
   sCh := '';
@@ -3883,9 +3895,7 @@ begin
   for i := DefCommon.CH1 to DefCommon.MAX_CH do begin
     PG[i].m_hTest := Self.Handle;
   end;
-  Common.MLog(DefCommon.MAX_SYSTEM_LOG,'Initialize- Start');
   CsharpDll.Initialize(Common.TestModelInfoFLOW.ModelTypeName); // Added by KTS 2022-11-23 오후 1:34:17  DLL 설정
-  Common.MLog(DefCommon.MAX_SYSTEM_LOG,'Initialize- End');
   CaSdk2 := TCA_SDK2.Create(hMain,Self.Handle, Common.TestModelInfoFLOW.Ca410MemCh+1,True);
   for i := DefCommon.CH1 to DefCommon.MAX_CH do begin
     CaSetupInfo.SelectIdx     := Common.SystemInfo.Com_Ca310[i];// CaSetupInfo;
@@ -3921,12 +3931,7 @@ begin
   pnlPGStatuses[nJigCh].Color := clMaroon;
   pnlPGStatuses[nJigCh].Font.Color := clYellow;
   sDebug := FormatDateTime('[HH:MM:SS.zzz] ',now) + 'Carrier Detact NG : '+ sErrMsg;
-  mmChannelLog[nJigCh].SelAttributes.Color := clRed;
-  mmChannelLog[nJigCh].SelAttributes.Style := [fsBold];
-  mmChannelLog[nJigCh].Lines.Add(sDebug);
-//    mmChannelLog[nJigCh].Perform(EM_SCROLL,SB_LINEDOWN,0);
-  CalcLogScroll(nJigCh,Length(sDebug));
-  Common.MLog(nJigCh+self.Tag*4,'Carrier Detact NG NG : '+sErrMsg);
+  AddLog(sDebug,nJigCh,1);
 end;
 
 procedure TfrmTest4ChOC.ShowNgMessage(sMessage: string);
@@ -3945,14 +3950,6 @@ var
   bRet : boolean;
 begin
   bRet := True;
-
-  // Added by sam81 2023-04-29 오전 11:15:53  2ch Pair 사용 시
-//  for i := DefCommon.CH1 + 2* nJigCh to DefCommon.CH2 + nJigCh * 2 do begin
-//    case nTimerType of
-//      1 : if  PasScr[nJigCh].m_bTotalTact then     bRet := False;
-//      2 : if  PasScr[nJigCh].m_bUnitiTact then     bRet := False;
-//    end;
-//  end;
 
   case nTimerType of
     1 : if  PasScr[nJigCh].m_bTotalTact then     bRet := True;
@@ -4185,26 +4182,13 @@ begin
       DisplayPwrData(nCh, PGuiPg2Test(PCopyDataStruct(CopyMsg.LParam)^.lpData)^.PwrData);
     end;
     DefCommon.MSG_MODE_DISPLAY_ALARM: begin
-//      if nCh = DefCommon.CH1 then begin
-//        pnlErrAlramMsg.Caption := Format('CH%d, %s',[nCh+1,Trim(sMsg)]);
-//      end
-//      else begin
-//        pnlErrAlramMsg.Caption := Format('CH%d, %s',[nCh+1,Trim(sMsg)]);
-//      end;
-//      pnlErrAlram.Left := 300;
-//      pnlErrAlram.Top := 410;
-//      pnlErrAlram.Visible := True;
       pnlPGStatuses[nCh].Font.Size := 24;
       pnlPGStatuses[nCh].Color := clMaroon;
       pnlPGStatuses[nCh].Font.Name := 'Verdana';
       pnlPGStatuses[nCh].Font.Color := clYellow;
       pnlPGStatuses[nCh].Caption := 'POWER LIMIT NG';
       sDebug := FormatDateTime('[HH:MM:SS.zzz] ', now) + 'POWER LIMIT NG : ' + sMsg;
-      mmChannelLog[nCh].SelAttributes.Color := clRed;
-      mmChannelLog[nCh].SelAttributes.Style := [fsBold];
-      mmChannelLog[nCh].Lines.Add(sDebug);
-      mmChannelLog[nCh].Perform(EM_SCROLL, SB_LINEDOWN, 0);
-      Common.MLog(nCh, 'POWER LIMIT NG : ' + sMsg);
+      AddLog(sDebug,nCh,1);
       SendMessageMain(STAGE_MODE_DISPLAY_ALARAM,nCh, ERR_LIST_1_POWER_LIMIT_NG +nCh, 1, sMsg,nil);
 
     end;
@@ -4214,21 +4198,15 @@ begin
 
     DefCommon.MSG_MODE_WORKING: begin
       try
-      sDebug := FormatDateTime('[HH:MM:SS.zzz] ',now) + sMsg;
-      mmChannelLog[nCh].DisableAlign;
-      if nTemp = DefCommon.LOG_TYPE_NG then begin
-        mmChannelLog[nCh].SelAttributes.Color := clRed;
-        mmChannelLog[nCh].SelAttributes.Style := [fsBold];
-        mmChannelLog[nCh].Perform(EM_SCROLL, SB_LINEDOWN, 0);
-        Common.MLog(nCh + self.Tag * 4, sMsg);
-        CalcLogScroll(nCh, Length(sDebug));
+        sDebug := FormatDateTime('[HH:MM:SS.zzz] ',now) + sMsg;
+        mmChannelLog[nCh].DisableAlign;
+        if nTemp = DefCommon.LOG_TYPE_NG then begin
+          AddLog(sDebug,nCh,10);
+          mmChannelLog[nCh].EnableAlign;
+          Exit;
+        end;
+        AddLog(sDebug,nCh,nTemp);
         mmChannelLog[nCh].EnableAlign;
-        Exit;
-      end;
-      mmChannelLog[nCh].Lines.Add(sDebug);
-      CalcLogScroll(nCh, Length(sDebug));
-      mmChannelLog[nCh].EnableAlign;
-      Common.MLog(nCh + self.Tag * 4, sMsg);
       except
       end;
     end;
@@ -4243,6 +4221,7 @@ var
 begin
   Result := 1;
   AddLog('CA410 CAL START',nCh);
+  Common.R2RLog(nCh,'CA410 CAL START');
   cdCal.W_X := StrToFloatDef(PasScr[nCH].FR2ROC_Data[0],0);
   cdCal.W_Y := StrToFloatDef(PasScr[nCH].FR2ROC_Data[1],0);
   cdCal.W_Z := StrToFloatDef(PasScr[nCH].FR2ROC_Data[2],0);
@@ -4281,9 +4260,15 @@ begin
   end;
   AddLog('----------------',nCh);
   AddLog('CA410 CAL END',nCh);
+  Common.R2RLog(nCh,'CA410 CAL END');
+end;
 
-
-
+function GetTimeDiffSec(StartTimne,EndTime: TDateTime): Integer;
+var
+  diffmsec : Integer;
+begin
+  diffmsec := SecondsBetween(StartTimne,EndTime);
+  RESULT := diffmsec;
 end;
 
 
@@ -4298,6 +4283,24 @@ begin
 
   case nType of
     DefCommon.MSG_TYPE_LOGIC   : WMCopyData_LOGIC(Msg);
+    DefCommon.MSG_TYPE_MAIN    : begin
+      nMode := PGuiDLL(PCopyDataStruct(Msg.LParam)^.lpData)^.Mode;
+      nCh   := PGuiDLL(PCopyDataStruct(Msg.LParam)^.lpData)^.Channel;
+      nTemp := PGuiDLL(PCopyDataStruct(Msg.LParam)^.lpData)^.nParam;
+      case nMode of
+        DefCommon.MSG_MODE_ADDLOG_CHANNEL : begin
+          sMsg := Trim(PGuiDLL(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
+          if nTemp = 10 then begin
+            Common.MLog(nCh+self.Tag*4,sMsg);
+            Exit;
+          end;
+
+          AddLog('[MAIN] ' + sMsg, nCh, nTemp);
+
+        end;
+      end;
+
+    end;
     DefCommon.MSG_TYPE_DLL : begin
       nMode := PGuiDLL(PCopyDataStruct(Msg.LParam)^.lpData)^.Mode;
       nCh   := PGuiDLL(PCopyDataStruct(Msg.LParam)^.lpData)^.Channel;
@@ -4343,11 +4346,11 @@ begin
           CSharpDll.m_bIsProcessDone[nCH] := true;    // CH 종료 확인
           PasScr[nCH].m_First_Process_DONE := false;  //Pre OC First_Process 진행 여부 확인 초기화
           AddLog(format('DLL DONE : %d, NG Code=%d', [nCH +1, PasScr[nCh].m_nNgCode]), nCH, 0);
-          // Added by sam81 2023-04-24 오후 3:40:07 oc 보상 종료 시 Tact time stop
-          PasScr[nCH].TestInfo.EndTime := now;  // Added by KTS 2023-05-19 오후 1:09:57 End Time
           PasScr[nCH].TestInfo.EdUnitTact := Now;
           StopTotalTimer(tmUnitTactTime[nCh],nCh,2);
-          tmUnitTactTime[nCh].Enabled := False;
+          AddLog(format('Measure Tact Time : End!!! [%ds]',[GetTimeDiffSec(PasScr[nCH].TestInfo.StUnitTact,PasScr[nCH].TestInfo.EdUnitTact)]),nCH, 0);
+
+          ControlIRTemp(nCh,0); //IRTemp 기록 종료
 
           DisplayPGStatuses(nCh,PasScr[nCh].m_nNgCode); // 종료 시 바로 결과 Display
 
@@ -4945,37 +4948,6 @@ begin
 
         end;
 
-//        DefCommon.MSG_TYPE_MODE_AGING_DISP : begin
-//          nTemp := PGuiJigData(PCopyDataStruct(Msg.LParam)^.lpData)^.nParam;
-//          ShowAgingTime(nTemp);
-//        end;
-//        DefCommon.MSG_MODE_DISPLAY_PATTERN : begin
-//          nTemp := PGuiJigData(PCopyDataStruct(Msg.LParam)^.lpData)^.nParam;
-//          nPatType := StrToInt(gridPatternList.Cells[0, nTemp]);
-//          gridPatternList.Row := nTemp;
-//          DongaPat.DrawPatAllPat(nPatType,gridPatternList.Cells[1, nTemp]);
-//          lnSigoff1.Visible := False;
-//          lnSigoff2.Visible := False;
-//        end;
-//        DefCommon.MSG_MODE_DISPLAY_ERROR : begin
-//          nTemp := PGuiJigData(PCopyDataStruct(Msg.LParam)^.lpData)^.nParam;
-//          sTemp := PGuiJigData(PCopyDataStruct(Msg.LParam)^.lpData)^.sMsg;
-//          case nTemp of
-//            DefCommon.ALL_CH : begin
-//              for i := DefCommon.CH1 to DefCommon.MAX_JIG_CH do begin
-//                if not chkChannelUse[i].Checked then Continue;
-//
-//                mmChannelLog[i].Lines.Add(sTemp);
-//              end;
-//            end
-//            else begin
-//              mmChannelLog[nTemp].Lines.Add(sTemp);
-//            end;
-//          end;
-//        end;
-//        DefCommon.MSG_MODE_MAIN_CAPTION : begin
-//          frmMainIsfom.Caption := DefCommon.ISFOM_TITLE;
-//        end;
       end;
     end;
 
@@ -5013,6 +4985,23 @@ begin
     			end;
 				end;
 
+        DefCommon.MSG_MODE_WORKING : begin
+          sMsg := Trim(PGuiScript(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
+          if nTemp = 10 then begin
+            Common.MLog(nCh+self.Tag*4,sMsg);
+            Exit;
+          end;
+
+          AddLog(sMsg, nCh, nTemp);
+
+        end;
+
+        DefGmes.R2R_LOG :
+        begin
+          sMsg := Trim(PGuiScript(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
+          Common.R2RLog(nCh,sMsg);       //R2R LOG 추가
+        end;
+
         DefGmes.R2R_EODS : begin
           if frmMainter <> nil then
             frmMainter.GetR2RData(nCh);
@@ -5020,6 +5009,7 @@ begin
 
         DefGmes.R2R_EODA : begin
           AddLog(format('R2R_EODA START!! DLL IsAlive : %d',[CSharpDll.MainOC_GetOCFlowIsAlive(nCh)]),nCh);
+          Common.R2RLog(nCh,format('R2R_EODA START!! DLL IsAlive : %d',[CSharpDll.MainOC_GetOCFlowIsAlive(nCh)]));
           if (CSharpDll.MainOC_GetOCFlowIsAlive(nCh) = 0) or (CSharpDll.MainOC_GetOCFlowIsAlive(nCh) = 2)  then begin
             if DongaGmes <> nil then
               DongaGmes.SendR2REoda(nCh,WriteR2RData(nCh));
@@ -5229,6 +5219,10 @@ begin
             Common.SystemInfo.CA410_MemoryCh[nCh] := IntToStr(nTemp);
             Common.SavesystemInfoCA410Memory(nCh, Common.SystemInfo.CA410_MemoryCh[nCh]);
           end;
+        end;
+
+        DefGmes.R2R_LOG : begin
+          Common.R2RLog(nCh,sMsg);       //R2R LOG 추가
         end;
       end;
     end;

@@ -1249,6 +1249,7 @@ const
   PG_CMDID_TCON_OCWRITE         =  42;  PG_CMDSTR_TCON_OCWRITE         = 'tcon.ocwrite';
   PG_CMDID_TCON_MULTIWRITE      =  43;  PG_CMDSTR_TCON_MULTIWRITE      = 'tcon.multiwrite';
   PG_CMDID_TCON_SEQWRITE        =  44;  PG_CMDSTR_TCON_SEQWRITE        = 'tcon.seqwrite';
+  PG_CMDID_TCON_WRITEREAD       =  45;  PG_CMDSTR_TCON_WRITEREAD       = 'tcon.writeread';
 	//------------------------------------------ NVM(FLASH) R/W
   PG_CMDID_NVM_INIT             =  50;  PG_CMDSTR_NVM_INIT             = 'nvm.init';        //TBD:DP860?  //SPI Speed and Init 
   PG_CMDID_NVM_ERASE            =  51;  PG_CMDSTR_NVM_ERASE            = 'nvm.erase';       //TBD:DP860?

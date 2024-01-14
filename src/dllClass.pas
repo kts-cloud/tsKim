@@ -199,6 +199,11 @@ type
     procedure OntmGetOCFlowIsAlive4(Sender : TObject);
 
     procedure TconWriteAnalysis(nChannel,nAddr,nData : Integer);
+    procedure SendHWCID(nCH : integer);
+    function MainOC_Start_CH1(nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
+    function MainOC_Start_CH2(nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
+    function MainOC_Start_CH3(nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
+    function MainOC_Start_CH4(nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
 
   public
     m_GetDBVdata : function(nBand : Integer): Integer; cdecl;
@@ -215,10 +220,8 @@ type
 
     procedure Initialize(sModelName : string);
     procedure FormDestroy;
-    function MainOC_Start_CH1(nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
-    function MainOC_Start_CH2(nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
-    function MainOC_Start_CH3(nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
-    function MainOC_Start_CH4(nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
+
+    function MainOC_Start(nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
     function MainOC_Stop_CH1(nCH : Integer): integer;
     function MainOC_Stop_CH2(nCH : Integer): integer;
     function MainOC_Stop_CH3(nCH : Integer): integer;
@@ -417,7 +420,6 @@ begin
     m_OCCkSerialNB[nPGCH] := False;
 //    common.MLog(nPGCH,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sFlagString[nPGCH])]));
     SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sSerialNo[nPGCH])]));
-    SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',0);
     CSharpDll.MainOC_Stop_CH1(nPGCH);
   end;
 
@@ -428,15 +430,6 @@ begin
     SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,Format('<SEQUENCE> CountInspections : %d',[m_CountInspections[nPGCH]]));
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_WORK_DONE,'OKFLOW_END',0);
   end;
-//  m_nFlagCount[nPGCH] := m_nFlagCount[nPGCH] + 1;
-//  if (m_nFlagCount[nPGCH] > 60) then begin
-//    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPGCH,CSharpDll.m_sFlagString[nPGCH]);
-//    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPGCH,format(' CH : %d  FlagCheck time out : 60s', [nPGCH]));
-////    Common.MLog(nPGCH,CSharpDll.m_sFlagString[nPGCH]);
-////    Common.MLog(nPGCH,format(' CH : %d  FlagCheck time out : 60s', [nPGCH]));
-//    m_nFlagCount[nPGCH] := 0;
-//  end;
-
 
 end;
 
@@ -456,7 +449,6 @@ begin
     m_OCCkSerialNB[nPGCH] := False;
 //    common.MLog(nPGCH,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sFlagString[nPGCH])]));
     SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sSerialNo[nPGCH])]));
-    SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',0);
     CSharpDll.MainOC_Stop_CH2(nPGCH);
   end;
 
@@ -468,14 +460,6 @@ begin
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_WORK_DONE,'OKFLOW_END',0);
 
   end;
-//  m_nFlagCount[nPGCH] := m_nFlagCount[nPGCH] + 1;
-//  if (m_nFlagCount[nPGCH] > 60)  then begin
-//    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPGCH,CSharpDll.m_sFlagString[nPGCH]);
-//    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPGCH,format(' CH : %d  FlagCheck time out : 60s', [nPGCH]));
-////    Common.MLog(nPGCH,CSharpDll.m_sFlagString[nPGCH]);
-////    Common.MLog(nPGCH,format(' CH : %d  FlagCheck time out : 60s', [nPGCH]));
-//    m_nFlagCount[nPGCH] := 0;
-//  end;
 
 end;
 
@@ -495,7 +479,6 @@ begin
     m_OCCkSerialNB[nPGCH] := False;
 //    common.MLog(nPGCH,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sFlagString[nPGCH])]));
     SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sSerialNo[nPGCH])]));
-    SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',0);
     CSharpDll.MainOC_Stop_CH3(nPGCH);
   end;
   if (m_OCFlowStart[nPGCH]) and (MainOC_GetOCFlowIsAlive(nPGCH) = 0) then begin
@@ -506,14 +489,6 @@ begin
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_WORK_DONE,'OKFLOW_END',0);
 
   end;
-//  m_nFlagCount[nPGCH] := m_nFlagCount[nPGCH] + 1;
-//  if (m_nFlagCount[nPGCH] > 60)  then begin
-//    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPGCH,CSharpDll.m_sFlagString[nPGCH]);
-//    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPGCH,format(' CH : %d  FlagCheck time out : 60s', [nPGCH]));
-////    Common.MLog(nPGCH,CSharpDll.m_sFlagString[nPGCH]);
-////    Common.MLog(nPGCH,format(' CH : %d  FlagCheck time out : 60s', [nPGCH]));
-//    m_nFlagCount[nPGCH] := 0;
-//  end;
 
 end;
 
@@ -533,7 +508,6 @@ begin
     m_OCCkSerialNB[nPGCH] := False;
 //    common.MLog(nPGCH,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sFlagString[nPGCH])]));
     SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sSerialNo[nPGCH])]));
-    SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',0);
     CSharpDll.MainOC_Stop_CH4(nPGCH);
   end;
   if (m_OCFlowStart[nPGCH]) and (MainOC_GetOCFlowIsAlive(nPGCH) = 0) then begin
@@ -544,14 +518,6 @@ begin
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_WORK_DONE,'OKFLOW_END',0);
 
   end;
-//  m_nFlagCount[nPGCH] := m_nFlagCount[nPGCH] + 1;
-//  if (m_nFlagCount[nPGCH] > 60) then begin
-//    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPGCH,CSharpDll.m_sFlagString[nPGCH]);
-//    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPGCH,format(' CH : %d  FlagCheck time out : 60s', [nPGCH]));
-////    Common.MLog(nPGCH,CSharpDll.m_sFlagString[nPGCH]);
-////    Common.MLog(nPGCH,format(' CH : %d  FlagCheck time out : 60s', [nPGCH+1]));
-//    m_nFlagCount[nPGCH] := 0;
-//  end;
 
 end;
 
@@ -815,18 +781,15 @@ begin
   sTxData := Format(' 0x%0.2x',[arrData[0]]);
 
   for I := 0 to nRetry do begin
-    if I = nRetry then
-      nDebugLog := 1
-    else
-      nDebugLog := 0;
-    nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nDataCnt, arrData, nWaitMS,0,nDebugLog);
+//    if I = nRetry then
+//      nDebugLog := 1
+//    else
+//      nDebugLog := 0;
+    nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nDataCnt, arrData, nWaitMS,0,1);
     if nResult <> WAIT_OBJECT_0 then begin
       Inc(PG[nChannel].TconRWCnt.TconRetryWriteCall);
 //      sDebug := Format('TCONSetReg NG CH : %d Retry : %d',[nChannel,i + 1]);
 //      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-
-//      nRet:= Application.MessageBox('SendI2CWrite NG!!', 'Confirm', MB_OK + MB_ICONQUESTION);
-//      if nRet = IDOK then Break;
     end
     else begin
       Break;
@@ -869,22 +832,17 @@ begin
   SetLength(arRData,nDataCnt);
   arrData[0] := data;
   sTxData := Format(' 0x%0.2x',[arrData[0]]);
-//  sDebug := Format('I2C WRITE: DevAddr(0x%0.2x) RegAddr(0x%0.4x) DataCnt(%d), WaitSec(%d) Retry(%d) Data(%s)',
-//                     [DEVICE_ADDRESS,Addr,nDataCnt, nWaitMS,nRetry, sTxData]);
-//  Common.MLog(nChannel,sDebug);
 
   for I := 0 to nRetry do begin
-    if I = nRetry then
-      nDebugLog := 1
-    else
-      nDebugLog := 0;
-    nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nDataCnt, arrData, nWaitMS,0,nDebugLog);
+//    if I = nRetry then
+//      nDebugLog := 1
+//    else
+//      nDebugLog := 0;
+    nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nDataCnt, arrData, nWaitMS,0,1);
     if nResult <> WAIT_OBJECT_0 then begin
       Inc(PG[nChannel].TconRWCnt.TconRetryWriteCall);
 //      sDebug := Format('TCONSetReg NG CH : %d Retry : %d',[nChannel,i + 1]);
 //      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-//      nRet:= Application.MessageBox('SendI2CWrite NG!!', 'Confirm', MB_OK + MB_ICONQUESTION);
-//      if nRet = IDOK then Break;
     end
     else begin
       Break;
@@ -926,22 +884,17 @@ begin
   SetLength(arRData,nDataCnt);
   arrData[0] := data;
   sTxData := Format(' 0x%0.2x',[arrData[0]]);
-//  sDebug := Format('I2C WRITE: DevAddr(0x%0.2x) RegAddr(0x%0.4x) DataCnt(%d), WaitSec(%d) Retry(%d) Data(%s)',
-//                     [DEVICE_ADDRESS,Addr,nDataCnt, nWaitMS,nRetry, sTxData]);
-//  Common.MLog(nChannel,sDebug);
 
   for I := 0 to nRetry do begin
-    if I = nRetry then
-      nDebugLog := 1
-    else
-      nDebugLog := 0;
-    nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nDataCnt, arrData, nWaitMS,0,nDebugLog);
+//    if I = nRetry then
+//      nDebugLog := 1
+//    else
+//      nDebugLog := 0;
+    nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nDataCnt, arrData, nWaitMS,0,1);
     if nResult <> WAIT_OBJECT_0 then begin
       Inc(PG[nChannel].TconRWCnt.TconRetryWriteCall);
 //      sDebug := Format('TCONSetReg NG CH : %d Retry : %d',[nChannel,i + 1]);
 //      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-//      nRet:= Application.MessageBox('SendI2CWrite NG!!', 'Confirm', MB_OK + MB_ICONQUESTION);
-//      if nRet = IDOK then Break;
     end
     else begin
       Break;
@@ -984,17 +937,15 @@ begin
   sTxData := Format(' 0x%0.2x',[arrData[0]]);
 
   for I := 0 to nRetry do begin
-    if I = nRetry then
-      nDebugLog := 1
-    else
-      nDebugLog := 0;
-    nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nDataCnt, arrData, nWaitMS,0 ,nDebugLog);
+//    if I = nRetry then
+//      nDebugLog := 1
+//    else
+//      nDebugLog := 0;
+    nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nDataCnt, arrData, nWaitMS,0 ,1);
     if nResult <> WAIT_OBJECT_0 then begin
       Inc(PG[nChannel].TconRWCnt.TconRetryWriteCall);
 //      sDebug := Format('TCONSetReg NG CH : %d Retry : %d',[nChannel,i + 1]);
 //      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-//      nRet:= Application.MessageBox('SendI2CWrite NG!!', 'Confirm', MB_OK + MB_ICONQUESTION);
-//      if nRet = IDOK then Break;
     end
     else begin
       Break;
@@ -1006,15 +957,6 @@ begin
     CSharpDll.MainOC_Stop_CH4(nChannel);
   end;
 
-//  nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nDataCnt, arrData, nWaitMS,nRetry);
-//  if nResult <> WAIT_OBJECT_0  then  begin
-//    nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nDataCnt, arrData, nWaitMS,nRetry);
-//    if nResult <> WAIT_OBJECT_0 then begin
-//      sDebug := Format('TCONSetReg NG CH : %d',[nChannel]);
-//      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-//      CSharpDll.MainOC_Stop_CH4(nChannel);
-//    end;
-//  end;
   Result := nResult;
   {$ENDIF}
 end;
@@ -1467,16 +1409,14 @@ begin
   {$IFDEF PG_DP860}
 //Pg[nChannel].SetCyclicTimer(False{bEnable});
   nDataCnt := 1;
-//  sDebug := Format('I2C READ: DevAddr(0x%0.2x) RegAddr(0x%0.4x) DataCnt(%d), WaitMS(%d) Retry(%d) ',[DEVICE_ADDRESS,Addr,nDataCnt, nWaitMS,nRetry]);
-//  Common.MLog(nChannel,sDebug);
 
   SetLength(arRData,nDataCnt);
   for i := 0 to nRetry do begin //2023-04-07 retry at here (RxParsingErr)
-    if I = nRetry then
-      nDebugLog := 1
-    else
-      nDebugLog := 0;
-    nResult := Pg[nChannel].SendI2CRead(DEVICE_ADDRESS,Addr,nDataCnt,arRData, nWaitMS,0{nRetry},nDebugLog);
+//    if I = nRetry then
+//      nDebugLog := 1
+//    else
+//      nDebugLog := 0;
+    nResult := Pg[nChannel].SendI2CRead(DEVICE_ADDRESS,Addr,nDataCnt,arRData, nWaitMS,0{nRetry},1);
     if nResult = WAIT_OBJECT_0 then break
     else Inc(PG[nChannel].TconRWCnt.TconRetryReadCall);
   end;
@@ -1489,9 +1429,6 @@ begin
     CSharpDll.MainOC_Stop_CH1(nChannel);
   end;
   Result := nResult;
-//2023-03-28 Sleep(1);
-//Sleep(5);
-//Pg[nChannel].SetCyclicTimer(true{bEnable});
   {$ENDIF}
 end;
 
@@ -1518,16 +1455,14 @@ begin
   {$IFDEF PG_DP860}
 //Pg[nChannel].SetCyclicTimer(False{bEnable});
   nDataCnt := 1;
-//  sDebug := Format('I2C READ: DevAddr(0x%0.2x) RegAddr(0x%0.4x) DataCnt(%d), WaitMS(%d) Retry(%d) ',[DEVICE_ADDRESS,Addr,nDataCnt, nWaitMS,nRetry]);
-//  Common.MLog(nChannel,sDebug);
 
   SetLength(arRData,nDataCnt);
   for i := 0 to nRetry do begin //2023-04-07 retry at here (RxParsingErr)
-    if I = nRetry then
-      nDebugLog := 1
-    else
-      nDebugLog := 0;
-    nResult := Pg[nChannel].SendI2CRead(DEVICE_ADDRESS,Addr,nDataCnt,arRData, nWaitMS,0{nRetry},nDebugLog);
+//    if I = nRetry then
+//      nDebugLog := 1
+//    else
+//      nDebugLog := 0;
+    nResult := Pg[nChannel].SendI2CRead(DEVICE_ADDRESS,Addr,nDataCnt,arRData, nWaitMS,0{nRetry},1);
     if nResult = WAIT_OBJECT_0 then break
     else Inc(PG[nChannel].TconRWCnt.TconRetryReadCall);
   end;
@@ -1566,16 +1501,14 @@ begin
   {$IFDEF PG_DP860}
 //Pg[nChannel].SetCyclicTimer(False{bEnable});
   nDataCnt := 1;
-//  sDebug := Format('I2C READ: DevAddr(0x%0.2x) RegAddr(0x%0.4x) DataCnt(%d), WaitMS(%d) Retry(%d) ',[DEVICE_ADDRESS,Addr,nDataCnt, nWaitMS,nRetry]);
-//  Common.MLog(nChannel,sDebug);
 
   SetLength(arRData,nDataCnt);
   for i := 0 to nRetry do begin //2023-04-07 retry at here (RxParsingErr)
-    if I = nRetry then
-      nDebugLog := 1
-    else
-      nDebugLog := 0;
-    nResult := Pg[nChannel].SendI2CRead(DEVICE_ADDRESS,Addr,nDataCnt,arRData, nWaitMS,0{nRetry},nDebugLog);
+//    if I = nRetry then
+//      nDebugLog := 1
+//    else
+//      nDebugLog := 0;
+    nResult := Pg[nChannel].SendI2CRead(DEVICE_ADDRESS,Addr,nDataCnt,arRData, nWaitMS,0{nRetry},1);
     if nResult = WAIT_OBJECT_0 then break
     else Inc(PG[nChannel].TconRWCnt.TconRetryReadCall);
   end;
@@ -1611,16 +1544,14 @@ begin
   {$IFDEF PG_DP860}
 //Pg[nChannel].SetCyclicTimer(False{bEnable});
   nDataCnt := 1;
-//  sDebug := Format('I2C READ: DevAddr(0x%0.2x) RegAddr(0x%0.4x) DataCnt(%d), WaitMS(%d) Retry(%d) ',[DEVICE_ADDRESS,Addr,nDataCnt, nWaitMS,nRetry]);
-//  Common.MLog(nChannel,sDebug);
 
   SetLength(arRData,nDataCnt);
   for i := 0 to nRetry do begin //2023-04-07 retry at here (RxParsingErr)
-    if I = nRetry then
-      nDebugLog := 1
-    else
-      nDebugLog := 0;
-    nResult := Pg[nChannel].SendI2CRead(DEVICE_ADDRESS,Addr,nDataCnt,arRData, nWaitMS,0{nRetry},nDebugLog);
+//    if I = nRetry then
+//      nDebugLog := 1
+//    else
+//      nDebugLog := 0;
+    nResult := Pg[nChannel].SendI2CRead(DEVICE_ADDRESS,Addr,nDataCnt,arRData, nWaitMS,0{nRetry},1);
     if nResult = WAIT_OBJECT_0 then break
     else Inc(PG[nChannel].TconRWCnt.TconRetryReadCall);
   end;
@@ -2069,8 +2000,6 @@ begin
   CSharpDll.m_nFlagCount[nChannel] := 0;
   SetLength(waveform,nMeasureAmount);
   SetLength(Data,nMeasureAmount);
-//    sDebug := Format('MyCB_GetWaveformData: Length(%d)',[nMeasureAmount]);
-//    Common.MLog(nChannel,sDebug);
 
   result := CaSdk2.GetWaveformData(nChannel,@waveform[0],@Data[0] ,nMeasureAmount);
   CopyMemory(waveform_T,@waveform[0],nMeasureAmount*sizeof(waveform[0]));
@@ -2557,6 +2486,14 @@ begin
   Result := 0;
 end;
 
+procedure TCSharpDll.SendHWCID(nCH : integer);
+var
+sHWCID : string;
+begin
+  sHWCID := Pg[nCH].m_HWCID[1] + ',' + Pg[nCH].m_HWCID[0] + ',' + Pg[nCH].m_HWCID[2] + ',' + Pg[nCH].m_HWCID[3] + ',' + Pg[nCH].m_HWCID[4];
+  SendTestGuiDisplay(nCH,defCommon.MSG_MODE_LOG_HWCID,sHWCID,0);
+end;
+
 
 
 function TCSharpDll.MainOC_Start_CH1(nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
@@ -2568,17 +2505,13 @@ dCheckSum: dword;
 begin
   try
     sParameter := sPID + ',' + sSerialNumber + ',' + sUser_ID +',' + sEquipment;
-    sHWCID := Pg[nCH].m_HWCID[1] + ',' + Pg[nCH].m_HWCID[0] + ',' + Pg[nCH].m_HWCID[2] + ',' + Pg[nCH].m_HWCID[3] + ',' + Pg[nCH].m_HWCID[4];
-    SendTestGuiDisplay(nCH,defCommon.MSG_MODE_WORKING,sParameter,0);
-//    sDebug := 'CPU Usage: ' + FormatFloat('0.00%', GetCpuUsage);
-    sDebug := sDebug + #13#10 + 'Memory usage : ' + Format('%0.2f%%', [Common.GetMemoryUsagePercentage]);
+    sDebug := sParameter + #13#10 +'Memory usage : ' + Format('%0.2f%%', [Common.GetMemoryUsagePercentage]);
     SendTestGuiDisplay(nCH,defCommon.MSG_MODE_WORKING,sDebug,0);
-    SendTestGuiDisplay(nCH,defCommon.MSG_MODE_LOG_HWCID,sHWCID,0);
+    SendHWCID(nCH);
     m_bIsProcessDone[nCH] := False;
     m_sSerialNo[nCH] := sSerialNumber;
     m_CountInspections[nCH] := 0; //검사 횟수 초기화
-    sCrcData := sParameter;
-    dCheckSum := Common.crc16(sCrcData,Length(sParameter));
+    dCheckSum := Common.crc16(sParameter,Length(sParameter));
     if m_MainOC_START_CH1(nCH,Common.StringToPAnsiChar(sParameter),Length(sParameter),dCheckSum) <> 0 then
       Exit(2);
     m_OCFlowStart[nCH] := true;
@@ -2597,25 +2530,20 @@ sCrcData   : AnsiString;
 dCheckSum: dword;
 begin
   try
-//    Pg[nCH].SetCyclicTimer(False{bEnable});
     sParameter := sPID + ',' + sSerialNumber + ',' + sUser_ID +',' + sEquipment;
-    sHWCID := Pg[nCH].m_HWCID[1] + ',' + Pg[nCH].m_HWCID[0] + ',' + Pg[nCH].m_HWCID[2] + ',' + Pg[nCH].m_HWCID[3] + ',' + Pg[nCH].m_HWCID[4];
-    m_bIsProcessDone[nCH] := False;
-    SendTestGuiDisplay(nCH,defCommon.MSG_MODE_WORKING,sParameter,0);
-    sDebug := 'Memory usage : ' + Format('%0.2f%%', [Common.GetMemoryUsagePercentage]);
+    sDebug := sParameter + #13#10 +'Memory usage : ' + Format('%0.2f%%', [Common.GetMemoryUsagePercentage]);
     SendTestGuiDisplay(nCH,defCommon.MSG_MODE_WORKING,sDebug,0);
-    SendTestGuiDisplay(nCH,defCommon.MSG_MODE_LOG_HWCID,sHWCID,0);
+    SendHWCID(nCH);
+    m_bIsProcessDone[nCH] := False;
     m_sSerialNo[nCH] := sSerialNumber;
     m_CountInspections[nCH] := 0; //검사 횟수 초기화
-    sCrcData := sParameter;
-    dCheckSum := Common.crc16(sCrcData,Length(sParameter));
+    dCheckSum := Common.crc16(sParameter,Length(sParameter));
     if m_MainOC_START_CH2(nCH,Common.StringToPAnsiChar(sParameter),Length(sParameter),dCheckSum) <> 0 then
       Exit(2);
     m_OCFlowStart[nCH] := true;
     tmCheckOCAlive[nCH].Enabled := True;
     Result := 0;
   except
-//    Pg[nCH].SetCyclicTimer(true{bEnable});
     Result := 2;
   end;
 end;
@@ -2627,24 +2555,20 @@ sCrcData   : AnsiString;
 dCheckSum: dword;
 begin
   try
-//    Pg[nCH].SetCyclicTimer(False{bEnable});
     sParameter := sPID + ',' + sSerialNumber + ',' + sUser_ID +',' + sEquipment;
-    sHWCID := Pg[nCH].m_HWCID[1] + ',' + Pg[nCH].m_HWCID[0] + ',' + Pg[nCH].m_HWCID[2] + ',' + Pg[nCH].m_HWCID[3] + ',' + Pg[nCH].m_HWCID[4];    m_bIsProcessDone[nCH] := False;
-    SendTestGuiDisplay(nCH,defCommon.MSG_MODE_WORKING,sParameter,0);
-    SendTestGuiDisplay(nCH,defCommon.MSG_MODE_LOG_HWCID,sHWCID,0);
-    sDebug := 'Memory usage : ' + Format('%0.2f%%', [Common.GetMemoryUsagePercentage]);
+    sDebug := sParameter + #13#10 +'Memory usage : ' + Format('%0.2f%%', [Common.GetMemoryUsagePercentage]);
     SendTestGuiDisplay(nCH,defCommon.MSG_MODE_WORKING,sDebug,0);
+    SendHWCID(nCH);
+    m_bIsProcessDone[nCH] := False;
     m_sSerialNo[nCH] := sSerialNumber;
     m_CountInspections[nCH] := 0; //검사 횟수 초기화
-    sCrcData := sParameter;
-    dCheckSum := Common.crc16(sCrcData,Length(sParameter));
+    dCheckSum := Common.crc16(sParameter,Length(sParameter));
     if m_MainOC_START_CH3(nCH,Common.StringToPAnsiChar(sParameter),Length(sParameter),dCheckSum) <> 0 then
       Exit(2);
     m_OCFlowStart[nCH] := true;
     tmCheckOCAlive[nCH].Enabled := True;
     Result := 0;
   except
-//      Pg[nCH].SetCyclicTimer(true{bEnable});
     Result := 2;
   end;
 end;
@@ -2656,26 +2580,32 @@ sCrcData   : AnsiString;
 dCheckSum: dword;
 begin
   try
-//    Pg[nCH].SetCyclicTimer(False{bEnable});
     sParameter := sPID + ',' + sSerialNumber + ',' + sUser_ID +',' + sEquipment;
-    sHWCID := Pg[nCH].m_HWCID[1] + ',' + Pg[nCH].m_HWCID[0] + ',' + Pg[nCH].m_HWCID[2] + ',' + Pg[nCH].m_HWCID[3] + ',' + Pg[nCH].m_HWCID[4];    m_bIsProcessDone[nCH] := False;
-    SendTestGuiDisplay(nCH,defCommon.MSG_MODE_WORKING,sParameter,0);
-    SendTestGuiDisplay(nCH,defCommon.MSG_MODE_LOG_HWCID,sHWCID,0);
-    sDebug := 'Memory usage : ' + Format('%0.2f%%', [Common.GetMemoryUsagePercentage]);
+    sDebug := sParameter + #13#10 +'Memory usage : ' + Format('%0.2f%%', [Common.GetMemoryUsagePercentage]);
     SendTestGuiDisplay(nCH,defCommon.MSG_MODE_WORKING,sDebug,0);
-
+    SendHWCID(nCH);
+    m_bIsProcessDone[nCH] := False;
     m_sSerialNo[nCH] := sSerialNumber;
     m_CountInspections[nCH] := 0; //검사 횟수 초기화
-    sCrcData := sParameter;
-    dCheckSum := Common.crc16(sCrcData,Length(sParameter));
+    dCheckSum := Common.crc16(sParameter,Length(sParameter));
     if m_MainOC_START_CH4(nCH,Common.StringToPAnsiChar(sParameter),Length(sParameter),dCheckSum) <> 0 then
       Exit(2);
     m_OCFlowStart[nCH] := true;
     tmCheckOCAlive[nCH].Enabled := True;
     Result := 0;
   except
-//    Pg[nCH].SetCyclicTimer(true{bEnable});
     Result := 2;
+  end;
+end;
+
+function TCSharpDll.MainOC_Start(nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
+begin
+  Result := 2;
+  case nCH of
+    0:         Result := MainOC_Start_CH1(nCH,sPID,sSerialNumber,sUser_ID,sEquipment);
+    1:         Result := MainOC_Start_CH2(nCH,sPID,sSerialNumber,sUser_ID,sEquipment);
+    2:         Result := MainOC_Start_CH3(nCH,sPID,sSerialNumber,sUser_ID,sEquipment);
+    3:         Result := MainOC_Start_CH4(nCH,sPID,sSerialNumber,sUser_ID,sEquipment);
   end;
 end;
 

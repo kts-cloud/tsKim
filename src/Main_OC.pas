@@ -261,9 +261,12 @@ type
     procedure AddLog_AllCh(sLog: String);
     procedure WMSyscommandBroadcast(var Msg: TMessage);
     procedure chkCH;
+
+
+
   public
     { Public declarations }
-
+    MessageHandle: THandle;
     PollingDoorOpened : Boolean;
     function CheckEmpty_Pair(nStage, nPair: Integer): Boolean;
     function CheckProbe(nCH: Integer): Boolean;
@@ -283,6 +286,8 @@ implementation
 {$R *.dfm}
 
 uses DefCam, DioDisplayAlarm, SelectDetect;
+
+
 
 procedure TfrmMain_OC.AddLog_AllCh(sLog: String);
 var
@@ -360,7 +365,15 @@ begin
 end;
 
 procedure TfrmMain_OC.btnExitClick(Sender: TObject);
+var
+i : Integer;
 begin
+  for I := DefCommon.CH1 to DefCommon.MAX_CH do begin
+    if (CSharpDll.MainOC_GetOCFlowIsAlive(i) = 1) then begin
+      Application.MessageBox('Unable to run if it is being inspected', 'Confirm', MB_OK+MB_ICONSTOP);
+      Exit;
+    end;
+  end;
   Close;
 end;
 
@@ -369,9 +382,15 @@ var
   sMsg, sDebug : string;
   i : integer;
 begin
-  if Common.StatusInfo.AutoMode then begin
+  if (Common.StatusInfo.AutoMode)  then begin
     Application.MessageBox('Can not Excute On Auto Mode', 'Confirm', MB_OK+MB_ICONSTOP);
     Exit;
+  end;
+  for I := DefCommon.CH1 to DefCommon.MAX_CH do begin
+    if (CSharpDll.MainOC_GetOCFlowIsAlive(i) = 1) then begin
+      Application.MessageBox('Unable to run if it is being inspected', 'Confirm', MB_OK+MB_ICONSTOP);
+      Exit;
+    end;
   end;
 
   sMsg :=        #13#10 + 'bạn có muốn khởi tạo chương trình không?';
@@ -380,7 +399,6 @@ begin
     sDebug := '[Click Event] Initialize';
     ShowSysLog(sDebug);
     for i := DefCommon.CH1 to DefCommon.MAX_CH do
-//    common.MLog(i,sDebug);
       SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, 0, i, sDebug);
     InitialAll;
   end;
@@ -410,6 +428,12 @@ begin
   if Common.StatusInfo.AutoMode then begin
     Application.MessageBox('Can not Excute On Auto Mode', 'Confirm', MB_OK+MB_ICONSTOP);
     Exit;
+  end;
+  for I := DefCommon.CH1 to DefCommon.MAX_CH do begin
+    if (CSharpDll.MainOC_GetOCFlowIsAlive(i) = 1) then begin
+      Application.MessageBox('Unable to run if it is being inspected', 'Confirm', MB_OK+MB_ICONSTOP);
+      Exit;
+    end;
   end;
 
   if CheckScriptRun then Exit;
@@ -449,6 +473,12 @@ begin
   if Common.StatusInfo.AutoMode then begin
     Application.MessageBox('Can not Excute On Auto Mode', 'Confirm', MB_OK+MB_ICONSTOP);
     Exit;
+  end;
+  for I := DefCommon.CH1 to DefCommon.MAX_CH do begin
+    if (CSharpDll.MainOC_GetOCFlowIsAlive(i) = 1) then begin
+      Application.MessageBox('Unable to run if it is being inspected', 'Confirm', MB_OK+MB_ICONSTOP);
+      Exit;
+    end;
   end;
 
   if CheckScriptRun then Exit;
@@ -506,6 +536,12 @@ begin
     Application.MessageBox('Can not Excute On Auto Mode', 'Confirm', MB_OK+MB_ICONSTOP);
     Exit;
   end;
+  for I := DefCommon.CH1 to DefCommon.MAX_CH do begin
+    if (CSharpDll.MainOC_GetOCFlowIsAlive(i) = 1) then begin
+      Application.MessageBox('Unable to run if it is being inspected', 'Confirm', MB_OK+MB_ICONSTOP);
+      Exit;
+    end;
+  end;
 
   if CheckScriptRun then Exit;
 
@@ -544,6 +580,12 @@ begin
   if Common.StatusInfo.AutoMode then begin
     Application.MessageBox('Can not Excute On Auto Mode', 'Confirm', MB_OK+MB_ICONSTOP);
     Exit;
+  end;
+  for I := DefCommon.CH1 to DefCommon.MAX_CH do begin
+    if (CSharpDll.MainOC_GetOCFlowIsAlive(i) = 1) then begin
+      Application.MessageBox('Unable to run if it is being inspected', 'Confirm', MB_OK+MB_ICONSTOP);
+      Exit;
+    end;
   end;
 
   if CheckScriptRun then Exit;
@@ -1428,6 +1470,16 @@ var
   sMsg, sDebug : string;
   i    : Integer;
 begin
+  if Common.StatusInfo.AutoMode then begin
+    Application.MessageBox('Can not Excute On Auto Mode', 'Confirm', MB_OK+MB_ICONSTOP);
+    Exit;
+  end;
+  for I := DefCommon.CH1 to DefCommon.MAX_CH do begin
+    if (CSharpDll.MainOC_GetOCFlowIsAlive(i) = 1) then begin
+      Application.MessageBox('Unable to run if it is being inspected', 'Confirm', MB_OK+MB_ICONSTOP);
+      Exit;
+    end;
+  end;
    sMsg := #13#10 + 'bạn có muốn thóat chương trình không?';
   sMsg := sMsg + #13#10 + '(Are you sure you want to Exit Program?)';
   if MessageDlg(sMsg, mtConfirmation, [mbYes, mbNo], 0) = mrYes then begin
@@ -2745,7 +2797,8 @@ begin
             if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
               frmTest4ChOC[nStage].DisplayResult(pGUIMsg.Channel, -3, 0, 'Load Complete');
               sMsg:= '[LOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[pGUIMsg.Channel]);
-              frmTest4ChOC[nStage].AddLog(sMsg, pGUIMsg.Channel);
+              SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, 0, pGUIMsg.Channel,sMsg);
+//              frmTest4ChOC[nStage].AddLog(sMsg, pGUIMsg.Channel);
               PasScr[pGUIMsg.Channel].TestInfo.MateriID := g_CommPLC.GlassData[pGUIMsg.Channel].MateriID;
               PasScr[pGUIMsg.Channel].m_nConfirmHostRet := 0;
               g_CommPLC.RobotLoadingStatus[pGUIMsg.Channel] := True;
@@ -2756,11 +2809,13 @@ begin
               //Common.MLog(pGUIMsg.Channel*2 + 0 + nStage*4, 'Load Complete');
   //            g_CommPLC.ECS_Glass_Processing(True);
               sMsg:= '[LOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[pGUIMsg.Channel*2 + 0 + nStage*4]);
-              frmTest4ChOC[nStage].AddLog(sMsg, pGUIMsg.Channel*2 + 0);
+              SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, 0,  pGUIMsg.Channel*2 + 0, sMsg);
+//              frmTest4ChOC[nStage].AddLog(sMsg, pGUIMsg.Channel*2 + 0);
               PasScr[pGUIMsg.Channel * 2 + 0].TestInfo.MateriID := g_CommPLC.GlassData[pGUIMsg.Channel *2 + 0].MateriID;
               PasScr[pGUIMsg.Channel * 2 + 0].m_nConfirmHostRet := 0;
               sMsg:= '[LOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[pGUIMsg.Channel*2 + 1 + nStage*4]);
-              frmTest4ChOC[nStage].AddLog(sMsg, pGUIMsg.Channel*2 + 1);
+              SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, 0,  pGUIMsg.Channel*2 + 1, sMsg);
+//              frmTest4ChOC[nStage].AddLog(sMsg, pGUIMsg.Channel*2 + 1);
               PasScr[pGUIMsg.Channel * 2 + 1].TestInfo.MateriID := g_CommPLC.GlassData[pGUIMsg.Channel *2 + 1].MateriID;
               PasScr[pGUIMsg.Channel * 2 + 1].m_nConfirmHostRet := 0;
             end;
@@ -5583,23 +5638,24 @@ end;
 //  end;
 //end;
 
+
+
 procedure TfrmMain_OC.SendMsgAddLog(nMsgMode, nParam, nParam2: Integer; sMsg: String; pData: Pointer);
 var
   cds         : TCopyDataStruct;
   COPYDATAMessage : RGuiDaeDio;
 begin
-  COPYDATAMessage.MsgType := MSG_TYPE_NONE;
-  COPYDATAMessage.Channel := 0;
+  COPYDATAMessage.MsgType := MSG_TYPE_MAIN;
+  COPYDATAMessage.Channel := nParam2;
   COPYDATAMessage.Mode    := nMsgMode;
   COPYDATAMessage.Param   := nParam;
-  COPYDATAMessage.Param2  := nParam2;
   COPYDATAMessage.Msg     := sMsg;
   COPYDATAMessage.pData   := pData;
 
   cds.dwData      := 0;
   cds.cbData      := SizeOf(COPYDATAMessage);
   cds.lpData      := @COPYDATAMessage;
-  SendMessage(frmMain_OC.Handle ,WM_COPYDATA,0, LongInt(@cds));
+  SendMessage(MessageHandle ,WM_COPYDATA,0, LongInt(@cds));
 end;
 
 procedure TfrmMain_OC.SetEcsMesPosition;
@@ -5785,8 +5841,10 @@ begin
         Set_AlarmData(DefDio.IN_GIB_CH_34_LIGHTCURTAIN, 0,0);
       end;
       chkCH;
-      for I := DefCommon.CH1 to DefCommon.MAX_CH do
+      for I := DefCommon.CH1 to DefCommon.MAX_CH do begin
+        SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, 0, i, 'Auto Mode');
         frmTest4ChOC[0].chkChannelUse[i].Enabled := False;
+      end;
 //      frmTest4ChOC[0].DisplaySysInfo;
 
       StartAutoProcess; //자동 모드 시작
@@ -5818,8 +5876,10 @@ begin
       Common.StatusInfo.AutoMode:= False;
       ShowSysLog('Manual Mode');
       ControlDio.Set_TowerLampState(LAMP_STATE_MANUAL);
-      for I := DefCommon.CH1 to DefCommon.MAX_CH do
+      for I := DefCommon.CH1 to DefCommon.MAX_CH do begin
+        SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, 0, i, 'Manual Mode');
         frmTest4ChOC[0].chkChannelUse[i].Enabled := True;
+      end;
 //      frmTest4ChOC[0].DisplaySysInfo;
       if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
         g_CommPLC.ITC_AllChNormalStatusOnOff(0);
@@ -5937,7 +5997,8 @@ begin
 
   try
     sDebug := FormatDateTime('[HH:MM:SS.zzz] ',now) + sMsg;
-    Common.MLog(DefCommon.MAX_SYSTEM_LOG, sMsg);
+    SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, 0, DefCommon.MAX_SYSTEM_LOG, sMsg);
+//    Common.MLog(DefCommon.MAX_SYSTEM_LOG, sMsg);
 
 
     mmoSysLog.Lines.Add(sDebug);
@@ -6825,10 +6886,6 @@ begin
         MSG_MODE_ADDLOG: begin
           //단순 System Log 추가
           ShowSysLog(pGUIMsg.Msg, pGUIMsg.Param);
-        end;
-        MSG_MODE_ADDLOG_CHANNEL: begin
-          //test에 각 채널에 로그 추가
-          frmTest4ChOC[pGUIMsg.Param].AddLog(pGUIMsg.Msg, pGUIMsg.Param2);
         end;
 
         MSG_MODE_RESET_ALARM: begin
