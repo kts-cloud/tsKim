@@ -10,11 +10,11 @@ uses
   IdGlobal, IdUDPClient, IdUDPServer, IdContext, IdSocketHandle,Vcl.Forms;
 
 const
-{$IFDEF INSPECTOR_OC}
-  MAX_DIO_DEVICE_COUNT = 12;
-{$ELSE}
-  MAX_DIO_DEVICE_COUNT = 8;
-{$ENDIF}
+//{$IFDEF INSPECTOR_OC}
+//  MAX_DIO_DEVICE_COUNT = 12;
+//{$ELSE}
+//  MAX_DIO_DEVICE_COUNT = 8;
+//{$ENDIF}
 //  MAX_DIO_DEVICE_COUNT = 16;
 
 
@@ -24,6 +24,7 @@ const
   COMMDIO_MSG_CHANGE_DI   = COMMDIO_MSG_NONE + 3;
   COMMDIO_MSG_CHANGE_DO   = COMMDIO_MSG_NONE + 4;
   COMMDIO_MSG_LOG         = COMMDIO_MSG_NONE + 5;
+  COMMDIO_MSG_LOG_CH      = COMMDIO_MSG_NONE + 6;
   COMMDIO_MSG_ERROR       = COMMDIO_MSG_NONE + 100;
   COMMDIO_MSG_MAX         = COMMDIO_MSG_ERROR + 1;
 
@@ -62,8 +63,8 @@ type
     ServerIP: Cardinal;
     ServerPort: Cardinal;
     Count : Byte;
-    Version : array [0..MAX_DIO_DEVICE_COUNT] of Cardinal;  // Added by KTS 2023-04-12 오전 8:32:45
-//    Version : array [0..12] of Cardinal;
+//    Version : array [0..MAX_DIO_DEVICE_COUNT] of Cardinal;  // Added by KTS 2023-04-12 오전 8:32:45
+    Version : array [0..12] of Cardinal;
 //    Version : array of Cardinal;
   end;
   PDIODeviceInfo = ^TDIODeviceInfo;
@@ -322,7 +323,6 @@ begin
   m_nCheckTime := 0;
   MessageType:= nMsgType;
   m_nDeviceCount:= nDeviceCount;
-//  SetLength(DeviceInfo.Version,m_nDeviceCount); // DeviceInfo.Version 싸이즈 가변
 
   UseFlushMode:= bFlushMode;
   PollingMode:= nPollingMode;
@@ -406,6 +406,8 @@ begin
 
     StopThread;
     m_bConnected:= False;
+
+
 
     if m_UDPServer <> nil then begin
       m_UDPServer.OnUDPException := nil;

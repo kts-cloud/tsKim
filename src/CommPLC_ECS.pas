@@ -54,11 +54,11 @@ const
   COMMPLC_ROBOT_DATASIZE = 4; //Polling Data Size
   COMMPLC_ECS_DATASIZE   = 3; //Polling Data Size
 
-{$IFDEF INSPECTOR_OC}
-  COMMPLC_EQP_DATASIZE   = 16; //Polling Data Size
-{$ELSE}
-  COMMPLC_EQP_DATASIZE   = 22; //Polling Data Size // ROBOT 연결 영역 때문에
-{$ENDIF}
+//{$IFDEF INSPECTOR_OC}
+//  COMMPLC_EQP_DATASIZE   = 16; //Polling Data Size
+//{$ELSE}
+//  COMMPLC_EQP_DATASIZE   = 22; //Polling Data Size // ROBOT 연결 영역 때문에
+//{$ENDIF}
   COMMPLC_CV_DATASIZE   = 1; //Polling Data Size
   COMMPLC_COMMON_DATASIZE = 1;
 
@@ -2896,7 +2896,7 @@ begin
 
   if Terminated then Exit;
 
-  if InlineGIB then begin
+  if (InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType) then begin
     nRet := ReadDevice('B030', nValue , False);
     PollingAABMode := nValue;
   end;
@@ -5180,3 +5180,4 @@ begin
 end;
 
 end.
+

@@ -264,6 +264,11 @@ type
     edMESCodeCnt: TRzEdit;
     RzPanel50: TRzPanel;
     edPopupMsgTime: TRzEdit;
+    RzPanel19: TRzPanel;
+    edPGResetDelayTime: TRzEdit;
+    RzPanel51: TRzPanel;
+    edPGResetTotalConut: TRzEdit;
+    chkAutoLGDLogBackup: TRzCheckBox;
 
     procedure FormCreate(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -782,6 +787,7 @@ begin
 
     DAELoadWizardPath := edFileName.Text;
     UseITOMode := chkITOBmpMode.Checked;
+    AutoLGDLogBackup := chkAutoLGDLogBackup.Checked;
 
     CHReversal := ChkCHReversal.Checked; // 라인 반전으로 1 2 CH 반전 되어 들어오는 경우 처리
 
@@ -811,6 +817,8 @@ begin
     MES_CODE_Cnt := StrToIntDef(edMESCodeCnt.Text,0);
 
     PopupMsgTime := StrToIntDef(edPopupMsgTime.Text,0);
+    PGResetDelayTime := StrToIntDef(edPGResetDelayTime.Text,0);
+    PGResetTotalConut := StrToIntDef(edPGResetTotalConut.Text,0);
 
 
     case EQPId_Type of
@@ -1293,6 +1301,8 @@ begin
     cboRCB2.ItemIndex               := Com_RCB[1];
     cboCamLight.ItemIndex           := Com_CamLight;
 
+    chkAutoLGDLogBackup.Checked     := AutoLGDLogBackup;
+
     chkCh1.Checked      := UseCh[0];
     chkCh2.Checked      := UseCh[1];
     chkCh3.Checked      := UseCh[2];
@@ -1306,23 +1316,16 @@ begin
     edMESCodeCnt.Text  := IntToStr(MES_CODE_Cnt);
 
     edPopupMsgTime.Text := IntToStr(PopupMsgTime);
-
+    edPGResetDelayTime.Text := IntToStr(PGResetDelayTime);
+    edPGResetTotalConut.Text := IntToStr(PGResetTotalConut);
 (*
-    edRobotARev.Text  := RobotRevA;
-    edRobotBRev.Text  := RobotRevB;
-    edRobotASend.Text := RobotOutA;
-    edRobotBSend.Text := RobotOutB;
-    edPlcIp.Text        := LocalIP_PLC;
+
 *)
     edPlcConfigPath.Text  := PlcConfigPath;
 
     pnlDebugLogPG.visible := True;  cboDebugLogPG.visible := True;
     cboDebugLogPG.ItemIndex := DebugLogLevelConfig;
-//    pnlDebugLogPG.visible := False; cboDebugLogPG.visible := False;
 
-
-//    cboCamLight.Visible := True;
-//    pnlCamLight.Visible := True;
     btnPocbEmNo.Visible := True;
     tbEcsSheet.TabVisible := True;
 
@@ -1330,17 +1333,11 @@ begin
     edAutoBackup.Text     := AutoBackupList;
 
     cboNGAlarmCount.ItemIndex:= NGAlarmCount;
-//    cboRetryCount.ItemIndex:= RetryCount;
-//    edtECS_Timeout.Text:=  IntToStr(ECS_Timeout);
 
-//    chkMIPILog.Checked     := MIPILog;
     if Use_ECS then rgSelectReport.ItemIndex:= 0
     else rgSelectReport.ItemIndex:= 1;
 
 
-//    edIonizerCnt.Text               := Format('%d',[IonizerCnt]);
-
-//    cboCa310Channel.Items.Clear;
     cboCa310_1.Items.Clear;
     cboCa310_2.Items.Clear;
     cboCa310_3.Items.Clear;

@@ -114,6 +114,7 @@ type
 
     m_nCurStatus   : Integer;
     m_NGAlarmCount : Integer;
+    m_bTheadIsTerminated : Boolean;
     m_nOkCnt, m_nNgCnt,m_LLCnt : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of integer;
     m_nTotalTact, m_nUnitTact   :array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of   Integer;
     tmTotalTactTime  : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of  TTimer;
@@ -196,6 +197,7 @@ type
     FTempIr: array[DefCommon.CH1 .. DefCommon.MAX_PG_CNT * 2 - 1] of Double;
 
 
+
     procedure CreateGui;
 
     procedure OntmCheckIRTemp1(Sender : TObject);
@@ -258,11 +260,14 @@ type
 
     procedure ControlIRTemp (nCh,nTemp : Integer);
     procedure AddLog(sMsg: string; nCh:Integer; nType: Integer=0);
+    function PGPowerReset(nCh : Integer): Integer;
+    procedure aTaskThreadIsDone(Sender: TObject);
   public
     { Public declarations }
     /// <summary> Main 폼 Handle - WM_COPYDATA</summary>
     MessageHandle: THandle;
     m_nJigTact      : Integer;
+    m_bPassCH :  array [DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of Boolean; // 동일한 NG 발생 시 해당 CH Pass
     m_bFanOnOff : array [DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of Boolean;
     m_nTempIrTact : array [DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of integer;
     tmCheckIRTemp    : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of  TTimer;
@@ -334,7 +339,7 @@ type
     procedure getBcrData(sScanData: string);
     procedure getBcrData2(sScanData: string);
     function GetNGCode_ByErroCode(sErrorCode: string): Integer;
-
+    procedure PGUseStatus(nCH : Integer; bOnOff : Boolean);
     procedure ShowIrTempData(nCh, nData: Integer);
     procedure SaveCsvTempStatus(nCH : integer;sMemo : string; bFanOnOff : Boolean);
 //    procedure SetLanguage(nIdx : Integer);
@@ -360,8 +365,10 @@ begin
   if Common.StatusInfo.Closing then Exit;
 
   try
+
     if mmChannelLog[nCh].Lines.count > 200 then
       mmChannelLog[nCh].Lines.Clear;
+
     case nType of
       1: begin
         //Alarm 등 강조
@@ -773,7 +780,6 @@ begin
       if PasScr[i].m_bUse THEN
         AddLog(Format('m_bUse CH: %d' ,[I]),i)
       else AddLog(Format('m_bUse no CH: %d' ,[I]),i);
-
 
       Common.StatusInfo.UseChannel[i]:= chkChannelUse[i].Checked;
       Break;
@@ -2705,28 +2711,31 @@ end;
 
 procedure TfrmTest4ChOC.DisplayPreviousRet(nCh: Integer);
 var
-  i, nPg, nSum: Integer;
+  i, nSum: Integer;
   sMsg : string;
 begin
-  nPg := nCh+self.Tag*4;
-  for i := 0 to pred(PasScr[nPg].m_lstPrevRet.Count) do begin
+  if PasScr[nCh] = nil  then Exit;
+
+  for i := 0 to pred(PasScr[nCh].m_lstPrevRet.Count) do begin
     if i > (Common.SystemInfo.NGAlarmCount -1) then Continue;
-    nSum := nSum + PasScr[nPg].m_lstPrevRet.Items[i];
-    if PasScr[nPg].m_lstPrevRet.Items[i] = 0 then begin
+    nSum := nSum + PasScr[nCh].m_lstPrevRet.Items[i];
+    if PasScr[nCh].m_lstPrevRet.Items[i] = 0 then begin
       pnlPrevResult[nCh,i].Caption  := 'Pass';
       pnlPrevResult[nCh,i].Color    := clLime;
       pnlPrevResult[nCh,i].Font.Color    := clBlack;
     end
     else begin
-      pnlPrevResult[nCh,i].Caption  := Format('%0.2d NG',[PasScr[nPg].m_lstPrevRet.Items[i]]);
+      pnlPrevResult[nCh,i].Caption  := Format('%0.2d NG',[PasScr[nCh].m_lstPrevRet.Items[i]]);
       pnlPrevResult[nCh,i].Color    := clRed;
       pnlPrevResult[nCh,i].Font.Color    := clBlack;
     end;
   end;
-  if PasScr[nPg].m_lstPrevRet.Count > 0 then begin
-    if (PasScr[nPg].m_lstPrevRet.Items[0] <> 0) and (nSum <> 0) and ((nSum div Common.SystemInfo.NGAlarmCount) = PasScr[nPg].m_lstPrevRet.Items[0])  then begin
-      sMsg := format('Same NG Occurrence : NG CODE : %d',[PasScr[nPg].m_lstPrevRet.Items[0]]);
+  if (PasScr[nCh].m_lstPrevRet.Count > 0) and (not Common.TestModelInfoFLOW.IDLEMode) then begin
+    if (PasScr[nCh].m_lstPrevRet.Items[0] <> 0) and (nSum <> 0) and ((nSum div Common.SystemInfo.NGAlarmCount) = PasScr[nCh].m_lstPrevRet.Items[0])  then begin
+      sMsg := format('Same NG Occurrence : NG CODE : %d',[PasScr[nCh].m_lstPrevRet.Items[0]]);
       SendMessageMain(STAGE_MODE_DISPLAY_ALARAM,nCh, ERR_LIST_1_NG_CONUT +nCh, 1, sMsg,nil);
+
+      m_bPassCH[nCh] := True;  // 동일한 NG Count 발생 시 해당 CH 제외
     end;
   end;
 
@@ -3200,12 +3209,18 @@ begin
               pnlMESResults[nJigCh].Color      := clBtnFace;
               pnlMESResults[nJigCh].Font.Color := clBlack;
               pnlMESResults[nJigCh].Caption    := 'SEND LPIR';
-            end;
 
-            DongaGmes.SendHostPchk(sRemoveCr, nJigCh,'');
-            pnlMESResults[nJigCh].Color      := clBtnFace;
-            pnlMESResults[nJigCh].Font.Color := clBlack;
-            pnlMESResults[nJigCh].Caption    := 'SEND PCHK';
+              DongaGmes.SendHostIns_Pchk(sRemoveCr, nJigCh,'');
+              pnlMESResults[nJigCh].Color      := clBtnFace;
+              pnlMESResults[nJigCh].Font.Color := clBlack;
+              pnlMESResults[nJigCh].Caption    := 'SEND INS PCHK';
+            end
+            else begin
+              DongaGmes.SendHostPchk(sRemoveCr, nJigCh,'');
+              pnlMESResults[nJigCh].Color      := clBtnFace;
+              pnlMESResults[nJigCh].Font.Color := clBlack;
+              pnlMESResults[nJigCh].Caption    := 'SEND PCHK';
+            end;
           end;
           sDebug := Format('<HAND-BCR> Bcr Data flow End Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
           AddLog(sDebug,nJigCh,0);
@@ -3431,6 +3446,39 @@ begin
 end;
 
 
+function TfrmTest4ChOC.PGPowerReset(nCh: Integer): Integer;
+var
+i : Integer;
+begin
+  Result := 1;
+  if PG[nCh] = nil  then Exit(0);
+  if (Common.SystemInfo.PGResetTotalConut = 0) or (StrToInt(pnlTotalValues[nCh].Caption) = 0) then Exit(0);
+  if (StrToInt(pnlTotalValues[nCh].Caption) mod Common.SystemInfo.PGResetTotalConut) = 0 then  begin
+    PG[nCh].tmConnCheck.Enabled  := False;
+    ControlDio.PowerResetPG_CH(nCh);
+    PG[nCh].tmConnCheck.Enabled  := true;
+  end;
+  Result := 0;
+end;
+
+procedure TfrmTest4ChOC.PGUseStatus(nCH: Integer; bOnOff: Boolean);
+begin
+  chkChannelUse[nCH].DisableAlign;
+  try
+    chkChannelUse[nCH].Checked := bOnOff;
+    if chkChannelUse[nCH].Checked then  chkChannelUse[nCH].Font.Color := clGreen
+    else                              chkChannelUse[nCH].Font.Color := clRed;
+    PasScr[nCH].m_bUse := chkChannelUse[nCH].Checked;
+    if PasScr[nCH].m_bUse THEN
+      AddLog(Format('m_bUse - ON CH: %d' ,[nCH]),nCH)
+    else AddLog(Format('m_bUse - OFF CH: %d' ,[nCH]),nCH);
+
+    Common.StatusInfo.UseChannel[nCH]:= chkChannelUse[nCH].Checked;
+  finally
+    chkChannelUse[nCH].EnableAlign;
+  end;
+end;
+
 procedure TfrmTest4ChOC.pnlSerials1DblClick(Sender: TObject);
 var
 nCH : Integer;
@@ -3564,18 +3612,18 @@ begin
   Result := True;
 end;
 
+
+
 procedure TfrmTest4ChOC.AutoLogicStart(nCH : integer);
 var
   sDebug : string;
   i: Integer;
 begin
-//  common.MLog(4,Format('AutoLogicStart CH : %d',[nCH]));
   AddLog(Format('AutoLogicStart CH : %d',[nCH]),DefCommon.MAX_SYSTEM_LOG,0);
   if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
     ClearChData(nCH);
     PasScr[nCH].TestInfo.StartTime := now;
     AddLog(Format('AutoLogicStart Process : %d',[nCH]),nCH,0);
-//    common.MLog(nCH,Format('AutoLogicStart Process : %d',[nCH]));
 
     frmTest4ChOC[0].SetIonizer(nCH div 2,True);  //// 검사 종료 시 SetIonizer ON
 
@@ -3882,18 +3930,27 @@ var
   i : Integer;
   CaSetupInfo : TCaSetupInfo;
   aTask : TThread;
+  sSourceFileName,sDestinationFileName : string;
 begin
   CreateGui;
   frmMain_OC.MessageHandle:= self.Handle;
   JigLogic[Self.Tag] := TJig.Create(Self.Tag,hMain,Self.Handle, self);
 
   sCh := '';
+  sSourceFileName := Common.Path.LGDDLL + format('LGD_OC_%s.dll',[Common.TestModelInfoFLOW.ModelTypeName]);
+  sDestinationFileName := Common.Path.LGDDLL + 'LGD_OC_X2146.dll';
+
+  if FileExists(sSourceFileName) then
+    CopyFile(PChar(sSourceFileName), PChar(sDestinationFileName), True);
 
 //  CsharpDll := TCSharpDll.Create(hMain,Self.Handle,ExtractFilePath(Application.ExeName),'OC_Converter.dll');
+
   CsharpDll := TCSharpDll.Create(hMain,Self.Handle,Common.Path.LGDDLL,'OC_Converter.dll');
+
   CsharpDll.Create_Test;
   for i := DefCommon.CH1 to DefCommon.MAX_CH do begin
     PG[i].m_hTest := Self.Handle;
+    m_bPassCH[i] := False; //CH PASS 초기화
   end;
   CsharpDll.Initialize(Common.TestModelInfoFLOW.ModelTypeName); // Added by KTS 2022-11-23 오후 1:34:17  DLL 설정
   CaSdk2 := TCA_SDK2.Create(hMain,Self.Handle, Common.TestModelInfoFLOW.Ca410MemCh+1,True);
@@ -4198,14 +4255,14 @@ begin
 
     DefCommon.MSG_MODE_WORKING: begin
       try
-        sDebug := FormatDateTime('[HH:MM:SS.zzz] ',now) + sMsg;
+//        sDebug := FormatDateTime('[HH:MM:SS.zzz] ',now) + sMsg;
         mmChannelLog[nCh].DisableAlign;
         if nTemp = DefCommon.LOG_TYPE_NG then begin
-          AddLog(sDebug,nCh,10);
+          AddLog(sMsg,nCh,10);
           mmChannelLog[nCh].EnableAlign;
           Exit;
         end;
-        AddLog(sDebug,nCh,nTemp);
+        AddLog(sMsg,nCh,nTemp);
         mmChannelLog[nCh].EnableAlign;
       except
       end;
@@ -4277,6 +4334,7 @@ var
   nType, nMode, nCh, i, nTemp, nTemp2, nPgNo, nLines, nPair : Integer;
   bTemp : Boolean;
   sMsg, sDebug, sTemp,sVer,sSerialNumber,sEquipment,sPID : string;
+  aTask : TThread;
 begin
   nType := PGuiScript(PCopyDataStruct(Msg.LParam)^.lpData)^.MsgType;
   nCh   := (PGuiScript(PCopyDataStruct(Msg.LParam)^.lpData)^.Channel) mod 4;
@@ -4284,19 +4342,20 @@ begin
   case nType of
     DefCommon.MSG_TYPE_LOGIC   : WMCopyData_LOGIC(Msg);
     DefCommon.MSG_TYPE_MAIN    : begin
-      nMode := PGuiDLL(PCopyDataStruct(Msg.LParam)^.lpData)^.Mode;
-      nCh   := PGuiDLL(PCopyDataStruct(Msg.LParam)^.lpData)^.Channel;
-      nTemp := PGuiDLL(PCopyDataStruct(Msg.LParam)^.lpData)^.nParam;
+      nMode := PGUIMessage(PCopyDataStruct(Msg.LParam)^.lpData)^.Mode;
+      nCh   := PGUIMessage(PCopyDataStruct(Msg.LParam)^.lpData)^.Channel;
+      nTemp := PGUIMessage(PCopyDataStruct(Msg.LParam)^.lpData)^.Param;
       case nMode of
         DefCommon.MSG_MODE_ADDLOG_CHANNEL : begin
-          sMsg := Trim(PGuiDLL(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
+          sMsg := Trim(PGUIMessage(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
           if nTemp = 10 then begin
             Common.MLog(nCh+self.Tag*4,sMsg);
             Exit;
           end;
-
-          AddLog('[MAIN] ' + sMsg, nCh, nTemp);
-
+          if nCh <> DefCommon.MAX_SYSTEM_LOG then
+            AddLog('[MAIN] ' + sMsg, nCh, nTemp)
+          else
+            Common.MLog(nCh,sMsg);
         end;
       end;
 
@@ -4353,6 +4412,9 @@ begin
           ControlIRTemp(nCh,0); //IRTemp 기록 종료
 
           DisplayPGStatuses(nCh,PasScr[nCh].m_nNgCode); // 종료 시 바로 결과 Display
+
+          PGPowerReset(nCH); //종료 후 PG Reset 진행
+
 
           case nCH of
             0,1 :
@@ -4584,12 +4646,7 @@ begin
 //          tmTotalTactTime.Enabled := False;
         end;
         DefCommon.MSG_MODE_POWER_OFF : begin
-//          lnSigoff1.Visible := True;
-//          lnSigoff2.Visible := True;
-//          DongaPat.LoadPatFile('No Signal');
-//          pnlPatternName.Caption := 'Power Off';
-//          m_nTotalTact := 0;
-//          tmTotalTactTime.Enabled := Fa
+
         end;
         DefGmes.MES_PCHK : begin  //JHHWANG-GMES: 2018-06-20
       		//Common.MLog(DefCommon.MAX_SYSTEM_LOG,'TfrmTest4ChPocb.WMCopyData: MSG_TYPE_HOST, MES_PCHK, PG'+IntToStr(nCh+1)); //IMSI
@@ -4771,6 +4828,20 @@ begin
                     CSharpDll.m_bIsProcessDone[nCh] := True;
                     Common.MLog(nCh, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) ' + inttostr(nCh));
                     //Exchange 요청(Unload/Load)
+                    if (Common.SystemInfo.AutoLGDLogBackup) and (not m_bTheadIsTerminated) then begin   // LGD LOG Auto backup 진행 여부 확인
+                      aTask := TThread.CreateAnonymousThread(
+                        procedure var  i : Integer; begin
+                          m_bTheadIsTerminated := True;
+                          for I := 0 to DefCommon.MAX_JIG_CH do begin
+                            if CSharpDll.m_OCFlowStart[i] then  Break;
+                            Common.ScheduledTask;
+                          end;
+                        end);
+                      aTask.FreeOnTerminate := True;
+                      aTask.OnTerminate := aTaskThreadIsDone;
+                      aTask.Start;
+                    end;
+
                     if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then  begin
                       if PasScr[nCh].m_bIsScriptWork then Exit;
                       SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, nCh , nCh , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
@@ -4986,7 +5057,6 @@ begin
 				end;
 
         DefCommon.MSG_MODE_WORKING : begin
-          sMsg := Trim(PGuiScript(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
           if nTemp = 10 then begin
             Common.MLog(nCh+self.Tag*4,sMsg);
             Exit;
@@ -5272,6 +5342,12 @@ begin
     end;
   end;
 end;
+
+procedure TfrmTest4ChOC.aTaskThreadIsDone(Sender: TObject);
+begin
+  m_bTheadIsTerminated := False;
+end;
+
 
 end.
 

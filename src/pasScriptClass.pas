@@ -178,6 +178,9 @@ type
     SIM_Use_DIO    : Boolean;
     SIM_Use_PLC   : Boolean;
     SIM_Use_CAM   : Boolean;
+    Final_x      : Double;
+    Final_y      : Double;
+    Final_Lv      : Double;
     nPwrVCC : Integer;
     nPwrVIN : Integer;
     function Get_MeasureTime: Integer;
@@ -350,6 +353,8 @@ type
     procedure ShowResult_Proc(AMachine:TatVirtualMachine);
     procedure ShowCurStaus_Proc(AMachine:TatVirtualMachine);
     procedure ShowSerial_Proc(AMachine: TatVirtualMachine);
+
+    procedure GetSummaryLogData_Froc(AMachine: TatVirtualMachine);
 
     procedure RemakeSerialLog_Proc(AMachine:TatVirtualMachine);
     procedure MakeCsv_Proc(AMachine:TatVirtualMachine);
@@ -777,6 +782,8 @@ begin
   SetPaScript.DefineMethod('f_SetCurJigChForPass', 1,tkNone,  nil,SetCurJigChForPass_Proc,  False);
   SetPaScript.DefineMethod('f_LoadPassRgbAvr', 5,tkInteger, nil,LoadPassRgbAvr_Proc,      False,5);
 
+  SetPaScript.DefineMethod('f_GetSummaryLogData', 1,tkString, nil,GetSummaryLogData_Froc,False,1);
+
 //  SetPaScript.DefineMethod('f_WriteFlash_Mipi2SRAM', 1,tkInteger, nil,WriteFlash_Mipi2SRAM_Proc,      False);
 
   // TSTART SERIAL NO, TIME OUT.
@@ -867,7 +874,7 @@ begin
 //  sParamHint := sParamHint + ',LSB Register_Add(1 byte),Data Length(2 byte) / Read Buffer.';
   with SetPaScript.DefineMethod('f_I2CRead', 4, tkVariant, nil, I2CRead_Proc, False,3) do begin
 //    UpdateParameterHints(sParamHint);
-    SetVarArgs([1]);
+    SetVarArgs([3]);
   end;
 
 //  // Parameter Hint for Mipi Write
@@ -936,6 +943,8 @@ begin
   SetPaScript.AddVariable('c_NVMWriteSequence',Common.TestModelInfoFLOW.UseCkNVMWriteSequence);
 
   SetPaScript.AddVariable('c_IdleModeDTime',Common.TestModelInfoFLOW.IdleModeDTime);
+
+  SetPaScript.AddVariable('c_bChkIRA',PG[Self.FPgNo].m_bChkIRA);
 
 
 //  SetPaScript.AddVariable('c_NVMWriteSequence',nNVMWriteSequence);
@@ -1830,6 +1839,22 @@ begin
   end;
 end;
 
+procedure TScrCls.GetSummaryLogData_Froc(AMachine: TatVirtualMachine);
+var
+SummaryLogData,sParameter : string;
+begin
+  with AMachine do begin
+    SummaryLogData := '';
+    sParameter := GetInputArgAsString(0);
+    SummaryLogData := CSharpDll.MainOC_GetSummaryLogData(Self.FPgNo,sParameter);
+    if SummaryLogData <> '' then begin
+      ReturnOutputArg(SummaryLogData);
+    end
+    else ReturnOutputArg('');
+  end;
+
+end;
+
 procedure TScrCls.GPIOSet_Proc(AMachine: TatVirtualMachine);
 var
   nSet, nSelect, nWait : Integer;
@@ -1887,8 +1912,8 @@ begin
     if nRetry = 0 then nRetry := 1;
     //
     sDebug := Format('I2C READ: DevAddr(0x%0.2x) RegAddr(0x%0.4x) DataCnt(%d), WaitMS(%d) Retry(%d) ',[nDevAddr,nRegAddr,nDataCnt, nWaitMS,nRetry]);
-    if bDataLog then SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,sDebug,'',DefCommon.LOG_TYPE_INFO)
-    else             Common.MLog(FPgNo,sDebug);
+    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,sDebug,'',DefCommon.LOG_TYPE_INFO);
+
     SetLength(arRData,nDataCnt);
     wdRet := Pg[Self.FPgNo].SendI2CRead(nDevAddr,nRegAddr,nDataCnt,arRData, nWaitMS,nRetry);
     case wdRet of
@@ -1907,8 +1932,7 @@ begin
       WAIT_FAILED : sDebug := 'I2C READ NG (Failed)';
       else          sDebug := 'I2C READ NG (Etc)';
     end;
-    if bDataLog then SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,sDebug,'', TernaryOp((wdRet=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG))
-    else             Common.MLog(FPgNo,sDebug);
+    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,sDebug,'', TernaryOp((wdRet=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG));
     ReturnOutputArg(wdRet);
   end;
 end;
@@ -2020,6 +2044,7 @@ begin
     nRetry  := 0;   //2023-04-08 (0->3->0)
     nDataCnt := 1;
     SetLength(arRData,nDataCnt);
+    sTxData := format('0x%0.2x',[nWriteData]);
     arrData[0] := nWriteData;
     bDataLog := True;
     sDebug := Format('I2C WRITE: RegAddr(0x%0.4x) DataCnt(%d), Data(0x%0.4x) WaitMS(%d) Retry(%d) ',[nRegAddr,nDataCnt,nWriteData, nWaitSec,nRetry]);
@@ -2146,10 +2171,12 @@ begin
   //sDebug := sDebug + Format(', Oc_Verify(%s), Otp_Table(%s)',[Common.m_Ver.OcVerify,Common.m_Ver.OtpTable]);
   //sDebug := sDebug + Format(', Oc_Offset(%s), MES_CODE(%s)',[Common.m_Ver.OcOffSet,Common.m_Ver.MES_CSV]);
 //  Common.MLog(FPgNo,sDebug);
+
   SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,sDebug);
 
-  sDebug := Format('PGSetting Check : PG_TconWriteLogDisplay(%s), PG_TconWriteCmdType(%d)',[BoolToStr(Common.SystemInfo.PG_TconWriteLogDisplay,True),Common.SystemInfo.PG_TconWriteCmdType]);
+  sDebug := Format('PGSetting Check : PG_TconWriteLogDisplay(%s), PG_TconWriteCmdType(%d), PG_TconReadCmdType(%d)',[BoolToStr(Common.SystemInfo.PG_TconWriteLogDisplay,True),Common.SystemInfo.PG_TconWriteCmdType,Common.SystemInfo.PG_TconReadCmdType]);
   sDebug := sDebug + Format(', PG_TconOcWriteDelayMsec(%d), PG_TconOcWriteDelayMicroSec(%d)',[Common.SystemInfo.PG_TconOcWriteDelayMsec,Common.SystemInfo.PG_TconOcWriteDelayMicroSec]);
+  sDebug := sDebug + Format(', PGResetTotalConut(%d), PGResetDelayTime(%d)',[Common.SystemInfo.PGResetTotalConut,Common.SystemInfo.PGResetDelayTime]);
 
 //  Common.MLog(FPgNo,sDebug);
   SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,sDebug);
@@ -2201,6 +2228,10 @@ begin
   TestInfo.Test_Repeat:= Common.SystemInfo.Test_Repeat;
   TestInfo.OCDllCall := False;
   TestInfo.PreOcReStart := False;
+
+  TestInfo.Final_x := 0.0;
+  TestInfo.Final_y := 0.0;
+  TestInfo.Final_Lv := 0.0;
 
   if g_CommPLC <> nil then  begin
     TestInfo.CarrierId:= g_CommPLC.GlassData[FPgNo].CarrierID; //GlassData에서 CarrierID를 LOT_ID에 설정
@@ -3133,10 +3164,40 @@ begin
   end;
 end;
 
+
+function ExtractDifference(const Str1, Str2: string): string;
+var
+  i: Integer;
+begin
+  Result := '';
+
+  // 두 문자열 중 작은 길이를 기준으로 반복
+  for i := 1 to Min(Length(Str1), Length(Str2)) do
+  begin
+    // 문자가 다른 경우에만 추가
+    if Str1[i] <> Str2[i] then
+      Result := Result + Format('%d:%s', [i, Str2[i]]);
+  end;
+
+  // 길이가 다른 부분을 추가
+  if Length(Str1) > Length(Str2) then
+  begin
+    for i := Length(Str2) + 1 to Length(Str1) do
+      Result := Result + Format('%d:%s', [i, Str1[i]]);
+  end
+  else if Length(Str2) > Length(Str1) then
+  begin
+    for i := Length(Str1) + 1 to Length(Str2) do
+      Result := Result + Format('%d:%s', [i, Str2[i]]);
+  end;
+end;
+
+
+
 procedure TScrCls.OCFlowStart_Proc(AMachine: TatVirtualMachine);
 var
   wdRet,i : integer;
-  sPID,sSerialNumber,sEquipment,sUSERID : string;
+  sPID,sSerialNumber,sEquipment,sUSERID,sDiff : string;
 begin
   With AMachine do begin
     wdRet := 3;
@@ -3151,21 +3212,29 @@ begin
         sPID := GetInputArgAsstring(0);
         sSerialNumber := Trim(GetInputArgAsstring(1));
 
-        if DongaGmes <> nil then  begin
-          sPID :=  DongaGmes.MesData[FPgNo].PchkRtnPID; // Added by KTS 2023-05-19 오후 5:32:48 PCHK 받은 RYN_PID
-          if (Pos('TEST_CH',sSerialNumber) = 0) and (Pos('Contact_NG',sSerialNumber) = 0)  then begin
-            if (sSerialNumber <> DongaGmes.MesData[FPgNo].PchkRtnSerialNo) or (Length(sSerialNumber) <> Common.TestModelInfoFLOW.SerialNoFlashInfo.nLength) then begin
-              if Common.SystemInfo.OCType = DefCommon.OCType then
+        if Common.SystemInfo.OCType = DefCommon.OCType then begin
+          if DongaGmes <> nil then  begin
+            sPID :=  DongaGmes.MesData[FPgNo].PchkRtnPID; // Added by KTS 2023-05-19 오후 5:32:48 PCHK 받은 RYN_PID
+            if (Pos('TEST_CH',sSerialNumber) = 0) and (Pos('Contact_NG',sSerialNumber) = 0)  then begin     // Contact_NG 가 아닌 경우만
+              if (sSerialNumber <> DongaGmes.MesData[FPgNo].PchkRtnSerialNo) or (Length(sSerialNumber) <> Common.TestModelInfoFLOW.SerialNoFlashInfo.nLength) then begin //
+                if sSerialNumber <> DongaGmes.MesData[FPgNo].PchkRtnSerialNo then begin
+                  sDiff := ExtractDifference(sSerialNumber,DongaGmes.MesData[FPgNo].PchkRtnSerialNo);
+                  SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,format('ExtractDifference : %s',[sDiff]),'',1);
+                end;
                 CSharpDll.m_OCCkSerialNB[FPgNo] := True;
+              end;
             end;
           end;
+        end
+        else begin
+          if DongaGmes <> nil then
+            sPID := DongaGmes.MesData[FPgNo].PchkRtnPID;
         end;
         if Length(sPID) = 0 then sPID := Copy(sSerialNumber,1,3);
 
         if Common.SystemInfo.OCType = DefCommon.PreOCType then
           sSerialNumber := Format('%s_PCB_ID_CH_%d',[sSerialNumber,Self.FPgNo+1])
         else begin
-
           if g_CommPLC <> nil then  begin
             if (g_CommPLC.GlassData[FPgNo].MateriID <> '') and ((Pos('TEST_CH',sSerialNumber) > 0) or (Pos('Contact_NG',sSerialNumber) > 0)) then begin
               sSerialNumber := g_CommPLC.GlassData[FPgNo].MateriID;
@@ -3397,6 +3466,7 @@ var
   wdRet   : DWORD;
   nWaitMS : Integer;
   nRetry  : Integer;
+  nDBVBand : Integer;
 //  sDebug  : string;
 begin
   With AMachine do begin
@@ -3462,16 +3532,22 @@ begin
           end;
           5 : begin
             naParam[1] := GetInputArgAsInteger(1); // Dimming
+            if naParam[1] < 33 then
+                  nDBVBand := Common.m_GetDBV[naParam[1]-1]
+            else  nDBVBand := naParam[1];
             if InputArgCount >= 3 then nWaitMS := GetInputArgAsInteger(2); // WaitAck (msec)
             if InputArgCount >= 4 then nRetry  := GetInputArgAsInteger(3); // Retry
-            wdRet := Pg[Self.FPgNo].SendDimming(naParam[1], nWaitMS,nRetry);  //2019-10-11 DIMMING (SendDisplayPat -> SendDisplayPWMPat)
+            wdRet := Pg[Self.FPgNo].SendDimming(nDBVBand, nWaitMS,nRetry);  //2019-10-11 DIMMING (SendDisplayPat -> SendDisplayPWMPat)
 
           end;
           6 : begin
             naParam[1] := GetInputArgAsInteger(1); // Dimming
+            if naParam[1] < 33 then
+                  nDBVBand := Common.m_GetDBV[naParam[1]-1]
+            else  nDBVBand := naParam[1];
             if InputArgCount >= 3 then nWaitMS := GetInputArgAsInteger(2); // WaitAck (msec)
             if InputArgCount >= 4 then nRetry  := GetInputArgAsInteger(3); // Retry
-            wdRet := Pg[Self.FPgNo].SendDimmingBist(naParam[1], nWaitMS,nRetry);  //2019-10-11 DIMMING (SendDisplayPat -> SendDisplayPWMPat)
+            wdRet := Pg[Self.FPgNo].SendDimmingBist(nDBVBand, nWaitMS,nRetry);  //2019-10-11 DIMMING (SendDisplayPat -> SendDisplayPWMPat)
 
           end;
           7 : begin // Power
@@ -3483,18 +3559,11 @@ begin
             //wdRet := Pg[Self.FPgNo].SendPowerOff(nWaitMS,nRetry);
               wdRet := Pg[Self.FPgNo].SendPowerBistOn(0{Off},False,nWaitMS,nRetry); //TBD:DP860?
               TestInfo.PowerOn := False;
-              SendTestGuiDisplay(DefCommon.MSG_MODE_POWER_OFF,'','',0);
-              SendMainGuiDisplay(DefCommon.MSG_MODE_POWER_OFF);
             end
             else if naParam[1] = DefScript.PP_COMMAD_PWR_ON then begin
               TestInfo.PowerOn := True;
 //              wdRet := Pg[Self.FPgNo].SendPowerOn(nWaitMS,nRetry);
               wdRet := Pg[Self.FPgNo].SendPowerBistOn(1{On},False,nWaitMS,nRetry); //TBD:DP860?
-              SendTestGuiDisplay(DefCommon.MSG_MODE_POWER_ON,'','',0);
-              SendMainGuiDisplay(DefCommon.MSG_MODE_POWER_ON);
-            {$IF Defined(INSPECTOR_FI) or Defined(INSPECTOR_OQA)}
-              SendTestGuiDisplay(DefCommon.MSG_MODE_PAT_DISPLAY,'','',m_nCurPat);
-            {$ENDIF}
             end;
           end;
 
@@ -4353,17 +4422,6 @@ begin
             Exit;
           end;
 
-//          if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
-//            sSN := Format('%s_PCB_ID_CH_%d',[sSN,Self.FPgNo+1]);
-//            PasScr[Self.FPgNo].TestInfo.SerialNo := sSN;
-//          end;
-          //if TestInfo.CanSendApdr then begin
-  //          TestInfo.ApdrData := ExecExtraFunction('MakeApdrData_EAS');
-//          Common.MLog(self.FPgNo, 'ReadLGDDLLSummaryLog - Start');
-//          TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog(sSN,FormatDateTime('yymmdd',PasScr[FPgNo].TestInfo.StartTime), self.FPgNo);
-//          Common.MLog(self.FPgNo, 'ReadLGDDLLSummaryLog - End');
-
-          //Common.MLog(Self.FPgNo,TestInfo.ApdrData);
           if DongaGmes <> nil then begin
             //EAS ADPR은 응답을 기다리지 않는다.
             SendMainGuiDisplay(DefGmes.EAS_APDR);
@@ -5825,20 +5883,20 @@ begin
         Common.GetBoxPtnSizeinfo(Common.TestModelInfoFLOW.ModelType,mBand_Count,nSX,nSy,nEX,nEY);
         wdRet := Pg[FPgNo].DP860_SendBistAPL(i,i,i,nSX,nSy,nEX,nEY,nWaitMS,nRetry);
         if i = 511 then begin
-           wdRet := Pg[FPgNo].SendDimmingBist(CSharpDll.m_GetDBVdata(mBand_Count-1), nWaitMS,nRetry);
+           wdRet := Pg[FPgNo].SendDimmingBist(Common.m_GetDBV[mBand_Count-1], nWaitMS,nRetry);
         end;
       end
       else begin
        wdRet := Pg[FPgNo].SendDisplayPatBistRGB_9Bit(i,i,i,nWaitMS,nRetry);
         if i = 511 then begin
-           wdRet := Pg[FPgNo].SendDimmingBist(CSharpDll.m_GetDBVdata(mBand_Count-1), nWaitMS,nRetry);
+           wdRet := Pg[FPgNo].SendDimmingBist(Common.m_GetDBV[mBand_Count-1], nWaitMS,nRetry);
         end;
       end;
       Sleep(100);
       wdRet := CaSdk2.Measure(FPgNo, m_Ca410Data);
 
       if m_bCEL_Stop then exit;
-      sData := Format('%d,%d,%4.4f,%4.4f,%4.4f,',[CSharpDll.m_GetDBVdata(mBand_Count-1),i,m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
+      sData := Format('%d,%d,%4.4f,%4.4f,%4.4f,',[Common.m_GetDBV[mBand_Count-1],i,m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
       Common.SaveCsvMeasureLog(FPgNo,sFileCsv,sSerialNo,sDataHeader,sData);
     end;
   end;

@@ -19,7 +19,7 @@ const
   'MPO_W600_L','MPO_W600_X','MPO_W600_Y','MPO_R600_L','MPO_R600_X','MPO_R600_Y','MPO_G600_L','MPO_G600_X','MPO_G600_Y','MPO_B600_L','MPO_B600_X','MPO_B600_Y');
 
   NVMWriteSequence = 0;
-  VERSION_DLL = '3.1.6.1';   // OC_CON.DLL 적용 Ver 확인
+  VERSION_DLL = '3.1.7.1';   // OC_CON.DLL 적용 Ver 확인
 type
 
   TArrayChannelString = array[0..DefCommon.MAX_CH] of String;
@@ -101,6 +101,8 @@ type
     Service_Cnt : integer;
     MES_CODE_Cnt : Integer;
     PopupMsgTime : Integer;
+    PGResetDelayTime : Integer;
+    PGResetTotalConut : Integer;
 
     MesModelInfo        : string; //PCHK에서 Model_Info 값에  사용할 모델 이름. 혼입 방지용  - LH606WF2
 //    Language						: Integer;
@@ -114,6 +116,7 @@ type
     HOST_FTP_CombiPath  : string;
     AutoBackupUse       : Boolean;
     AutoBackupList      : string;
+    AutoLGDLogBackup    : Boolean;
     DLLVerInterlock     : Boolean;
     DLLVerInterlockList : string;
     LocalIP_GMES        : string;
@@ -170,6 +173,7 @@ type
     PG_WriteReadPassAddr : string;
     PG_TconWriteLogDisplay    : Boolean; //2023-03-28 jhhwang (for T/T Test)
     PG_TconWriteCmdType       : Integer; //2023-03-28 jhhwang (for T/T Test) //0(all tcon.ocwrite), 1(all tcon.write), 2(defaul tcon.ocwrite + tcon.write only if SyncAddr)
+    PG_TconReadCmdType        : Integer;
     PG_TconOcWriteDelayMsec   : Integer; //2023-03-28 jhhwang (for T/T Test)
     PG_TconOcWriteSyncAddrStr : string;  //2023-03-30 jhhwang (for T/T Test)
     PG_ToonOcWriteSyncAddrArr : array of Integer; //2023-03-30 jhhwang (for T/T Test)
@@ -365,6 +369,19 @@ type
     DataLength	 : Integer;
   end;
 
+  TLGD_DGMA_Parameter = packed record
+    nIdx : Integer;       // 1
+    Band : string;    //
+    Tap : integer;
+    Gray  : Integer;    //
+    Gamma_R : string;    //
+    Gamma_G : string;    //
+    Gamma_B : string;    //
+    Target_x : string;
+    Target_y : string;
+    Target_Lv : string;
+  end;
+
   //1,Optical Compensation ,Optical Defect,OD01,EEPROM Read Fail,A06-B01-G78
   TGmesCode = packed record
     nIdx : Integer;       // 1
@@ -503,6 +520,7 @@ type
     LGDSet       : string;
     LGDPara      : string;
     LGDReProgramming : string;
+    LGD_LOG_BK      : string;
     Gamma        : string;
     CEL          : string;
     GMES     		 : string; //Host
@@ -610,6 +628,8 @@ type
     Ca410MemCh : Integer;
     UseNvmInit : integer; // Added by KTS 2023-06-13 오후 12:32:10
 
+    IDLEMode : Boolean;
+
     IdleModeDTime : Integer;
 
     UseCheckVer : Boolean; // Added by KTS 2023-07-13 오전 8:30:17 Config별 SW / DLL Version Interlock
@@ -697,6 +717,7 @@ type
     Conn_Chk_Cnt  : array[0.. DefCommon.MAX_CH] of Integer;
     m_nGmesInfoCnt : Integer;
     GmesInfo      : array of TGmesCode;
+    DGMA_Para     : array of array of TLGD_DGMA_Parameter;
     Path : TPath;
   //	g_DisplayPG      : Integer; //Display Current PG Index
   //	g_VoltagePG      : Integer; //Volt Display Current PG Index
@@ -713,6 +734,7 @@ type
     m_nCsvLineCnt : Integer;
     m_bModelInfoNg : Boolean;
     CriticalSection: array [0.. DefCommon.MAX_PG_CNT + 1] of  TCriticalSection;
+    m_bExecuteOncePerDay: Boolean;
     procedure SetResolution(nH, nV : Word);
     procedure LoadOcTables(nIdxOcTables : Integer);
     function LoadMesCode : Integer;
@@ -737,6 +759,8 @@ type
     m_naZAxis     : array[0..100] of Integer;
     m_DLLReProgrammingData : array of integer;
     m_DLLReProgrammingCRC : string;
+
+    m_GetDBV : array[0..31] of Integer;
     ExeVersion   : String;
     ComputerName : String;
     DLLVersion   : string;
@@ -763,6 +787,8 @@ type
     function ReadSWVer : Boolean;
     function ReadDLLSet : Boolean;
     procedure ReadOpticInfo;
+
+    function LoadLGDDGMA_Parameter: Integer;
 
     procedure LoadPGWriteReadPassAddr;
 
@@ -836,6 +862,7 @@ type
     function GetConfigInfo(sARev, sASend, sBRev, sBSend : string) : boolean;
     function GetModelConfig(sModel : string) : string;
     function ProcessMemory: longint;
+    function GetDiskSpacePercentage(const Drive: string): Integer;
     function GetModelType(nIdx: Integer; sModelName : string): string;
 
     procedure FileCompress (sFullFileName: string; bDeleteOrgFile: Boolean;var sZipFileName : string);
@@ -867,6 +894,8 @@ type
     function GetCPUUsage: Double;
     procedure CheckAndTerminateExcel(sExcelFileName : string);
     function IfVersionIsLessThan(const currentVersion, targetVersion: string): Integer;
+    procedure CompressAndDeleteFolders(const sourceFolder, targetFolder: string);
+    procedure ScheduledTask;
   end;
 
 var
@@ -1404,6 +1433,7 @@ begin
   ComputerName:= GetComputerName;
   m_csReadCsvLog:= TCriticalSection.Create;
   m_csWriteCsvLog := TCriticalSection.Create;
+
 end;
 
 procedure TCommon.DebugLog(nCh, nMsgType: Integer; sRTX, sLocal, sRemote, sMsg: string);
@@ -1562,6 +1592,8 @@ begin
   SetLength(m_OcParam.OcVerify,0);
   SetLength(SystemInfo.ConfigVer,0);
   SetLength(PGWriteReadPassAddr,0);
+  SetLength(DGMA_Para,0);
+
 
 
   if FLogThread <> nil then begin
@@ -2287,6 +2319,7 @@ begin
   Path.LGDSet        := Path.LGDDLL + 'Setting\OCSet\';
   Path.LGDReProgramming := Path.LGDDLL + 'ReProgramming\';
   Path.LGDPara        := Path.LGDDLL + 'Setting\Parameters\';
+  Path.LGD_LOG_BK     := Path.LGDDLL + '_bk\';
 
 {$IFDEF CA410_USE}
   Path.UserCal := Path.RootSW + 'USER_CAL\';
@@ -2328,6 +2361,7 @@ begin
   CheckDir(Path.TempCsv);
   CheckDir(Path.RePGMLog);
   CheckDir(Path.HWCIDLog);
+  CheckDir(Path.LGD_LOG_BK);
 
 {$IFDEF ISPD_POCB}
   Path.CB_DATA  := Path.LOG + 'CB_DATA\';
@@ -3113,6 +3147,134 @@ begin
 end;
 
 
+function TCommon.LoadLGDDGMA_Parameter: Integer;
+var
+  sErrMsg, sErrCode, sFileName, sReadData, sCrcData : string;
+  txtF    : Textfile;
+  lstTemp, lstCrc, lstErrCode : TStringList;
+  nRow , nDataCount: Integer;
+  i,nBand,nTapCnt: Integer;
+begin
+
+  Result := 0;
+  sCrcData := '';
+  sFileName := Path.LGDPara +Common.TestModelInfoFLOW.ModelTypeName + '\DGMA_Parameter.csv';
+  if (not FileExists(sFileName)) or (sFileName = '') then begin
+    sErrMsg := #13#10 + 'Input Error! DGMA_Parameter File [' + sFileName + '] cannot be loaded!';
+    MessageDlg(sErrMsg, mtError, [mbOk], 0);
+    Exit;
+  end;
+  if IOResult = 0 then begin
+    AssignFile(txtF, sFileName);
+    try
+      // ÀüÃ¼ Data ¼³Á¤.
+      Reset(txtF);
+      nRow := 0;
+
+      SetLength(DGMA_Para, 32);
+      for nBand := 0 to 31 do
+      SetLength(DGMA_Para[nBand],20);
+
+      nRow := 0;
+      nTapCnt := 0;
+      nBand := 1;
+      Reset(txtF);
+
+      lstTemp := TStringList.Create;
+      try
+        while not Eof(txtF) do begin
+          Readln(txtF, sReadData);
+          if Trim(sReadData) = '' then Continue;
+
+          lstTemp.Clear;
+          ExtractStrings([','], [], PWideChar(Trim(sReadData)), lstTemp);
+          nDataCount := lstTemp.Count;
+          if nDataCount < 8  then Continue;
+          if StrToIntDef(lstTemp[0],0) = 0 then Continue;
+
+          if nBand <> StrToInt(Trim(lstTemp[0])) then
+          begin
+            nBand := StrToInt(Trim(lstTemp[0]));
+            nTapCnt := 0;
+          end;
+
+          DGMA_Para[nBand-1][nTapCnt].nIdx     := nRow+1;
+          if DGMA_Para[nBand-1][nTapCnt].nIdx < 00 then Continue; //유효하지 않을 경우
+
+          DGMA_Para[nBand-1][nTapCnt].Band := Trim(lstTemp[0]);
+
+          DGMA_Para[nBand-1][nTapCnt].Tap := -1 + nTapCnt;
+          DGMA_Para[nBand-1][nTapCnt].Gray  := StrToIntDef(Trim(lstTemp[1]),0);
+          DGMA_Para[nBand-1][nTapCnt].Gamma_R := Trim(lstTemp[2]);
+          DGMA_Para[nBand-1][nTapCnt].Gamma_G := Trim(lstTemp[3]);
+          DGMA_Para[nBand-1][nTapCnt].Gamma_B := Trim(lstTemp[4]);
+          DGMA_Para[nBand-1][nTapCnt].Target_x := Trim(lstTemp[5]);
+          DGMA_Para[nBand-1][nTapCnt].Target_y := Trim(lstTemp[6]);
+          DGMA_Para[nBand-1][nTapCnt].Target_Lv := Trim(lstTemp[7]);
+
+          Inc(nTapCnt);
+          Inc(nRow);
+        end;
+      finally
+        lstTemp.Free;
+      end;
+    finally
+      // Close the file
+      Result := nRow;
+      CloseFile(txtF);
+    end;
+  end;
+end;
+
+procedure TCommon.CompressAndDeleteFolders(const sourceFolder, targetFolder: string);
+var
+  zipFileName: string;
+begin
+  try
+    // 현재 날짜 및 시간 기반으로 압축 파일 이름 생성
+    zipFileName := System.IOUtils.TPath.Combine(targetFolder, 'OCLog_'+FormatDateTime('yyyymmdd_hhnnss', Now) + '.zip');
+
+    // 폴더 압축
+    TZipFile.ZipDirectoryContents(zipFileName, sourceFolder);
+
+    // 폴더 삭제
+    TDirectory.Delete(sourceFolder, True);
+
+    MLog(DefCommon.MAX_SYSTEM_LOG,'Compressed and deleted folders.');
+  except
+    on E: Exception do
+      MLog(DefCommon.MAX_SYSTEM_LOG,'Error Occurrence : '+ E.Message);
+  end;
+end;
+
+procedure TCommon.ScheduledTask;
+const
+  ExecuteHourStart = 0; // 특정 시작 시간(24시간 형식) 설정
+  ExecuteHourEnd = 1;   // 특정 종료 시간(24시간 형식) 설정
+var
+  CurrentHour : Word;
+  sourceFolder : string;
+
+begin
+  // 오늘 작업을 실행한 경우, 다음 날에 다시 실행할 수 있도록 플래그 리셋
+  if (Trunc(Now) > Trunc(Date)) then
+      m_bExecuteOncePerDay := False;
+    // 이미 하루에 한 번 실행했는지 여부 확인
+  if not m_bExecuteOncePerDay then
+  begin
+    sourceFolder  := Path.LGDDLL + 'OCLog';
+    // 현재 시간 얻기
+    CurrentHour := HourOf(Now);
+
+    // 특정 시간대에 작업 수행
+    if (CurrentHour >= ExecuteHourStart) and (CurrentHour <= ExecuteHourEnd) then
+    begin
+      CompressAndDeleteFolders(sourceFolder,Path.LGD_LOG_BK);
+      m_bExecuteOncePerDay := True;
+    end;
+  end;
+end;
+
 function TCommon.LoadModelInfo(fName: String): Boolean;
 var
   fn, sTemp,sSection : String;
@@ -3286,6 +3448,8 @@ begin
           UseTconWriteChecksum := ReadBool(sSection, 'USE_CHECK_TCONWRITECHECKSUM',False);
 
           IdleModeDTime := Readinteger(sSection, 'IDLEMODEDTIME',0);
+
+          IDLEMode := ReadBool(sSection,'IDLE_MODE',False);
           //
         end;
         {$ENDIF}
@@ -4517,6 +4681,29 @@ end;
 
 
 
+function TCommon.GetDiskSpacePercentage(const Drive: string): Integer;
+var
+  RootPath: string;
+  SectorsPerCluster, BytesPerSector, FreeClusters, TotalClusters: DWORD;
+  FreeSpace, TotalSpace: Int64;
+begin
+  Result := -1; // Default value in case of an error
+
+  // Build the root path for the specified drive
+  RootPath := ExtractFileDrive(Drive);
+
+  // Call GetDiskFreeSpace to get disk space information
+  if GetDiskFreeSpace(PChar(RootPath), SectorsPerCluster, BytesPerSector, FreeClusters, TotalClusters) then
+  begin
+    FreeSpace := Int64(SectorsPerCluster) * BytesPerSector * FreeClusters;
+    TotalSpace := Int64(SectorsPerCluster) * BytesPerSector * TotalClusters;
+
+    if TotalSpace > 0 then
+      Result := 100 - Trunc((FreeSpace / TotalSpace) * 100);
+  end;
+end;
+
+
 function TCommon.ProcessMemory: longint;
 var
   pmc: PPROCESS_MEMORY_COUNTERS;
@@ -4859,6 +5046,7 @@ begin
       //2023-03-30 jhhwang (for T/T Test)
       SystemInfo.PG_TconWriteLogDisplay    := fSys.ReadBool   ('DEBUG', 'PG_TconWriteLogDisplay', False); //2023-03-28 jhhwang (for T/T Test)
       SystemInfo.PG_TconWriteCmdType       := fSys.ReadInteger('DEBUG', 'PG_TconWriteCmdType',    0);     //2023-03-30 jhhwang (for T/T Test)
+      SystemInfo.PG_TconReadCmdType       := fSys.ReadInteger('DEBUG', 'PG_TconReadCmdType',    0);     //2023-03-30 jhhwang (for T/T Test)
       SystemInfo.PG_TconOcWriteDelayMsec   := fSys.ReadInteger('DEBUG', 'PG_TconOcWriteDelayMsec',1);     //2023-03-28 jhhwang (for T/T Test) (valid if PgOcWriteAckUse=False)
       SystemInfo.PG_TconOcWriteSyncAddrStr := Trim(fSys.ReadString('DEBUG', 'PG_TconOcWriteSyncAddrStr','1727,6926,6928,6930,6936,10260')); //2023-03-30 jhhwang (for T/T Test)
       SetLength(SystemInfo.PG_ToonOcWriteSyncAddrArr,0);
@@ -5028,6 +5216,8 @@ begin
       SystemInfo.DLLVerInterlock      := fSys.ReadBool('SYSTEMDATA',    'DLL_VER_INTERLOCK',False);
       SystemInfo.DLLVerInterlockList  := fSys.ReadString('SYSTEMDATA',  'DLL_VER_INTERLOCK_PATH','');
 
+      SystemInfo.PGResetDelayTime     := fSys.ReadInteger('SYSTEMDATA','PG_RESET_DELAY_TIME',0);
+      SystemInfo.PGResetTotalConut    := fSys.ReadInteger('SYSTEMDATA','PG_RESET_TOTAL_COUNT',0);
 
       //임시 - 기존 소스 호환용
       if SystemInfo.EQPId_INLINE = '' then begin
@@ -5079,6 +5269,8 @@ begin
 
       SystemInfo.AutoBackupUse        := fSys.Readbool('SYSTEMDATA', 		'AUTOBACKUP_USE',  False);
       SystemInfo.AutoBackupList      	:= fSys.ReadString('SYSTEMDATA',  'AUTOBACKUP_PATH','');
+
+      SystemInfo.AutoLGDLogBackup     := fSys.ReadBool('SYSTEMDATA','AUTO_LGDLOG_BACKUP_USE',false);
 
       SystemInfo.SystemLogUse         := fSys.Readbool('SYSTEMDATA', 		'SYSTEM_LOG_USE',  False);
       SystemInfo.MIPILog              := fSys.Readbool('SYSTEMDATA', 		'MIPI_LOG_USE',  False);
@@ -5198,6 +5390,7 @@ begin
       //2023-03-30 jhhwang (for T/T Test)
       SystemInfo.PG_TconWriteLogDisplay    := fSys.ReadBool   ('DEBUG', 'PG_TconWriteLogDisplay', False); //2023-03-28 jhhwang (for T/T Test)
       SystemInfo.PG_TconWriteCmdType       := fSys.ReadInteger('DEBUG', 'PG_TconWriteCmdType',    0);     //2023-03-30 jhhwang (for T/T Test)
+      SystemInfo.PG_TconReadCmdType       := fSys.ReadInteger('DEBUG', 'PG_TconReadCmdType',    0);
       SystemInfo.PG_TconOcWriteDelayMsec   := fSys.ReadInteger('DEBUG', 'PG_TconOcWriteDelayMsec',1);     //2023-03-28 jhhwang (for T/T Test) (valid if PgOcWriteAckUse=False)
       SystemInfo.PG_TconOcWriteSyncAddrStr := Trim(fSys.ReadString('DEBUG', 'PG_TconOcWriteSyncAddrStr','1727,6926,6928,6930,6936,10260')); //2023-03-30 jhhwang (for T/T Test)
       SetLength(SystemInfo.PG_ToonOcWriteSyncAddrArr,0);
@@ -5390,7 +5583,7 @@ begin
 
           WriteInteger(sSection, 'IDLEMODEDTIME',     IdleModeDTime);
 
-
+          WriteBool(sSection, 'IDLE_MODE',IDLEMode);
 
         end;
 
@@ -5643,6 +5836,8 @@ begin
       Writebool('SYSTEMDATA',    'AUTOBACKUP_USE', 				SystemInfo.AutoBackupUse);
       Writebool('SYSTEMDATA',    'MANUAL_SERAIL_INPUT', 	SystemInfo.UseManualSerial);
 
+      WriteBool('SYSTEMDATA',    'AUTO_LGDLOG_BACKUP_USE', SystemInfo.AutoLGDLogBackup);
+
       WriteInteger('SYSTEMDATA', 'NGAlarmCount',  				SystemInfo.NGAlarmCount);
       WriteInteger('SYSTEMDATA', 'RetryCount',			      SystemInfo.RetryCount);
       WriteInteger('SYSTEMDATA', 'ECS_Timeout',			      SystemInfo.ECS_Timeout);
@@ -5687,6 +5882,8 @@ begin
       for i := DefCommon.CH1 to DefCommon.MAX_CH do begin
         WriteString('SYSTEMDATA', Format('PROBE_SERIAL_%d',[i]),       SystemInfo.ProbAddr[i]);
       end;
+      WriteInteger('SYSTEMDATA','PG_RESET_DELAY_TIME', SystemInfo.PGResetDelayTime);
+      WriteInteger('SYSTEMDATA','PG_RESET_TOTAL_COUNT',SystemInfo.PGResetTotalConut);
 
       WriteString('SYSTEMDATA',  'SIGNAL_INVERSION_OC',  		SystemInfo.SignalInversion); // Added by KTS 2023-01-17 오후 5:12:27 B접점 반전 해야되는 신호 목록
       WriteInteger('SYSTEMDATA',  'R2RCa410MemCh',  		SystemInfo.R2RCa410MemCh); // Added by KTS 2023-01-17 오후 5:12:27 B접점 반전 해야되는 신호 목록

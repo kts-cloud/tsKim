@@ -1898,7 +1898,6 @@ begin
   item.Timeout:=      3000;
   item.SerialNo:=     sConvertSerial;
   item.CarrierID:=    sConvertJig;
-  item.LpirProcessCode:=  MesData[nPg].LpirProcessCode;
   m_Queue.Enqueue(item);
   tmGmesChMsg.Enabled:= True;
 end;
@@ -1946,15 +1945,13 @@ end;
 procedure TGmes.SendTestGuiDisplay(nGuiMode,nCH: Integer; sMsg, sMsg2: string; nParam, nParam2: Integer);
 var
   ccd         : TCopyDataStruct;
-  GuiData    : RGuiScript;
+  GuiData    : RSyncHost;
 begin
   GuiData.MsgType := defCommon.MSG_TYPE_HOST;
   GuiData.Channel := nCH;
-  GuiData.Mode    := nGuiMode;
+  GuiData.MsgMode    := nGuiMode;
   GuiData.Msg     := sMsg;
-  GuiData.Msg2    := sMsg2;
-  GuiData.nParam  := nParam;
-  GuiData.nParam2 := nParam2;
+
   ccd.dwData      := 0;
   ccd.cbData      := SizeOf(GuiData);
   ccd.lpData      := @GuiData;
@@ -1993,6 +1990,7 @@ begin
   item.Timeout:=      3000;
   item.SerialNo:=     sConvertSerial;
   item.CarrierID:=    sConvertJig;
+  item.MESCode  :=    MesData[nPg].Rwk;
   m_Queue.Enqueue(item);
   tmGmesChMsg.Enabled:= True;
 end;
@@ -2025,6 +2023,7 @@ procedure TGmes.SendR2REods(nPG : Integer);
 begin
   SEND_MESG2HOST(DefGmes.R2R_EODS_R,'','',nPG,true);
 end;
+
 
 procedure TGmes.SEND_MESG2HOST(const nMsgType: Integer; sSerialNo: string; sZigId : string; nPg : Integer; bIsDelayed : Boolean); //JHHWANG-GMES: 2018-06-20
 var
@@ -2140,6 +2139,9 @@ begin
       sSendMsg := sSendMsg  + ' LCM_ID=';
       sSendMsg := sSendMsg  + ' BLID=[]';
       sSendMsg := sSendMsg  + format(' INSPCHANEL_A=%d',[nPg]);
+      {$IFDEF SIMULATOR_GMES}
+      sSendMsg := sSendMsg  + ' PROCESS_CODE=21860';
+      {$ENDIF}
 			sSendMsg := sSendMsg  + ' PPALLET=';
 			sSendMsg := sSendMsg  + ' SKD_BOX_ID=';
 			sSendMsg := sSendMsg  + ' USER_ID=' + FUserId ;
@@ -2155,12 +2157,19 @@ begin
       sSendMsg := sSendMsg  + ' ADDR=' + m_sLocal + ',' + m_sLocal;
       if Common.PLCInfo.InlineGIB then begin
 //        Common.MLog(nPg,format('LpirProcessCode : %s EQPId_MGIB : %s EQPId_PGIB : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_PGIB]));
-        SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPg,format('LpirProcessCode : %s EQPId_MGIB : %s EQPId_PGIB : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_PGIB]));
-        if MesData[nPg].LpirProcessCode = Common.SystemInfo.EQPId_MGIB_Process_Code then
-          sSendMsg := sSendMsg  + ' EQP=' + Common.SystemInfo.EQPId_MGIB
-        else if MesData[nPg].LpirProcessCode = Common.SystemInfo.EQPId_PGIB_Process_Code then
-          sSendMsg := sSendMsg  + ' EQP=' + Common.SystemInfo.EQPId_PGIB
-        else  sSendMsg := sSendMsg  + ' EQP=' + FSystemNo;
+        if MesData[nPg].LpirProcessCode = Common.SystemInfo.EQPId_MGIB_Process_Code then begin
+          SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPg,format('LpirProcessCode : %s EQPId_MGIB : %s MGIB_Process_Code : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_MGIB_Process_Code]));
+          sSendMsg := sSendMsg  + ' EQP=' + Common.SystemInfo.EQPId_MGIB;
+        end
+        else if MesData[nPg].LpirProcessCode = Common.SystemInfo.EQPId_PGIB_Process_Code then begin
+          SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPg,format('LpirProcessCode : %s EQPId_PGIB : %s PGIB_Process_Code : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_PGIB,Common.SystemInfo.EQPId_PGIB_Process_Code]));
+          sSendMsg := sSendMsg  + ' EQP=' + Common.SystemInfo.EQPId_PGIB;
+        end
+        else begin
+          SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPg,format('Mismatch !! - LpirProcessCode : %s MGIB_Process_Code : %s PGIB_Process_Code : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB_Process_Code,Common.SystemInfo.EQPId_PGIB_Process_Code]));
+          sSendMsg := sSendMsg  + ' EQP=' + FSystemNo;
+        end;
+
       end
       else begin
   			sSendMsg := sSendMsg  + ' EQP=' + FSystemNo;
@@ -2195,7 +2204,6 @@ begin
 			sSendMsg := sSendMsg  + ' BLID=[]';
       sSendMsg := sSendMsg  + ' COVER_GLASS_ID=';
       sSendMsg := sSendMsg  + ' ZIG_ID=';
-      sSendMsg := sSendMsg  + ' PCB_ID=';
       sSendMsg := sSendMsg  + format(' INSPCHANEL_A=%d',[nPg]);
 			sSendMsg := sSendMsg  + ' USER_ID=' + FUserId ;
 			sSendMsg := sSendMsg  + ' MODE=AUTO';
@@ -2450,13 +2458,14 @@ begin
 			sSendMsg := sSendMsg  + ' LCM_ID=';
       sSendMsg := sSendMsg  + ' CGID=';
       sSendMsg := sSendMsg  + ' ZIG_ID=';
-      sSendMsg := sSendMsg  + ' PCB_ID=';
       sSendMsg := sSendMsg  + format(' INSPCHANEL_A=%d',[nPg]);
       // PF가 없는 경우가 있어 방어 코드.
       if Trim(MesData[FMesPg].Pf) = '' then begin
         if MesData[FMesPg].Rwk = '' then MesData[FMesPg].Pf := 'P'
         else                             MesData[FMesPg].Pf := 'F';
       end;
+      sSendMsg := sSendMsg  + ' PF='+ MesData[FMesPg].Pf;
+      sSendMsg := sSendMsg  + ' RWK_CD='+ MesData[FMesPg].Rwk; //TBD
       (*
 			if  MesData[FMesPg].Rwk = '' then begin
 				sSendMsg := sSendMsg  + ' SUBJUDGE_INFO=[GB:P:]';
@@ -2465,12 +2474,22 @@ begin
 				sSendMsg := sSendMsg  + ' SUBJUDGE_INFO=[GB:F:' + MesData[FMesPg].Rwk + ']';
 			end;
       *)
-      if  MesData[FMesPg].Rwk = '' then begin
-				sSendMsg := sSendMsg  + ' SUBJUDGE_INFO=[GB:P:]';
-			end
-			else begin
-				sSendMsg := sSendMsg  + ' SUBJUDGE_INFO=[GB:F:' + MesData[FMesPg].Rwk + ']';
-			end;
+      if Common.SystemInfo.OCType = DefCommon.OCType then begin
+        if  MesData[FMesPg].Rwk = '' then begin
+          sSendMsg := sSendMsg  + ' SUBJUDGE_INFO=[GB:P:]';
+        end
+        else begin
+          sSendMsg := sSendMsg  + ' SUBJUDGE_INFO=[GB:F:' + MesData[FMesPg].Rwk + ']';
+        end;
+      end
+      else begin
+        if  MesData[FMesPg].Rwk = '' then begin
+          sSendMsg := sSendMsg  + ' SUBJUDGE_INFO=[PREOC:P:]';
+        end
+        else begin
+          sSendMsg := sSendMsg  + ' SUBJUDGE_INFO=[PREOC:F:' + MesData[FMesPg].Rwk + ']';
+        end;
+      end;
 
       sSendMsg := sSendMsg  + ' USER_ID='+ FUserId;
 			sSendMsg := sSendMsg  + ' MODE=AUTO';
@@ -3042,7 +3061,7 @@ begin
       MesData[m_MESItem.Channel].Tact:= m_MESItem.Tact;
       MesData[m_MESItem.Channel].Rwk:= m_MESItem.MESCode;
       MesData[m_MESItem.Channel].ApdrData:= m_MESItem.ApdrData;
-      MesData[m_MESItem.Channel].LpirProcessCode:= m_MESItem.LpirProcessCode;
+//      MesData[m_MESItem.Channel].LpirProcessCode:= m_MESItem.LpirProcessCode;
     end;
 
 

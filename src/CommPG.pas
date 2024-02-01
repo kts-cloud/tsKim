@@ -220,6 +220,8 @@ type
 
     bIsReProgramming : Boolean;  // ReProgramming OKNG 여부
 
+    m_bChkIRA : Boolean; // IRA OK/NG 체크
+
     m_HWCID :array[0..4] of string;
 
 
@@ -235,6 +237,7 @@ type
 		{$IFDEF FEATURE_FLASH_ACCESS}
 		procedure InitFlashRead;
 		{$ENDIF}
+
     //------------------------------------------------------ PatternGroup/PatternInfo
     procedure SetCurPatGrpInfo(const Value: TPatternGroup);
     procedure SetDisPatStruct(const Value: TPatInfoStruct);
@@ -267,6 +270,7 @@ type
 		procedure ShowMainWindow(nGuiMode: Integer; nParam: Integer; sMsg: string);
 		procedure ShowTestWindow(nGuiMode: Integer; nParam: Integer; sMsg: string);
 		procedure ShowDownLoadStatus(nGuiType: Integer; curPos,total: Integer; sMsg: string; bIsDone: Boolean = False); //TBD:DP860?
+
 
     //================================================================= PG_AF9
 {$IFDEF PG_AF9}
@@ -397,6 +401,7 @@ type
 		function DP860_SendBistAPL(nR,nG,nB,nStartX,nStartY,nEndX,nEndY: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
     //------------------------------------------------------ PG_DP860 Command (TCON)
 		function DP860_SendTconRead(nRegAddr,nDataCnt: Integer; var arDataR: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0;  nDebugLog : integer= 0): DWORD;
+		function DP860_SendTconByteRead(nRegAddr,nDataCnt: Integer; var arDataR: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0;  nDebugLog : integer= 0): DWORD;
 		function DP860_SendTconWrite(nRegAddr,nDataCnt: Integer; arDataW: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0; nDebugLog : integer= 0): DWORD;
     function DP860_SendTconOCWrite(nRegAddr,nDataCnt: Integer; arDataW: TIDBytes; nWaitMS: Integer=0; nRetry: Integer=0): DWORD;
     function DP860_SendTconMultiWrite(nDataCnt: Integer; arRegAddr : array of integer; arDataW: TIDBytes; nWaitMS: Integer=0; nRetry: Integer=0): DWORD;
@@ -917,7 +922,7 @@ begin
   tmConnCheck := TTimer.Create(nil);
 	tmConnCheck.OnTimer  := ConnCheckTimer;
 	tmConnCheck.Interval := DefPG.PG_CONNCHECK_INTERVAL; //msec //TBD: ITOLED_FI|POCB 2000mseca(Ready) 1000msec(Disconn)
-	tmConnCheck.Enabled  := True;
+	tmConnCheck.Enabled  := false;
   {$IFDEF AF9API_MULTI}
   if PG_TYPE = PG_TYPE_AF9 then begin
     if m_nCh = DefCommon.CH_1 then ConnCheckTimer_AF9(nil); //TBD:AF9?
@@ -3019,13 +3024,11 @@ begin
   nVerInfo := Length(arTemp);
   i := 0;
   while ((i+1) <= nVerInfo) do begin
-    if      arTemp[i] = 'HW'   then m_PgVer.HW    := arTemp[i+1]
-    else if arTemp[i] = 'APP'  then m_PgVer.FW    := arTemp[i+1]
-    else if arTemp[i] = 'FW'   then m_PgVer.SubFW := arTemp[i+1]
-    else if arTemp[i] = 'FPGA' then m_PgVer.FPGA  := arTemp[i+1]
+    if      arTemp[i] = 'ITO APP'   then m_PgVer.ITO_APP    := Format('%s_%s',[arTemp[i+1],arTemp[i+2]])
+    else if arTemp[i] = 'FW'   then m_PgVer.FW := arTemp[i+1]
+    else if arTemp[i] = 'IP' then m_PgVer.IP  := arTemp[i+1]
     else if arTemp[i] = 'PWR'  then m_PgVer.PWR   := arTemp[i+1];
-    //
-    i := i + 2;
+    i := i + 1;
   end;
 end;
 
@@ -3546,15 +3549,16 @@ begin
 
   //전  ChipID_0x 875_ChipRev_0x A00_BoardID_0_BundleID_0x9700_OtpID_1
   //후  ChipID_0x 875_ChipRev_0x A00_BoardID_0x0_BundleID_0x7401_OtpID_0_HWCID_0x 8_0xE8_0x 2
-
-  arCmdAck := arCmdAck[0].Split(['_']);
-  if Length(arCmdAck) > 9 then begin
-    m_HWCID[0] := arCmdAck[5];
-    m_HWCID[1] := arCmdAck[7];
-    if Length(arCmdAck) > 13 then begin
-      m_HWCID[2] := arCmdAck[11];
-      m_HWCID[3] := arCmdAck[12];
-      m_HWCID[4] := arCmdAck[13];
+  if Length(arCmdAck) > 0 then begin
+    arCmdAck := arCmdAck[0].Split(['_']);
+    if Length(arCmdAck) > 9 then begin
+      m_HWCID[0] := arCmdAck[5];
+      m_HWCID[1] := arCmdAck[7];
+      if Length(arCmdAck) > 13 then begin
+        m_HWCID[2] := arCmdAck[11];
+        m_HWCID[3] := arCmdAck[12];
+        m_HWCID[4] := arCmdAck[13];
+      end;
     end;
   end;
 
@@ -3622,28 +3626,32 @@ begin
   end;
 
   arCmdAck := sCmdAck.Split([#$0D]);
+  if Length(arCmdAck) > 10 then  begin
+
   //
-  arTemp := arCmdAck[1].Split([':']);  m_RxPwrData.VCC   := StrToUInt(Trim(arTemp[1]));  // VDD1(=VCC)
-  arTemp := arCmdAck[2].Split([':']);  m_RxPwrData.IVCC  := Round(StrToFloat(Trim(arTemp[1]))*1000); // IVDD1(=IVCC) //TBD:DP860?
-  arTemp := arCmdAck[3].Split([':']);  m_RxPwrData.VIN   := StrToUInt(Trim(arTemp[1]));  // VDD2(=VIN)
-  arTemp := arCmdAck[4].Split([':']);  m_RxPwrData.IVIN  := Round(StrToFloat(Trim(arTemp[1]))*1000); // IVDD2(=IVIN) //TBD:DP860?
-  arTemp := arCmdAck[5].Split([':']);  m_RxPwrData.VDD3  := StrToUInt(Trim(arTemp[1]));  // VDD3(=SYS)
-  arTemp := arCmdAck[6].Split([':']);  m_RxPwrData.IVDD3 := Round(StrToFloat(Trim(arTemp[1]))*1000); // IVDD3(=ISYS) //TBD:DP860?
-  arTemp := arCmdAck[7].Split([':']);  m_RxPwrData.VDD4  := StrToUInt(Trim(arTemp[1]));  // VDD4
-  arTemp := arCmdAck[8].Split([':']);  m_RxPwrData.IVDD4 := Round(StrToFloat(Trim(arTemp[1]))*1000); // IVDD4        //TBD:DP860?
-  arTemp := arCmdAck[9].Split([':']);  m_RxPwrData.VDD5  := StrToUInt(Trim(arTemp[1]));  // VDD5
-  arTemp := arCmdAck[10].Split([':']); m_RxPwrData.IVDD5 := Round(StrToFloat(Trim(arTemp[1]))*1000); // IVDD5        //TBD:DP860?
-  //
-  m_PwrData.VCC   := m_RxPwrData.VCC;
-  m_PwrData.IVCC  := m_RxPwrData.IVCC  div 1000; //TBD:DP860?
-  m_PwrData.VIN   := m_RxPwrData.VIN;
-  m_PwrData.IVIN  := m_RxPwrData.IVIN  div 1000; //TBD:DP860?
-  m_PwrData.VDD3  := m_RxPwrData.VDD3;
-  m_PwrData.IVDD3 := m_RxPwrData.IVDD3 div 1000; //TBD:DP860?
-  m_PwrData.VDD4  := m_RxPwrData.VDD4;
-  m_PwrData.IVDD4 := m_RxPwrData.IVDD4 div 1000; //TBD:DP860?
-  m_PwrData.VDD5  := m_RxPwrData.VDD5;
-  m_PwrData.IVDD5 := m_RxPwrData.IVDD5 div 1000; //TBD:DP860?
+    arTemp := arCmdAck[1].Split([':']);  m_RxPwrData.VCC   := StrToUInt(Trim(arTemp[1]));  // VDD1(=VCC)
+    arTemp := arCmdAck[2].Split([':']);  m_RxPwrData.IVCC  := Round(StrToFloat(Trim(arTemp[1]))*1000); // IVDD1(=IVCC) //TBD:DP860?
+    arTemp := arCmdAck[3].Split([':']);  m_RxPwrData.VIN   := StrToUInt(Trim(arTemp[1]));  // VDD2(=VIN)
+    arTemp := arCmdAck[4].Split([':']);  m_RxPwrData.IVIN  := Round(StrToFloat(Trim(arTemp[1]))*1000); // IVDD2(=IVIN) //TBD:DP860?
+    arTemp := arCmdAck[5].Split([':']);  m_RxPwrData.VDD3  := StrToUInt(Trim(arTemp[1]));  // VDD3(=SYS)
+    arTemp := arCmdAck[6].Split([':']);  m_RxPwrData.IVDD3 := Round(StrToFloat(Trim(arTemp[1]))*1000); // IVDD3(=ISYS) //TBD:DP860?
+    arTemp := arCmdAck[7].Split([':']);  m_RxPwrData.VDD4  := StrToUInt(Trim(arTemp[1]));  // VDD4
+    arTemp := arCmdAck[8].Split([':']);  m_RxPwrData.IVDD4 := Round(StrToFloat(Trim(arTemp[1]))*1000); // IVDD4        //TBD:DP860?
+    arTemp := arCmdAck[9].Split([':']);  m_RxPwrData.VDD5  := StrToUInt(Trim(arTemp[1]));  // VDD5
+    arTemp := arCmdAck[10].Split([':']); m_RxPwrData.IVDD5 := Round(StrToFloat(Trim(arTemp[1]))*1000); // IVDD5        //TBD:DP860?
+    //
+    m_PwrData.VCC   := m_RxPwrData.VCC;
+    m_PwrData.IVCC  := m_RxPwrData.IVCC  div 1000; //TBD:DP860?
+    m_PwrData.VIN   := m_RxPwrData.VIN;
+    m_PwrData.IVIN  := m_RxPwrData.IVIN  div 1000; //TBD:DP860?
+    m_PwrData.VDD3  := m_RxPwrData.VDD3;
+    m_PwrData.IVDD3 := m_RxPwrData.IVDD3 div 1000; //TBD:DP860?
+    m_PwrData.VDD4  := m_RxPwrData.VDD4;
+    m_PwrData.IVDD4 := m_RxPwrData.IVDD4 div 1000; //TBD:DP860?
+    m_PwrData.VDD5  := m_RxPwrData.VDD5;
+    m_PwrData.IVDD5 := m_RxPwrData.IVDD5 div 1000; //TBD:DP860?
+
+  end;
 
   //
   ShowTestWindow(DefCommon.MSG_MODE_DISPLAY_VOLCUR,0,'');
@@ -4070,6 +4078,62 @@ begin
   end;
 end;
 
+function TCommPG.DP860_SendTconByteRead(nRegAddr,nDataCnt: Integer; var arDataR: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0; nDebugLog : integer= 0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+  //
+  arCmdAck : TArray<string>;
+  arTemp   : TArray<string>;
+  i        : Integer;
+begin
+
+	nCmdId   := DefPG.PG_CMDID_TCON_BYTEREAD;
+	sCmdName := DefPG.PG_CMDSTR_TCON_BYTEREAD;
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName + ' ' + Format('0x%0.4x %d',[nRegAddr,nDataCnt]); // 'tcon.read <reg_addr16> <length>'
+	Result   := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+
+  Inc(TconRWCnt.TconReadTX); //2023-03-28 jhhwang (for T/T Test)
+  TconRWCnt.ContTConOcWrite := 0; //2023-03-28 jhhwang (for T/T Test)
+  //
+  sEtcMsg  := '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr) +  '-' + FTxRxPG.RxPrevStr + ']';
+  if Result = WAIT_OBJECT_0 then begin
+    try
+      arCmdAck := FTxRxPG.RxAckStr.Split([#$0D]);
+      arTemp   := arCmdAck[0].Split([' ']);
+      //
+      if Length(arCmdAck) >= nDataCnt + 1 then begin
+        if (StrToInt('$'+ arTemp[0]) = nRegAddr) then begin
+          for i := 0 to (nDataCnt-1) do begin
+            arDataR[i] := StrToInt('$'+ arCmdAck[i + 1]);
+          end;
+        end
+        else begin
+          arDataR[i] := 0;
+          sEtcMsg := sEtcMsg + Format('(Read Addr : 0x%0.4x <> Return Read Addr : 0x%0.4x : Failed)',[nRegAddr,StrToInt('$'+ arTemp[0])]);
+          Result  := WAIT_FAILED; // RX.DATA.Cnt < nDataCnt
+        end;
+      end
+      else begin
+        arDataR[i] := 0;
+        sEtcMsg := sEtcMsg + Format('(ReadSize=%d <> RxDataCnt=%d)',[nDataCnt,Length(arCmdAck)]);
+        Result  := WAIT_FAILED; // RX.DATA.Cnt < nDataCnt
+      end;
+    except
+      arDataR[i] := 0;
+      sEtcMsg :=  sEtcMsg + '(RxDataParsingError)';
+      Result  := WAIT_FAILED;
+    end;
+  end;
+  //
+  if ((nDebugLog = 1) and (Result <> 0)) or ((Common.SystemInfo.DebugLogLevelConfig > 0) and (Common.SystemInfo.PG_TconWriteLogDisplay)) then begin
+	  sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+  end;
+end;
+
 function ExtractAlphabets(const inputString: string): string;
 var
   i: Integer;
@@ -4099,12 +4163,12 @@ var
   nDataPGW, nDataPGR : Integer;
   btaData : TIdBytes;
 begin
-  SetLength(btaData,nDataCnt);
-  DP860_SendTConRead(nRegAddr,nDataCnt,btaData, nWaitMS,nRetry,nDebugLog);
-
-  sTESTString := Format('RegAddr : 0x%0.2x Write Data : 0x%0.2x Read Data : 0x%0.2x',[nRegAddr,arDataW[0],btaData[0]]);
-
-  SetLength(btaData,0);
+//  SetLength(btaData,nDataCnt);
+//  DP860_SendTConRead(nRegAddr,nDataCnt,btaData, nWaitMS,nRetry,nDebugLog);
+//
+//  sTESTString := Format('RegAddr : 0x%0.2x Write Data : 0x%0.2x Read Data : 0x%0.2x',[nRegAddr,arDataW[0],btaData[0]]);
+//
+//  SetLength(btaData,0);
 
 	nCmdId   := DefPG.PG_CMDID_TCON_WRITEREAD;
 	sCmdName := DefPG.PG_CMDSTR_TCON_WRITEREAD;
@@ -4148,7 +4212,7 @@ begin
   end;
   //
   if ((nDebugLog = 1) and (Result <> 0)) or ((Common.SystemInfo.DebugLogLevelConfig > 0) and (Common.SystemInfo.PG_TconWriteLogDisplay)) then begin
-    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sTESTString);
+//    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sTESTString);
     sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
     ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
   end;
@@ -5077,123 +5141,118 @@ const
   DELAY_POWER_INTERPOSER_ON  = 10;  //TBD:DP860?
 begin
   Result := WAIT_FAILED;
-  //
-  case nMode of
-    DefPG.CMD_POWER_OFF : begin
-    	case PG_TYPE of
-    		{$IFDEF PG_AF9}
-    		DefPG.PG_TYPE_AF9 : begin
-        	AF9_AllPowerOnOff(0);  //OFF
-      		Result := WAIT_OBJECT_0;
-    		end;
-    		{$ENDIF}
-    		{$IFDEF PG_DP860}
-    		DefPG.PG_TYPE_DP860 : begin
-          // Interlock during Flash R/W
-          if FIsOnFlashAccess then begin // Interlock during Flash Access
-            Result := WAIT_FAILED;
-            sDebug := 'Power Off NG (On Flash Access) ...Try again after flash access is done'; //TBD:2023-02?
-            ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG, sDebug);
-            Exit;
+  try
+    case nMode of
+      DefPG.CMD_POWER_OFF : begin
+        case PG_TYPE of
+          {$IFDEF PG_AF9}
+          DefPG.PG_TYPE_AF9 : begin
+            AF9_AllPowerOnOff(0);  //OFF
+            Result := WAIT_OBJECT_0;
           end;
-          // DP860 PowerbistOff : power.bist.off -> interposer.deinit
-    		  Result := DP860_SendPowerBistOff({nMode}nWaitMS,nRetry);
-          if (not bPowerReset) then begin
-            Sleep(DELAY_POWER_INTERPOSER_OFF);
-      		  Result := DP860_SendInterposerOff({nMode}nWaitMS,nRetry);
-          end;
-    		end;
-    		{$ENDIF}
-    	end;
-      //
-    	if Result = WAIT_OBJECT_0 then begin
-        m_bPowerOn := False;
-        {$IFDEF FEATURE_GRAY_CHANGE}
-        with m_CurPatDispInfo do begin
-    			bPowerOn      := False; //TBD? m_bPowerOn? m_CurPatDispInfo.bPowerOn?
-          bPatternOn    := False;
-          nCurPatNum    := 0;
-          nCurAllPatIdx := 0;
-          bSimplePat    := False;
-          bGrayChangeR  := False;
-          bGrayChangeG  := False;
-          bGrayChangeB  := False;
-          nGrayOffset   := 0;
-        end;
-        {$ENDIF}
-    	end;
-    end;
-    DefPG.CMD_POWER_ON: begin
-    	case PG_TYPE of
-    		{$IFDEF PG_AF9}
-    		DefPG.PG_TYPE_AF9 : begin
-     			AF9_AllPowerOnOff(1); //ON
-     			Result := WAIT_OBJECT_0;
-    		end;
-    		{$ENDIF}
-    		{$IFDEF PG_DP860}
-    		DefPG.PG_TYPE_DP860 : begin
-          // DP860 PowerbistOn : interposer.init -> (dut.detect) -> power.bist.on -> (tcon.info)
-          // DP860 (PowerReset)PowerOn : power.on
-          if (not bPowerReset) then begin
-      			Result := DP860_SendInterposerOn(nWaitMS,nRetry);
-            if Result <> WAIT_OBJECT_0 then begin
+          {$ENDIF}
+          {$IFDEF PG_DP860}
+          DefPG.PG_TYPE_DP860 : begin
+            // Interlock during Flash R/W
+            if FIsOnFlashAccess then begin // Interlock during Flash Access
+              Result := WAIT_FAILED;
+              sDebug := 'Power Off NG (On Flash Access) ...Try again after flash access is done'; //TBD:2023-02?
+              ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG, sDebug);
+              Exit;
+            end;
+            // DP860 PowerbistOff : power.bist.off -> interposer.deinit
+            Result := DP860_SendPowerBistOff({nMode}nWaitMS,nRetry);
+            if (not bPowerReset) then begin
+              Sleep(DELAY_POWER_INTERPOSER_OFF);
               Result := DP860_SendInterposerOff({nMode}nWaitMS,nRetry);
-              Sleep(100);
-              Result := DP860_SendInterposerOn(nWaitMS,nRetry);
             end;
-
-            if Result = WAIT_OBJECT_0 then begin
-              Sleep(DELAY_POWER_INTERPOSER_ON);
-              {$IFDEF INSPECTOR_POCB}
-              if Common.TestModelInfo[m_nCh].FLOW.UseDutDetect then
-              {$ELSE}
-              if Common.TestModelInfoFLOW.UseDutDetect then
-              {$ENDIF}
-              begin
-          			Result := DP860_SendDutDetect(1000{nWaitMS},1{Retry});
-              end;
-              if Result = WAIT_OBJECT_0 then begin
-          			Result := DP860_SendPowerBistOn(nWaitMS,nRetry);
-                if Result = WAIT_OBJECT_0 then begin
-                  DP860_SendTconInfo(1000{nWaitMS},0{Retry});
-                  Sleep(100);
-                  DP860_SendSendNvmInit(Common.TestModelInfoFLOW.UseNvmInit,nWaitMS,nRetry);
-                end;
-              end
-              else begin
-                Result := DP860_SendPowerBistOff({nMode}nWaitMS,nRetry);
-                Result := DP860_SendInterposerOff({nMode}nWaitMS,nRetry);
-              end;
-
-            end;
-          end
-          else begin
-            Result := DP860_SendPowerBistOn(nWaitMS,nRetry);
           end;
-        //TBD? if Result <> WAIT_OBJECT_0 then begin
-        //TBD?  DP860_SendInterposerOff({nMode}nWaitMS,nRetry); //TBD?
-        //TBD? end;
-    		end;
-    		{$ENDIF}
-    	end;
-    	if Result = WAIT_OBJECT_0 then begin
-       	m_bPowerOn := True;      //TBD? m_bPowerOn? m_CurPatDispInfo.bPowerOn?
-       	{$IFDEF FEATURE_GRAY_CHANGE}
-   	   	with m_CurPatDispInfo do begin
-         	bPowerOn     := True;  //TBD? m_bPowerOn? m_CurPatDispInfo.bPowerOn?
-       	//bPatternOn   := False;
-       	//nCurrPatNum  := 0;
-       	//nCurrAllPatIdx := 0;
-       	//bSimplePat   := False;
-       	//bGrayChangeR := False;
-       	//bGrayChangeG := False;
-       	//bGrayChangeB := False;
-       	//nGrayOffset  := 0;
-       	end;
-     		{$ENDIF}
-     	end;
+          {$ENDIF}
+        end;
+        //
+        if Result = WAIT_OBJECT_0 then begin
+          m_bPowerOn := False;
+          {$IFDEF FEATURE_GRAY_CHANGE}
+          with m_CurPatDispInfo do begin
+            bPowerOn      := False; //TBD? m_bPowerOn? m_CurPatDispInfo.bPowerOn?
+            bPatternOn    := False;
+            nCurPatNum    := 0;
+            nCurAllPatIdx := 0;
+            bSimplePat    := False;
+            bGrayChangeR  := False;
+            bGrayChangeG  := False;
+            bGrayChangeB  := False;
+            nGrayOffset   := 0;
+          end;
+          {$ENDIF}
+        end;
+      end;
+      DefPG.CMD_POWER_ON: begin
+        case PG_TYPE of
+          {$IFDEF PG_AF9}
+          DefPG.PG_TYPE_AF9 : begin
+            AF9_AllPowerOnOff(1); //ON
+            Result := WAIT_OBJECT_0;
+          end;
+          {$ENDIF}
+          {$IFDEF PG_DP860}
+          DefPG.PG_TYPE_DP860 : begin
+            // DP860 PowerbistOn : interposer.init -> (dut.detect) -> power.bist.on -> (tcon.info)
+            // DP860 (PowerReset)PowerOn : power.on
+            if (not bPowerReset) then begin
+              Result := DP860_SendInterposerOn(nWaitMS,nRetry);
+              if Result <> WAIT_OBJECT_0 then begin
+                Result := DP860_SendInterposerOff({nMode}nWaitMS,nRetry);
+                Sleep(100);
+                Result := DP860_SendInterposerOn(nWaitMS,nRetry);
+              end;
+
+              if Result = WAIT_OBJECT_0 then begin
+                Sleep(DELAY_POWER_INTERPOSER_ON);
+                {$IFDEF INSPECTOR_POCB}
+                if Common.TestModelInfo[m_nCh].FLOW.UseDutDetect then
+                {$ELSE}
+                if Common.TestModelInfoFLOW.UseDutDetect then
+                {$ENDIF}
+                begin
+                  Result := DP860_SendDutDetect(1000{nWaitMS},1{Retry});
+                end;
+                if Result = WAIT_OBJECT_0 then begin
+                  Result := DP860_SendPowerBistOn(nWaitMS,nRetry);
+                  if Result = WAIT_OBJECT_0 then begin
+                    Result := DP860_SendTconInfo(1000{nWaitMS},0{Retry});
+                    Result := DP860_SendSendNvmInit(Common.TestModelInfoFLOW.UseNvmInit,nWaitMS,nRetry);
+                  end;
+                end
+                else begin
+                  Result := DP860_SendPowerBistOff({nMode}nWaitMS,nRetry);
+                  Result := DP860_SendInterposerOff({nMode}nWaitMS,nRetry);
+                end;
+
+              end;
+            end
+            else begin
+              Result := DP860_SendPowerBistOn(nWaitMS,nRetry);
+            end;
+          //TBD? if Result <> WAIT_OBJECT_0 then begin
+          //TBD?  DP860_SendInterposerOff({nMode}nWaitMS,nRetry); //TBD?
+          //TBD? end;
+          end;
+          {$ENDIF}
+        end;
+        if Result = WAIT_OBJECT_0 then begin
+          m_bPowerOn := True;      //TBD? m_bPowerOn? m_CurPatDispInfo.bPowerOn?
+          {$IFDEF FEATURE_GRAY_CHANGE}
+          with m_CurPatDispInfo do begin
+            bPowerOn     := True;  //TBD? m_bPowerOn? m_CurPatDispInfo.bPowerOn?
+
+          end;
+          {$ENDIF}
+        end;
+      end;
     end;
+  finally
+
   end;
 end;
 
@@ -5927,7 +5986,14 @@ if Length(arDataR) < nDataCnt then begin
       {$IF Defined(INSPECTOR_OC) or Defined(INSPECTOR_PreOC)} //2023-03-28 jhhwang (for OC T/T)
       if Common.SystemInfo.PG_TconWriteCmdType = 0 then Sleep(Common.SystemInfo.PG_TconReadBeforeDelayMsec); //2023-04-24 jhhwang (for T/T Test) (if oc.write)
   		{$ENDIF}
-			Result := DP860_SendTConRead(nRegAddr,nDataCnt,btaData, nWaitMS,nRetry,nDebugLog);
+      case Common.SystemInfo.PG_TconReadCmdType of
+        0 : begin
+          Result := DP860_SendTConRead(nRegAddr,nDataCnt,btaData, nWaitMS,nRetry,nDebugLog);
+        end;
+        1 : begin
+          Result := DP860_SendTconByteRead(nRegAddr,nDataCnt,btaData, nWaitMS,nRetry,nDebugLog);
+        end;
+      end;
 		end;
 		{$ENDIF}
 	end;

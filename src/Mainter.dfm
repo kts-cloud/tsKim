@@ -1406,9 +1406,17 @@ object frmMainter: TfrmMainter
     end
     object tabLoaderPlcComm: TRzTabSheet
       Caption = 'PLC Map - Communication'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
     end
     object tabIoMap: TRzTabSheet
       Caption = 'DIO Map - Communication'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object grpDioIn: TRzGroupBox
         Left = 14
         Top = 3
@@ -3103,6 +3111,10 @@ object frmMainter: TfrmMainter
     end
     object TabSheet2: TRzTabSheet
       Caption = 'CA-410'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object btnCal0: TRzBitBtn
         Left = 664
         Top = 760
@@ -5204,6 +5216,10 @@ object frmMainter: TfrmMainter
     end
     object TabSheet3: TRzTabSheet
       Caption = 'Ionizer'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object gbIonizer: TRzGroupBox
         Left = 35
         Top = 18
@@ -5386,6 +5402,10 @@ object frmMainter: TfrmMainter
     end
     object tbSystemInfo: TRzTabSheet
       Caption = 'System Information'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object RzGroupBox4: TRzGroupBox
         Left = 14
         Top = 5
@@ -10348,6 +10368,10 @@ object frmMainter: TfrmMainter
     end
     object TabSheet4: TRzTabSheet
       Caption = 'R2R System'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object Panel1: TPanel
         Left = 0
         Top = 0
@@ -11080,6 +11104,10 @@ object frmMainter: TfrmMainter
     end
     object tbCA410Measurement: TRzTabSheet
       Caption = 'CA410 Measurement'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object cboBandCount: TRzComboBox
         Left = 424
         Top = 41
@@ -11224,7 +11252,7 @@ object frmMainter: TfrmMainter
       end
       object btnMeasure: TRzBitBtn
         Left = 1201
-        Top = 25
+        Top = 24
         Width = 121
         Height = 57
         Caption = 'Measure'

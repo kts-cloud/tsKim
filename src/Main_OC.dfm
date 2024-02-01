@@ -2,7 +2,7 @@ object frmMain_OC: TfrmMain_OC
   Left = 0
   Top = 0
   Caption = 'IITOLED_OC'
-  ClientHeight = 845
+  ClientHeight = 844
   ClientWidth = 1540
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -230,7 +230,7 @@ object frmMain_OC: TfrmMain_OC
     Left = 0
     Top = 58
     Width = 247
-    Height = 768
+    Height = 767
     Align = alLeft
     BorderOuter = fsFlat
     TabOrder = 1
@@ -730,20 +730,20 @@ object frmMain_OC: TfrmMain_OC
         TabOrder = 9
       end
       object RzPanel16: TRzPanel
-        Left = -6
+        Left = 1
         Top = 102
         Width = 78
         Height = 22
         BorderOuter = fsFlat
-        Caption = 'Bin Name'
+        Caption = 'Con_DLL Name'
         TabOrder = 10
         Visible = False
       end
-      object pnlLGDBinName: TRzPanel
+      object pnlOC_ConDLLName: TRzPanel
         Left = 78
-        Top = 101
+        Top = 102
         Width = 165
-        Height = 23
+        Height = 22
         BorderOuter = fsFlat
         Color = clWhite
         TabOrder = 11
@@ -944,7 +944,7 @@ object frmMain_OC: TfrmMain_OC
     end
     object btnShowNGRatio: TRzBitBtn
       Left = 1
-      Top = 727
+      Top = 726
       Width = 245
       Height = 40
       Cursor = crHandPoint
@@ -1007,7 +1007,7 @@ object frmMain_OC: TfrmMain_OC
     end
     object btnShowECSStatus: TRzBitBtn
       Left = 1
-      Top = 687
+      Top = 686
       Width = 245
       Height = 40
       Cursor = crHandPoint
@@ -1070,7 +1070,7 @@ object frmMain_OC: TfrmMain_OC
     end
     object btnShowAlarm: TRzBitBtn
       Left = 1
-      Top = 647
+      Top = 646
       Width = 245
       Height = 40
       Cursor = crHandPoint
@@ -1134,7 +1134,7 @@ object frmMain_OC: TfrmMain_OC
     end
     object grpAutoTester: TRzGroupBox
       Left = 1
-      Top = 598
+      Top = 597
       Width = 245
       Height = 49
       Align = alBottom
@@ -1289,7 +1289,7 @@ object frmMain_OC: TfrmMain_OC
   end
   object RzStatusBar1: TRzStatusBar
     Left = 0
-    Top = 826
+    Top = 825
     Width = 1540
     Height = 19
     BorderInner = fsNone
@@ -1298,20 +1298,6 @@ object frmMain_OC: TfrmMain_OC
     BorderWidth = 0
     TabOrder = 2
     VisualStyle = vsGradient
-    object RzResourceStatus1: TRzResourceStatus
-      Left = 250
-      Top = 0
-      Width = 113
-      Height = 19
-      Align = alLeft
-      ParentShowHint = False
-      BarStyle = bsGradient
-      ShowPercent = True
-      BlinkIntervalOff = 1000
-      BlinkIntervalOn = 1000
-      ExplicitLeft = 252
-      ExplicitTop = 5
-    end
     object RzClockStatus1: TRzClockStatus
       Left = 0
       Top = 0
@@ -1319,7 +1305,8 @@ object frmMain_OC: TfrmMain_OC
       Align = alLeft
       BlinkIntervalOff = 1000
       BlinkIntervalOn = 1000
-      ExplicitLeft = 4
+      ExplicitLeft = 1
+      ExplicitTop = 5
     end
     object RzStatusPane1: TRzStatusPane
       Left = 150
@@ -1329,8 +1316,8 @@ object frmMain_OC: TfrmMain_OC
       BlinkIntervalOff = 1000
       BlinkIntervalOn = 1000
       Caption = 'Memory Status'
-      ExplicitLeft = 149
-      ExplicitTop = -2
+      ExplicitLeft = 144
+      ExplicitTop = 5
     end
     object RzStatusPane2: TRzStatusPane
       Left = 495
@@ -1373,9 +1360,11 @@ object frmMain_OC: TfrmMain_OC
       BlinkIntervalOff = 1000
       BlinkIntervalOn = 1000
       Caption = ''
+      ExplicitLeft = 545
+      ExplicitTop = 8
     end
     object pnlMemCheck: TRzStatusPane
-      Left = 1285
+      Left = 1177
       Top = 0
       Width = 244
       Height = 19
@@ -1384,17 +1373,49 @@ object frmMain_OC: TfrmMain_OC
       BlinkIntervalOff = 1000
       BlinkIntervalOn = 1000
       Caption = ''
+      ExplicitLeft = 1079
+      ExplicitTop = 8
     end
-    object stsCpuTemp: TRzStatusPane
+    object RzStatusPane4: TRzStatusPane
       Left = 965
       Top = 0
-      Width = 320
+      Width = 108
       Height = 19
       Align = alLeft
-      Alignment = taCenter
       BlinkIntervalOff = 1000
       BlinkIntervalOn = 1000
-      Caption = ''
+      Caption = 'SSD Capacity Status'
+    end
+    object RzResourceStatus2: TRzResourceStatus
+      Left = 250
+      Top = 0
+      Width = 113
+      Height = 19
+      Align = alLeft
+      ParentShowHint = False
+      BarStyle = bsGradient
+      ShowPercent = True
+      BlinkIntervalOff = 1000
+      BlinkIntervalOn = 1000
+      ExplicitLeft = 252
+      ExplicitTop = 5
+    end
+    object pgrbCapacityCheck: TRzProgressBar
+      Left = 1073
+      Top = 0
+      Width = 104
+      Height = 19
+      Align = alLeft
+      BackColor = clBtnFace
+      BarStyle = bsGradient
+      BorderWidth = 0
+      FlatColor = clBtnFace
+      InteriorOffset = 0
+      PartsComplete = 0
+      Percent = 0
+      TotalParts = 0
+      ExplicitLeft = 1079
+      ExplicitTop = 8
     end
   end
   object pnlSubTitle: TPanel
@@ -4391,6 +4412,7 @@ object frmMain_OC: TfrmMain_OC
   end
   object tmrMemCheck: TTimer
     Enabled = False
+    Interval = 10000
     OnTimer = tmrMemCheckTimer
     Left = 284
     Top = 242

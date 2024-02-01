@@ -478,6 +478,7 @@ type
 //    procedure AddItemsInCbo;
   public
     m_hMain : HWND;
+    m_hTest : HWND;
     procedure DisplayDio( bIn : Boolean );
     procedure GetR2RData(nCH : Integer);
 
@@ -496,8 +497,13 @@ implementation
 {$WARN IMPLICIT_STRING_CAST OFF}
 
 procedure TfrmMainter.btnReadOutSigClick(Sender: TObject);
+var
+nDeviceCnt : Integer;
 begin
-  if CommDaeDIO <> nil then  CommDaeDIO.ReadDO(0,DefDio.DAE_IO_DEVICE_COUNT+Common.SystemInfo.DioType);
+  if Common.SystemInfo.OCType = DefCommon.OCType then
+    nDeviceCnt := 12
+  else nDeviceCnt := 8;
+  if CommDaeDIO <> nil then  CommDaeDIO.ReadDO(0,nDeviceCnt);
 end;
 
 procedure TfrmMainter.ClearCalResult;
@@ -3452,14 +3458,14 @@ begin
         GetBoxPtnSizeinfo(Common.TestModelInfoFLOW.ModelType,mBand_Count,nSX,nSy,nEX,nEY);
         wdRet := Pg[nFPgNo].DP860_SendBistAPL(i,i,i,nSX,nSy,nEX,nEY,nWaitMS,nRetry);
         if i = 511 then begin
-           wdRet := Pg[nFPgNo].SendDimmingBist(CSharpDll.m_GetDBVdata(mBand_Count-1), nWaitMS,nRetry);
+           wdRet := Pg[nFPgNo].SendDimmingBist(Common.m_GetDBV[mBand_Count-1], nWaitMS,nRetry);
            Sleep(100);
         end;
       end
       else begin
        wdRet := Pg[nFPgNo].SendDisplayPatBistRGB_9Bit(i,i,i,nWaitMS,nRetry);
        if i = 511 then begin
-           wdRet := Pg[nFPgNo].SendDimmingBist(CSharpDll.m_GetDBVdata(mBand_Count-1), nWaitMS,nRetry);
+           wdRet := Pg[nFPgNo].SendDimmingBist(Common.m_GetDBV[mBand_Count-1], nWaitMS,nRetry);
            Sleep(100);
        end;
       end;
@@ -3468,13 +3474,13 @@ begin
   //    AdvChartView1.Panes[0].Series[0].AddSinglePoint(m_Ca410Data.LvVal);
       advstrngrdDataView[nFPgNo].DisableAlign;
 
-      advstrngrdDataView[nFPgNo].Cells[0, Abs(512-i)] := IntToStr(CSharpDll.m_GetDBVdata(mBand_Count-1));
+      advstrngrdDataView[nFPgNo].Cells[0, Abs(512-i)] := IntToStr(Common.m_GetDBV[mBand_Count-1]);
       advstrngrdDataView[nFPgNo].Cells[1, Abs(512-i)] := IntToStr(i);
       advstrngrdDataView[nFPgNo].Cells[2, Abs(512-i)] := FloatToStr(m_Ca410Data.xVal);
       advstrngrdDataView[nFPgNo].Cells[3, Abs(512-i)] := FloatToStr(m_Ca410Data.yVal);
       advstrngrdDataView[nFPgNo].Cells[4, Abs(512-i)] := FloatToStr(m_Ca410Data.LvVal);
       advstrngrdDataView[nFPgNo].EnableAlign;
-      sData := Format('%d,%d,%4.4f,%4.4f,%4.4f,',[CSharpDll.m_GetDBVdata(mBand_Count-1),i,m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
+      sData := Format('%d,%d,%4.4f,%4.4f,%4.4f,',[Common.m_GetDBV[mBand_Count-1],i,m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
       SaveCsvMeasureLog(nFPgNo,sSerialNo,sDataHeader,sData);
     end;
   end
@@ -3490,14 +3496,14 @@ begin
         wdRet := Pg[nFPgNo].DP860_SendBistAPL(i,i,i,nSX,nSy,nEX,nEY,nWaitMS,nRetry);
         if i = 1 then begin
 //           wdRet := Pg[nFPgNo].SendDimmingBist(BandDBV[mBand_Count-1], nWaitMS,nRetry);
-          wdRet := Pg[nFPgNo].SendDimmingBist(CSharpDll.m_GetDBVdata(mBand_Count-1), nWaitMS,nRetry);
+          wdRet := Pg[nFPgNo].SendDimmingBist(Common.m_GetDBV[mBand_Count-1], nWaitMS,nRetry);
           Sleep(100);
         end;
       end
       else begin
       wdRet := Pg[nFPgNo].SendDisplayPatBistRGB_9Bit(i,i,i,nWaitMS,nRetry);
         if i = 1 then begin
-           wdRet := Pg[nFPgNo].SendDimmingBist(CSharpDll.m_GetDBVdata(mBand_Count-1), nWaitMS,nRetry);
+           wdRet := Pg[nFPgNo].SendDimmingBist(Common.m_GetDBV[mBand_Count-1], nWaitMS,nRetry);
            Sleep(100);
         end;
       end;
@@ -3506,13 +3512,13 @@ begin
   //    AdvChartView1.Panes[0].Series[0].AddSinglePoint(m_Ca410Data.LvVal);
       advstrngrdDataView[nFPgNo].DisableAlign;
 
-      advstrngrdDataView[nFPgNo].Cells[0, Abs(i)] := IntToStr(CSharpDll.m_GetDBVdata(mBand_Count-1));
+      advstrngrdDataView[nFPgNo].Cells[0, Abs(i)] := IntToStr(Common.m_GetDBV[mBand_Count-1]);
       advstrngrdDataView[nFPgNo].Cells[1, Abs(i)] := IntToStr(i);
       advstrngrdDataView[nFPgNo].Cells[2, Abs(i)] := FloatToStr(m_Ca410Data.xVal);
       advstrngrdDataView[nFPgNo].Cells[3, Abs(i)] := FloatToStr(m_Ca410Data.yVal);
       advstrngrdDataView[nFPgNo].Cells[4, Abs(i)] := FloatToStr(m_Ca410Data.LvVal);
       advstrngrdDataView[nFPgNo].EnableAlign;
-      sData := Format('%d,%d,%4.4f,%4.4f,%4.4f,',[CSharpDll.m_GetDBVdata(mBand_Count-1),i,m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
+      sData := Format('%d,%d,%4.4f,%4.4f,%4.4f,',[Common.m_GetDBV[mBand_Count-1],i,m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
       SaveCsvMeasureLog(nFPgNo,sSerialNo,sDataHeader,sData);
     end;
   end;
@@ -5486,16 +5492,16 @@ end;
 procedure TfrmMainter.SendGuiDisplay(nCh: Integer; sMsg: string);
 var
   ccd         : TCopyDataStruct;
-  CommData    : RGuiMainter;
+  CommData    : RGuiPg2Main;
 begin
   CommData.MsgType  := DefCommon.MSG_TYPE_PG;
-  CommData.Channel  := nCh;
+  CommData.PgNo  := nCh;
   CommData.Mode     := 0;
-  CommData.Msg      := sMsg;
+  CommData.sMsg      := sMsg;
   ccd.dwData        := 0;
   ccd.cbData        := SizeOf(CommData);
   ccd.lpData        := @CommData;
-  SendMessage(Self.Handle,WM_COPYDATA,0, LongInt(@ccd));
+  SendMessage(m_hMain,WM_COPYDATA,0, LongInt(@ccd));
 end;
 
 
@@ -5836,3 +5842,4 @@ begin
 end;
 {$ENDIF}
 end.
+

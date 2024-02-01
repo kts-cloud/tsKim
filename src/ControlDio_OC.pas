@@ -38,7 +38,8 @@ type
     function CheckAlarm: Integer;
     function CheckState: Integer;
     function WriteCheck(nIdx : Integer) : Integer;
-    procedure SendMsgMain(nMsgMode: Integer; nParam, nParam2: Integer; sMsg: String; pData:Pointer=nil);
+    procedure SendMsgMain(nMsgMode: Integer; nParam, nParam2: Integer; sMsg: String; pData:Pointer=nil); overload;
+    procedure SendMsgMain(nMsgMode,nCH, nParam, nParam2: Integer; sMsg: String; pData:Pointer=nil); overload;
     procedure SetAlarmMsg(nIdx : Integer; bIsDisplayMessage : Boolean = True);
     procedure SendAlarm(nType, nIndex, nValue: Integer; sMsg:String='');
     function CheckDi(nIdx : Integer) : Boolean;
@@ -60,7 +61,7 @@ type
     MelodyOn: Boolean;
     // 0 : Loading(first Start) ==> 1 : Camera ==> 2 : Unloading ==> 1 : Camera.
     //ZoneStatus : array[DefCommon.JIG_A .. DefCommon.JIG_B] of Integer;
-    constructor Create(hMain :HWND; nMsgType : Integer); virtual;
+    constructor Create(hMain :HWND; nMsgType,nDeviceCnt : Integer); virtual;
     destructor Destroy; override;
 
     procedure RefreshIo;
@@ -99,6 +100,8 @@ type
     function CheckPreOCPanelDetectCh(nCh : Integer; nReverseMode : integer = 0) : integer;
     function CLOSE_Up_PinBlock(nCh: Integer): Integer;
     function CLOSE_Dn_PinBlock(nCh: Integer): Integer;
+    function PowerResetPG: Integer;
+    function PowerResetPG_CH(nCH: Integer): Integer;
     function VaccumON(nCh: Integer): Integer;
     function VaccumOFF(nCh: Integer): Integer;
     function LampOnOff(nGroup : integer;  bIsOnOff : Boolean): Integer;
@@ -1223,6 +1226,58 @@ begin
 end;
 
 
+function TControlDio.PowerResetPG: Integer;
+var
+  i,nWaitingCount: Integer;
+begin
+  Result := 1;
+  nWaitingCount:= Common.SystemInfo.PGResetDelayTime *10;
+  if (Common.SystemInfo.OCType <> DefCommon.OCType) and (nWaitingCount <> 0)  then Exit(0);
+
+  for I := 0 to DefCommon.MAX_CH do  begin
+    SendMsgMain(COMMDIO_MSG_LOG_CH,i, 0, 0, format('PowerResetPG Start - Reset Delay Time : (%ds)',[Common.SystemInfo.PGResetDelayTime]));
+    ClearOutDioSig(DefDio.OUT_CH_1_PG_POWER_OFF + i);
+    Sleep(1000);
+    WriteDioSig(DefDio.OUT_CH_1_PG_POWER_OFF + i,false);
+    Sleep(1000);
+    WriteDioSig(DefDio.OUT_CH_1_PG_POWER_OFF + i,True);
+  end;
+
+  for i := 0 to nWaitingCount do begin
+     Sleep(100);
+  end;
+  for I := 0 to DefCommon.MAX_CH do  begin
+    SendMsgMain(COMMDIO_MSG_LOG_CH,i, 0, 0, 'PowerResetPG End');
+  end;
+  Result := 0;
+
+end;
+
+function TControlDio.PowerResetPG_CH(nCH: Integer): Integer;
+var
+i,nWaitingCount: Integer;
+begin
+  Result := 1;
+  nWaitingCount:= Common.SystemInfo.PGResetDelayTime *10;
+  if (Common.SystemInfo.OCType <> DefCommon.OCType) and (nWaitingCount <> 0)  then Exit(0);
+
+  SendMsgMain(COMMDIO_MSG_LOG_CH,nCH, 0, 0, format('PowerResetPG Start - Reset Delay Time : (%ds)',[Common.SystemInfo.PGResetDelayTime]));
+  ClearOutDioSig(DefDio.OUT_CH_1_PG_POWER_OFF + nCH);
+  Common.Delay(1000);
+  WriteDioSig(DefDio.OUT_CH_1_PG_POWER_OFF + nCH,false);
+  Common.Delay(1000);
+  WriteDioSig(DefDio.OUT_CH_1_PG_POWER_OFF + nCH,True);
+
+  for i := 0 to nWaitingCount do begin
+     Common.Delay(100);
+  end;
+
+  SendMsgMain(COMMDIO_MSG_LOG_CH,nCH, 0, 0, 'PowerResetPG End');
+
+  Result := 0;
+
+end;
+
 function TControlDio.ProbeBackward(nCh: Integer): Integer;
 var
   i,nWaitingCount: Integer;
@@ -2001,7 +2056,7 @@ begin
   CommDaeDIO.WriteDO_Bit(nIdx,nPos,nValue);
 end;
 
-constructor TControlDio.Create(hMain: HWND; nMsgType : Integer);
+constructor TControlDio.Create(hMain: HWND; nMsgType,nDeviceCnt : Integer);
 var
   i : Integer;
 begin
@@ -2016,7 +2071,7 @@ begin
   // Error Message 초기화.
   for i:= 0 to Pred(DefDio.MAX_ALARM_DATA_SIZE) do DioAlarmData[i] := 0;
     // DIO Connect.
-  CommDaeDIO:= TCommDIOThread.Create(0,DefCommon.MSG_TYPE_DAEIO, DefDio.DAE_IO_DEVICE_PORT, DefDio.DAE_IO_DEVICE_COUNT + Common.SystemInfo.DioType,True,3,1);
+  CommDaeDIO:= TCommDIOThread.Create(0,DefCommon.MSG_TYPE_DAEIO, DefDio.DAE_IO_DEVICE_PORT,nDeviceCnt,True,3,1);
   // Polling Mode 3 ==> Notify & Polling.
   CommDaeDIO.OnNotify := CommDIONotify;
   if Common.SimulateInfo.Use_DIO then begin
@@ -2049,8 +2104,11 @@ end;
 
 destructor TControlDio.Destroy;
 begin
+
   tmrCycle.Free;
   tmrCycle := nil;
+
+//  SetLength(CommDaeDIO.DeviceInfo.Version,0);
 
   CommDaeDIO.Free;
   CommDaeDIO := nil;
@@ -2962,18 +3020,6 @@ begin
 //      WriteDioSig(DefDio.OUT_CH_3_4_LAMP_OFF,false);
     end;
 
-    if ReadInSig(DefDio.IN_GIB_CH_12_MUTING_LAMP) then begin
-      WriteDioSig(nTowerLamp_B1, False);
-    end
-    else begin
-      WriteDioSig(nTowerLamp_B1, True);
-    end;
-    if ReadInSig(DefDio.IN_GIB_CH_34_MUTING_LAMP) then begin
-      WriteDioSig(nTowerLamp_B1, False);
-    end
-    else begin
-      WriteDioSig(nTowerLamp_B1, True);
-    end;
   end;
 
   //사용하지 않을 경우 갱신 안함
@@ -2988,6 +3034,7 @@ begin
       if ReadOutSig(nTowerLamp_Y)    then WriteDioSig(nTowerLamp_Y, True);
       if ReadOutSig(nTowerLamp_G)    then WriteDioSig(nTowerLamp_G, True);
       if ReadOutSig(nTowerLamp_B1)    then WriteDioSig(nTowerLamp_B1, True);
+      if ReadOutSig(nTowerLamp_B2)    then WriteDioSig(nTowerLamp_B2, True);
       //if ReadOutSig(DefDio.OUT_MELODY_2)    then WrinTowerLamp_GteDioSig(DefDio.OUT_MELODY_2, True);
       //if ReadInSig(DefDio.OUT_MELODY_3) then WriteDinTowerLamp_BoSig(DefDio.OUT_MELODY_3, True);
       //if ReadInSig(DefDio.OUT_MELODY_4) then WriteDioSig(DefDio.OUT_MELODY_4, True);
@@ -2999,6 +3046,7 @@ begin
       if not ReadOutSig(nTowerLamp_Y)  then WriteDioSig(nTowerLamp_Y, False);
       if ReadOutSig(nTowerLamp_G)      then WriteDioSig(nTowerLamp_G, True);
       if ReadOutSig(nTowerLamp_B1)      then WriteDioSig(nTowerLamp_B1, True);
+      if ReadOutSig(nTowerLamp_B2)    then WriteDioSig(nTowerLamp_B2, True);
       //if ReadOutSig(DefDio.OUT_MELODY_2)     then WriteDioSig(DefDio.OUT_MELODY_2, True);
     end;
 
@@ -3026,6 +3074,15 @@ begin
       if ReadOutSig(nTowerLamp_Y)     then WriteDioSig(nTowerLamp_Y, True);
       if not ReadOutSig(nTowerLamp_G)  then WriteDioSig(nTowerLamp_G, false);
       if ReadOutSig(nTowerLamp_B1)        then WriteDioSig(nTowerLamp_B1, True);
+
+      if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
+        if ReadInSig(DefDio.IN_GIB_CH_12_MUTING_LAMP) or ReadInSig(DefDio.IN_GIB_CH_34_MUTING_LAMP) then begin
+          WriteDioSig(nTowerLamp_B2, False);
+        end
+        else begin
+          WriteDioSig(nTowerLamp_B2, True);
+        end;
+      end;
       //if ReadOutSig(DefDio.OUT_MELODY_2)        then WriteDioSig(DefDio.OUT_MELODY_2, True);
     end;
 
@@ -3244,6 +3301,28 @@ begin
   end;
   COPYDATAMessage.MsgType := m_nMsgType; //MSGTYPE_COMMDIO;
   COPYDATAMessage.Channel := 1;
+  COPYDATAMessage.Mode    := nMsgMode;
+  COPYDATAMessage.Param   := nParam;
+  COPYDATAMessage.Param2  := nParam2;
+  COPYDATAMessage.Msg     := sMsg;
+  COPYDATAMessage.pData   := pData;
+
+  cds.dwData      := 0;
+  cds.cbData      := SizeOf(COPYDATAMessage);
+  cds.lpData      := @COPYDATAMessage;
+  SendMessage(m_hMain,WM_COPYDATA,0, LongInt(@cds));
+end;
+
+procedure TControlDio.SendMsgMain(nMsgMode,nCH, nParam, nParam2: Integer; sMsg: String; pData: Pointer);
+var
+  cds         : TCopyDataStruct;
+  COPYDATAMessage : RGuiDaeDio;
+begin
+  if not Assigned(Self) then begin   // Added by sam81 2023-05-09 오후 1:22:26
+    Exit;
+  end;
+  COPYDATAMessage.MsgType := m_nMsgType; //MSGTYPE_COMMDIO;
+  COPYDATAMessage.Channel := nCH;
   COPYDATAMessage.Mode    := nMsgMode;
   COPYDATAMessage.Param   := nParam;
   COPYDATAMessage.Param2  := nParam2;
