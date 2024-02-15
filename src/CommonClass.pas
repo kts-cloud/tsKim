@@ -8,7 +8,7 @@ uses
   Vcl.Forms,Vcl.Dialogs, Winapi.WinSock, Vcl.StdCtrls, psAPI,System.IOUtils,IdGlobal,
   System.IniFiles,  CodeSiteLogging, StrUtils,  DefCommon, system.zip,DefPG, TLHelp32, ComObj, Variants,PdhExample,
 
-  System.Threading,
+  System.Threading, FlexCel.Core, FlexCel.XlsAdapter,
 
   Graphics,  IdSocketHandle, DateUtils, Winapi.ActiveX, System.Generics.Collections,
   Winapi.Messages,DongaPattern,Registry, SyncObjs,Vcl.Imaging.pngimage, Vcl.Imaging.jpeg,Math; //, AdvGrid, AdvObj, AdvGridWorkbook, , ScrMemo; //, DefScript;
@@ -118,6 +118,7 @@ type
     AutoBackupList      : string;
     AutoLGDLogBackup    : Boolean;
     DLLVerInterlock     : Boolean;
+    SWVerInterlock      : string;
     DLLVerInterlockList : string;
     LocalIP_GMES        : string;
     LocalIP_PLC         : string;
@@ -533,6 +534,7 @@ type
 //    CommPG       : string;
     PCDLog       : string; // PCD Log
     RePGMLog     : string;
+    Shutdown_Fault_Log : string;
     HWCIDLog     : string;
 	  Sensing      : string; // I Sensing Log
     PocbData     : string;
@@ -594,6 +596,7 @@ type
     Version_FPGA   : string;
     Version_Power  : string;
     Version_DLL    : string;
+    Version_LGDDLL : string;
   end;
   TModelInfoPG = record
 		//-------------- DP860,AF9
@@ -835,6 +838,8 @@ type
     procedure MLog(nCh : Integer;const Msg : String);
     procedure R2RLog(nCh: Integer; const Msg: String);
     procedure RePGMLog(nCh : Integer;const sPID,sSN: String);
+    procedure Shutdown_FaultLog(nCh : Integer;const sPID,sSN: String);
+
     procedure HWCIDLogLog(nCh : Integer;const sPID,sSN,sData: String);
     procedure MLogWaveformData(nCh : Integer;const Msg: String);
     procedure EELog(const pg_no : Integer);
@@ -2309,6 +2314,7 @@ begin
   Path.TempCsv        := Path.LOG + 'TempCsv\';
   Path.RePGMLog       := Path.LOG + 'ReProgrammingLOG\';
   Path.CEL            := Path.LOG + 'CEL\';
+  Path.Shutdown_Fault_Log   := Path.LOG + 'Shutdown_FaultLOG\';
   Path.R2RLOG            := Path.LOG + 'R2RLOG\';
   PATH.DATA 					:= Path.RootSW + 'DATA\';
   Path.PG_FW       		:= Path.DATA + 'PG_FW\';
@@ -2357,6 +2363,7 @@ begin
   CheckDir(Path.ApdrCsv);
   CheckDir(Path.LGDDLL);
   CheckDir(Path.LGDReProgramming);
+  CheckDir(Path.Shutdown_Fault_Log);
   CheckDir(Path.Gamma);
   CheckDir(Path.TempCsv);
   CheckDir(Path.RePGMLog);
@@ -3246,6 +3253,8 @@ begin
       MLog(DefCommon.MAX_SYSTEM_LOG,'Error Occurrence : '+ E.Message);
   end;
 end;
+
+
 
 procedure TCommon.ScheduledTask;
 const
@@ -4633,6 +4642,53 @@ begin
   end;
 end;
 
+procedure TCommon.Shutdown_FaultLog(nCh : Integer;const sPID,sSN: String);
+var
+  _infile : TextFile;
+  sInputData, sFileName, sDate, sFilePath,sLine: String;
+//  nCurTime, nFreq : Int64;
+//	dElapse : Double;
+begin
+//  DebugMessage('[MLog] ' + Msg);
+  if CheckDir(Path.Shutdown_Fault_Log) then begin
+    Exit;
+  end;
+  sDate := FormatDateTime('yyyymmdd', Now);
+  sFilePath := Path.Shutdown_Fault_Log + sDate + '\';
+  if CheckDir(sFilePath) then begin
+    Exit;
+  end;
+
+  sFileName := sFilePath + Format('Shutdown_Fault_NG_Log_%s_%s_Ch%d.csv',[systemInfo.EQPId,sDate,nCh + 1]);
+
+  try
+    try
+      AssignFile(_infile, sFileName);
+      try
+
+        if not FileExists(sFileName) then begin
+          //Header 생성
+          Rewrite(_infile);
+          sLine:= 'TIME,PID,SN';
+          WriteLn(_infile, sLine);
+        end;
+
+        //Data
+        Append(_infile);
+        sLine := FormatDateTime('hh:mm:ss.zzz, ', Now)+ Format('%s,%s,',[sPID,sSN]);
+        WriteLn(_infile, sLine);
+      except
+//        m_csWriteCsvLog.Release;
+      end;
+    finally
+      CloseFile(_infile); // Close the file
+//      m_csWriteCsvLog.Release;
+    end;
+  except
+//    m_csWriteCsvLog.Release;
+  end;
+end;
+
 procedure TCommon.MLogWaveformData(nCh : Integer;const Msg: String);
 var
   _infile : TextFile;
@@ -5374,6 +5430,8 @@ begin
       InterlockInfo.Version_FPGA      := fSys.ReadString('Interlock', 'Version_FPGA', '-');
       InterlockInfo.Version_Power     := fSys.ReadString('Interlock', 'Version_Power', '-');
       InterlockInfo.Version_DLL       := fSys.ReadString('Interlock', 'Version_DLL', '');
+      InterlockInfo.Version_LGDDLL       := fSys.ReadString('Interlock', 'Version_LGDDLL', '');
+
 
       SimulateInfo.Use_PG              := fSys.ReadBool('SimulateInfo',    'USE_PG', False);
       SimulateInfo.Use_PLC             := fSys.ReadBool('SimulateInfo',    'USE_PLC', False);
@@ -5939,7 +5997,7 @@ begin
       WriteString('Interlock', 'Version_FPGA',       InterlockInfo.Version_FPGA);
       WriteString('Interlock', 'Version_Power',      InterlockInfo.Version_Power);
       WriteString('Interlock', 'Version_DLL',        InterlockInfo.Version_DLL);
-
+      WriteString('Interlock', 'Version_LGDDLL',        InterlockInfo.Version_LGDDLL);
     except
     end;
   end;

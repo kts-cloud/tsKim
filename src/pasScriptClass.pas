@@ -946,6 +946,8 @@ begin
 
   SetPaScript.AddVariable('c_bChkIRA',PG[Self.FPgNo].m_bChkIRA);
 
+  SetPaScript.AddVariable('c_bChkShutdown_Fault',PG[Self.FPgNo].m_bChkShutdown_Fault);
+
 
 //  SetPaScript.AddVariable('c_NVMWriteSequence',nNVMWriteSequence);
   //문자열 속성 반환 p_Values[0], 필요 시 Get, Set에서 추가
@@ -1911,8 +1913,8 @@ begin
     else                       nRetry   := 1;
     if nRetry = 0 then nRetry := 1;
     //
-    sDebug := Format('I2C READ: DevAddr(0x%0.2x) RegAddr(0x%0.4x) DataCnt(%d), WaitMS(%d) Retry(%d) ',[nDevAddr,nRegAddr,nDataCnt, nWaitMS,nRetry]);
-    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,sDebug,'',DefCommon.LOG_TYPE_INFO);
+//    sDebug := Format('I2C READ: DevAddr(0x%0.2x) RegAddr(0x%0.4x) DataCnt(%d), WaitMS(%d) Retry(%d) ',[nDevAddr,nRegAddr,nDataCnt, nWaitMS,nRetry]);
+//    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,sDebug,'',DefCommon.LOG_TYPE_INFO);
 
     SetLength(arRData,nDataCnt);
     wdRet := Pg[Self.FPgNo].SendI2CRead(nDevAddr,nRegAddr,nDataCnt,arRData, nWaitMS,nRetry);
@@ -1932,8 +1934,8 @@ begin
       WAIT_FAILED : sDebug := 'I2C READ NG (Failed)';
       else          sDebug := 'I2C READ NG (Etc)';
     end;
-    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,sDebug,'', TernaryOp((wdRet=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG));
-    ReturnOutputArg(wdRet);
+//    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,sDebug,'', TernaryOp((wdRet=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG));
+//    ReturnOutputArg(wdRet);
   end;
 end;
 //
@@ -2047,9 +2049,9 @@ begin
     sTxData := format('0x%0.2x',[nWriteData]);
     arrData[0] := nWriteData;
     bDataLog := True;
-    sDebug := Format('I2C WRITE: RegAddr(0x%0.4x) DataCnt(%d), Data(0x%0.4x) WaitMS(%d) Retry(%d) ',[nRegAddr,nDataCnt,nWriteData, nWaitSec,nRetry]);
-    if bDataLog then SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,sDebug,'',DefCommon.LOG_TYPE_INFO)
-    else             Common.MLog(FPgNo,sDebug);
+//    sDebug := Format('I2C WRITE: RegAddr(0x%0.4x) DataCnt(%d), Data(0x%0.4x) WaitMS(%d) Retry(%d) ',[nRegAddr,nDataCnt,nWriteData, nWaitSec,nRetry]);
+//    if bDataLog then SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,sDebug,'',DefCommon.LOG_TYPE_INFO)
+//    else             Common.MLog(FPgNo,sDebug);
 //{$IFNDEF SIMULATOR_PANEL}
     wdRet := Pg[Self.FPgNo].SendI2CWrite(TCON_REG_DEVICE,nRegAddr,nDataCnt,arrData, nWaitSec,nRetry);
 //{$ELSE}
@@ -2063,8 +2065,8 @@ begin
       WAIT_FAILED : sDebug := 'I2C WRITE NG (Failed)';
       else          sDebug := 'I2C WRITE NG (Etc)';
     end;
-    if bDataLog then SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,sDebug,'',TernaryOp((wdRet=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG))
-    else             Common.MLog(FPgNo,sDebug);
+//    if bDataLog then SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,sDebug,'',TernaryOp((wdRet=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG))
+//    else             Common.MLog(FPgNo,sDebug);
     ReturnOutputArg(wdRet);
   end;
 end;
@@ -3222,6 +3224,9 @@ begin
                   SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,format('ExtractDifference : %s',[sDiff]),'',1);
                 end;
                 CSharpDll.m_OCCkSerialNB[FPgNo] := True;
+              end
+              else begin
+                SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'Read SerialNumber and RTN_SERIAL_NO are the same','',0);
               end;
             end;
           end;
@@ -3564,6 +3569,16 @@ begin
               TestInfo.PowerOn := True;
 //              wdRet := Pg[Self.FPgNo].SendPowerOn(nWaitMS,nRetry);
               wdRet := Pg[Self.FPgNo].SendPowerBistOn(1{On},False,nWaitMS,nRetry); //TBD:DP860?
+            end
+            else if naParam[1] = DefScript.PP_COMMAD_PWR_OFF_RESET then begin
+              TestInfo.PowerOn := True;
+//              wdRet := Pg[Self.FPgNo].SendPowerOn(nWaitMS,nRetry);
+              wdRet := Pg[Self.FPgNo].SendPowerBistOn(0{Off},True,nWaitMS,nRetry); //TBD:DP860?
+            end
+            else if naParam[1] = DefScript.PP_COMMAD_PWR_ON_RESET then begin
+              TestInfo.PowerOn := True;
+//              wdRet := Pg[Self.FPgNo].SendPowerOn(nWaitMS,nRetry);
+              wdRet := Pg[Self.FPgNo].SendPowerBistOn(1{On},true,nWaitMS,nRetry); //TBD:DP860?
             end;
           end;
 
@@ -4490,6 +4505,7 @@ begin
 //        SendTestGuiDisplay(DefCommon.MSG_MODE_SHOW_SERIAL_NUMBER,TestInfo.CarrierId +' / '+TestInfo.SerialNo);
         if DongaGmes is TGmes then begin
           DongaGmes.MesData[Self.FPgNo].Rwk := Common.GmesInfo[nResult].MES_Code;
+          DongaGmes.MesData[Self.FPgNo].ErrCode := Common.GmesInfo[nResult].sErrCode;
           //EICR용 Tact 계산
           nTactSec:= SecondsBetween(TestInfo.EndTime, TestInfo.PreEndTime); //완공시간 - 이전 완공 시간
           if nTactSec > 3600 then nTactSec:= 3600;  //너무 큰 경우 방지
@@ -4868,35 +4884,43 @@ begin
       nNgCode := GetInputArgAsInteger(0);
 //      Common.MLog(self.FPgNo, 'ECS_SetGlassData NgCode=' + IntToStr(nNgCode));
       SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'ECS_SetGlassData NgCode=' + IntToStr(nNgCode));
-      if Common.SystemInfo.Use_GIB then begin
+      if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType) then begin
+        SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'SetGlassData_CheckRLogistics NgCode=' + IntToStr(nNgCode));
         g_CommPLC.SetGlassData_CheckRLogistics(FPgNo,g_CommPLC.GlassData[FPgNo],0);
       end;
 
-      if g_CommPLC.GlassData[FPgNo].RecipeNumber = 0 then begin
-        SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'ECS_SetGlassData RecipeNumber: 0 - Skip');
-        ReturnOutputArg(0);
-        Exit;
+//      if g_CommPLC.GlassData[FPgNo].RecipeNumber = 0 then begin
+//        SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'ECS_SetGlassData RecipeNumber: 0 - Skip');
+//        ReturnOutputArg(0);
+//        Exit;
+//      end;
+
+      if (not Common.SystemInfo.Use_GIB) and (Common.SystemInfo.OCType = DefCommon.PreOCType) then  begin
+        if (Common.GmesInfo[nNgCode].sErrCode <> 'AXXX') then begin
+          SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,format('Pre OC Change Error Code:  %d -> 0',[nNgCode]));
+          nNgCode := 0;
+        end;
       end;
+
 
       if nNgCode = 0 then begin
         g_CommPLC.SetGlassData_JudgCode(g_CommPLC.GlassData[FPgNo], ord('G'));
       end
       else begin
-  //      if nNgCode <= 5 then begin
-  //        //Contact NG 등 카메라 측정에 진입 못한 경우 GlassData 설정
-  //        g_CommPLC.SetGlassData_JudgCode(g_CommPLC.GlassData[FPgNo], ord('S'));
-  //        g_CommPLC.SetGlassData_ContactNG(g_CommPLC.GlassData[FPgNo], 1);
-  //      end
-  //      else begin
-        g_CommPLC.SetGlassData_JudgCode(g_CommPLC.GlassData[FPgNo], ord('N'));
-  //      end;
 
-        if Common.SystemInfo.Use_GIB then begin //GIB구분- Auto이고 GIB 모드이면 Inline GIB
-          if (Common.PLCInfo.EQP_ID - 6) = 1 then
-            nEQP_ID := 1
-          else nEQP_ID := 2;
-          nStation:= g_CommPLC.GetGlassData_Processing_Status(g_CommPLC.GlassData[FPgNo],nEQP_ID, nSeq, 16);
-          g_CommPLC.SetGlassData_Processing_Status_GIB(g_CommPLC.GlassData[FPgNo],nEQP_ID, FPgNo,nSeq);
+        g_CommPLC.SetGlassData_JudgCode(g_CommPLC.GlassData[FPgNo], ord('N'));
+
+        if (Common.SystemInfo.Use_GIB) then begin //GIB구분- Auto이고 GIB 모드이면 Inline GIB
+          if (Common.SystemInfo.OCType = DefCommon.OCType) then  begin
+            if (Common.PLCInfo.EQP_ID - 6) = 1 then
+              nEQP_ID := 1
+            else nEQP_ID := 2;
+            nStation:= g_CommPLC.GetGlassData_Processing_Status(g_CommPLC.GlassData[FPgNo],nEQP_ID, nSeq, 16);
+            g_CommPLC.SetGlassData_Processing_Status_GIB(g_CommPLC.GlassData[FPgNo],nEQP_ID, FPgNo,nSeq);
+          end
+          else begin
+            g_CommPLC.SetGlassData_Processing_Status(g_CommPLC.GlassData[FPgNo], 0, 2);
+          end;
         end
         else begin
           if Common.SystemInfo.OCType = DefCommon.OCType then
@@ -4910,12 +4934,21 @@ begin
           end;
         end;
       end;
-      if Common.SystemInfo.Use_GIB then begin //GIB구분- Auto이고 GIB 모드이면 Inline GIB
-        if (Common.PLCInfo.EQP_ID - 6) = 1 then
-            nEQP_ID := 1
-        else nEQP_ID := 2;
-        nStation:= g_CommPLC.GetGlassData_PreviousUnitProcessing(g_CommPLC.GlassData[FPgNo],nEQP_ID, nSeq, 16);
-        g_CommPLC.SetGlassData_Previous_Unit_Processing_GIB(g_CommPLC.GlassData[FPgNo],nEQP_ID,FPgNo,nSeq);
+
+      if (Common.SystemInfo.Use_GIB) then begin //GIB구분- Auto이고 GIB 모드이면 Inline GIB
+        if (Common.SystemInfo.OCType = DefCommon.OCType) then begin
+          if (Common.PLCInfo.EQP_ID - 6) = 1 then
+              nEQP_ID := 1
+          else nEQP_ID := 2;
+          nStation:= g_CommPLC.GetGlassData_PreviousUnitProcessing(g_CommPLC.GlassData[FPgNo],nEQP_ID, nSeq, 16);
+          g_CommPLC.SetGlassData_Previous_Unit_Processing_GIB(g_CommPLC.GlassData[FPgNo],nEQP_ID,FPgNo,nSeq);
+        end
+        else begin
+          if (Common.PLCInfo.EQP_ID - 6) = 1 then
+              nEQP_ID := 1
+          else nEQP_ID := 4;
+          g_CommPLC.SetGlassData_Previous_Unit_Processing(g_CommPLC.GlassData[FPgNo],nEQP_ID);
+        end;
       end
       else begin
         if Common.SystemInfo.OCType = DefCommon.OCType then

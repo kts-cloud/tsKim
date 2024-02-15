@@ -174,9 +174,9 @@ type
     RzPanel30: TRzPanel;
     edtVrsion_FW: TRzEdit;
     RzPanel31: TRzPanel;
-    edtVrsion_FPGA: TRzEdit;
+    edtVrsion_SW: TRzEdit;
     RzPanel32: TRzPanel;
-    edtVrsion_Power: TRzEdit;
+    edtVrsion_LGDDLL: TRzEdit;
     RzGroupBox3: TRzGroupBox;
     rgSelectReport: TRzRadioGroup;
     RzPanel12: TRzPanel;
@@ -259,7 +259,6 @@ type
     edSetTemperature: TRzNumericEdit;
     RzGroupBox9: TRzGroupBox;
     edVerInterlock: TRzEdit;
-    RzBitBtn2: TRzBitBtn;
     chkVerInterlock: TRzCheckBox;
     edMESCodeCnt: TRzEdit;
     RzPanel50: TRzPanel;
@@ -881,7 +880,7 @@ begin
     AutoBackupList := edAutoBackup.Text;
 
     DLLVerInterlock := chkVerInterlock.Checked;
-    DLLVerInterlockList := edVerInterlock.Text;
+    SWVerInterlock := edVerInterlock.Text;
     UseEQCC       := chkEQCC.Checked;
 //    MIPILog       := chkMIPILog.Checked;
     NGAlarmCount  := cboNGAlarmCount.ItemIndex;
@@ -991,10 +990,11 @@ begin
 
   with Common.InterlockInfo do begin
     Use             := chkInterlock_SW.Checked;
-//    Version_SW      := edtVrsion_SW.Text;
+    Version_SW      := edtVrsion_SW.Text;
     Version_Script  := edtVrsion_Script.Text;
     Version_FW      := edtVrsion_FW.Text;
     Version_DLL     := edtVrsion_Dll.Text;
+    Version_LGDDLL  := edtVrsion_LGDDll.Text;
 //    Version_FPGA    := edtVrsion_FPGA.Text;
 //    Version_Power   := edtVrsion_Power.Text;
   end;
@@ -1417,8 +1417,8 @@ begin
 
     edtVrsion_Script.Text    := Common.InterlockInfo.Version_Script;
     edtVrsion_FW.Text        := Common.InterlockInfo.Version_FW;
-    //edtVrsion_FPGA.Text      := Common.InterlockInfo.Version_FPGA;
-    //edtVrsion_Power.Text     := Common.InterlockInfo.Version_Power;
+    edtVrsion_SW.Text      := Common.InterlockInfo.Version_SW;
+    edtVrsion_LGDDLL.Text     := Common.InterlockInfo.Version_LGDDLL;
   end;
 
 end;
@@ -1508,6 +1508,9 @@ begin
   end;
 
   DisplaySystemInfo;
+  if Common.SupervisorMode  then
+    RzGroupBox4.Visible := True
+  else RzGroupBox4.Visible := False;
 end;
 
 procedure TfrmSystemSetup.FormDestroy(Sender: TObject);

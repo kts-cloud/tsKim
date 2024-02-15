@@ -425,9 +425,9 @@ begin
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',0);
     CSharpDll.MainOC_Stop_CH1(nPGCH);
   end;
-  if (m_OCFlowStart[nPGCH]) and Pg[nPGCH].m_bChkIRA  then begin
-    Pg[nPGCH].m_bChkIRA := False;
-    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,'<SEQUENCE> IRA - NG');
+  if (m_OCFlowStart[nPGCH]) and Pg[nPGCH].m_bChkShutdown_Fault  then begin
+    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,'<SEQUENCE> Shutdown_Fault - NG');
+    SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',1);
     CSharpDll.MainOC_Stop_CH1(nPGCH);
   end;
 
@@ -459,10 +459,10 @@ begin
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',0);
     CSharpDll.MainOC_Stop_CH2(nPGCH);
   end;
-  if (m_OCFlowStart[nPGCH]) and Pg[nPGCH].m_bChkIRA  then begin
-    Pg[nPGCH].m_bChkIRA := False;
-    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,'<SEQUENCE> IRA - NG');
-    CSharpDll.MainOC_Stop_CH1(nPGCH);
+  if (m_OCFlowStart[nPGCH]) and Pg[nPGCH].m_bChkShutdown_Fault  then begin
+    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,'<SEQUENCE> Shutdown_Fault - NG');
+    SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',1);
+    CSharpDll.MainOC_Stop_CH2(nPGCH);
   end;
   if (m_OCFlowStart[nPGCH]) and  m_OCCkSerialNB[nPGCH] then begin
     m_OCCkSerialNB[nPGCH] := False;
@@ -493,10 +493,10 @@ begin
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',0);
     CSharpDll.MainOC_Stop_CH3(nPGCH);
   end;
-  if (m_OCFlowStart[nPGCH]) and Pg[nPGCH].m_bChkIRA  then begin
-    Pg[nPGCH].m_bChkIRA := False;
-    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,'<SEQUENCE> IRA - NG');
-    CSharpDll.MainOC_Stop_CH1(nPGCH);
+  if (m_OCFlowStart[nPGCH]) and Pg[nPGCH].m_bChkShutdown_Fault  then begin
+    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,'<SEQUENCE> Shutdown_Fault - NG');
+    SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',1);
+    CSharpDll.MainOC_Stop_CH3(nPGCH);
   end;
   if (m_OCFlowStart[nPGCH]) and  m_OCCkSerialNB[nPGCH] then begin
     m_OCCkSerialNB[nPGCH] := False;
@@ -526,10 +526,10 @@ begin
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',0);
     CSharpDll.MainOC_Stop_CH4(nPGCH);
   end;
-  if (m_OCFlowStart[nPGCH]) and Pg[nPGCH].m_bChkIRA  then begin
-    Pg[nPGCH].m_bChkIRA := False;
-    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,'<SEQUENCE> IRA - NG');
-    CSharpDll.MainOC_Stop_CH1(nPGCH);
+  if (m_OCFlowStart[nPGCH]) and Pg[nPGCH].m_bChkShutdown_Fault  then begin
+    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,'<SEQUENCE> Shutdown_Fault - NG');
+    SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',1);
+    CSharpDll.MainOC_Stop_CH4(nPGCH);
   end;
   if (m_OCFlowStart[nPGCH]) and  m_OCCkSerialNB[nPGCH] then begin
     m_OCCkSerialNB[nPGCH] := False;

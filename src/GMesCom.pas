@@ -32,6 +32,7 @@ type
     SerialNo: String;
     CarrierID: String;
     MESCode: String;
+    ErrCode : string;
     LpirProcessCode : string;
     ApdrData: string;
     InspectionResult: String;
@@ -58,9 +59,11 @@ type
     SerialNo  : string;
     Model     : string;
     Pf        : string;
+    ErrCode   : string;
     Rwk       : string;
     Tact      : String;
     DefectPat : string;
+    GDDefectCode : string;
     MesPendingMsg : Integer;  // JHHWANG-GMES: 2018-06-20
     MesSentMsg    : Integer;  // JHHWANG-GMES: 2018-06-20
     MesSendRcvWaitTick : Integer;  // JHHWANG-GMES 2018-06-26
@@ -1777,6 +1780,7 @@ begin
   item.CarrierID:=   sConvertJig;
   item.Tact:=       MesData[nPg].Tact;
   item.MESCode:=    MesData[nPg].Rwk;
+  item.ErrCode :=   MesData[nPg].ErrCode;
   //item.ApdrData:=     MesData[nPg].ApdrData;
   m_Queue.Enqueue(item);
   tmGmesChMsg.Enabled:= True;
@@ -2034,6 +2038,8 @@ var
   // for FLDR.
   sFldrFile, sFldrType    : string;
   sDownTime, sDebug  : string;
+  sGDDefectCode : string;
+
   bIsChMsg : Boolean;     //JHHWANG-GMES: 2018-06-20
 begin
   //Common.Mlog(nPg, Format('[HOST] MsgType: %d, PG : %d, Serial: %s', [nMsgType, nPg, sSerialNo]));
@@ -2354,11 +2360,28 @@ begin
       sSendMsg := sSendMsg  + ' JIG_ID=[]';   //TBD
       sSendMsg := sSendMsg  + format(' INSPCHANEL_A=%d',[nPg]);
       sSendMsg := sSendMsg  + ' LOT='+ MesData[FMesPg].LotNo;  //TBD
+      sGDDefectCode := '';
       // PF가 없는 경우가 있어 방어 코드.
-      if Trim(MesData[FMesPg].Pf) = '' then begin
-        if MesData[FMesPg].Rwk = '' then MesData[FMesPg].Pf := 'P'
-        else                             MesData[FMesPg].Pf := 'F'
+      if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
+        if  MesData[FMesPg].ErrCode = 'AXXX' then begin
+          if MesData[FMesPg].Rwk = '' then MesData[FMesPg].Pf := 'P'
+          else                             MesData[FMesPg].Pf := 'F'
+        end
+        else begin
+          sGDDefectCode := MesData[FMesPg].Rwk;
+          MesData[FMesPg].GDDefectCode := sGDDefectCode;
+          MesData[FMesPg].Rwk := '';
+          MesData[FMesPg].Pf := 'P';
+        end;
+
+      end
+      else begin
+        if Trim(MesData[FMesPg].Pf) = '' then begin
+          if MesData[FMesPg].Rwk = '' then MesData[FMesPg].Pf := 'P'
+          else                             MesData[FMesPg].Pf := 'F'
+        end;
       end;
+
       sSendMsg := sSendMsg  + ' PF='+ MesData[FMesPg].Pf;
       sSendMsg := sSendMsg  + ' RWK_CD='+ MesData[FMesPg].Rwk; //TBD
       sSendMsg := sSendMsg  + ' PPALLET=';
@@ -2370,7 +2393,9 @@ begin
       sSendMsg := sSendMsg  + ' CLIENT_DATE='+FormatDateTime('yyyymmddhhnnss', Now);
       sSendMsg := sSendMsg  + ' TACT=' + MesData[FMesPg].Tact; //2021-09-17
       sSendMsg := sSendMsg  + ' USER_ID='+ FUserId;
+      sSendMsg := sSendMsg  + ' GD_DEFECT_CODE=' + sGDDefectCode;
       sSendMsg := sSendMsg  + ' COMMENT=[]';
+
       bIsChMsg := True;   //JHHWANG-GMES: 2018-06-20
     end;
 
@@ -3061,6 +3086,7 @@ begin
       MesData[m_MESItem.Channel].Tact:= m_MESItem.Tact;
       MesData[m_MESItem.Channel].Rwk:= m_MESItem.MESCode;
       MesData[m_MESItem.Channel].ApdrData:= m_MESItem.ApdrData;
+      MesData[m_MESItem.Channel].ErrCode:= m_MESItem.ErrCode;
 //      MesData[m_MESItem.Channel].LpirProcessCode:= m_MESItem.LpirProcessCode;
     end;
 

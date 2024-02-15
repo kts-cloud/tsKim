@@ -222,6 +222,8 @@ type
 
     m_bChkIRA : Boolean; // IRA OK/NG 체크
 
+    m_bChkShutdown_Fault : Boolean;
+
     m_HWCID :array[0..4] of string;
 
 
@@ -5079,8 +5081,7 @@ begin
               if Result = WAIT_OBJECT_0 then begin
           			Result := DP860_SendPowerOn(nWaitMS,nRetry);
                 if Result = WAIT_OBJECT_0 then begin
-                  DP860_SendTconInfo(1000{nWaitMS},0{Retry});
-                  Sleep(100);
+                  Result := DP860_SendTconInfo(1000{nWaitMS},0{Retry});
                   DP860_SendSendNvmInit(Common.TestModelInfoFLOW.UseNvmInit,nWaitMS,nRetry);
                 end;
               end
@@ -5221,7 +5222,7 @@ begin
                   Result := DP860_SendPowerBistOn(nWaitMS,nRetry);
                   if Result = WAIT_OBJECT_0 then begin
                     Result := DP860_SendTconInfo(1000{nWaitMS},0{Retry});
-                    Result := DP860_SendSendNvmInit(Common.TestModelInfoFLOW.UseNvmInit,nWaitMS,nRetry);
+                    DP860_SendSendNvmInit(Common.TestModelInfoFLOW.UseNvmInit,nWaitMS,nRetry);
                   end;
                 end
                 else begin

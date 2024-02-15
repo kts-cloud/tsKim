@@ -27,10 +27,12 @@ object frmECSStatus: TfrmECSStatus
     Height = 548
     Cursor = crDefault
     Align = alTop
-    ColCount = 16
+    Color = clWhite
+    ColCount = 24
     DefaultColWidth = 96
     DefaultRowHeight = 32
     DrawingStyle = gdsClassic
+    FixedColor = clWhite
     RowCount = 17
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
@@ -149,6 +151,14 @@ object frmECSStatus: TfrmECSStatus
     SortSettings.DefaultFormat = ssAutomatic
     Version = '8.3.2.4'
     ColWidths = (
+      96
+      96
+      96
+      96
+      96
+      96
+      96
+      96
       96
       96
       96

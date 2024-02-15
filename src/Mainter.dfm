@@ -48,7 +48,7 @@ object frmMainter: TfrmMainter
     Width = 1470
     Height = 920
     Hint = ''
-    ActivePage = TabSheet1
+    ActivePage = tbCA410Measurement
     ActivePageDefault = TabSheet1
     Align = alClient
     Font.Charset = DEFAULT_CHARSET
@@ -58,7 +58,7 @@ object frmMainter: TfrmMainter
     Font.Style = []
     ParentFont = False
     SoftCorners = True
-    TabIndex = 0
+    TabIndex = 7
     TabOrder = 1
     FixedDimension = 25
     object TabSheet1: TRzTabSheet
@@ -11104,10 +11104,6 @@ object frmMainter: TfrmMainter
     end
     object tbCA410Measurement: TRzTabSheet
       Caption = 'CA410 Measurement'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object cboBandCount: TRzComboBox
         Left = 424
         Top = 41

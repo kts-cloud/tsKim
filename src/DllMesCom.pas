@@ -3,7 +3,7 @@ unit DllMesCom;
 interface
 
 uses Winapi.Windows, System.Classes, System.SysUtils,  IdGlobal,Vcl.ExtCtrls,
-   Messages, Vcl.Dialogs,DefCommon;
+   Messages, Vcl.Dialogs,DefCommon,CommonClass;
 
 
 
@@ -46,6 +46,7 @@ type
       m_Create_TIB : function(nCount : Integer): Boolean;
       m_Initialize : function (nCh : integer;  sAddr: PAnsiChar) : Boolean ; cdecl;
       m_Send_Data : function (nCh : integer; sMsg: PAnsiChar): Boolean; cdecl;
+      m_Send_Data_New : function (nCh,nLength,CheckSum : integer; sMsg: PAnsiChar): Boolean; cdecl;
       m_SetCallback_Return_MES : procedure ( CaallbackFunction : TCallBackReturn_Data);cdecl;
       m_SetCallback_Return_EAS : procedure ( CaallbackFunction : TCallBackReturn_Data);cdecl;
       m_SetCallback_Return_R2R : procedure ( CaallbackFunction : TCallBackReturn_Data);cdecl;
@@ -208,11 +209,22 @@ end;
 function TCommTibRv64.Send_Data(nCH : integer; sMsg: string): Boolean;
 var
 bRet : boolean;
+dCheckSum: dword;
 begin
-  bRet := m_Send_Data(nCH,StringToPAnsiChar(sMsg));
-  if not bRet then
+  if @m_Send_Data_New <> nil then begin
+    dCheckSum := Common.crc16(sMsg,Length(sMsg));
+    bRet := m_Send_Data_New(nCH,sMsg.Length,dCheckSum,StringToPAnsiChar(sMsg));
+    if not bRet then
+      bRet := m_Send_Data_New(nCH,sMsg.Length,dCheckSum,StringToPAnsiChar(sMsg));
+    Result := bRet;
+  end
+  else begin
     bRet := m_Send_Data(nCH,StringToPAnsiChar(sMsg));
-  Result := bRet;
+    if not bRet then
+      bRet := m_Send_Data(nCH,StringToPAnsiChar(sMsg));
+    Result := bRet;
+  end;
+
 
 end;
 
@@ -222,6 +234,7 @@ begin
  @m_Initialize := GetProcAddress(m_hDll, 'Init_TIB');
  @m_SetCallback_Log := GetProcAddress(m_hDll, 'Callback_Log');
  @m_Send_Data := GetProcAddress(m_hDll, 'Send_Data');
+ @m_Send_Data_New := GetProcAddress(m_hDll, 'Send_Data_New');
  @m_SetCallback_Return_MES := GetProcAddress(m_hDll, 'Callback_ReturnMsgMES');
  @m_SetCallback_Return_EAS := GetProcAddress(m_hDll, 'Callback_ReturnMsgEAS');
  @m_SetCallback_Return_R2R := GetProcAddress(m_hDll, 'Callback_ReturnMsgR2R');

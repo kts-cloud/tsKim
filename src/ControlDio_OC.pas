@@ -124,6 +124,7 @@ type
     function IsDetected(nCH: Integer): Boolean;
 
     function IsPreOCInterlockPROBE(nCH : Integer) : Integer;
+    function IsPreOCInterlockPROBE_CH(nCH : Integer): Integer;
     function IsPreOCInterlockSHUTTER(nCH : Integer) : Integer;
 
 //    procedure ThreadTurnStage;
@@ -2420,12 +2421,15 @@ end;
 function TControlDio.IsDetected(nCH: Integer): Boolean;
 begin
   Result:= False;
-  if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
-    if ControlDio.ReadInSig(IN_CH_1_CARRIER_SENSOR + nCH * 16)then
-    begin
-      Result:= True;
+  if (Common.PLCInfo.InlineGIB)  then begin
+    if (Common.SystemInfo.OCType = DefCommon.OCType) then begin
+      if ControlDio.ReadInSig(IN_CH_1_CARRIER_SENSOR + nCH * 16)then
+        Result:= True;
+    end
+    else begin
+      if ControlDio.ReadInSig(IN_GIB_CH_1_CARRIER_SENSOR + nCH * 8)then
+        Result:= True;
     end;
-
   end
   else begin
     if Common.SystemInfo.OCType = DefCommon.OCType  then begin
@@ -2489,6 +2493,21 @@ begin
     end;
   end;
 end;
+
+
+function TControlDio.IsPreOCInterlockPROBE_CH(nCH : Integer): Integer;
+begin
+  Result:= 0;
+  if Common.SystemInfo.OCType <> DefCommon.OCType  then begin
+    if not ControlDio.ReadInSig(IN_GIB_CH_12_PROBE_UP_SENSOR + (nCH div 2) * 4) and
+     not ControlDio.ReadInSig(IN_GIB_CH_1_TILTING_SENSOR + nCH *8) then
+    begin
+      Result:= 1;
+    end;
+  end;
+end;
+
+
 
 function TControlDio.MovingAll(nGroup: Integer; bIsUp: Boolean): Integer;
 var
@@ -2774,6 +2793,13 @@ begin
           Exit(3);
         end;
 
+              if (not g_CommPLC.IsBitOn_Robot($0f + nGroup *$20))  then begin
+          if (not Common.PLCInfo.InlineGIB) then  begin
+            SendMsgMain(COMMDIO_MSG_LOG, 0, 1, 'Do not MovingShutter - Door Open ' + sCH);
+            Exit(3);
+          end;
+        end;
+
         if g_CommPLC.IsBusy_Robot(nGroup) then begin
           SendMsgMain(COMMDIO_MSG_LOG, 0, 1, 'Do not MovingShutter - Robot Busy ' + sCH);
           Exit(3);
@@ -2841,6 +2867,12 @@ begin
           SendMsgMain(COMMDIO_MSG_LOG, 0, 1, 'Do not MovingShutter - Robot Busy ' + sCH);
           Exit(3);
         end;
+        if (not g_CommPLC.IsBitOn_Robot($0f + nGroup *$20))  then begin
+          if (not Common.PLCInfo.InlineGIB) then  begin
+            SendMsgMain(COMMDIO_MSG_LOG, 0, 1, 'Do not MovingShutter - Door Open ' + sCH);
+            Exit(3);
+          end;
+        end;
         SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Shutter DN Start ' + sCH);
         ClearOutDioSig(DefDio.OUT_GIB_CH_34_SHUTTER_UP_SOL);
         if not ReadInSig(DefDio.IN_GIB_CH_34_SHUTTER_DN_SENSOR) then begin
@@ -2904,6 +2936,12 @@ begin
         if (ReadInSig(DefDio.IN_GIB_CH_12_ROBOT_SENSOR)) or (ReadInSig(DefDio.IN_GIB_CH_34_ROBOT_SENSOR)) then begin
           SendMsgMain(COMMDIO_MSG_LOG, 0, 1, 'Do not MovingShutter - Sensing ROBOT_SENSOR ');
           Exit(3);
+        end;
+        if (not g_CommPLC.IsBitOn_Robot($0f))  then begin
+          if (not Common.PLCInfo.InlineGIB) then  begin
+            SendMsgMain(COMMDIO_MSG_LOG, 0, 1, 'Do not MovingShutter - Door Open ' + sCH);
+            Exit(3);
+          end;
         end;
 
         if (g_CommPLC.IsBusy_Robot(0)) or (g_CommPLC.IsBusy_Robot(1)) then begin
@@ -3082,7 +3120,11 @@ begin
         else begin
           WriteDioSig(nTowerLamp_B2, True);
         end;
+      end
+      else begin
+        if ReadOutSig(nTowerLamp_B2)    then WriteDioSig(nTowerLamp_B2, False);
       end;
+
       //if ReadOutSig(DefDio.OUT_MELODY_2)        then WriteDioSig(DefDio.OUT_MELODY_2, True);
     end;
 
