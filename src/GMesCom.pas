@@ -1779,7 +1779,7 @@ begin
   item.SerialNo:=   sConvertSerial;
   item.CarrierID:=   sConvertJig;
   item.Tact:=       MesData[nPg].Tact;
-  item.MESCode:=    MesData[nPg].Rwk;
+  item.MESCode :=    MesData[nPg].Rwk;
   item.ErrCode :=   MesData[nPg].ErrCode;
   //item.ApdrData:=     MesData[nPg].ApdrData;
   m_Queue.Enqueue(item);
@@ -2359,31 +2359,31 @@ begin
       sSendMsg := sSendMsg  + ' BLID=[]';
       sSendMsg := sSendMsg  + ' JIG_ID=[]';   //TBD
       sSendMsg := sSendMsg  + format(' INSPCHANEL_A=%d',[nPg]);
-      sSendMsg := sSendMsg  + ' LOT='+ MesData[FMesPg].LotNo;  //TBD
+      sSendMsg := sSendMsg  + ' LOT='+ MesData[nPg].LotNo;  //TBD
       sGDDefectCode := '';
       // PF가 없는 경우가 있어 방어 코드.
       if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
-        if  MesData[FMesPg].ErrCode = 'AXXX' then begin
-          if MesData[FMesPg].Rwk = '' then MesData[FMesPg].Pf := 'P'
-          else                             MesData[FMesPg].Pf := 'F'
+        if  MesData[nPg].ErrCode = 'AXXX' then begin
+          if MesData[nPg].Rwk = '' then MesData[nPg].Pf := 'P'
+          else                             MesData[nPg].Pf := 'F'
         end
         else begin
-          sGDDefectCode := MesData[FMesPg].Rwk;
-          MesData[FMesPg].GDDefectCode := sGDDefectCode;
-          MesData[FMesPg].Rwk := '';
-          MesData[FMesPg].Pf := 'P';
+          sGDDefectCode := MesData[nPg].Rwk;
+          MesData[nPg].GDDefectCode := sGDDefectCode;
+          MesData[nPg].Rwk := '';
+          MesData[nPg].Pf := 'P';
         end;
 
       end
       else begin
-        if Trim(MesData[FMesPg].Pf) = '' then begin
-          if MesData[FMesPg].Rwk = '' then MesData[FMesPg].Pf := 'P'
-          else                             MesData[FMesPg].Pf := 'F'
+        if Trim(MesData[nPg].Pf) = '' then begin
+          if MesData[nPg].Rwk = '' then MesData[nPg].Pf := 'P'
+          else                             MesData[nPg].Pf := 'F'
         end;
       end;
 
-      sSendMsg := sSendMsg  + ' PF='+ MesData[FMesPg].Pf;
-      sSendMsg := sSendMsg  + ' RWK_CD='+ MesData[FMesPg].Rwk; //TBD
+      sSendMsg := sSendMsg  + ' PF='+ MesData[nPg].Pf;
+      sSendMsg := sSendMsg  + ' RWK_CD='+ MesData[nPg].Rwk; //TBD
       sSendMsg := sSendMsg  + ' PPALLET=';
       sSendMsg := sSendMsg  + ' EXPECTED_RWK=';
       sSendMsg := sSendMsg  + ' PATTERN_INFO=[]';
@@ -2391,7 +2391,7 @@ begin
       sSendMsg := sSendMsg  + ' OVERHAUL_FLAG=';
       sSendMsg := sSendMsg  + ' MODE=AUTO';
       sSendMsg := sSendMsg  + ' CLIENT_DATE='+FormatDateTime('yyyymmddhhnnss', Now);
-      sSendMsg := sSendMsg  + ' TACT=' + MesData[FMesPg].Tact; //2021-09-17
+      sSendMsg := sSendMsg  + ' TACT=' + MesData[nPg].Tact; //2021-09-17
       sSendMsg := sSendMsg  + ' USER_ID='+ FUserId;
       sSendMsg := sSendMsg  + ' GD_DEFECT_CODE=' + sGDDefectCode;
       sSendMsg := sSendMsg  + ' COMMENT=[]';
@@ -2432,24 +2432,24 @@ begin
 			sSendMsg := sSendMsg  + ' LCM_ID=';
 			sSendMsg := sSendMsg  + ' FOG_ID=';
 			sSendMsg := sSendMsg  + ' BLID=[]';
-			if  MesData[FMesPg].Rwk = '' then begin
+			if  MesData[nPg].Rwk = '' then begin
 				sSendMsg := sSendMsg  + ' SUBJUDGE_INFO=[TOUCH:P]';
 			end
 			else begin
-				sSendMsg := sSendMsg  + ' SUBJUDGE_INFO=[TOUCH:F:' + MesData[FMesPg].Rwk + ']';
+				sSendMsg := sSendMsg  + ' SUBJUDGE_INFO=[TOUCH:F:' + MesData[nPg].Rwk + ']';
 			end;
       // PF가 없는 경우가 있어 방어 코드.
-      if Trim(MesData[FMesPg].Pf) = '' then begin
-        if MesData[FMesPg].Rwk = '' then MesData[FMesPg].Pf := 'P'
-        else                             MesData[FMesPg].Pf := 'F';
+      if Trim(MesData[nPg].Pf) = '' then begin
+        if MesData[nPg].Rwk = '' then MesData[nPg].Pf := 'P'
+        else                             MesData[nPg].Pf := 'F';
       end;
-			sSendMsg := sSendMsg  + ' PF='+ MesData[FMesPg].Pf;
+			sSendMsg := sSendMsg  + ' PF='+ MesData[nPg].Pf;
 			sSendMsg := sSendMsg  + ' PPALLET=';
 			sSendMsg := sSendMsg  + ' EDID=N';
 			sSendMsg := sSendMsg  + ' OVERHAUL_FLAG=';
 			sSendMsg := sSendMsg  + ' MODE=AUTO';
 			sSendMsg := sSendMsg  + ' CLIENT_DATE='+FormatDateTime('yyyymmddhhnnss', Now);
-      sSendMsg := sSendMsg  + ' TACT=' + MesData[FMesPg].Tact;
+      sSendMsg := sSendMsg  + ' TACT=' + MesData[nPg].Tact;
 			sSendMsg := sSendMsg  + ' USER_ID='+ FUserId;
 			sSendMsg := sSendMsg  + ' COMMENT=[]';
       bIsChMsg := True;   //JHHWANG-GMES: 2018-06-20
@@ -2485,34 +2485,34 @@ begin
       sSendMsg := sSendMsg  + ' ZIG_ID=';
       sSendMsg := sSendMsg  + format(' INSPCHANEL_A=%d',[nPg]);
       // PF가 없는 경우가 있어 방어 코드.
-      if Trim(MesData[FMesPg].Pf) = '' then begin
-        if MesData[FMesPg].Rwk = '' then MesData[FMesPg].Pf := 'P'
-        else                             MesData[FMesPg].Pf := 'F';
+      if Trim(MesData[nPg].Pf) = '' then begin
+        if MesData[nPg].Rwk = '' then MesData[nPg].Pf := 'P'
+        else                             MesData[nPg].Pf := 'F';
       end;
-      sSendMsg := sSendMsg  + ' PF='+ MesData[FMesPg].Pf;
-      sSendMsg := sSendMsg  + ' RWK_CD='+ MesData[FMesPg].Rwk; //TBD
+      sSendMsg := sSendMsg  + ' PF='+ MesData[nPg].Pf;
+      sSendMsg := sSendMsg  + ' RWK_CD='+ MesData[nPg].Rwk; //TBD
       (*
-			if  MesData[FMesPg].Rwk = '' then begin
+			if  MesData[nPg].Rwk = '' then begin
 				sSendMsg := sSendMsg  + ' SUBJUDGE_INFO=[GB:P:]';
 			end
 			else begin
-				sSendMsg := sSendMsg  + ' SUBJUDGE_INFO=[GB:F:' + MesData[FMesPg].Rwk + ']';
+				sSendMsg := sSendMsg  + ' SUBJUDGE_INFO=[GB:F:' + MesData[nPg].Rwk + ']';
 			end;
       *)
       if Common.SystemInfo.OCType = DefCommon.OCType then begin
-        if  MesData[FMesPg].Rwk = '' then begin
+        if  MesData[nPg].Rwk = '' then begin
           sSendMsg := sSendMsg  + ' SUBJUDGE_INFO=[GB:P:]';
         end
         else begin
-          sSendMsg := sSendMsg  + ' SUBJUDGE_INFO=[GB:F:' + MesData[FMesPg].Rwk + ']';
+          sSendMsg := sSendMsg  + ' SUBJUDGE_INFO=[GB:F:' + MesData[nPg].Rwk + ']';
         end;
       end
       else begin
-        if  MesData[FMesPg].Rwk = '' then begin
+        if  MesData[nPg].Rwk = '' then begin
           sSendMsg := sSendMsg  + ' SUBJUDGE_INFO=[PREOC:P:]';
         end
         else begin
-          sSendMsg := sSendMsg  + ' SUBJUDGE_INFO=[PREOC:F:' + MesData[FMesPg].Rwk + ']';
+          sSendMsg := sSendMsg  + ' SUBJUDGE_INFO=[PREOC:F:' + MesData[nPg].Rwk + ']';
         end;
       end;
 
@@ -2544,9 +2544,9 @@ begin
       else sSendMsg := sSendMsg  + ' PCB_ID='+ sSerialNo;
       //sSendMsg := sSendMsg  + ' FOG_ID='+sSerialNo;
       sSendMsg := sSendMsg  + format(' INSPCHANEL_A=%d',[nPg]);
-      sSendMsg := sSendMsg  + ' MODEL='+MesData[FMesApdrPg].Model;
+      sSendMsg := sSendMsg  + ' MODEL='+MesData[nPg].Model;
 
-      sSendMsg := sSendMsg  + ' APD_INFO=['+ MesData[FMesApdrPg].ApdrData+']';
+      sSendMsg := sSendMsg  + ' APD_INFO=['+ MesData[nPg].ApdrData+']';
       sSendMsg := sSendMsg  + ' USER_ID=' + FUserId ;
       sSendMsg := sSendMsg  + ' MODE=AUTO';
       sSendMsg := sSendMsg  + ' CLIENT_DATE='+FormatDateTime('yyyymmddhhnnss', Now);
@@ -2578,7 +2578,7 @@ begin
       sSendMsg := sSendMsg  + format(' PATH=%d',[nPg +1]);
       //sSendMsg := sSendMsg  + ' MODEL='+MesData[FMesApdrPg].Model; //' MODEL=LH542WF1-EDA1-VM1-S';
 
-      sSendMsg := sSendMsg  + ' APD_INFO=['+ MesData[FMesApdrPg].ApdrData+']';
+      sSendMsg := sSendMsg  + ' APD_INFO=['+ MesData[nPg].ApdrData+']';
       sSendMsg := sSendMsg  + ' USER_ID=' + FUserId ;
       sSendMsg := sSendMsg  + ' MODE=AUTO';
       sSendMsg := sSendMsg  + ' CLIENT_DATE='+FormatDateTime('yyyymmddhhnnss', Now);

@@ -22,6 +22,7 @@ const
   VERSION_DLL = '3.1.7.1';   // OC_CON.DLL 적용 Ver 확인
 type
 
+
   TArrayChannelString = array[0..DefCommon.MAX_CH] of String;
   TArrayChannelInteger = array[0..DefCommon.MAX_CH] of Integer;
   TArrayChannelDouble = array[0..DefCommon.MAX_CH] of Double;
@@ -677,6 +678,7 @@ type
 
   end;
   TLogItem = record
+    CH : Integer;
     FileName: string;
     Msg: string;
   end;
@@ -732,10 +734,14 @@ type
 
   private
 
-
     m_nCsvFileCnt : Integer;
     m_nCsvLineCnt : Integer;
     m_bModelInfoNg : Boolean;
+
+        /// <summary> Log 누적 라인 수 - 초과 될 경우 저장</summary>
+    LogAccumulateCount : Integer;
+    /// <summary> Log 누적 시간(초단위) - 초과 될 경우 저장</summary>
+    LogAccumulateSecond : Integer;
     CriticalSection: array [0.. DefCommon.MAX_PG_CNT + 1] of  TCriticalSection;
     m_bExecuteOncePerDay: Boolean;
     procedure SetResolution(nH, nV : Word);
@@ -743,12 +749,12 @@ type
     function LoadMesCode : Integer;
     function IsExcelProcess(const ProcessID: DWORD): Boolean;
 
-
     procedure LogWorker;
 
   public
-    FLogQueue: TQueue<TLogItem>;
-    FLogThread: TThread;
+    FLogQueue:  TQueue<TLogItem>;
+    FLogThread:  TThread;
+
     AutoReStart : Boolean;
     loadAllPat    : TDongaPat;
     actual_resolution_hv : array[0..1] of Word;
@@ -836,6 +842,7 @@ type
     procedure SaveModelInfoDLL(fName: String);
     procedure SaveModelInfo2(fName: String);
     procedure MLog(nCh : Integer;const Msg : String);
+
     procedure R2RLog(nCh: Integer; const Msg: String);
     procedure RePGMLog(nCh : Integer;const sPID,sSN: String);
     procedure Shutdown_FaultLog(nCh : Integer;const sPID,sSN: String);
@@ -916,6 +923,7 @@ implementation
 
 uses DefScript;
 { TCommon }
+
 
 
 
@@ -1420,14 +1428,25 @@ begin
   scrSequnce      := TStringList.Create;
   LoadBaseData;
 
-  for I := 0 to DefCommon.MAX_PG_CNT do
+  for I := 0 to DefCommon.MAX_PG_CNT do begin
     CriticalSection[i] := TCriticalSection.Create;
+  end;
 
 
-  FLogQueue := TQueue<TLogItem>.Create;
+  FLogQueue:= TQueue<TLogItem>.Create;
   FLogThread := TThread.CreateAnonymousThread(LogWorker);
   FLogThread.FreeOnTerminate := False;
   FLogThread.Start;
+
+//  for I := 0 to 5 do begin
+//    FLogQueue[i]:= TQueue<TLogItem>.Create;
+//    FLogThread[i] := TThread.CreateAnonymousThread(LogWorker);
+//    FLogThread[i].FreeOnTerminate := False;
+//    FLogThread[i].Start;
+//  end;
+
+  LogAccumulateCount:= 30;
+  LogAccumulateSecond:= 10;
 
   m_csvLine :=	0;
   m_csvFile :=	0;
@@ -1601,15 +1620,24 @@ begin
 
 
 
-  if FLogThread <> nil then begin
-    FLogThread.Terminate;
-    FLogThread.WaitFor;
-    FLogThread.Free;
-    FLogQueue.Free;
+  for I := 0 to DefCommon.MAX_PG_CNT do begin
+    CriticalSection[i].Free;
   end;
 
-  for I := 0 to DefCommon.MAX_PG_CNT do
-    CriticalSection[i].Free;
+
+  FLogThread.Terminate;
+  FLogThread.WaitFor;
+  FLogThread.Free;
+  FLogQueue.Free;
+
+//  for I := 0 to 5 do begin
+//    FLogThread[i].Terminate;
+//    FLogThread[i].WaitFor;
+//    FLogThread[i].Free;
+//    FLogQueue[i].Free;
+//  end;
+
+
   m_Ver.psu_Date := '';
   m_Ver.psu_Crc  := '';
   m_Ver.isu_Date := '';
@@ -3899,6 +3927,8 @@ begin
   LoadPGWriteReadPassAddr;
 end;
 
+
+
 procedure TCommon.LogWorker;
 var
   LogItem: TLogItem;
@@ -3921,7 +3951,7 @@ begin
           else
             Append(_infile);
 
-          sInputData := FormatDateTime('(hh:mm:ss.zzz) : ', Now) + LogItem.Msg;
+          sInputData :=  LogItem.Msg;
           WriteLn(_infile, sInputData);
         finally
           CloseFile(_infile);
@@ -3929,11 +3959,6 @@ begin
       except
         // Handle exceptions as needed
       end;
-    end
-    else
-    begin
-      // Sleep or yield to avoid high CPU usage when the queue is empty
-      Sleep(1);
     end;
   end;
 end;
@@ -4399,6 +4424,8 @@ begin
     Result := 0.0;
 end;
 
+
+
 procedure TCommon.R2RLog(nCh: Integer; const Msg: String);
 var
   LogItem: TLogItem;
@@ -4416,7 +4443,7 @@ begin
       Exit;
     LogItem.FileName := sFilePath + Format('R2RLog_%s_%s_Ch%d.txt', [systemInfo.EQPId, FormatDateTime('mmdd', Now), nCh + 1]);
 
-    LogItem.Msg := Msg;
+    LogItem.Msg := FormatDateTime('(hh:mm:ss.zzz) : ', Now) + Msg;
     FLogQueue.Enqueue(LogItem);
   except
     // Handle exceptions as needed
@@ -4446,7 +4473,7 @@ begin
       else
         LogItem.FileName := sFilePath + Format('MLog_%s_%s_Ch%d.txt', [systemInfo.EQPId, FormatDateTime('mmdd', Now), nCh + 1]);
     end;
-    LogItem.Msg := Msg;
+    LogItem.Msg :=FormatDateTime('(hh:mm:ss.zzz) : ', Now) + Msg;
     FLogQueue.Enqueue(LogItem);
   except
     // Handle exceptions as needed
@@ -4813,6 +4840,9 @@ begin
     FileStream.Free;
   end;
 end;
+
+
+
 
 function TCommon.ReadLGDDLLSummaryLog_New(sPid, sSn, sDate: string; nCh: Integer): string;
 var

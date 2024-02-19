@@ -4389,17 +4389,16 @@ begin
           end;
           //Common.MLog(Self.FPgNo,TestInfo.ApdrData);
           if DongaGmes <> nil then begin
+//            wdRet := CheckSyncCmdAck(procedure begin
+//              SendMainGuiDisplay(DefGmes.MES_APDR);
+//              SendTestGuiDisplay(DefGmes.MES_APDR, '','', 0);
+//            end,5000,1);
+//            if wdRet = WAIT_OBJECT_0 then begin
             wdRet := CheckSyncCmdAck(procedure begin
-              SendMainGuiDisplay(DefGmes.MES_APDR);
-              SendTestGuiDisplay(DefGmes.MES_APDR, '','', 0);
+              SendMainGuiDisplay(DefGmes.EAS_APDR);
+              SendTestGuiDisplay(DefGmes.EAS_APDR, '','', 0);
             end,5000,1);
-            if wdRet = WAIT_OBJECT_0 then begin
-              wdRet := CheckSyncCmdAck(procedure begin
-                SendMainGuiDisplay(DefGmes.EAS_APDR);
-                SendTestGuiDisplay(DefGmes.EAS_APDR, '','', 0);
-              end,5000,1);
-              wdRet :=  m_nHostResult;
-            end;
+//              wdRet :=  m_nHostResult;
           end
           else begin
             wdRet := WAIT_OBJECT_0;

@@ -2892,6 +2892,9 @@ begin
 
       end
       else begin
+        {$IFDEF SIMULATOR}
+          WriteDevice('B' + IntToHex(StartAddr_ROBOT+ $f, 3), 1, False);
+        {$ENDIF}
         for I := DefCommon.CH_TOP to DefCommon.CH_BOTTOM do begin
           WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$12 + (i * $20) + $E, 3), ControlDio.IsPreOCInterlockPROBE(i), False);
           WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$12 + (i * $20) + $F, 3), ControlDio.IsPreOCInterlockSHUTTER(i), False);
@@ -3202,17 +3205,17 @@ try
         if (Common.SystemInfo.OCType = DefCommon.PreOCType) and (not Common.PLCInfo.InlineGIB)  then begin
           case nIndex of
             $0A: begin //Load CH 1
-              RobotLoadingStatus[0] := IntegerToBoolean(nValue);
+              if nValue <> 0 then RobotLoadingStatus[0] := IntegerToBoolean(nValue);
             end;
             $0B: begin //Load CH 2
-              RobotLoadingStatus[1] := IntegerToBoolean(nValue);
+              if nValue <> 0 then RobotLoadingStatus[1] := IntegerToBoolean(nValue);
             end;
 
             $2A: begin //Load CH 3
-              RobotLoadingStatus[2] := IntegerToBoolean(nValue);
+              if nValue <> 0 then RobotLoadingStatus[2] := IntegerToBoolean(nValue);
             end;
             $2B: begin //Load CH 4
-              RobotLoadingStatus[3] := IntegerToBoolean(nValue);
+              if nValue <> 0 then RobotLoadingStatus[3] := IntegerToBoolean(nValue);
             end;
           end;
         end;

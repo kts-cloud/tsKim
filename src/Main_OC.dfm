@@ -4444,7 +4444,7 @@ object frmMain_OC: TfrmMain_OC
   object tmSaveEnergy: TTimer
     Enabled = False
     OnTimer = tmSaveEnergyTimer
-    Left = 512
-    Top = 328
+    Left = 424
+    Top = 248
   end
 end
