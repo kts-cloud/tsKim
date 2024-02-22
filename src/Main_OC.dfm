@@ -520,7 +520,7 @@ object frmMain_OC: TfrmMain_OC
       Left = 1
       Top = 185
       Width = 245
-      Height = 119
+      Height = 148
       Align = alTop
       Caption = ' GMES'
       GroupStyle = gsUnderline
@@ -626,16 +626,54 @@ object frmMain_OC: TfrmMain_OC
         Caption = 'Disconnected'
         TabOrder = 7
       end
+      object RzPanel19: TRzPanel
+        Left = 1
+        Top = 104
+        Width = 78
+        Height = 20
+        BorderOuter = fsFlat
+        Caption = 'USER_ID'
+        TabOrder = 8
+      end
+      object RzPanel20: TRzPanel
+        Left = 1
+        Top = 125
+        Width = 78
+        Height = 20
+        BorderOuter = fsFlat
+        Caption = 'USER_NAME'
+        TabOrder = 9
+      end
+      object pnlUserId: TRzPanel
+        Left = 78
+        Top = 103
+        Width = 151
+        Height = 22
+        BorderOuter = fsFlat
+        Caption = 'PM'
+        Color = clWhite
+        TabOrder = 10
+      end
+      object pnlUserName: TRzPanel
+        Left = 78
+        Top = 124
+        Width = 151
+        Height = 22
+        BorderOuter = fsFlat
+        Color = clWhite
+        TabOrder = 11
+      end
     end
     object RzGroupBox3: TRzGroupBox
       Left = 1
-      Top = 371
+      Top = 400
       Width = 245
       Height = 126
       Align = alTop
       Caption = ' Script Information.'
       GroupStyle = gsUnderline
       TabOrder = 2
+      ExplicitTop = 371
       object pnlPsuVer: TRzPanel
         Left = 78
         Top = 81
@@ -752,7 +790,7 @@ object frmMain_OC: TfrmMain_OC
     end
     object grpDIO: TRzGroupBox
       Left = 1
-      Top = 497
+      Top = 526
       Width = 245
       Height = 303
       Align = alTop
@@ -766,16 +804,18 @@ object frmMain_OC: TfrmMain_OC
       ParentFont = False
       TabOrder = 3
       OnDblClick = grpDIODblClick
+      ExplicitTop = 497
     end
     object grpPwrInfo: TRzGroupBox
       Left = 1
-      Top = 800
+      Top = 829
       Width = 245
       Height = 20
       Align = alClient
       Caption = 'Power Information'
       GroupStyle = gsUnderline
       TabOrder = 4
+      ExplicitTop = 800
       object lvPower: TAdvListView
         Left = 0
         Top = 17
@@ -849,7 +889,7 @@ object frmMain_OC: TfrmMain_OC
     end
     object RzgrpDFS: TRzGroupBox
       Left = 1
-      Top = 304
+      Top = 333
       Width = 245
       Height = 67
       Align = alTop
@@ -857,6 +897,7 @@ object frmMain_OC: TfrmMain_OC
       GroupStyle = gsUnderline
       TabOrder = 5
       Visible = False
+      ExplicitTop = 304
       object ledDfs: ThhALed
         Left = 78
         Top = 16

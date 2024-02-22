@@ -2560,11 +2560,9 @@ begin
     for i := 0 to nWaitingCount do begin
       Sleep(100);
       if not ReadInSig(DefDio.IN_GIB_CH_12_PROBE_UP_SENSOR + nGroup *4) then begin
-        SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format(sCH + 'Probe UP OK. Step=%d', [i]));
         bStateProbe := True;
       end;
       if not ReadInSig(DefDio.IN_GIB_CH_12_SHUTTER_UP_SENSOR + nGroup *4) then begin
-        SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format('Shutter UP OK. %s Step=%d', [sCH,i]));
         bStateShutter := True;
       end;
       if bStateShutter and bStateProbe then
@@ -2626,11 +2624,9 @@ begin
     for i := 0 to nWaitingCount do begin
       Sleep(100);
       if not ReadInSig(DefDio.IN_GIB_CH_12_PROBE_DN_SENSOR + nGroup *4) then begin
-        SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format('Probe DN OK. Step=%d', [i]));
         bStateProbe := True;
       end;
       if not ReadInSig(DefDio.IN_GIB_CH_12_SHUTTER_DN_SENSOR + nGroup *4) then begin
-        SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format('Shutter DN OK. %s Step=%d', [sCH,i]));
         bStateShutter := True;
       end;
       if bStateShutter and bStateProbe then

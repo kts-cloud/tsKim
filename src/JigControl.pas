@@ -449,7 +449,7 @@ begin
   if Common.SystemInfo.OCType = DefCommon.PreOCType then  begin
     //두번째인지 확인 필요
     //if ... then                                                 '
-    bFirst_Process := false;
+    bFirst_Process := True;
     if nSeq = DefScript.SEQ_KEY_9 then  begin
       for I := DefCommon.CH3 to DefCommon.CH4 do begin
         if not PasScr[i].m_First_Process_DONE then  begin

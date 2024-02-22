@@ -151,6 +151,10 @@ type
     RzResourceStatus2: TRzResourceStatus;
     pgrbCapacityCheck: TRzProgressBar;
     pnlOC_ConDLLName: TRzPanel;
+    RzPanel19: TRzPanel;
+    RzPanel20: TRzPanel;
+    pnlUserId: TRzPanel;
+    pnlUserName: TRzPanel;
     procedure FormCreate(Sender: TObject);
     procedure MyExceptionHandler(Sender : TObject; E : Exception );
     procedure btnInitClick(Sender: TObject);
@@ -1455,6 +1459,8 @@ begin
       ShowSysLog('MES Login Off');
     end;
     Common.StatusInfo.LogIn:= False;
+    pnlUserName.Caption := '';
+    pnlUserId.Caption := 'PM';
     btnLogIn.Caption := 'đăng nhập (Log In)';
     btnLogIn.Tag := 0;
     pnlMesReady.Color := $000050F7;
@@ -1612,8 +1618,8 @@ begin
   m_bIsClose := False;
 
   Common.UpdateSystemInfo_Runtime;
-//  pnlUserId.Caption := Common.m_sUserId;
-//  pnlUserName.Caption := '';
+  pnlUserId.Caption := Common.m_sUserId;
+  pnlUserName.Caption := '';
   sDebug := '#################################### Turn On ISPD Program (';
   sDebug := sDebug + Common.GetVersionDate + ') ####################################';
   for i := DefCommon.CH1 to DefCommon.MAX_CH do common.MLog(i,sDebug);
@@ -1973,8 +1979,8 @@ begin
   end;
   Common.m_sUserId := 'PM';
   Common.m_sUserId  := DongaGmes.MesUserId;
-//  pnlUserId.Caption := Common.m_sUserId;
-//  pnlUserName.Caption := '';
+  pnlUserId.Caption := Common.m_sUserId;
+  pnlUserName.Caption := '';
   DongaGmes.MesSystemNo   := Common.SystemInfo.EQPId;
   DongaGmes.MesSystemNo_MGIB := Common.SystemInfo.EQPId_MGIB;
   DongaGmes.MesSystemNo_PGIB := Common.SystemInfo.EQPId_PGIB;
@@ -2695,8 +2701,8 @@ begin
       DongaGmes.MesUserName  := StringReplace(DongaGmes.MesUserName, '[', '', [rfReplaceAll]);
       DongaGmes.MesUserName  := StringReplace(DongaGmes.MesUserName, ']', '', [rfReplaceAll]);
       if not bError then begin
-//        pnlUserName.Caption := DongaGmes.MesUserName;
-//        pnlUserId.Caption := DongaGmes.MesUserId;
+        pnlUserName.Caption := DongaGmes.MesUserName;
+        pnlUserId.Caption := DongaGmes.MesUserId;
         for nCh := DefCommon.CH1 to DefCommon.MAX_CH do begin   // JH:qHWANG-GMES: 2018-06-20
           PasScr[nCh].m_bMesPMMode := False;
         end;
@@ -2709,20 +2715,15 @@ begin
     end;
     DefGmes.MES_EDTI  : begin
 //      InitMainTool(True);
-      ShowSysLog('DIO MES_EDTI: 1');
       for i := DefCommon.JIG_A to DefCommon.JIG_B do begin
         frmTest4ChOC[i].SetHostConnShow(True);
       end;
-      ShowSysLog('DIO MES_EDTI: 2');
       Common.m_sUserId := DongaGmes.MesUserId;
-      ShowSysLog('DIO MES_EDTI: 3');
 //      pnlUserId.Caption := Common.m_sUserId;
       if bError then begin
 //        ShowNgMessage(sHostErrMsg);  // Added by KTS 2023-03-25 오후 12:24:05
       end;
-      ShowSysLog('DIO MES_EDTI: 4');
       DisplayMes(True);
-      ShowSysLog('DIO MES_EDTI: 5');
 
     end;
     DefGmes.MES_FLDR  : begin
@@ -3164,29 +3165,27 @@ begin
       sPID := DongaGmes.MesData[nCh].PchkRtnPID;
       PasScr[nCh].TestInfo.ApdrData := '';
 
-      Common.ThreadTask(procedure  begin
-        try
-          if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
-            sSN := Format('%s_PCB_ID_CH_%d',[PasScr[nCh].TestInfo.SerialNo,nCh+1]);
+      try
+        if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
+          sSN := Format('%s_PCB_ID_CH_%d',[PasScr[nCh].TestInfo.SerialNo,nCh+1]);
 
-    //        PasScr[nCh].TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog(sPID,sSN,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
-    //        ShowSysLog('ReadLGDDLLSummaryLog : ' + PasScr[nCh].TestInfo.ApdrData);
-            PasScr[nCh].TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog_New(sPID,sSN,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
-    //        ShowSysLog('ReadLGDDLLSummaryLog_New : ' + PasScr[nCh].TestInfo.ApdrData);
-            if Length(PasScr[nCh].TestInfo.ApdrData) > 0 then
-              sGD_DEFECT := ',GD:GD_DEFECT:' + DongaGmes.MesData[nCh].GDDefectCode
-            else sGD_DEFECT := 'GD:GD_DEFECT:' + DongaGmes.MesData[nCh].GDDefectCode;
-            PasScr[nCh].TestInfo.ApdrData := PasScr[nCh].TestInfo.ApdrData + sGD_DEFECT;
-          end
-          else begin
-            PasScr[nCh].TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog_New(sPID,PasScr[nCh].TestInfo.SerialNo,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
-          end;
-          DongaGmes.MesData[nCh].ApdrData := PasScr[nCh].TestInfo.ApdrData;
-          DongaGmes.SendEasApdr(PasScr[nCh].TestInfo.SerialNo, nCh);
-        except
-          on E: Exception do SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'EAS_APDR : ' + E.Message);
+  //        PasScr[nCh].TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog(sPID,sSN,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
+  //        ShowSysLog('ReadLGDDLLSummaryLog : ' + PasScr[nCh].TestInfo.ApdrData);
+          PasScr[nCh].TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog_New(sPID,sSN,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
+  //        ShowSysLog('ReadLGDDLLSummaryLog_New : ' + PasScr[nCh].TestInfo.ApdrData);
+          if Length(PasScr[nCh].TestInfo.ApdrData) > 0 then
+            sGD_DEFECT := ',GD:GD_DEFECT:' + DongaGmes.MesData[nCh].GDDefectCode
+          else sGD_DEFECT := 'GD:GD_DEFECT:' + DongaGmes.MesData[nCh].GDDefectCode;
+          PasScr[nCh].TestInfo.ApdrData := PasScr[nCh].TestInfo.ApdrData + sGD_DEFECT;
+        end
+        else begin
+          PasScr[nCh].TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog_New(sPID,PasScr[nCh].TestInfo.SerialNo,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
         end;
-      end);
+        DongaGmes.MesData[nCh].ApdrData := PasScr[nCh].TestInfo.ApdrData;
+        DongaGmes.SendEasApdr(PasScr[nCh].TestInfo.SerialNo, nCh);
+      except
+        on E: Exception do SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'EAS_APDR : ' + E.Message);
+      end;
 
     end;
   end;
@@ -4212,7 +4211,8 @@ begin
             frmTest4ChOC[nStage].DisplayResult(0, -3, 0, 'Request Load');
             frmTest4ChOC[nStage].DisplayResult(1, -3, 0, 'Request Load');
             if g_CommPLC <> nil then begin
-              g_CommPLC.SaveGlassData(Common.Path.Ini + 'GlassData.dat');
+              g_CommPLC.SaveGlassData_CH(0,Common.Path.Ini + 'GlassData_CH1.dat');
+              g_CommPLC.SaveGlassData_CH(1,Common.Path.Ini + 'GlassData_CH2.dat');
             end;
             Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_LOADING;
 
@@ -4346,7 +4346,8 @@ begin
             frmTest4ChOC[nStage].DisplayResult(2, -3, 0, 'Request Load');
             frmTest4ChOC[nStage].DisplayResult(3, -3, 0, 'Request Load');
             if g_CommPLC <> nil then begin
-              g_CommPLC.SaveGlassData(Common.Path.Ini + 'GlassData.dat');
+              g_CommPLC.SaveGlassData_CH(2,Common.Path.Ini + 'GlassData_CH3.dat');
+              g_CommPLC.SaveGlassData_CH(3,Common.Path.Ini + 'GlassData_CH4.dat');
             end;
             Common.StatusInfo.StageStep[JIG_A]:= STAGE_STEP_LOADING;
             g_CommPLC.ROBOT_Load_Request(COMMPLC_CH_34);
@@ -4586,7 +4587,8 @@ begin
             g_CommPLC.RobotLoadingStatus[1] := false;
 
             if g_CommPLC <> nil then begin
-              g_CommPLC.SaveGlassData(Common.Path.Ini + 'GlassData.dat');
+              g_CommPLC.SaveGlassData_CH(0,Common.Path.Ini + 'GlassData_CH1.dat');
+              g_CommPLC.SaveGlassData_CH(1,Common.Path.Ini + 'GlassData_CH2.dat');
             end;
 
             Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_EXCHANGE;
@@ -4728,7 +4730,8 @@ begin
             g_CommPLC.RobotLoadingStatus[2] := false;
             g_CommPLC.RobotLoadingStatus[3] := false;
             if g_CommPLC <> nil then begin
-              g_CommPLC.SaveGlassData(Common.Path.Ini + 'GlassData.dat');
+              g_CommPLC.SaveGlassData_CH(2,Common.Path.Ini + 'GlassData_CH3.dat');
+              g_CommPLC.SaveGlassData_CH(3,Common.Path.Ini + 'GlassData_CH4.dat');
             end;
 
             Common.StatusInfo.StageStep[JIG_A]:= STAGE_STEP_EXCHANGE;
@@ -4813,7 +4816,8 @@ begin
             frmTest4ChOC[nStage].DisplayResult(0, -3, 0, 'Request Load');
             frmTest4ChOC[nStage].DisplayResult(1, -3, 0, 'Request Load');
             if g_CommPLC <> nil then begin
-              g_CommPLC.SaveGlassData(Common.Path.Ini + 'GlassData.dat');
+              g_CommPLC.SaveGlassData_CH(0,Common.Path.Ini + 'GlassData_CH1.dat');
+              g_CommPLC.SaveGlassData_CH(1,Common.Path.Ini + 'GlassData_CH2.dat');
             end;
             Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_LOADING;
             g_CommPLC.ROBOT_Load_Request(COMMPLC_CH_12);
@@ -4864,7 +4868,8 @@ begin
             frmTest4ChOC[nStage].DisplayResult(3, -3, 0, 'Request Load');
 
             if g_CommPLC <> nil then begin
-              g_CommPLC.SaveGlassData(Common.Path.Ini + 'GlassData.dat');
+              g_CommPLC.SaveGlassData_CH(2,Common.Path.Ini + 'GlassData_CH3.dat');
+              g_CommPLC.SaveGlassData_CH(3,Common.Path.Ini + 'GlassData_CH4.dat');
             end;
             Common.StatusInfo.StageStep[JIG_A]:= STAGE_STEP_LOADING;
             g_CommPLC.ROBOT_Load_Request(COMMPLC_CH_34);
@@ -4902,7 +4907,7 @@ begin
           frmTest4ChOC[nStage].DisplayResult(nCH, -3, 0, 'Request Load');
 
           if g_CommPLC <> nil then begin
-            g_CommPLC.SaveGlassData(Common.Path.Ini + 'GlassData.dat');
+            g_CommPLC.SaveGlassData_CH(nCH,Common.Path.Ini + format('GlassData_CH%d.dat',[nCH + 1]));
           end;
           Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_LOADING;
           g_CommPLC.ROBOT_Load_Request(nCH);
@@ -5153,7 +5158,8 @@ try
           SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 1, sMsg);
 
           if g_CommPLC <> nil then begin
-            g_CommPLC.SaveGlassData(Common.Path.Ini + 'GlassData.dat');
+            g_CommPLC.SaveGlassData_CH(0,Common.Path.Ini + 'GlassData_CH1.dat');
+            g_CommPLC.SaveGlassData_CH(1,Common.Path.Ini + 'GlassData_CH2.dat');
           end;
 
           Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_UNLOADING;
@@ -5256,7 +5262,8 @@ try
           SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 3, sMsg);
 
           if g_CommPLC <> nil then begin
-            g_CommPLC.SaveGlassData(Common.Path.Ini + 'GlassData.dat');
+            g_CommPLC.SaveGlassData_CH(2,Common.Path.Ini + 'GlassData_CH3.dat');
+            g_CommPLC.SaveGlassData_CH(3,Common.Path.Ini + 'GlassData_CH4.dat');
           end;
 
           Common.StatusInfo.StageStep[JIG_A]:= STAGE_STEP_UNLOADING;
@@ -5417,7 +5424,8 @@ try
           SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 1, sMsg);
 
           if g_CommPLC <> nil then begin
-            g_CommPLC.SaveGlassData(Common.Path.Ini + 'GlassData.dat');
+            g_CommPLC.SaveGlassData_CH(0,Common.Path.Ini + 'GlassData_CH1.dat');
+            g_CommPLC.SaveGlassData_CH(1,Common.Path.Ini + 'GlassData_CH2.dat');
           end;
 
           Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_UNLOADING;
@@ -5478,7 +5486,8 @@ try
           SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 3, sMsg);
 
           if g_CommPLC <> nil then begin
-            g_CommPLC.SaveGlassData(Common.Path.Ini + 'GlassData.dat');
+            g_CommPLC.SaveGlassData_CH(2,Common.Path.Ini + 'GlassData_CH3.dat');
+            g_CommPLC.SaveGlassData_CH(3,Common.Path.Ini + 'GlassData_CH4.dat');
           end;
 
           Common.StatusInfo.StageStep[JIG_A]:= STAGE_STEP_UNLOADING;
@@ -5521,6 +5530,10 @@ try
 //        Common.MLog(nCH, sMsg);
 //        frmTest4ChOC[nStage].AddLog(sMsg, 0);
         SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 0, sMsg);
+
+        if g_CommPLC <> nil then begin
+          g_CommPLC.SaveGlassData_CH(nCH,Common.Path.Ini + format('GlassData_CH%d.dat',[nCH + 1]));
+        end;
 
         Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_UNLOADING;
         g_CommPLC.ROBOT_Unload_Request(nCH);
@@ -5749,8 +5762,11 @@ var
   arStr : TArray<string>;
   i : Integer;
 begin
+  Common.ThreadTask(procedure  begin
+    Common.ReadLGDDLLSummaryLog_New('22_22_22_3_PCB_ID_CH_4','22_22_22_3_PCB_ID_CH_4',FormatDateTime('yymmdd',now),0);
+  end);
 
-
+ Exit;
  i := (20 shr 2) and $01;
 
 CSharpDll.MainOC_GetSummaryLogData(0,'DEFECT_CODE');
@@ -6684,7 +6700,9 @@ begin
   self.Enabled:= True;
 
   if g_CommPLC <> nil then begin
-    g_CommPLC.LoadGlassData(Common.Path.Ini + 'GlassData.dat'); //기존에 저장된 데이터를 로드 - Initialize나 종료 시 소실 방지
+    g_CommPLC.LoadGlassData(Common.Path.Ini + 'GlassData.dat');
+    for I := 0 to DefCommon.MAX_CH do
+      g_CommPLC.LoadGlassData_CH(i,Common.Path.Ini + format('GlassData_CH%d.dat',[i + 1])); //기존에 저장된 데이터를 로드 - Initialize나 종료 시 소실 방지
   end;
 
   for i := DefCommon.CH1 to DefCommon.MAX_JIG_CH do begin

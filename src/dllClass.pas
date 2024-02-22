@@ -843,7 +843,10 @@ begin
   sTxData := Format(' 0x%0.2x',[arrData[0]]);
 
   for I := 0 to nRetry do begin
-    nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nDataCnt, arrData, nWaitMS,0,1);
+    if i <> 2 then  nDebugLog := 0
+    else nDebugLog := 1;
+
+    nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nDataCnt, arrData, nWaitMS,0,nDebugLog);
     if nResult <> WAIT_OBJECT_0 then begin
       Inc(PG[nChannel].TconRWCnt.TconRetryWriteCall);
     end
@@ -886,7 +889,9 @@ begin
   sTxData := Format(' 0x%0.2x',[arrData[0]]);
 
   for I := 0 to nRetry do begin
-    nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nDataCnt, arrData, nWaitMS,0,1);
+    if i <> 2 then  nDebugLog := 0
+      else nDebugLog := 1;
+    nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nDataCnt, arrData, nWaitMS,0,nDebugLog);
     if nResult <> WAIT_OBJECT_0 then begin
       Inc(PG[nChannel].TconRWCnt.TconRetryWriteCall);
     end
@@ -929,7 +934,9 @@ begin
   sTxData := Format(' 0x%0.2x',[arrData[0]]);
 
   for I := 0 to nRetry do begin
-    nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nDataCnt, arrData, nWaitMS,0,1);
+    if i <> 2 then  nDebugLog := 0
+    else nDebugLog := 1;
+    nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nDataCnt, arrData, nWaitMS,0,nDebugLog);
     if nResult <> WAIT_OBJECT_0 then begin
       Inc(PG[nChannel].TconRWCnt.TconRetryWriteCall);
     end
@@ -970,7 +977,9 @@ begin
   sTxData := Format(' 0x%0.2x',[arrData[0]]);
 
   for I := 0 to nRetry do begin
-    nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nDataCnt, arrData, nWaitMS,0 ,1);
+    if i <> 2 then  nDebugLog := 0
+    else nDebugLog := 1;
+    nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nDataCnt, arrData, nWaitMS,0 ,nDebugLog);
     if nResult <> WAIT_OBJECT_0 then begin
       Inc(PG[nChannel].TconRWCnt.TconRetryWriteCall);
     end

@@ -8,7 +8,7 @@ uses
   Vcl.Forms,Vcl.Dialogs, Winapi.WinSock, Vcl.StdCtrls, psAPI,System.IOUtils,IdGlobal,
   System.IniFiles,  CodeSiteLogging, StrUtils,  DefCommon, system.zip,DefPG, TLHelp32, ComObj, Variants,PdhExample,
 
-  System.Threading, FlexCel.Core, FlexCel.XlsAdapter,
+  System.Threading, FlexCel.Core, FlexCel.XlsAdapter,System.Diagnostics,System.TimeSpan,
 
   Graphics,  IdSocketHandle, DateUtils, Winapi.ActiveX, System.Generics.Collections,
   Winapi.Messages,DongaPattern,Registry, SyncObjs,Vcl.Imaging.pngimage, Vcl.Imaging.jpeg,Math; //, AdvGrid, AdvObj, AdvGridWorkbook, , ScrMemo; //, DefScript;
@@ -805,6 +805,7 @@ type
 
     function ReadLGDDLLSummaryLog(sPid,sSn,sDate : string; nCh : Integer) : string;
     function ReadLGDDLLSummaryLog_New(sPid,sSn,sDate : string; nCh : Integer) : string;
+//    function ReadLGDDLLSummaryLog_New_1(sPid,sSn,sDate : string; nCh : Integer) : string;
 
     function CheckFileAccess(const Path: string; Mode: Word): Boolean;
     function CanOpenFile(const FilePath: string; FileMode: Word = fmOpenRead): Boolean;
@@ -2529,6 +2530,7 @@ begin
   end;
   SHAppBarMessage(ABM_SETSTATE,appBarData);
 end;
+
 
 procedure TCommon.ThreadTask(task: TProc);
 var
@@ -4454,7 +4456,7 @@ end;
 procedure TCommon.MLog(nCh: Integer; const Msg: String);
 var
   LogItem: TLogItem;
-  sDate,sFilePath : string;
+  sDate,sFilePath,sFileDate : string;
 begin
   try
     // Enqueue log item for asynchronous processing
@@ -4464,14 +4466,16 @@ begin
     sDate := FormatDateTime('yyyymmdd', Now);
     sFilePath := Path.MLOG + sDate + '\';
 
+    sFileDate := FormatDateTime('yyyymmdd_AM/PM', Now);
+
     if CheckDir(sFilePath) then
       Exit;
 
     case nCh of
-      DefCommon.MAX_SYSTEM_LOG: LogItem.FileName := sFilePath + Format('SystemLog_%s_%s.txt', [systemInfo.EQPId,FormatDateTime('mmdd', Now)]);
-      DefCommon.MAX_PLC_LOG: LogItem.FileName := sFilePath + Format('PLC_%s.txt', [systemInfo.EQPId]);
+      DefCommon.MAX_SYSTEM_LOG: LogItem.FileName := sFilePath + Format('SystemLog_%s_%s.txt',[systemInfo.EQPId,sFileDate]);
+      DefCommon.MAX_PLC_LOG: LogItem.FileName :=  sFilePath + Format('PLC_%s_%s.txt',[systemInfo.EQPId,sFileDate])
       else
-        LogItem.FileName := sFilePath + Format('MLog_%s_%s_Ch%d.txt', [systemInfo.EQPId, FormatDateTime('mmdd', Now), nCh + 1]);
+        LogItem.FileName := sFilePath + Format('MLog_%s_%s_Ch%d.txt',[systemInfo.EQPId,sFileDate,nCh + 1]);
     end;
     LogItem.Msg :=FormatDateTime('(hh:mm:ss.zzz) : ', Now) + Msg;
     FLogQueue.Enqueue(LogItem);
@@ -4531,48 +4535,53 @@ end;
 //procedure TCommon.MLog(nCh : Integer;const Msg: String);
 //var
 //  _infile : TextFile;
-//  sInputData, sFileName, sDate, sFilePath: String;
+//  sInputData, sFileName, sDate,sFileDate, sFilePath: String;
 ////  nCurTime, nFreq : Int64;
 ////	dElapse : Double;
 //begin
-//  try
+////  try
 //
 //    if CheckDir(Path.MLOG) then begin
 //      Exit;
 //    end;
 //    sDate := FormatDateTime('yyyymmdd', Now);
+//    sFileDate := FormatDateTime('yyyymmdd_AM/PM', Now);
+//
 //    sFilePath := Path.MLOG + sDate + '\';
 //    if CheckDir(sFilePath) then begin
 //      Exit;
 //    end;
 //    case nCh of
-//      DefCommon.MAX_SYSTEM_LOG  : sFileName := sFilePath + Format('SystemLog_%s_%s.txt',[systemInfo.EQPId,sDate]);
-//      DefCommon.MAX_PLC_LOG     : sFileName := sFilePath + Format('PLC_%s_%s.txt',[systemInfo.EQPId,sDate])
+//      DefCommon.MAX_SYSTEM_LOG  : sFileName := sFilePath + Format('SystemLog_%s_%s.txt',[systemInfo.EQPId,sFileDate]);
+//      DefCommon.MAX_PLC_LOG     : sFileName := sFilePath + Format('PLC_%s_%s.txt',[systemInfo.EQPId,sFileDate])
 //      else begin
-//        sFileName := sFilePath + Format('MLog_%s_%s_Ch%d.txt',[systemInfo.EQPId,sDate,nCh + 1]);
+//        sFileName := sFilePath + Format('MLog_%s_%s_Ch%d.txt',[systemInfo.EQPId,sFileDate,nCh + 1]);
 //      end;
 //    end;
-//
 //
 //    try
-//      AssignFile(_infile, sFileName);
-//      if not FileExists(sFileName) then
-//        Rewrite(_infile)
-//      else
-//        Append(_infile);
-//      sInputData := FormatDateTime('(hh:mm:ss.zzz) : ', Now) + Msg;
-//      WriteLn(_infile, sInputData);
+//      sInputData := FormatDateTime('(hh:mm:ss.zzz) : ', Now) + Msg + #13#10;
+//      TFile.AppendAllText(sFileName, sInputData, TEncoding.UTF8);
 //    except
-//      on E: Exception do  begin
-////        Sleep(10); //MLog 충돌 방지- IO 103
-//        if nCh <> MAX_SYSTEM_LOG then begin
-////          MLog(MAX_SYSTEM_LOG, format('Exception On Mlog Ch=%d, Err=%s', [nCh, E.Message]));
-//        end;
-//      end;
 //    end;
-//  finally
-//    CloseFile(_infile);
-//  end;
+//
+////    try
+////      AssignFile(_infile, sFileName);
+////      if not FileExists(sFileName) then
+////        Rewrite(_infile)
+////      else
+////        Append(_infile);
+////      sInputData := FormatDateTime('(hh:mm:ss.zzz) : ', Now) + Msg;
+////      WriteLn(_infile, sInputData);
+////    except
+////      on E: Exception do  begin
+////        Sleep(10); //MLog 충돌 방지- IO 103
+////        end;
+////      end;
+////    end;
+////  finally
+////    CloseFile(_infile);
+////  end;
 //end;
 
 procedure TCommon.HWCIDLogLog(nCh : Integer;const sPID,sSN, sData: String);
@@ -4843,6 +4852,112 @@ end;
 
 
 
+//function TCommon.ReadLGDDLLSummaryLog_New(sPid, sSn, sDate: string; nCh: Integer): string;
+//var
+//  asSummaryHeader, asSummaryGroupHeader, asSummaryAPDRData, asSummaryData: TArray<String>;
+//  sFileName, sCopyFileName: string;
+//  sLine, sResult: string;
+//  BufferedFileStream: TFileStream;
+//  i,Total, nlineCount: Integer;
+//  sw : TStopwatch;
+//  ch : Char;
+//begin
+//  sw := TStopwatch.StartNew;
+//  Result := '';
+//  sResult := '';
+//  sFileName := System.IOUtils.TPath.Combine(Common.Path.LGDDLL, Format('Oclog\SummaryLog\%s_Summary_Log_%s.csv', [Common.SystemInfo.EQPId, sDate]));
+//
+//  if not TFile.Exists(sFileName) then
+//    Exit;
+//
+//  sCopyFileName := System.IOUtils.TPath.Combine(Common.Path.LGDDLL, Format('Oclog\SummaryLog\%s_Summary_Log_%s_%d.csv', [Common.SystemInfo.EQPId, sDate, nCh]));
+//  TFile.Copy(sFileName, sCopyFileName, False);
+//
+//  if not TFile.Exists(sCopyFileName) then
+//    Exit;
+//
+//  try
+//    asSummaryAPDRData := nil;
+//
+//    try
+//      BufferedFileStream := TBufferedFileStream.Create(sCopyFileName, fmOpenRead);
+//      sLine := '';
+//      Total := 0;
+//      while BufferedFileStream.Read(ch, 1) = 1 do
+//      begin
+//        sLine := sLine + ch;
+//        if (ch = #13) or (ch = #10) then begin
+//          asSummaryData := sLine.Split([',']);
+//          if asSummaryData[0] = 'BIN_VER' then
+//            asSummaryHeader := asSummaryData
+//          else if asSummaryData[0] = 'BIN' then
+//            asSummaryGroupHeader := asSummaryData
+//          else if (sPid = asSummaryData[4]) or (sSn = asSummaryData[5]) then
+//            asSummaryAPDRData := asSummaryData;
+//          sLine := '';
+//        end;
+//      end;
+//    finally
+//      sw.Stop;
+//      MLog(MAX_SYSTEM_LOG, 'TBufferedFileStream msec : ' + sw.ElapsedMilliseconds.ToString);
+//      BufferedFileStream.Free;
+//    end;
+//
+//    if Length(asSummaryAPDRData) = 0 then
+//      Exit;
+//
+//    // StringBuilder 사용
+//    with TStringBuilder.Create do
+//    begin
+//      try
+//        sw := TStopwatch.StartNew;
+//        for i := 0 to High(asSummaryAPDRData) do
+//        begin
+//          if Common.SystemInfo.OCType = DefCommon.PreOCType then
+//          begin
+//            if System.Length(asSummaryGroupHeader[i]) = 0 then
+//              asSummaryGroupHeader[i] := 'OC';
+//
+//            Append(asSummaryGroupHeader[i])
+//              .Append(':')
+//              .Append(asSummaryHeader[i])
+//              .Append(':')
+//              .Append(asSummaryAPDRData[i]);
+//          end
+//          else
+//          begin
+//            asSummaryGroupHeader[i] := 'OC';
+//
+//            if asSummaryAPDRData = nil then
+//              Exit;
+//
+//            Append(asSummaryGroupHeader[i])
+//              .Append(':')
+//              .Append(asSummaryHeader[i])
+//              .Append(':')
+//              .Append(asSummaryAPDRData[i]);
+//          end;
+//
+//          if i < High(asSummaryAPDRData) then
+//            Append(',');
+//        end;
+//
+//        sResult := ToString;
+//      finally
+//        Free;
+//      end;
+//    end;
+//
+//  finally
+//    // 파일 삭제
+//    if TFile.Exists(sCopyFileName) then
+//      TFile.Delete(sCopyFileName);
+//  end;
+//
+//  Result := sResult;
+//end;
+
+
 
 function TCommon.ReadLGDDLLSummaryLog_New(sPid, sSn, sDate: string; nCh: Integer): string;
 var
@@ -4851,11 +4966,11 @@ var
   sLine, sResult: String;
   txtFile: TEXTFILE;
   i, nlineCount: Integer;
+  sw : TStopwatch;
 begin
   try
     Result := '';
     sResult := '';
-
     sFileName := Common.Path.LGDDLL + format('Oclog\SummaryLog\%s_Summary_Log_', [Common.SystemInfo.EQPId]) + sDate + '.csv';
 
     if not FileExists(sFileName) then
@@ -4867,9 +4982,10 @@ begin
     if not FileExists(sCopyFileName) then
       Exit;
 
-    AssignFile(txtFile, sCopyFileName);
 
     try
+      AssignFile(txtFile, sCopyFileName);
+      sw := TStopwatch.StartNew;
       Reset(txtFile);
       nlineCount := 0;
 
@@ -4890,6 +5006,7 @@ begin
           asSummaryAPDRData := sLine.Split([',']);
       end;
 
+
       if Length(asSummaryAPDRData) = 0 then
         Exit;
 
@@ -4897,7 +5014,6 @@ begin
       with TStringBuilder.Create do
       begin
         try
-
           for i := 0 to System.Length(asSummaryAPDRData) -1 do
           begin
             if Common.SystemInfo.OCType = DefCommon.PreOCType then
@@ -4937,8 +5053,9 @@ begin
       end;
 
     finally
+      sw.Stop;
+      MLog(nCh, 'ReadLGDDLLSummaryLog msec : ' + sw.ElapsedMilliseconds.ToString);
       CloseFile(txtFile);
-
       // 파일 삭제
       if FileExists(sCopyFileName) then
         DeleteFile(sCopyFileName);

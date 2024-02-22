@@ -134,7 +134,7 @@ type
     FR2RUnit        : string;
     FR2RMmcTxnID   : string;
     FR2RDatainfo   : string;
-    R2RAACK        : string;
+    R2RAACK        : array [DefCommon.CH1..DefCommon.MAX_CH] of string;
 
     m_sLocal       : string;
     m_sRemote      : string;
@@ -1606,7 +1606,7 @@ var
 begin
   if Length(sMsg) < 6 then Exit;
   sMode := Copy(sMsg,1,6);
-  SeperateData(sMsg,nCh);
+//  SeperateData(sMsg,nCh);
 
 //  sDebug := StringReplace(sMsg,#$0a, #$24, [rfReplaceAll]);
 //  sDebug := StringReplace(sDebug,#$0d, #$25, [rfReplaceAll]);
@@ -2012,10 +2012,19 @@ begin
 end;
 
 procedure TGmes.SendR2REoda(nPg, nAACK: Integer);
+var
+  item: TQueItemValue;
 begin
-  R2RAACK := IntToStr(nAACK);
-  SEND_MESG2HOST(DefGmes.R2R_EODA,'','',nPg);
-  DongaGmes.m_bDoneEODS[nPg] := False;
+  R2RAACK[nPg] := IntToStr(nAACK);
+
+  item.Channel:=      nPg;
+  item.Kind:=         R2R_EODA;
+  item.Timeout:=      3000;
+  item.SerialNo:=     '';
+  item.CarrierID:=    '';
+  m_Queue.Enqueue(item);
+  tmGmesChMsg.Enabled:= True;
+//  SEND_MESG2HOST(DefGmes.R2R_EODA,'','',nPg);
 end;
 
 procedure TGmes.SendR2REodsTest;
@@ -2024,8 +2033,17 @@ begin
 end;
 
 procedure TGmes.SendR2REods(nPG : Integer);
+var
+  item: TQueItemValue;
 begin
-  SEND_MESG2HOST(DefGmes.R2R_EODS_R,'','',nPG,true);
+  item.Channel:=      nPg;
+  item.Kind:=         R2R_EODS_R;
+  item.Timeout:=      3000;
+  item.SerialNo:=     '';
+  item.CarrierID:=    '';
+  m_Queue.Enqueue(item);
+  tmGmesChMsg.Enabled:= True;
+//  SEND_MESG2HOST(DefGmes.R2R_EODS_R,'','',nPG,true);
 end;
 
 
@@ -2621,8 +2639,10 @@ begin
       sSendMsg := sSendMsg  + ' UNIT=' + IntToStr(nPg +1);
       sSendMsg := sSendMsg  + ' RECIPE=';
       sSendMsg := sSendMsg  + ' LOT=';
-      sSendMsg := sSendMsg  + ' AACK=' + R2RAACK;
+      sSendMsg := sSendMsg  + ' AACK=' + R2RAACK[nPg];
       sSendMsg := sSendMsg  + ' MMC_TXN_ID=' + FR2RMmcTxnID;
+
+      m_bDoneEODS[nPg] := False;
 
     end;
 
@@ -2700,7 +2720,6 @@ begin
 
     end;
 {$ENDIF}
-
 
 {$IFDEF WIN64}
     if bIsChMsg then begin  //JHHWANG-GMES 2018-06-20

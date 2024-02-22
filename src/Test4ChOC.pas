@@ -366,9 +366,6 @@ begin
 
   try
 
-    if mmChannelLog[nCh].Lines.count > 200 then
-      mmChannelLog[nCh].Lines.Clear;
-
     case nType of
       1: begin
         //Alarm 등 강조
@@ -4237,13 +4234,13 @@ begin
     DefCommon.MSG_MODE_WORKING : begin
 
       try
-      sDebug := FormatDateTime('[HH:MM:SS.zzz] ',now) + sMsg;
-      mmChannelLog[nCh].DisableAlign;
+        sDebug := FormatDateTime('[HH:MM:SS.zzz] ',now) + sMsg;
+        mmChannelLog[nCh].DisableAlign;
 
-      mmChannelLog[nCh].Lines.Add(sDebug);
-      CalcLogScroll(nCh, Length(sDebug));
-      mmChannelLog[nCh].EnableAlign;
-      Common.MLog(nCh + self.Tag * 4, sMsg);
+        mmChannelLog[nCh].Lines.Add(sDebug);
+        CalcLogScroll(nCh, Length(sDebug));
+        mmChannelLog[nCh].EnableAlign;
+        Common.MLog(nCh + self.Tag * 4, sMsg);
       except
       end;
 
@@ -4613,14 +4610,14 @@ begin
 
         DefCommon.MSG_MODE_SHOW_CONFIRM_EICR : begin
           nTemp := PGuiScript(PCopyDataStruct(Msg.LParam)^.lpData)^.nParam;
-          Common.MLog(nCh+self.Tag*4,format('MSG_MODE_SHOW_CONFIRM_EICR : %d',[nTemp]));
+          Common.MLog(nCh,format('MSG_MODE_SHOW_CONFIRM_EICR : %d',[nTemp]));
           if nTemp > 0 then begin
             pnlMesConfirm[nCh].Visible := True;
-            Common.MLog(nCh+self.Tag*4,format('pnlMesConfirm[%d].Visible : True',[nCh]));
+            Common.MLog(nCh,format('pnlMesConfirm[%d].Visible : True',[nCh]));
           end
           else begin
             pnlMesConfirm[nCh].Visible := False;
-            Common.MLog(nCh+self.Tag*4,format('pnlMesConfirm[%d].Visible : false',[nCh]));
+            Common.MLog(nCh,format('pnlMesConfirm[%d].Visible : false',[nCh]));
             PasScr[nCh].HostEvntConfirm(2);
           end;
         end;

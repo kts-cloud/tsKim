@@ -136,18 +136,21 @@ begin
 end;
 
 procedure TCommTibRv64.LOG(nMsgTpye : integer; sMLOG : string);
-var
-  th : TThread;
-  sLog : string;
 begin
+  if Length(sMLOG) > 600 then
+    sMLOG := Copy(sMLOG,1,600);
   SendTestGuiDisplay(0,MSG_MODE_ADDLOG,sMLOG,nMsgTpye);
 end;
 
 
-
 procedure MyCB_Log(nMsgTpye : integer; sAddedText : PAnsiChar);
+var
+sMLOG : string;
 begin
-  CommTibRv.LOG(nMsgTpye,PAnsiChar(sAddedText));
+  if Length(PAnsiChar(sAddedText)) > 600 then
+    sMLOG := Copy(PAnsiChar(sAddedText),1,600)
+  else sMLOG := PAnsiChar(sAddedText);
+  CommTibRv.LOG(nMsgTpye,sMLOG);
 end;
 
 

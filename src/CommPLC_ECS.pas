@@ -429,8 +429,9 @@ type
       nStartAddr_EQP_W, nStartAddr_ECS_W, nStartAddr_ROBOT_W, nStartAddr_ROBOT_W2, nStartAddr_ROBOT_DOOR: Int64);
     /// <summary> PLC에서  데이터 읽기 </summary>
     procedure SaveGlassData(sFileName: String);
+    procedure SaveGlassData_CH(nCH : Integer; sFileName: String);
     procedure LoadGlassData(sFileName: String);
-
+    procedure LoadGlassData_CH(nCH : Integer; sFileName: String);
 
 
     function ReadDevice( szDevice: String; var lplData: Integer; bSaveLog : Boolean = True): integer;
@@ -5039,8 +5040,25 @@ begin
     for i := 0 to 3 do begin
       fs.Read(naGlassData, Sizeof(naGlassData));
       ConvertBlockToGlassData(naGlassData[0], GlassData[i]);
-      //GlassData[i].GlassJudge:= 83; //0x53 'S' - 읽어 들인 것은 임시로 skip 설정
     end;
+  finally
+    FreeAndNil(fs);
+  end;
+
+end;
+
+procedure TCommPLCThread.LoadGlassData_CH(nCH : Integer; sFileName: String);
+var
+  fs: TFileStream;
+  naGlassData: array [0..64]of Integer;
+  i: Integer;
+begin
+  if not FileExists(sFileName) then exit;
+
+  fs:= TFileStream.Create(sFileName, fmOpenRead);
+  try
+    fs.Read(naGlassData, Sizeof(naGlassData));
+    ConvertBlockToGlassData(naGlassData[0], GlassData[nCH]);
   finally
     FreeAndNil(fs);
   end;
@@ -5060,6 +5078,21 @@ begin
       ConvertGlassDataToBlock(GlassData[i], naGlassData[0]);
       fs.Write(naGlassData[0], Sizeof(naGlassData));
     end;
+  finally
+    FreeAndNil(fs);
+  end;
+end;
+
+procedure TCommPLCThread.SaveGlassData_CH(nCH : Integer; sFileName: String);
+var
+  fs: TFileStream;
+  naGlassData: array [0..64]of Integer;
+  i: Integer;
+begin
+  fs:= TFileStream.Create(sFileName, fmCreate);
+  try
+    ConvertGlassDataToBlock(GlassData[nCH], naGlassData[0]);
+    fs.Write(naGlassData[0], Sizeof(naGlassData));
   finally
     FreeAndNil(fs);
   end;
