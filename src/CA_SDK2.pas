@@ -19,6 +19,7 @@ Side Effect :
 -----------------------------------------------------------------}
 
 interface
+{$I Common.inc}
   uses
     System.SysUtils, Winapi.Windows, winapi.messages, Vcl.Dialogs, system.Classes, System.Math, DefCommon, IdGlobal;
 
@@ -556,10 +557,14 @@ var
   sErrMsg : string;
 begin
   if not m_bConnection[nCh] then begin
+{$IFDEF SIMULATOR_CAX10}
+    Exit(0);
+{$ELSE}
     sErrMsg := Format('Cannel %d CA410 Connection NG',[nCh+1]);
     ShowMainForm(DefCommon.MSG_MODE_CA310_STATUS,nCh,True,sErrMsg);
     ShowTestForm(DefCommon.MSG_MODE_WORKING,nCh,True,sErrMsg);
     Exit(DefCaSdk.DISCONNECTION_CODE);
+{$ENDIF}
   end;
   nRet := set_Measure(FSetupCnt.SetupList[nCh].Ca410Ch);
   if nRet = 0 then begin
@@ -567,9 +572,13 @@ begin
     if nRet <> 0 then begin
       sErrMsg := Format('Ca410 get_sXylvVal NG - NG Code :%0.2d',[nRet]);  // Measure Error 발생 시 Error code 확인
       ShowTestForm(DefCommon.MSG_MODE_WORKING,nCh,True,sErrMsg);
+{$IFDEF SIMULATOR_CAX10}
+
+{$ELSE}
       sErrMsg := Format('Cannel %d CA410 get_sXylvVal NG',[nCh+1]);
       ShowMainForm(DefCommon.MSG_MODE_CA310_STATUS,nCh,True,sErrMsg);
       ShowTestForm(DefCommon.MSG_MODE_WORKING,nCh,True,sErrMsg);
+{$ENDIF}
       MeasRet.xVal   :=  0.0;
       MeasRet.yVal   :=  0.0;
       MeasRet.LvVal  :=  0.0;
@@ -584,9 +593,12 @@ begin
     sErrMsg := Format('Ca410 Measure NG - NG Code :%0.2d',[nRet]);  // Measure Error 발생 시 Error code 확인
     ShowTestForm(DefCommon.MSG_MODE_WORKING,nCh,True,sErrMsg);
     sErrMsg := Format('Cannel %d CA410 Connection NG',[nCh+1]);
+{$IFDEF SIMULATOR_CAX10}
+
+{$ELSE}
     ShowMainForm(DefCommon.MSG_MODE_CA310_STATUS,nCh,True,sErrMsg);
     ShowTestForm(DefCommon.MSG_MODE_WORKING,nCh,True,sErrMsg);
-
+{$ENDIF}
     MeasRet.xVal   :=  0.0;
     MeasRet.yVal   :=  0.0;
     MeasRet.LvVal  :=  0.0;

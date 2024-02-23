@@ -20,7 +20,6 @@ object frmTest4ChOC: TfrmTest4ChOC
   OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
   OnDestroy = FormDestroy
-  OnKeyPress = FormKeyPress
   PixelsPerInch = 96
   TextHeight = 13
   object imgCheckBox: TImage
@@ -1764,6 +1763,12 @@ object frmTest4ChOC: TfrmTest4ChOC
         E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8E8}
       NumGlyphs = 2
     end
+  end
+  object RzBitBtn1: TRzBitBtn
+    Left = 664
+    Top = 264
+    Caption = 'RzBitBtn1'
+    TabOrder = 4
   end
   object tmrDisplayOff: TTimer
     Enabled = False

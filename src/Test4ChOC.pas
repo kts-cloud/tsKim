@@ -74,7 +74,6 @@ type
     pnlErrAlramMsg: TPanel;
     btnErrorDisplay: TRzButton;
     pnl2: TPanel;
-    pnlJigInform: TRzPanel;
     tmrRetest: TTimer;
     pnlSwitch2: TAdvPanel;
     btnSWNext1_2: TRzBitBtn;
@@ -86,6 +85,8 @@ type
     btnCh2_2: TRzBitBtn;
     RzBitBtn7_2: TRzBitBtn;
     RzBitBtn8_2: TRzBitBtn;
+    pnlJigInform: TRzPanel;
+    RzBitBtn1: TRzBitBtn;
     procedure WMCopyData(var Msg : TMessage); message WM_COPYDATA;
     procedure WMCopyData_LOGIC(var WmMsg: TMessage);
     procedure WMCopyData_PG(var CopyMsg: TMessage);
@@ -105,9 +106,9 @@ type
     procedure btnAutoClick(Sender: TObject);
     procedure btnRepeatClick(Sender: TObject);
     procedure btnCh4Click(Sender: TObject);
-    procedure FormKeyPress(Sender: TObject; var Key: Char);
     procedure btnSendHostClick(Sender : TObject);   //2020-06-03 CONFIRM_RESULT_REPORT_TO_HOST
     procedure btnCancelHostClick(Sender : TObject);
+    procedure ButtonKeyPress(Sender: TObject; var Key: Char);
 
   private
     { Private declarations }
@@ -522,6 +523,13 @@ begin
   else            JigLogic[Self.Tag].StartIspd_BOTTOM(DefScript.SEQ_KEY_3);
 end;
 
+procedure TfrmTest4ChOC.ButtonKeyPress(Sender: TObject; var Key: Char);
+begin
+  // 엔터 키를 눌렀을 때 동작을 막습니다.
+  if Key = #13 then
+    Key := #0;
+end;
+
 procedure TfrmTest4ChOC.BtnStartTestClick(Sender: TObject);
 var
   nCH : Integer;
@@ -788,74 +796,69 @@ procedure TfrmTest4ChOC.ClearChData(nCh: Integer);
 var
 I : integer;
 begin
-  pnlSerials[nCh].Caption := '';
-  if Common.SystemInfo.OcManualType then begin
+  try
+    pnlSerials[nCh].Caption := '';
+    if Common.SystemInfo.OcManualType then begin
+      if Common.SystemInfo.UIType = DefCommon.UI_WIN10_BLACK then begin
+        pnlSerials[nCh].Color := clBlack;
+        pnlSerials[nCh].Font.Color := clYellow;
+      end
+      else begin
+        pnlSerials[nCh].Color := clBtnFace;
+        pnlSerials[nCh].Font.Color := clBlack;
+      end;
+    end;
+
+
+    pnlMESResults[nCh].Caption := '';
     if Common.SystemInfo.UIType = DefCommon.UI_WIN10_BLACK then begin
-      pnlSerials[nCh].Color := clBlack;
-      pnlSerials[nCh].Font.Color := clYellow;
+      pnlPGStatuses[nCh].Color := clBlack;
+      pnlPGStatuses[nCh].Font.Color := clWhite;
+      pnlMESResults[nCh].Color := clBlack;
+      pnlMESResults[nCh].Font.Color := clWhite;
     end
     else begin
-      pnlSerials[nCh].Color := clBtnFace;
-      pnlSerials[nCh].Font.Color := clBlack;
+      pnlPGStatuses[nCh].Color := clBtnFace;
+      pnlPGStatuses[nCh].Font.Color := clBlack;
+      pnlMESResults[nCh].Color := clBtnFace;
+      pnlMESResults[nCh].Font.Color := clYellow;
     end;
-  end;
+    pnlPGStatuses[nCh].Font.Size := 24;
+    if PasScr[Tag*4 + nCh].m_bUse then begin
+      pnlPGStatuses[nCh].Caption := 'Ready';
+    end
+    else begin
+      pnlPGStatuses[nCh].Caption := 'Skip';
+    end;
+    pnlPGStatuses[nCh].Font.Name := 'Verdana';     //Tahoma
+
+    gridPWRPGs[nCh].ClearAll;
+
+    gridPWRPGs[nCh].ColWidths[0] := 60;
+    gridPWRPGs[nCh].ColWidths[1] := 30;
+    gridPWRPGs[nCh].ColWidths[2] := 60;
 
 
-  pnlMESResults[nCh].Caption := '';
-  if Common.SystemInfo.UIType = DefCommon.UI_WIN10_BLACK then begin
-    pnlPGStatuses[nCh].Color := clBlack;
-    pnlPGStatuses[nCh].Font.Color := clWhite;
-    pnlMESResults[nCh].Color := clBlack;
-    pnlMESResults[nCh].Font.Color := clWhite;
-  end
-  else begin
-    pnlPGStatuses[nCh].Color := clBtnFace;
-    pnlPGStatuses[nCh].Font.Color := clBlack;
-    pnlMESResults[nCh].Color := clBtnFace;
-    pnlMESResults[nCh].Font.Color := clYellow;
-  end;
-  pnlPGStatuses[nCh].Font.Size := 24;
-  if PasScr[Tag*4 + nCh].m_bUse then begin
-    pnlPGStatuses[nCh].Caption := 'Ready';
-  end
-  else begin
-    pnlPGStatuses[nCh].Caption := 'Skip';
-  end;
-  pnlPGStatuses[nCh].Font.Name := 'Verdana';     //Tahoma
+    gridPWRPGs[nCh].ColumnHeaders.Add('');
+    gridPWRPGs[nCh].ColumnHeaders.Add('Voltage'{'Voltage'});
+    gridPWRPGs[nCh].ColumnHeaders.Add('Current'{'Current'});
 
-  gridPWRPGs[nCh].ClearAll;
+    gridPWRPGs[nCh].Cells[0,1] := 'VCC/IVCC';
+    gridPWRPGs[nCh].Cells[0,2] := 'VIN/IVIN';
+    gridPWRPGs[nCh].AutoSizeColumns(true);
 
-  gridPWRPGs[nCh].ColWidths[0] := 60;
-  gridPWRPGs[nCh].ColWidths[1] := 30;
-  gridPWRPGs[nCh].ColWidths[2] := 60;
+    mmChannelLog[nCh].Clear;
 
-
-  gridPWRPGs[nCh].ColumnHeaders.Add('');
-  gridPWRPGs[nCh].ColumnHeaders.Add('Voltage'{'Voltage'});
-  gridPWRPGs[nCh].ColumnHeaders.Add('Current'{'Current'});
-
-  gridPWRPGs[nCh].Cells[0,1] := 'VCC/IVCC';
-  gridPWRPGs[nCh].Cells[0,2] := 'VIN/IVIN';
-  gridPWRPGs[nCh].AutoSizeColumns(true);
-//  gridPWRPGs[nCh].ColumnHeaders.Add('');
-//  gridPWRPGs[nCh].ColumnHeaders.Add('Voltage');
-//  gridPWRPGs[nCh].ColumnHeaders.Add('Current');
-//
-//  gridPWRPGs[nCh].Cells[0,1] := 'VCI';
-//  gridPWRPGs[nCh].Cells[0,2] := 'DVDD';
-//  gridPWRPGs[nCh].Cells[0,3] := 'VDD';  // LGD 요청 사항 : VIO ==> T_AVDD
-//  gridPWRPGs[nCh].Cells[0,4] := 'VPP';
-//  gridPWRPGs[nCh].Cells[0,5] := 'VBAT';
-
-  mmChannelLog[nCh].Clear;
-
-  pnlUnitTactVal[nCh].Caption := '000 : 00';
-  pnlNowValues[nCh].Caption := '000 : 00';
+    pnlUnitTactVal[nCh].Caption := '000 : 00';
+    pnlNowValues[nCh].Caption := '000 : 00';
 
     m_nUnitTact[nCh] := 0;
     m_nTotalTact[nCh] := 0;
-
+   finally
+   end;
 end;
+
+
 
 procedure TfrmTest4ChOC.ClearPreviousResult;
 var
@@ -976,6 +979,7 @@ begin
 
     // button for start testing.
     btnStartTest[i] := TRzBitBtn.Create(self);
+    btnStartTest[i].TabStop := False;
     btnStartTest[i].Parent := pnlJigInform;
     btnStartTest[i].Tag := i;
     btnStartTest[i].Top := pnlJigTitle[i].Top + pnlJigTitle[i].Height + 1;//2;
@@ -988,9 +992,11 @@ begin
     btnStartTest[i].Caption := 'bắt đầu   (Start)';
     btnStartTest[i].Cursor  := crHandPoint;
     btnStartTest[i].OnClick := BtnStartTestClick;
+    btnStartTest[i].OnKeyPress := ButtonKeyPress;
 
     // button for start testing.
     btnStopTest[i] := TRzBitBtn.Create(self);
+    btnStopTest[i].TabStop := False;
     btnStopTest[i].Parent := pnlJigInform;
     btnStopTest[i].Tag := i;
     btnStopTest[i].Top := btnStartTest[i].Top + btnStartTest[i].Height + 1; //pnlJigTitle.Top + pnlJigTitle.Height + 1;//2;
@@ -1003,6 +1009,7 @@ begin
     btnStopTest[i].Cursor  := crHandPoint;
     btnStopTest[i].OnClick := BtnStopTestClick;
     btnStopTest[i].Cursor := crHandPoint;
+    btnStopTest[i].OnKeyPress := ButtonKeyPress;
 
     // for Jig Information.
 //    pnlTackTimes[i] := TRzPanel.Create(self);
@@ -1054,6 +1061,7 @@ begin
 
       // button for start testing.
     btnVirtualKey[i] := TRzBitBtn.Create(self);
+    btnVirtualKey[i].TabStop := False;
     btnVirtualKey[i].Parent := pnlJigInform;
     btnVirtualKey[i].Tag  := i;
     //btnVirtualK[i]ey.Top := pnlJigTactVal.Top + pnlJigTactVal.Height + 3;//2;
@@ -1067,8 +1075,10 @@ begin
     btnVirtualKey[i].OnClick := btnVirtualKeyClick;
     btnVirtualKey[i].Cursor := crHandPoint;
     btnVirtualKey[i].HotTrack := True;
+    btnVirtualKey[i].OnKeyPress := ButtonKeyPress;
 
     btnLampOnOff[i] := TRzBitBtn.Create(self);
+    btnLampOnOff[i].TabStop := False;
     btnLampOnOff[i].Parent := pnlJigInform;
     btnLampOnOff[i].Tag  := i;
     btnLampOnOff[i].Top := btnVirtualKey[i].Top + btnVirtualKey[i].Height + 1;//2;
@@ -1080,8 +1090,10 @@ begin
     btnLampOnOff[i].OnClick := btnLampOnOffClick;
     btnLampOnOff[i].Cursor := crHandPoint;
     btnLampOnOff[i].HotTrack := True;
+    btnLampOnOff[i].OnKeyPress := ButtonKeyPress;
 
     btnSetIonizer[i] := TRzBitBtn.Create(self);
+    btnSetIonizer[i].TabStop := False;
     btnSetIonizer[i].Parent := pnlJigInform;
     btnSetIonizer[i].Tag  := i;
     btnSetIonizer[i].Top := btnLampOnOff[i].Top + btnLampOnOff[i].Height + 1;//2;
@@ -1093,9 +1105,11 @@ begin
     btnSetIonizer[i].OnClick := btnSetIonizerClick;
     btnSetIonizer[i].Cursor := crHandPoint;
     btnSetIonizer[i].HotTrack := True;
+    btnSetIonizer[i].OnKeyPress := ButtonKeyPress;
 
     if i = DefCommon.CH_TOP then begin
       btnVirtualBcr := TRzBitBtn.Create(self);
+      btnVirtualBcr.TabStop := False;
       btnVirtualBcr.Parent := pnlJigInform;
       btnVirtualBcr.top := btnSetIonizer[i].Top + btnSetIonizer[i].Height  + 1;
       btnVirtualBcr.Left := 2;
@@ -1106,8 +1120,10 @@ begin
       btnVirtualBcr.OnClick := btnVirtualBcrClick;
       btnVirtualBcr.Cursor := crHandPoint;
       btnVirtualBcr.HotTrack := True;
+      btnVirtualBcr.OnKeyPress := ButtonKeyPress;
 
       btnECSRequest := TRzBitBtn.Create(self);
+      btnECSRequest.TabStop := False;
       btnECSRequest.Parent := pnlJigInform;
       btnECSRequest.Top := btnVirtualBcr.top + btnVirtualBcr.Height + 1;
       btnECSRequest.Left := 2;
@@ -1119,6 +1135,7 @@ begin
       btnECSRequest.OnClick := btnECSRequestClick;
       btnECSRequest.Cursor := crHandPoint;
       btnECSRequest.HotTrack := True;
+      btnECSRequest.OnKeyPress := ButtonKeyPress;
     end;
   end;
 
@@ -2944,12 +2961,6 @@ begin
     JigLogic[Self.Tag].Free;
     JigLogic[Self.Tag] := nil;
   end;
-end;
-
-procedure TfrmTest4ChOC.FormKeyPress(Sender: TObject; var Key: Char);
-begin
-  if Key = #13 then
-    Key := #0;
 end;
 
 procedure TfrmTest4ChOC.getBcrData(sScanData: string);

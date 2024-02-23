@@ -1715,6 +1715,7 @@ begin
   item.Tact:=   MesData[nPg].Tact;
   item.MESCode:=    MesData[nPg].Rwk;
   item.ApdrData:=     MesData[nPg].ApdrData;
+  item.State := MES_UNKNOWN;
   m_Queue.Enqueue(item);
   tmGmesChMsg.Enabled:= True;
 end;
@@ -3097,7 +3098,8 @@ begin
 
   if m_Queue.Count > 0 then begin
     m_MESItem:= m_Queue.Dequeue;
-    m_MESItem.State:= m_MESItem.Kind;
+    if m_MESItem.Kind <> EAS_APDR then   //EAS_APDR 제외
+      m_MESItem.State:= m_MESItem.Kind;
     m_MESItem.Tick:= GetTickCount;
 
       //MesData 값을 직접 설정하는 경우 대응 - 차후 이부분은 개선 필요

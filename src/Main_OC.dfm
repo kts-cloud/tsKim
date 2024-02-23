@@ -673,7 +673,6 @@ object frmMain_OC: TfrmMain_OC
       Caption = ' Script Information.'
       GroupStyle = gsUnderline
       TabOrder = 2
-      ExplicitTop = 371
       object pnlPsuVer: TRzPanel
         Left = 78
         Top = 81
@@ -804,7 +803,6 @@ object frmMain_OC: TfrmMain_OC
       ParentFont = False
       TabOrder = 3
       OnDblClick = grpDIODblClick
-      ExplicitTop = 497
     end
     object grpPwrInfo: TRzGroupBox
       Left = 1
@@ -815,7 +813,6 @@ object frmMain_OC: TfrmMain_OC
       Caption = 'Power Information'
       GroupStyle = gsUnderline
       TabOrder = 4
-      ExplicitTop = 800
       object lvPower: TAdvListView
         Left = 0
         Top = 17
@@ -897,7 +894,6 @@ object frmMain_OC: TfrmMain_OC
       GroupStyle = gsUnderline
       TabOrder = 5
       Visible = False
-      ExplicitTop = 304
       object ledDfs: ThhALed
         Left = 78
         Top = 16

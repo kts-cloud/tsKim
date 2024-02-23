@@ -2895,6 +2895,9 @@ begin
       else begin
         {$IFDEF SIMULATOR}
           WriteDevice('B' + IntToHex(StartAddr_ROBOT+ $f, 3), 1, False);
+          WriteDevice('B' + IntToHex(StartAddr_ROBOT+ $1f, 3), 1, False);
+          WriteDevice('B' + IntToHex(StartAddr_ROBOT+ $2f, 3), 1, False);
+          WriteDevice('B' + IntToHex(StartAddr_ROBOT+ $3f, 3), 1, False);
         {$ENDIF}
         for I := DefCommon.CH_TOP to DefCommon.CH_BOTTOM do begin
           WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$12 + (i * $20) + $E, 3), ControlDio.IsPreOCInterlockPROBE(i), False);
@@ -4711,7 +4714,7 @@ begin
   CopyMemory(@AGlassData.GlassProcessingStatus[0], @naGlassData[40], 8*sizeof(Integer));
   AGlassData.MateriID := ConvertStrFromPLC(30, naGlassData[48]);
   {$IFDEF SIMULATOR}
-  AGlassData.MateriID := 'SIMULATOR_MateriID';
+  AGlassData.MateriID :='SIMULATOR_MaID' +Format('%0.4x',[Random(10000)]);
   {$ENDIF}
 //  AGlassData.LCM_ID:= ConvertStrFromPLC(12, naGlassData[48]); //Ascii 24
   AGlassData.PCZTCode:= naGlassData[63];

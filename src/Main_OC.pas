@@ -3167,11 +3167,8 @@ begin
 
       try
         if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
-          sSN := Format('%s_PCB_ID_CH_%d',[PasScr[nCh].TestInfo.SerialNo,nCh+1]);
 
-  //        PasScr[nCh].TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog(sPID,sSN,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
-  //        ShowSysLog('ReadLGDDLLSummaryLog : ' + PasScr[nCh].TestInfo.ApdrData);
-          PasScr[nCh].TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog_New(sPID,sSN,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
+          PasScr[nCh].TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog_New(sPID,PasScr[nCh].TestInfo.SerialNo,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
   //        ShowSysLog('ReadLGDDLLSummaryLog_New : ' + PasScr[nCh].TestInfo.ApdrData);
           if Length(PasScr[nCh].TestInfo.ApdrData) > 0 then
             sGD_DEFECT := ',GD:GD_DEFECT:' + DongaGmes.MesData[nCh].GDDefectCode

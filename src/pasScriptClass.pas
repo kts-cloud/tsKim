@@ -3237,9 +3237,7 @@ begin
         end;
         if Length(sPID) = 0 then sPID := Copy(sSerialNumber,1,3);
 
-        if Common.SystemInfo.OCType = DefCommon.PreOCType then
-          sSerialNumber := Format('%s_PCB_ID_CH_%d',[sSerialNumber,Self.FPgNo+1])
-        else begin
+        if Common.SystemInfo.OCType = DefCommon.OCType then begin
           if g_CommPLC <> nil then  begin
             if (g_CommPLC.GlassData[FPgNo].MateriID <> '') and ((Pos('TEST_CH',sSerialNumber) > 0) or (Pos('Contact_NG',sSerialNumber) > 0)) then begin
               sSerialNumber := g_CommPLC.GlassData[FPgNo].MateriID;

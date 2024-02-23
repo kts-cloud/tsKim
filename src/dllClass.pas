@@ -855,9 +855,14 @@ begin
     end;
   end;
   if nResult <> WAIT_OBJECT_0 then begin
+{$IFDEF SIMULATOR_PG}
+
+{$ELSE}
     sDebug := Format('TCONSetReg NG CH : %d',[nChannel]);
     CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
     CSharpDll.MainOC_Stop_CH1(nChannel);
+{$ENDIF}
+
   end;
 
   Result := nResult;
@@ -900,9 +905,13 @@ begin
     end;
   end;
   if nResult <> WAIT_OBJECT_0 then begin
+{$IFDEF SIMULATOR_PG}
+
+{$ELSE}
     sDebug := Format('TCONSetReg NG CH : %d',[nChannel]);
     CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
     CSharpDll.MainOC_Stop_CH2(nChannel);
+{$ENDIF}
   end;
   Result := nResult;
   {$ENDIF}
@@ -945,9 +954,13 @@ begin
     end;
   end;
   if nResult <> WAIT_OBJECT_0 then begin
+{$IFDEF SIMULATOR_PG}
+
+{$ELSE}
     sDebug := Format('TCONSetReg NG CH : %d',[nChannel]);
     CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
     CSharpDll.MainOC_Stop_CH3(nChannel);
+{$ENDIF}
   end;
   Result := nResult;
   {$ENDIF}
@@ -988,9 +1001,13 @@ begin
     end;
   end;
   if nResult <> WAIT_OBJECT_0 then begin
+{$IFDEF SIMULATOR_PG}
+
+{$ELSE}
     sDebug := Format('TCONSetReg NG CH : %d',[nChannel]);
     CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
     CSharpDll.MainOC_Stop_CH4(nChannel);
+{$ENDIF}
   end;
 
   Result := nResult;
@@ -1443,9 +1460,13 @@ begin
       data := arRData[0]
     else begin
       data := 0;
+{$IFDEF SIMULATOR_PG}
+
+{$ELSE}
       sDebug := Format('TCONGetReg NG CH : %d',[nChannel]);
       CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
       CSharpDll.MainOC_Stop_CH1(nChannel);
+{$ENDIF}
     end;
     Result := nResult;
   {$ENDIF}
@@ -1491,9 +1512,13 @@ begin
       data := arRData[0]
     else begin
       data := 0;
+{$IFDEF SIMULATOR_PG}
+
+{$ELSE}
       sDebug := Format('TCONGetReg NG CH : %d',[nChannel]);
       CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
       CSharpDll.MainOC_Stop_CH2(nChannel);
+{$ENDIF}
     end;
   {$ENDIF}
   Result := nResult;
@@ -1539,9 +1564,13 @@ begin
       data := arRData[0]
     else begin
       data := 0;
+{$IFDEF SIMULATOR_PG}
+
+{$ELSE}
       sDebug := Format('TCONGetReg NG CH : %d',[nChannel]);
       CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
       CSharpDll.MainOC_Stop_CH3(nChannel);
+{$ENDIF}
     end;
   {$ENDIF}
   Result := nResult;
@@ -1584,9 +1613,13 @@ begin
       data := arRData[0]
     else begin
       data := 0;
+{$IFDEF SIMULATOR_PG}
+
+{$ELSE}
       sDebug := Format('TCONGetReg NG CH : %d',[nChannel]);
       CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
       CSharpDll.MainOC_Stop_CH4(nChannel);
+{$ENDIF}
     end;
   {$ENDIF}
   Result := nResult;
@@ -1621,9 +1654,14 @@ begin
   if nResult = WAIT_OBJECT_0 then
     CopyMemory(data,@arRData[0],nLength)
   else begin
+{$IFDEF SIMULATOR_PG}
+
+{$ELSE}
     sDebug := Format('TCONGetRegArray NG CH : %d',[nChannel]);
     CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
     CSharpDll.MainOC_Stop_CH1(nChannel);
+{$ENDIF}
+
   end;
   Result := nResult;
 end;
@@ -1652,9 +1690,13 @@ begin
   if nResult = WAIT_OBJECT_0 then
     CopyMemory(data,@arRData[0],nLength)
   else begin
+{$IFDEF SIMULATOR_PG}
+
+{$ELSE}
     sDebug := Format('TCONGetRegArray NG CH : %d',[nChannel]);
     CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
     CSharpDll.MainOC_Stop_CH2(nChannel);
+{$ENDIF}
   end;
   Result := nResult;
 end;
@@ -1683,9 +1725,13 @@ begin
   if nResult = WAIT_OBJECT_0 then
     CopyMemory(data,@arRData[0],nLength)
   else begin
+{$IFDEF SIMULATOR_PG}
+
+{$ELSE}
     sDebug := Format('TCONGetRegArray NG CH : %d',[nChannel]);
     CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
     CSharpDll.MainOC_Stop_CH3(nChannel);
+{$ENDIF}
   end;
   Result := nResult;
 end;
@@ -1715,9 +1761,13 @@ begin
   if nResult = WAIT_OBJECT_0 then
     CopyMemory(data,@arRData[0],nLength)
   else begin
+{$IFDEF SIMULATOR_PG}
+
+{$ELSE}
     sDebug := Format('TCONGetRegArray NG CH : %d',[nChannel]);
     CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
     CSharpDll.MainOC_Stop_CH4(nChannel);
+{$ENDIF}
   end;
   Result := nResult;
 end;
@@ -2097,9 +2147,14 @@ begin
     CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
   end;
   if wdRet <> WAIT_OBJECT_0 then begin
+{$IFDEF SIMULATOR_PG}
+
+{$ELSE}
     sDebug := Format('CA410 measure NG CH : %d',[nChannel]);
     CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
     CSharpDll.MainOC_Stop_CH1(nChannel);
+{$ENDIF}
+
   end;
 
   t5[0] := m_Ca410Data.xVal;
@@ -2128,9 +2183,13 @@ begin
     CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
   end;
   if wdRet <> WAIT_OBJECT_0 then begin
+{$IFDEF SIMULATOR_PG}
+
+{$ELSE}
     sDebug := Format('CA410 measure NG CH : %d',[nChannel]);
     CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
     CSharpDll.MainOC_Stop_CH2(nChannel);
+{$ENDIF}
   end;
 
 
@@ -2159,9 +2218,13 @@ begin
     CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
   end;
     if wdRet <> WAIT_OBJECT_0 then begin
+{$IFDEF SIMULATOR_PG}
+
+{$ELSE}
     sDebug := Format('CA410 measure NG CH : %d',[nChannel]);
     CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
     CSharpDll.MainOC_Stop_CH3(nChannel);
+{$ENDIF}
   end;
 
   t5[0] := m_Ca410Data.xVal;
@@ -2189,9 +2252,13 @@ begin
     CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
   end;
     if wdRet <> WAIT_OBJECT_0 then begin
+{$IFDEF SIMULATOR_PG}
+
+{$ELSE}
     sDebug := Format('CA410 measure NG CH : %d',[nChannel]);
     CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
     CSharpDll.MainOC_Stop_CH4(nChannel);
+{$ENDIF}
   end;
 
   t5[0] := m_Ca410Data.xVal;
