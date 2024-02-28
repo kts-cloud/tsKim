@@ -4954,6 +4954,9 @@ begin
           g_CommPLC.SetGlassData_Previous_Unit_Processing(g_CommPLC.GlassData[FPgNo], g_CommPLC.EQP_ID-13);
       end;
       wdRet := 0;
+
+      g_CommPLC.SaveGlassData_CH(FPgNo,Common.Path.Ini + format('GlassData_CH%d.dat',[FPgNo +1]));
+
       ReturnOutputArg(wdRet);
     except
       ReturnOutputArg(wdRet);

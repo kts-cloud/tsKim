@@ -1764,12 +1764,6 @@ object frmTest4ChOC: TfrmTest4ChOC
       NumGlyphs = 2
     end
   end
-  object RzBitBtn1: TRzBitBtn
-    Left = 664
-    Top = 264
-    Caption = 'RzBitBtn1'
-    TabOrder = 4
-  end
   object tmrDisplayOff: TTimer
     Enabled = False
     OnTimer = tmrDisplayOffTimer

@@ -24,9 +24,10 @@ DEVICE_ADDRESS = $A0;
     MsgType : Integer;
     Channel : Integer;
     Mode    : Integer;
-    nParam  : Integer;
-    nParam2 : Integer;
+    Param  : Integer;
+    Param2 : Integer;
     Msg     : string;
+    pData   : PBYTE; //Pointer; //Length = Param2
   end;
 
 
@@ -2142,8 +2143,8 @@ begin
 
   wdRet := CaSdk2.Measure(nChannel,m_Ca410Data);
 
-  if (Common.SystemInfo.DebugLogLevelConfig > 0) then begin
-    sDebug := format('<CA410> Measure_XYL : Ca410Data x : %f y : %f LV : %f',[m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
+  if (Common.SystemInfo.PG_TconWriteLogDisplay) then begin
+    sDebug := format('<CA410> Measure_XYL : Ca410Data x : %0.4f y : %0.4f LV : %0.4f',[m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
     CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
   end;
   if wdRet <> WAIT_OBJECT_0 then begin
@@ -2178,8 +2179,8 @@ begin
 //  Common.MLog(nChannel,sDebug);
   wdRet := CaSdk2.Measure(nChannel,m_Ca410Data);
 
-  if (Common.SystemInfo.DebugLogLevelConfig > 0) then begin
-    sDebug := format('<CA410> Measure_XYL : Ca410Data x : %f y : %f LV : %f',[m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
+  if (Common.SystemInfo.PG_TconWriteLogDisplay) then begin
+    sDebug := format('<CA410> Measure_XYL : Ca410Data x : %0.4f y : %0.4f LV : %0.4f',[m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
     CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
   end;
   if wdRet <> WAIT_OBJECT_0 then begin
@@ -2213,8 +2214,8 @@ begin
 
   wdRet := CaSdk2.Measure(nChannel,m_Ca410Data);
 
-    if (Common.SystemInfo.DebugLogLevelConfig > 0) then begin
-    sDebug := format('<CA410> Measure_XYL : Ca410Data x : %f y : %f LV : %f',[m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
+  if (Common.SystemInfo.PG_TconWriteLogDisplay) then begin
+    sDebug := format('<CA410> Measure_XYL : Ca410Data x : %0.4f y : %0.4f LV : %0.4f',[m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
     CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
   end;
     if wdRet <> WAIT_OBJECT_0 then begin
@@ -2247,8 +2248,8 @@ begin
 
   wdRet := CaSdk2.Measure(nChannel,m_Ca410Data);
 
-    if (Common.SystemInfo.DebugLogLevelConfig > 0) then begin
-    sDebug := format('<CA410> Measure_XYL : Ca410Data x : %f y : %f LV : %f',[m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
+  if (Common.SystemInfo.PG_TconWriteLogDisplay) then begin
+    sDebug := format('<CA410> Measure_XYL : Ca410Data x : %0.4f y : %0.4f LV : %0.4f',[m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
     CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
   end;
     if wdRet <> WAIT_OBJECT_0 then begin
@@ -2304,7 +2305,7 @@ begin
   GuiData.MsgType := defCommon.MSG_TYPE_DLL;
   GuiData.Channel := nCh;
   GuiData.Mode    := nGuiMode;
-  GuiData.nParam := nParam;
+  GuiData.Param := nParam;
   GuiData.Msg     := sMsg;
   ccd.dwData      := 0;
   ccd.cbData      := SizeOf(GuiData);
@@ -2320,7 +2321,7 @@ begin
   GuiData.MsgType := MSG_TYPE_NONE;
   GuiData.Channel := nCh;
   GuiData.Mode    := nGuiMode;
-  GuiData.nParam := nParam;
+  GuiData.Param := nParam;
   GuiData.Msg     := sMsg;
   ccd.dwData      := 0;
   ccd.cbData      := SizeOf(GuiData);

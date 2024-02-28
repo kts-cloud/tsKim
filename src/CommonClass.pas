@@ -4460,6 +4460,8 @@ var
 begin
   try
     // Enqueue log item for asynchronous processing
+    if (nCh < DefCommon.CH1) or (nCh > MAX_PLC_LOG) then  nCh := DefCommon.MAX_SYSTEM_LOG;
+
     if CheckDir(Path.MLOG) then
       Exit;
 

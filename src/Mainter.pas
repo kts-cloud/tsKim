@@ -3051,7 +3051,7 @@ var
   stlTemp :  TStringList;
   i,nRet : Integer;
 begin
-  if MessageDlg(#13#10 + format('Do you want to change to the following data on Memory Channel %d on CA410 CH %d??',[cboCa310Channel.ItemIndex +1,RzComboBox1.ItemIndex + 1]), mtConfirmation, [mbYes, mbNo], 0) = mrYes then begin
+  if MessageDlg(#13#10 + format('Do you want to change to the following data on Memory Channel %d on CA410 CH %d??',[cboCa310Channel.ItemIndex,RzComboBox1.ItemIndex + 1]), mtConfirmation, [mbYes, mbNo], 0) = mrYes then begin
     cdCal.W_X := StrToFloatDef(pnlR2RData[0].text,0);
     cdCal.W_Y := StrToFloatDef(pnlR2RData[1].text,0);
     cdCal.W_Z := StrToFloatDef(pnlR2RData[2].text,0);
@@ -3099,8 +3099,10 @@ end;
 
 procedure TfrmMainter.Button2Click(Sender: TObject);
 begin
-//  if DongaGmes <> nil then
-//   DongaGmes.SendR2REodsTest;
+  if DongaGmes <> nil then
+   DongaGmes.SendR2REodsTest;
+   Exit;
+
   pnlR2RData[0].text := edtW_X.Text;
   pnlR2RData[1].text := edtW_Y.Text;
   pnlR2RData[2].text := edtW_Z.Text;
@@ -3229,10 +3231,10 @@ var
   cdCal : LibCa410Option.TCalValue;
 begin
 //    CtrlCa410.TestExample(RzComboBox1.ItemIndex,cboCa310Channel.ItemIndex,sRet); // 0 is channel num.
+  CtrlCa410.ReadR2R(RzComboBox1.ItemIndex,cboCa310Channel.ItemIndex,sRet);
+  mmoLog.Lines.Add('----------------');
+  mmoLog.Lines.Add(Format('CH : %d Memory CH %d :',[RzComboBox1.ItemIndex+1,cboCa310Channel.ItemIndex+1])+sRet);
 
-    CtrlCa410.ReadR2R(RzComboBox1.ItemIndex,cboCa310Channel.ItemIndex,sRet);
-    mmoLog.Lines.Add('----------------');
-    mmoLog.Lines.Add(Format('CH : %d Memory CH %d :',[RzComboBox1.ItemIndex+1,cboCa310Channel.ItemIndex+1])+sRet);
 
 end;
 

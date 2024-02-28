@@ -39,7 +39,7 @@ type
     function CheckState: Integer;
     function WriteCheck(nIdx : Integer) : Integer;
     procedure SendMsgMain(nMsgMode: Integer; nParam, nParam2: Integer; sMsg: String; pData:Pointer=nil); overload;
-    procedure SendMsgMain(nMsgMode,nCH, nParam, nParam2: Integer; sMsg: String; pData:Pointer=nil); overload;
+//    procedure SendMsgMain(nMsgMode,nCH, nParam, nParam2: Integer; sMsg: String; pData:Pointer=nil); overload;
     procedure SetAlarmMsg(nIdx : Integer; bIsDisplayMessage : Boolean = True);
     procedure SendAlarm(nType, nIndex, nValue: Integer; sMsg:String='');
     function CheckDi(nIdx : Integer) : Boolean;
@@ -939,7 +939,6 @@ begin
     SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_GIB_CH_1_PINBLOCK_CLOSE_UP_SENSOR + nCh*8, 1, '');
     Exit(1);
   end;
-  Sleep(1000);
 
   SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'PIN BLOCK CLOSE Prevention UP Finish CH = '+ IntToStr(nCh));
 
@@ -1236,7 +1235,7 @@ begin
   if (Common.SystemInfo.OCType <> DefCommon.OCType) and (nWaitingCount <> 0)  then Exit(0);
 
   for I := 0 to DefCommon.MAX_CH do  begin
-    SendMsgMain(COMMDIO_MSG_LOG_CH,i, 0, 0, format('PowerResetPG Start - Reset Delay Time : (%ds)',[Common.SystemInfo.PGResetDelayTime]));
+//    SendMsgMain(COMMDIO_MSG_LOG_CH,i, 0, 0, format('PowerResetPG Start - Reset Delay Time : (%ds)',[Common.SystemInfo.PGResetDelayTime]));
     ClearOutDioSig(DefDio.OUT_CH_1_PG_POWER_OFF + i);
     Sleep(1000);
     WriteDioSig(DefDio.OUT_CH_1_PG_POWER_OFF + i,false);
@@ -1247,9 +1246,9 @@ begin
   for i := 0 to nWaitingCount do begin
      Sleep(100);
   end;
-  for I := 0 to DefCommon.MAX_CH do  begin
-    SendMsgMain(COMMDIO_MSG_LOG_CH,i, 0, 0, 'PowerResetPG End');
-  end;
+//  for I := 0 to DefCommon.MAX_CH do  begin
+//    SendMsgMain(COMMDIO_MSG_LOG_CH,i, 0, 0, 'PowerResetPG End');
+//  end;
   Result := 0;
 
 end;
@@ -1262,7 +1261,7 @@ begin
   nWaitingCount:= Common.SystemInfo.PGResetDelayTime *10;
   if (Common.SystemInfo.OCType <> DefCommon.OCType) and (nWaitingCount <> 0)  then Exit(0);
 
-  SendMsgMain(COMMDIO_MSG_LOG_CH,nCH, 0, 0, format('PowerResetPG Start - Reset Delay Time : (%ds)',[Common.SystemInfo.PGResetDelayTime]));
+//  SendMsgMain(COMMDIO_MSG_LOG_CH,nCH, 0, 0, format('PowerResetPG Start - Reset Delay Time : (%ds)',[Common.SystemInfo.PGResetDelayTime]));
   ClearOutDioSig(DefDio.OUT_CH_1_PG_POWER_OFF + nCH);
   Common.Delay(1000);
   WriteDioSig(DefDio.OUT_CH_1_PG_POWER_OFF + nCH,false);
@@ -1273,7 +1272,7 @@ begin
      Common.Delay(100);
   end;
 
-  SendMsgMain(COMMDIO_MSG_LOG_CH,nCH, 0, 0, 'PowerResetPG End');
+//  SendMsgMain(COMMDIO_MSG_LOG_CH,nCH, 0, 0, 'PowerResetPG End');
 
   Result := 0;
 
@@ -2178,15 +2177,10 @@ begin
 
   for i := 0 to nWaitingCount do begin
     Sleep(100);
-    if (ReadInSig(DefDio.IN_GIB_CH_1_PINBLOCK_UNLOCK_ON_SENSOR +nCh*8)) and
-    ReadInSig(DefDio.IN_GIB_CH_1_PINBLOCK_OPEN_SENSOR +nCh*8) then Break;
+    if (ReadInSig(DefDio.IN_GIB_CH_1_PINBLOCK_UNLOCK_ON_SENSOR +nCh*8))  then Break;
   end;
   if  (not ReadInSig(DefDio.IN_GIB_CH_1_PINBLOCK_UNLOCK_ON_SENSOR +nCh*8)) then begin
     SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_GIB_CH_1_PINBLOCK_UNLOCK_ON_SENSOR + nCh*8, 1, '');
-    Exit(1);
-  end;
-  if  (not ReadInSig(DefDio.IN_GIB_CH_1_PINBLOCK_OPEN_SENSOR +nCh*8)) then begin
-    SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_GIB_CH_1_PINBLOCK_OPEN_SENSOR + nCh*8, 1, '');
     Exit(1);
   end;
   SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Unlock PinBlock Finish CH = '+ IntToStr(nCh));
@@ -2669,7 +2663,7 @@ begin
 
 
   if bIsUp then begin
-      SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Probe UP Start ' + sCH);
+    SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Probe UP Start ' + sCH);
     ClearOutDioSig(DefDio.OUT_GIB_CH_12_PROBE_DN_SOL + nGroup *4);
     if not ReadInSig(DefDio.IN_GIB_CH_12_PROBE_UP_SENSOR + nGroup *4) then begin
       SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format('Probe UP Finish %s - Already', [sCH]));
@@ -2681,7 +2675,7 @@ begin
     for i := 0 to nWaitingCount do begin
       Sleep(100);
       if not ReadInSig(DefDio.IN_GIB_CH_12_PROBE_UP_SENSOR + nGroup *4) then begin
-        SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format(sCH + 'Probe UP OK. Step=%d', [i]));
+//        SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format(sCH + 'Probe UP OK. Step=%d', [i]));
         break;
       end;
     end;
@@ -2718,7 +2712,7 @@ begin
     for i := 0 to nWaitingCount do begin
       Sleep(100);
       if not ReadInSig(DefDio.IN_GIB_CH_12_PROBE_DN_SENSOR + nGroup *4) then begin
-        SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format('Probe DN OK. Step=%d', [i]));
+//        SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format('Probe DN OK. Step=%d', [i]));
         break;
       end;
     end;
@@ -2816,7 +2810,7 @@ begin
         for i := 0 to nWaitingCount do begin
           Sleep(100);
           if not ReadInSig(DefDio.IN_GIB_CH_12_SHUTTER_DN_SENSOR) then begin
-            SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format('Shutter DN OK. %s Step=%d', [sCH,i]));
+//            SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format('Shutter DN OK. %s Step=%d', [sCH,i]));
             break;
           end;
         end;
@@ -2847,7 +2841,7 @@ begin
         for i := 0 to nWaitingCount do begin
           Sleep(100);
           if not ReadInSig(DefDio.IN_GIB_CH_34_SHUTTER_UP_SENSOR) then begin
-            SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format('Shutter UP OK.%s Step=%d', [sCH, i]));
+//            SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format('Shutter UP OK.%s Step=%d', [sCH, i]));
             break;
           end;
         end;
@@ -2885,7 +2879,7 @@ begin
         for i := 0 to nWaitingCount do begin
           Sleep(100);
           if not ReadInSig(DefDio.IN_GIB_CH_34_SHUTTER_DN_SENSOR) then begin
-            SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format('Shutter DN OK. %s Step=%d', [sCH, i]));
+//            SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format('Shutter DN OK. %s Step=%d', [sCH, i]));
             break;
           end;
         end;
@@ -2919,7 +2913,7 @@ begin
         for i := 0 to nWaitingCount do begin
           Sleep(100);
           if (not ReadInSig(DefDio.IN_GIB_CH_12_SHUTTER_UP_SENSOR)) and (not ReadInSig(DefDio.IN_GIB_CH_34_SHUTTER_UP_SENSOR)) then begin
-            SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format('Shutter UP OK. %s Step=%d', ['CH ALL',i]));
+//            SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format('Shutter UP OK. %s Step=%d', ['CH ALL',i]));
             break;
           end;
         end;
@@ -2963,7 +2957,7 @@ begin
         for i := 0 to nWaitingCount do begin
           Sleep(100);
           if (not ReadInSig(DefDio.IN_GIB_CH_12_SHUTTER_DN_SENSOR)) and (not ReadInSig(DefDio.IN_GIB_CH_34_SHUTTER_DN_SENSOR)) then begin
-            SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format('Shutter DN OK. %s Step=%d', ['CH ALL',i]));
+//            SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format('Shutter DN OK. %s Step=%d', ['CH ALL',i]));
             break;
           end;
         end;
@@ -3356,27 +3350,27 @@ begin
   SendMessage(m_hMain,WM_COPYDATA,0, LongInt(@cds));
 end;
 
-procedure TControlDio.SendMsgMain(nMsgMode,nCH, nParam, nParam2: Integer; sMsg: String; pData: Pointer);
-var
-  cds         : TCopyDataStruct;
-  COPYDATAMessage : RGuiDaeDio;
-begin
-  if not Assigned(Self) then begin   // Added by sam81 2023-05-09 오후 1:22:26
-    Exit;
-  end;
-  COPYDATAMessage.MsgType := m_nMsgType; //MSGTYPE_COMMDIO;
-  COPYDATAMessage.Channel := nCH;
-  COPYDATAMessage.Mode    := nMsgMode;
-  COPYDATAMessage.Param   := nParam;
-  COPYDATAMessage.Param2  := nParam2;
-  COPYDATAMessage.Msg     := sMsg;
-  COPYDATAMessage.pData   := pData;
-
-  cds.dwData      := 0;
-  cds.cbData      := SizeOf(COPYDATAMessage);
-  cds.lpData      := @COPYDATAMessage;
-  SendMessage(m_hMain,WM_COPYDATA,0, LongInt(@cds));
-end;
+//procedure TControlDio.SendMsgMain(nMsgMode,nCH, nParam, nParam2: Integer; sMsg: String; pData: Pointer);
+//var
+//  cds         : TCopyDataStruct;
+//  COPYDATAMessage : RGuiDaeDio;
+//begin
+//  if not Assigned(Self) then begin   // Added by sam81 2023-05-09 오후 1:22:26
+//    Exit;
+//  end;
+//  COPYDATAMessage.MsgType := m_nMsgType; //MSGTYPE_COMMDIO;
+//  COPYDATAMessage.Channel := nCH;
+//  COPYDATAMessage.Mode    := nMsgMode;
+//  COPYDATAMessage.Param   := nParam;
+//  COPYDATAMessage.Param2  := nParam2;
+//  COPYDATAMessage.Msg     := sMsg;
+//  COPYDATAMessage.pData   := pData;
+//
+//  cds.dwData      := 0;
+//  cds.cbData      := SizeOf(COPYDATAMessage);
+//  cds.lpData      := @COPYDATAMessage;
+//  SendMessage(m_hMain,WM_COPYDATA,0, LongInt(@cds));
+//end;
 
 procedure TControlDio.SetAlarmMsg(nIdx: Integer; bIsDisplayMessage : Boolean);
 var

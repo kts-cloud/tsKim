@@ -3,11 +3,6 @@ program ITOLED_PreOC;
 
 
 uses
-  madExcept,
-  madLinkDisAsm,
-  madListHardware,
-  madListProcesses,
-  madListModules,
   Vcl.Forms,
   Winapi.Windows,
   Main_OC in 'Main_OC.pas' {frmMain_OC},

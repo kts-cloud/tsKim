@@ -1314,8 +1314,8 @@ object frmMain_OC: TfrmMain_OC
       end
     end
     object chkAutoReStart: TCheckBox
-      Left = 15
-      Top = 534
+      Left = 65
+      Top = 458
       Width = 97
       Height = 17
       Caption = 'AUTO Restart'

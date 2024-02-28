@@ -2614,7 +2614,7 @@ begin
     if m_bWaitEvent then Exit;
     if m_bWaitPwrEvent then Exit;
     //
-    if (m_nConnCheckNG > 2) and (StatusPg <> pgDisconn) then begin  //TBD:DP860? 3?
+    if (m_nConnCheckNG > 4) and (StatusPg <> pgDisconn) then begin  //TBD:DP860? 3?
       m_nConnCheckNG := 0;
       StatusPg := pgDisconn;
       //
@@ -3538,6 +3538,7 @@ begin
 	//
 	sCommand := sCmdName;
 	Result   := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+
   if Result <> WAIT_OBJECT_0 then begin
     sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
   end
@@ -5082,7 +5083,7 @@ begin
           			Result := DP860_SendPowerOn(nWaitMS,nRetry);
                 if Result = WAIT_OBJECT_0 then begin
                   Result := DP860_SendTconInfo(1000{nWaitMS},0{Retry});
-                  DP860_SendSendNvmInit(Common.TestModelInfoFLOW.UseNvmInit,nWaitMS,nRetry);
+//                  DP860_SendSendNvmInit(Common.TestModelInfoFLOW.UseNvmInit,nWaitMS,nRetry);
                 end;
               end
               else begin
@@ -5222,7 +5223,7 @@ begin
                   Result := DP860_SendPowerBistOn(nWaitMS,nRetry);
                   if Result = WAIT_OBJECT_0 then begin
                     Result := DP860_SendTconInfo(1000{nWaitMS},0{Retry});
-                    DP860_SendSendNvmInit(Common.TestModelInfoFLOW.UseNvmInit,nWaitMS,nRetry);
+//                    DP860_SendSendNvmInit(Common.TestModelInfoFLOW.UseNvmInit,nWaitMS,nRetry);
                   end;
                 end
                 else begin

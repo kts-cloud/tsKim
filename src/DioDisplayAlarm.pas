@@ -265,7 +265,7 @@ var
   i: Integer;
 begin
 //  ControlDio.ResetError(0);
-  ControlDio.Set_TowerLampState(LAMP_STATE_PAUSE);
+//  ControlDio.Set_TowerLampState(LAMP_STATE_PAUSE);
   for i := 0 to 149 do begin
     Common.StatusInfo.AlarmData[i]:= 0;
   end;

@@ -237,21 +237,27 @@ var
   sQuery ,sDate : String;
   i : Integer;
 begin
-  if not SQLConnection.Connected then DBConnect;
+  try
 
-  sDate := FormatDateTime('YYYYMMDD',now);
+    if not SQLConnection.Connected then DBConnect;
 
-  sQuery := Format('SELECT COUNT(NG_TYPE) FROM TLB_ISPD WHERE INSP_DATE = ''%s''',[sDate]);
-  SendQueryOpen(sQuery);
-  if (SQLQuery.Fields[0].AsInteger = 0) then begin // Date가 없는 경우 Check , 필드 카운드가 0인경우
-    for i := 0 to Length(Common.GmesInfo) do begin
-      sQuery := Format('INSERT INTO TLB_ISPD(INSP_DATE, NG_TYPE) VALUES(''%s'',%d)',[sDate,i]);
-      SendQueryExec(sQuery);
+    sDate := FormatDateTime('YYYYMMDD',now);
+
+    sQuery := Format('SELECT COUNT(NG_TYPE) FROM TLB_ISPD WHERE INSP_DATE = ''%s''',[sDate]);
+    SendQueryOpen(sQuery);
+    if (SQLQuery.Fields[0].AsInteger = 0) then begin // Date가 없는 경우 Check , 필드 카운드가 0인경우
+      for i := 0 to Length(Common.GmesInfo) do begin
+        sQuery := Format('INSERT INTO TLB_ISPD(INSP_DATE, NG_TYPE) VALUES(''%s'',%d)',[sDate,i]);
+        SendQueryExec(sQuery);
+      end;
     end;
+
+    sQuery := Format('UPDATE TLB_ISPD SET CH%d = CH%d + 1 WHERE (INSP_DATE = ''%s'') AND (NG_TYPE = %d)',[nCh,nCh,sDate,nNGType]);
+    SendQueryExec(sQuery);
+  finally
+
   end;
 
-  sQuery := Format('UPDATE TLB_ISPD SET CH%d = CH%d + 1 WHERE (INSP_DATE = ''%s'') AND (NG_TYPE = %d)',[nCh,nCh,sDate,nNGType]);
-  SendQueryExec(sQuery);
 end;
 
 end.

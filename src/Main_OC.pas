@@ -2084,10 +2084,6 @@ begin
     g_CommThermometer := nil;
   end;
 
-  if CtrlCa410 <> nil then begin
-    CtrlCa410.Free;
-    CtrlCa410 := nil;
-  end;
 
   if g_CommPLC <> nil then begin
     g_CommPLC.SaveGlassData(Common.Path.Ini + 'GlassData.dat');
@@ -2643,6 +2639,7 @@ begin
         DefDio.OUT_GIB_TOWER_LAMP_YELLOW : sTemp := 'TOWER LAMP YELLOW';
         DefDio.OUT_GIB_TOWER_LAMP_GREEN  : sTemp := 'TOWER LAMP GREEN';
         DefDio.OUT_GIB_BUZZER_1          : sTemp := 'BUZZER #1';
+        DefDio.OUT_GIB_BUZZER_2          : sTemp := 'BUZZER #2';
         DefDio.OUT_UNDEFINED_15          : sTemp := '';
 
         DefDio.OUT_GIB_CH_12_ION_ONOFF_SOL : sTemp := 'CH #1 #2 ION ONOFF SOL';
@@ -4030,6 +4027,7 @@ begin
   for I := 1 to 10 do
     Common.StatusInfo.LoadUnloadFlowData[nCh][i] := 0; // 초기화
 
+
   ThreadTask(procedure begin
     try
 
@@ -4203,14 +4201,23 @@ begin
             end;
 
             SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, format('Request Load %s 0', [chr(ord('A') + nStage)]));
-            frmTest4ChOC[nStage].ClearChData(0);
-            frmTest4ChOC[nStage].ClearChData(1);
-            frmTest4ChOC[nStage].DisplayResult(0, -3, 0, 'Request Load');
-            frmTest4ChOC[nStage].DisplayResult(1, -3, 0, 'Request Load');
-            if g_CommPLC <> nil then begin
-              g_CommPLC.SaveGlassData_CH(0,Common.Path.Ini + 'GlassData_CH1.dat');
-              g_CommPLC.SaveGlassData_CH(1,Common.Path.Ini + 'GlassData_CH2.dat');
-            end;
+            SendMsgAddLog(MSG_MODE_DISPLAY,1,0,'ClearChData');
+            SendMsgAddLog(MSG_MODE_DISPLAY,1,1,'ClearChData');
+            SendMsgAddLog(MSG_MODE_DISPLAY,-3,0,'Request Load');
+            SendMsgAddLog(MSG_MODE_DISPLAY,-3,1,'Request Load');
+//            frmTest4ChOC[nStage].ClearChData(0);
+////            TThread.Synchronize(nil,frmTest4ChOC[nStage].ClearChData(0));
+////            Common.Delay(100);
+//            frmTest4ChOC[nStage].ClearChData(1);
+////            Synchronize(frmTest4ChOC[nStage].ClearChData(1));
+////            Common.Delay(100);
+//            frmTest4ChOC[nStage].DisplayResult(0, -3, 0, 'Request Load');
+////            Synchronize(frmTest4ChOC[nStage].DisplayResult(0, -3, 0, 'Request Load'));
+////            sleep(100);
+//            frmTest4ChOC[nStage].DisplayResult(1, -3, 0, 'Request Load');
+////            Synchronize(frmTest4ChOC[nStage].DisplayResult(1, -3, 0, 'Request Load'));
+////            sleep(100);
+
             Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_LOADING;
 
             g_CommPLC.ROBOT_Load_Request(COMMPLC_CH_12);
@@ -4338,14 +4345,23 @@ begin
             end;
 
             SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, format('Request Load %s 1', [chr(ord('A') + nStage)]));
-            frmTest4ChOC[nStage].ClearChData(2);
-            frmTest4ChOC[nStage].ClearChData(3);
-            frmTest4ChOC[nStage].DisplayResult(2, -3, 0, 'Request Load');
-            frmTest4ChOC[nStage].DisplayResult(3, -3, 0, 'Request Load');
-            if g_CommPLC <> nil then begin
-              g_CommPLC.SaveGlassData_CH(2,Common.Path.Ini + 'GlassData_CH3.dat');
-              g_CommPLC.SaveGlassData_CH(3,Common.Path.Ini + 'GlassData_CH4.dat');
-            end;
+            SendMsgAddLog(MSG_MODE_DISPLAY,1,2,'ClearChData');
+            SendMsgAddLog(MSG_MODE_DISPLAY,1,3,'ClearChData');
+            SendMsgAddLog(MSG_MODE_DISPLAY,-3,2,'Request Load');
+            SendMsgAddLog(MSG_MODE_DISPLAY,-3,3,'Request Load');
+//            frmTest4ChOC[nStage].ClearChData(2);
+////            Synchronize(frmTest4ChOC[nStage].ClearChData(2));
+////            sleep(100);
+//            frmTest4ChOC[nStage].ClearChData(3);
+////            Synchronize(frmTest4ChOC[nStage].ClearChData(3));
+////            sleep(100);
+//            frmTest4ChOC[nStage].DisplayResult(2, -3, 0, 'Request Load');
+////            Synchronize(frmTest4ChOC[nStage].DisplayResult(2, -3, 0, 'Request Load'));
+////            sleep(100);
+//            frmTest4ChOC[nStage].DisplayResult(3, -3, 0, 'Request Load');
+////            Synchronize(frmTest4ChOC[nStage].DisplayResult(3, -3, 0, 'Request Load'));
+////            sleep(100);
+
             Common.StatusInfo.StageStep[JIG_A]:= STAGE_STEP_LOADING;
             g_CommPLC.ROBOT_Load_Request(COMMPLC_CH_34);
           end;
@@ -4559,34 +4575,51 @@ begin
               if g_CommPLC.RobotLoadingStatus[0] and not ControlDio.ReadInSig(IN_GIB_CH_1_CARRIER_SENSOR) then begin
                 SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Empty 1 Ch(CheckDetect_Loaded)');
                 Set_AlarmData(IN_GIB_CH_1_CARRIER_SENSOR, 1, 1);
+                Exit;
               end;
               if g_CommPLC.RobotLoadingStatus[1] and not ControlDio.ReadInSig(IN_GIB_CH_2_CARRIER_SENSOR) then begin
                 SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Empty 2 Ch(CheckDetect_Loaded)');
                 Set_AlarmData(IN_GIB_CH_2_CARRIER_SENSOR, 1, 1);
+                Exit;
               end;
             end;
 
-            frmTest4ChOC[nStage].ClearChData(0);
-            frmTest4ChOC[nStage].ClearChData(1);
-            frmTest4ChOC[nStage].DisplayResult(0, -3, 0, 'Request Exchange');
-            frmTest4ChOC[nStage].DisplayResult(1, -3, 0, 'Request Exchange');
+            SendMsgAddLog(MSG_MODE_DISPLAY,1,0,'ClearChData');
+            ShowSysLog(format('Robot_Request_Exchange UnLoad step : 1 %d', [nCh]));
+            SendMsgAddLog(MSG_MODE_DISPLAY,1,1,'ClearChData');
+            ShowSysLog(format('Robot_Request_Exchange UnLoad step : 2 %d', [nCh]));
+            SendMsgAddLog(MSG_MODE_DISPLAY,-3,0,'Request Exchange');
+            ShowSysLog(format('Robot_Request_Exchange UnLoad step : 3 %d', [nCh]));
+            SendMsgAddLog(MSG_MODE_DISPLAY,-3,1,'Request Exchange');
+            ShowSysLog(format('Robot_Request_Exchange UnLoad step : 4 %d', [nCh]));
+//            Synchronize(frmTest4ChOC[nStage].ClearChData(0));
+//            frmTest4ChOC[nStage].ClearChData(0);
+//            sleep(100);
+//            Synchronize(frmTest4ChOC[nStage].ClearChData(1));
+//            frmTest4ChOC[nStage].ClearChData(1);
 
+//            sleep(100);
+//            Synchronize(frmTest4ChOC[nStage].DisplayResult(0, -3, 0, 'Request Exchange'));
+//            frmTest4ChOC[nStage].DisplayResult(0, -3, 0, 'Request Exchange');
+
+//            sleep(100);
+//            Synchronize(frmTest4ChOC[nStage].DisplayResult(1, -3, 0, 'Request Exchange'));
+//            frmTest4ChOC[nStage].DisplayResult(1, -3, 0, 'Request Exchange');
+            ShowSysLog(format('Robot_Request_Exchange UnLoad step : 4 %d', [nCh]));
+//            sleep(100);
             sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[0 + nStage*4]);
             //Common.MLog(0 + nStage*4, sMsg);
             //frmTest4ChOC[nStage].AddLog(sMsg, 0);
             SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 0, sMsg);
+            ShowSysLog(format('Robot_Request_Exchange UnLoad step : 5 %d', [nCh]));
             sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[1 + nStage*4]);
             //Common.MLog(1 + nStage*4, sMsg);
             //frmTest4ChOC[nStage].AddLog(sMsg, 1);
             SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 1, sMsg);
+            ShowSysLog(format('Robot_Request_Exchange UnLoad step : 6 %d', [nCh]));
 
             g_CommPLC.RobotLoadingStatus[0] := false;
             g_CommPLC.RobotLoadingStatus[1] := false;
-
-            if g_CommPLC <> nil then begin
-              g_CommPLC.SaveGlassData_CH(0,Common.Path.Ini + 'GlassData_CH1.dat');
-              g_CommPLC.SaveGlassData_CH(1,Common.Path.Ini + 'GlassData_CH2.dat');
-            end;
 
             Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_EXCHANGE;
             g_CommPLC.ROBOT_Exchange_Request(COMMPLC_CH_12);
@@ -4594,7 +4627,6 @@ begin
 
         end;
 
-        Sleep(10);
         if nCh = 1 then begin
           if not CheckLoad_Used(nStage, COMMPLC_CH_34) then begin
             //사용 안할 경우
@@ -4705,31 +4737,48 @@ begin
               if g_CommPLC.RobotLoadingStatus[2] and not ControlDio.ReadInSig(IN_GIB_CH_3_CARRIER_SENSOR) then begin
                 SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Empty 3 Ch(CheckDetect_Loaded)');
                 Set_AlarmData(IN_GIB_CH_3_CARRIER_SENSOR, 1, 1);
+                Exit;
               end;
               if g_CommPLC.RobotLoadingStatus[3] and not ControlDio.ReadInSig(IN_GIB_CH_4_CARRIER_SENSOR) then begin
                 SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Empty 4 Ch(CheckDetect_Loaded)');
                 Set_AlarmData(IN_GIB_CH_4_CARRIER_SENSOR, 1, 1);
+                Exit;
               end;
             end;
-
-            frmTest4ChOC[nStage].ClearChData(2);
-            frmTest4ChOC[nStage].ClearChData(3);
-            frmTest4ChOC[nStage].DisplayResult(2, -3, 0, 'Request Exchange');
-            frmTest4ChOC[nStage].DisplayResult(3, -3, 0, 'Request Exchange');
+            SendMsgAddLog(MSG_MODE_DISPLAY,1,2,'ClearChData');
+            ShowSysLog(format('Robot_Request_Exchange UnLoad step : 1 %d', [nCh]));
+            SendMsgAddLog(MSG_MODE_DISPLAY,1,3,'ClearChData');
+            ShowSysLog(format('Robot_Request_Exchange UnLoad step : 2 %d', [nCh]));
+            SendMsgAddLog(MSG_MODE_DISPLAY,-3,2,'Request Exchange');
+            ShowSysLog(format('Robot_Request_Exchange UnLoad step : 3 %d', [nCh]));
+            SendMsgAddLog(MSG_MODE_DISPLAY,-3,3,'Request Exchange');
+            ShowSysLog(format('Robot_Request_Exchange UnLoad step : 4 %d', [nCh]));
+//            ShowSysLog(format('Robot_Request_Exchange UnLoad step : 1 %d', [nCh]));
+////            Synchronize(frmTest4ChOC[nStage].ClearChData(2));
+//            frmTest4ChOC[nStage].ClearChData(2);
+////            sleep(100);
+//            ShowSysLog(format('Robot_Request_Exchange UnLoad step : 2 %d', [nCh]));
+//            frmTest4ChOC[nStage].ClearChData(3);
+////            Synchronize(frmTest4ChOC[nStage].ClearChData(3));
+////            sleep(100);
+//            ShowSysLog(format('Robot_Request_Exchange UnLoad step : 3 %d', [nCh]));
+//            frmTest4ChOC[nStage].DisplayResult(2, -3, 0, 'Request Exchange');
+////            Synchronize(frmTest4ChOC[nStage].DisplayResult(2, -3, 0, 'Request Exchange'));
+////            sleep(100);
+//            ShowSysLog(format('Robot_Request_Exchange UnLoad step : 4 %d', [nCh]));
+//            frmTest4ChOC[nStage].DisplayResult(3, -3, 0, 'Request Exchange');
+////            Synchronize(frmTest4ChOC[nStage].DisplayResult(3, -3, 0, 'Request Exchange'));
+////            sleep(100);
+//            ShowSysLog(format('Robot_Request_Exchange UnLoad step : 5 %d', [nCh]));
 
             sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[2 + nStage*4]);
-
             SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 2, sMsg);
+            ShowSysLog(format('Robot_Request_Exchange UnLoad step : 6 %d', [nCh]));
             sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[3 + nStage*4]);
-
             SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 3, sMsg);
-
+            ShowSysLog(format('Robot_Request_Exchange UnLoad step : 7 %d', [nCh]));
             g_CommPLC.RobotLoadingStatus[2] := false;
             g_CommPLC.RobotLoadingStatus[3] := false;
-            if g_CommPLC <> nil then begin
-              g_CommPLC.SaveGlassData_CH(2,Common.Path.Ini + 'GlassData_CH3.dat');
-              g_CommPLC.SaveGlassData_CH(3,Common.Path.Ini + 'GlassData_CH4.dat');
-            end;
 
             Common.StatusInfo.StageStep[JIG_A]:= STAGE_STEP_EXCHANGE;
             g_CommPLC.ROBOT_Exchange_Request(COMMPLC_CH_34);
@@ -4808,14 +4857,18 @@ begin
             end;
 
             SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, format('Request Load %s 0', [chr(ord('A') + nStage)]));
-            frmTest4ChOC[nStage].ClearChData(0);
-            frmTest4ChOC[nStage].ClearChData(1);
-            frmTest4ChOC[nStage].DisplayResult(0, -3, 0, 'Request Load');
-            frmTest4ChOC[nStage].DisplayResult(1, -3, 0, 'Request Load');
-            if g_CommPLC <> nil then begin
-              g_CommPLC.SaveGlassData_CH(0,Common.Path.Ini + 'GlassData_CH1.dat');
-              g_CommPLC.SaveGlassData_CH(1,Common.Path.Ini + 'GlassData_CH2.dat');
-            end;
+//            frmTest4ChOC[nStage].ClearChData(0);
+//            frmTest4ChOC[nStage].ClearChData(1);
+//            frmTest4ChOC[nStage].DisplayResult(0, -3, 0, 'Request Load');
+//            frmTest4ChOC[nStage].DisplayResult(1, -3, 0, 'Request Load');
+            SendMsgAddLog(MSG_MODE_DISPLAY,1,0,'ClearChData');
+            SendMsgAddLog(MSG_MODE_DISPLAY,1,1,'ClearChData');
+            SendMsgAddLog(MSG_MODE_DISPLAY,-3,0,'Request Load');
+            SendMsgAddLog(MSG_MODE_DISPLAY,-3,1,'Request Load');
+//            if g_CommPLC <> nil then begin
+//              g_CommPLC.SaveGlassData_CH(0,Common.Path.Ini + 'GlassData_CH1.dat');
+//              g_CommPLC.SaveGlassData_CH(1,Common.Path.Ini + 'GlassData_CH2.dat');
+//            end;
             Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_LOADING;
             g_CommPLC.ROBOT_Load_Request(COMMPLC_CH_12);
           end;
@@ -4859,15 +4912,20 @@ begin
             end;
 
             SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, format('Request Load %s 1', [chr(ord('A') + nStage)]));
-            frmTest4ChOC[nStage].ClearChData(2);
-            frmTest4ChOC[nStage].ClearChData(3);
-            frmTest4ChOC[nStage].DisplayResult(2, -3, 0, 'Request Load');
-            frmTest4ChOC[nStage].DisplayResult(3, -3, 0, 'Request Load');
+            SendMsgAddLog(MSG_MODE_DISPLAY,1,2,'ClearChData');
+            SendMsgAddLog(MSG_MODE_DISPLAY,1,3,'ClearChData');
+            SendMsgAddLog(MSG_MODE_DISPLAY,-3,2,'Request Load');
+            SendMsgAddLog(MSG_MODE_DISPLAY,-3,3,'Request Load');
 
-            if g_CommPLC <> nil then begin
-              g_CommPLC.SaveGlassData_CH(2,Common.Path.Ini + 'GlassData_CH3.dat');
-              g_CommPLC.SaveGlassData_CH(3,Common.Path.Ini + 'GlassData_CH4.dat');
-            end;
+//            frmTest4ChOC[nStage].ClearChData(2);
+//            frmTest4ChOC[nStage].ClearChData(3);
+//            frmTest4ChOC[nStage].DisplayResult(2, -3, 0, 'Request Load');
+//            frmTest4ChOC[nStage].DisplayResult(3, -3, 0, 'Request Load');
+
+//            if g_CommPLC <> nil then begin
+//              g_CommPLC.SaveGlassData_CH(2,Common.Path.Ini + 'GlassData_CH3.dat');
+//              g_CommPLC.SaveGlassData_CH(3,Common.Path.Ini + 'GlassData_CH4.dat');
+//            end;
             Common.StatusInfo.StageStep[JIG_A]:= STAGE_STEP_LOADING;
             g_CommPLC.ROBOT_Load_Request(COMMPLC_CH_34);
           end;
@@ -4903,9 +4961,9 @@ begin
           frmTest4ChOC[nStage].ClearChData(nCH);
           frmTest4ChOC[nStage].DisplayResult(nCH, -3, 0, 'Request Load');
 
-          if g_CommPLC <> nil then begin
-            g_CommPLC.SaveGlassData_CH(nCH,Common.Path.Ini + format('GlassData_CH%d.dat',[nCH + 1]));
-          end;
+//          if g_CommPLC <> nil then begin
+//            g_CommPLC.SaveGlassData_CH(nCH,Common.Path.Ini + format('GlassData_CH%d.dat',[nCH + 1]));
+//          end;
           Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_LOADING;
           g_CommPLC.ROBOT_Load_Request(nCH);
         end;
@@ -5405,11 +5463,14 @@ try
           end;
 
           SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, format('Request UnLoad %s 0', [chr(ord('A') + nStage)]));
-
-          frmTest4ChOC[nStage].ClearChData(0);
-          frmTest4ChOC[nStage].ClearChData(1);
-          frmTest4ChOC[nStage].DisplayResult(0, -3, 0, 'Request UnLoad');
-          frmTest4ChOC[nStage].DisplayResult(1, -3, 0, 'Request UnLoad');
+          SendMsgAddLog(MSG_MODE_DISPLAY,1,0,'ClearChData');
+          SendMsgAddLog(MSG_MODE_DISPLAY,1,1,'ClearChData');
+          SendMsgAddLog(MSG_MODE_DISPLAY,-3,0,'Request UnLoad');
+          SendMsgAddLog(MSG_MODE_DISPLAY,-3,1,'Request UnLoad');
+//          frmTest4ChOC[nStage].ClearChData(0);
+//          frmTest4ChOC[nStage].ClearChData(1);
+//          frmTest4ChOC[nStage].DisplayResult(0, -3, 0, 'Request UnLoad');
+//          frmTest4ChOC[nStage].DisplayResult(1, -3, 0, 'Request UnLoad');
 
           sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[0 + nStage*4]);
 //          Common.MLog(0 + nStage*4, sMsg);
@@ -5420,10 +5481,10 @@ try
 //          frmTest4ChOC[nStage].AddLog(sMsg, 1);
           SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 1, sMsg);
 
-          if g_CommPLC <> nil then begin
-            g_CommPLC.SaveGlassData_CH(0,Common.Path.Ini + 'GlassData_CH1.dat');
-            g_CommPLC.SaveGlassData_CH(1,Common.Path.Ini + 'GlassData_CH2.dat');
-          end;
+//          if g_CommPLC <> nil then begin
+//            g_CommPLC.SaveGlassData_CH(0,Common.Path.Ini + 'GlassData_CH1.dat');
+//            g_CommPLC.SaveGlassData_CH(1,Common.Path.Ini + 'GlassData_CH2.dat');
+//          end;
 
           Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_UNLOADING;
           g_CommPLC.ROBOT_Unload_Request(COMMPLC_CH_12);
@@ -5468,10 +5529,14 @@ try
 
           SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, format('Request UnLoad %s 1', [chr(ord('A') + nStage)]));
 
-          frmTest4ChOC[nStage].ClearChData(2);
-          frmTest4ChOC[nStage].ClearChData(3);
-          frmTest4ChOC[nStage].DisplayResult(2, -3, 0, 'Request UnLoad');
-          frmTest4ChOC[nStage].DisplayResult(3, -3, 0, 'Request UnLoad');
+          SendMsgAddLog(MSG_MODE_DISPLAY,1,0,'ClearChData');
+          SendMsgAddLog(MSG_MODE_DISPLAY,1,1,'ClearChData');
+          SendMsgAddLog(MSG_MODE_DISPLAY,-3,0,'Request UnLoad');
+          SendMsgAddLog(MSG_MODE_DISPLAY,-3,1,'Request UnLoad');
+//          frmTest4ChOC[nStage].ClearChData(2);
+//          frmTest4ChOC[nStage].ClearChData(3);
+//          frmTest4ChOC[nStage].DisplayResult(2, -3, 0, 'Request UnLoad');
+//          frmTest4ChOC[nStage].DisplayResult(3, -3, 0, 'Request UnLoad');
 
           sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[2 + nStage*4]);
           //Common.MLog(2 + nStage*4, sMsg);
@@ -5482,10 +5547,10 @@ try
           //frmTest4ChOC[nStage].AddLog(sMsg, 3);
           SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 3, sMsg);
 
-          if g_CommPLC <> nil then begin
-            g_CommPLC.SaveGlassData_CH(2,Common.Path.Ini + 'GlassData_CH3.dat');
-            g_CommPLC.SaveGlassData_CH(3,Common.Path.Ini + 'GlassData_CH4.dat');
-          end;
+//          if g_CommPLC <> nil then begin
+//            g_CommPLC.SaveGlassData_CH(2,Common.Path.Ini + 'GlassData_CH3.dat');
+//            g_CommPLC.SaveGlassData_CH(3,Common.Path.Ini + 'GlassData_CH4.dat');
+//          end;
 
           Common.StatusInfo.StageStep[JIG_A]:= STAGE_STEP_UNLOADING;
           g_CommPLC.ROBOT_Unload_Request(COMMPLC_CH_34);
@@ -5528,9 +5593,9 @@ try
 //        frmTest4ChOC[nStage].AddLog(sMsg, 0);
         SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 0, sMsg);
 
-        if g_CommPLC <> nil then begin
-          g_CommPLC.SaveGlassData_CH(nCH,Common.Path.Ini + format('GlassData_CH%d.dat',[nCH + 1]));
-        end;
+//        if g_CommPLC <> nil then begin
+//          g_CommPLC.SaveGlassData_CH(nCH,Common.Path.Ini + format('GlassData_CH%d.dat',[nCH + 1]));
+//        end;
 
         Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_UNLOADING;
         g_CommPLC.ROBOT_Unload_Request(nCH);
@@ -5759,9 +5824,9 @@ var
   arStr : TArray<string>;
   i : Integer;
 begin
-  Common.ThreadTask(procedure  begin
-    Common.ReadLGDDLLSummaryLog_New('22_22_22_3_PCB_ID_CH_4','22_22_22_3_PCB_ID_CH_4',FormatDateTime('yymmdd',now),0);
-  end);
+  Edit1.Text := Format('%0.4f',[1.11111]);
+  if DongaGmes <> nil then
+   DongaGmes.SendR2REodsTest;
 
  Exit;
  i := (20 shr 2) and $01;
@@ -6027,6 +6092,7 @@ begin
     end;
 
 
+
     if bAuto then begin
       if Common.StatusInfo.AutoMode then Exit;
       g_CommPLC.IgnoreConnect:= False;
@@ -6040,6 +6106,13 @@ begin
         ShowSysLog('Version Interlock NG', 1);
         //ShowNgMessage('Version Interlock NG');
         Exit;
+      end;
+
+      for i := 0 to 150 do begin      //  Alarm 리셋 여부 확인
+        if Common.StatusInfo.AlarmData[i] <> 0 then begin
+          tmDioAlarm.Enabled := True;
+          Exit;
+        end;
       end;
 
       //MC 검사 - DIO 상태 검사 필요
@@ -6215,50 +6288,54 @@ procedure TfrmMain_OC.ShowSysLog(sMsg: string; nType: Integer);
 var
   sDebug : string;
 begin
-  if mmoSysLog.Lines.Count > 1000 then begin
-    mmoSysLog.Clear;
-  end;
-
-  //mmoSysLog.DisableAlign;
-  case nType of
-    1: begin
-      mmoSysLog.SelAttributes.Color := clRed;
-      mmoSysLog.SelAttributes.Style := [fsBold];
-    end;
-    2: begin
-      mmoSysLog.SelAttributes.Color := clMaroon; //clBlue;
-      mmoSysLog.SelAttributes.Style := [fsBold];
-    end;
-    3: begin
-      mmoSysLog.SelAttributes.Color := clBlue; //clGray;
-      mmoSysLog.SelAttributes.Style := [fsBold];
-    end;
-    else begin
-      if Common.SystemInfo.UIType = DefCommon.UI_WIN10_BLACK then
-            mmoSysLog.SelAttributes.Color := clWhite
-      else  mmoSysLog.SelAttributes.Color := clBlack;
-
-      mmoSysLog.SelAttributes.Style := [];
-    end;
-  end;
-
   try
-    sDebug := FormatDateTime('[HH:MM:SS.zzz] ',now) + sMsg;
-//    SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, 0, DefCommon.MAX_SYSTEM_LOG, sMsg);
-    Common.MLog(DefCommon.MAX_SYSTEM_LOG, sMsg);
-
-
-    mmoSysLog.Lines.Add(sDebug);
-    //mmoSysLog.Perform(EM_SCROLL,SB_LINEDOWN,0);
-    mmoSysLog.Perform(WM_VSCROLL, SB_BOTTOM, 0);
-  except
-    //유효하지 않은 문자열일 경우 오류(madException) 방지: RichEdit line insertion error.
-    on E: Exception do  begin
-//      Sleep(10); //MLog 충돌 방지 딜레이
-//      Common.MLog(DefCommon.MAX_SYSTEM_LOG, 'MLog Exception:' + E.Message + #13#10 + sMsg);
+    mmoSysLog.DisableAlign;
+    if mmoSysLog.Lines.Count > 1000 then begin
+      mmoSysLog.Clear;
     end;
+
+    case nType of
+      1: begin
+        mmoSysLog.SelAttributes.Color := clRed;
+        mmoSysLog.SelAttributes.Style := [fsBold];
+      end;
+      2: begin
+        mmoSysLog.SelAttributes.Color := clMaroon; //clBlue;
+        mmoSysLog.SelAttributes.Style := [fsBold];
+      end;
+      3: begin
+        mmoSysLog.SelAttributes.Color := clBlue; //clGray;
+        mmoSysLog.SelAttributes.Style := [fsBold];
+      end;
+      else begin
+        if Common.SystemInfo.UIType = DefCommon.UI_WIN10_BLACK then
+              mmoSysLog.SelAttributes.Color := clWhite
+        else  mmoSysLog.SelAttributes.Color := clBlack;
+
+        mmoSysLog.SelAttributes.Style := [];
+      end;
+    end;
+
+    try
+      sDebug := FormatDateTime('[HH:MM:SS.zzz] ',now) + sMsg;
+  //    SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, 0, DefCommon.MAX_SYSTEM_LOG, sMsg);
+      Common.MLog(DefCommon.MAX_SYSTEM_LOG, sMsg);
+
+
+      mmoSysLog.Lines.Add(sDebug);
+      //mmoSysLog.Perform(EM_SCROLL,SB_LINEDOWN,0);
+      mmoSysLog.Perform(WM_VSCROLL, SB_BOTTOM, 0);
+    except
+      //유효하지 않은 문자열일 경우 오류(madException) 방지: RichEdit line insertion error.
+      on E: Exception do  begin
+  //      Sleep(10); //MLog 충돌 방지 딜레이
+  //      Common.MLog(DefCommon.MAX_SYSTEM_LOG, 'MLog Exception:' + E.Message + #13#10 + sMsg);
+      end;
+    end;
+  finally
+    mmoSysLog.EnableAlign;
   end;
-  //mmoSysLog.EnableAlign;
+
 end;
 
 procedure TfrmMain_OC.StartAutoProcess;

@@ -86,7 +86,6 @@ type
     RzBitBtn7_2: TRzBitBtn;
     RzBitBtn8_2: TRzBitBtn;
     pnlJigInform: TRzPanel;
-    RzBitBtn1: TRzBitBtn;
     procedure WMCopyData(var Msg : TMessage); message WM_COPYDATA;
     procedure WMCopyData_LOGIC(var WmMsg: TMessage);
     procedure WMCopyData_PG(var CopyMsg: TMessage);
@@ -979,7 +978,6 @@ begin
 
     // button for start testing.
     btnStartTest[i] := TRzBitBtn.Create(self);
-    btnStartTest[i].TabStop := False;
     btnStartTest[i].Parent := pnlJigInform;
     btnStartTest[i].Tag := i;
     btnStartTest[i].Top := pnlJigTitle[i].Top + pnlJigTitle[i].Height + 1;//2;
@@ -992,11 +990,9 @@ begin
     btnStartTest[i].Caption := 'bắt đầu   (Start)';
     btnStartTest[i].Cursor  := crHandPoint;
     btnStartTest[i].OnClick := BtnStartTestClick;
-    btnStartTest[i].OnKeyPress := ButtonKeyPress;
 
     // button for start testing.
     btnStopTest[i] := TRzBitBtn.Create(self);
-    btnStopTest[i].TabStop := False;
     btnStopTest[i].Parent := pnlJigInform;
     btnStopTest[i].Tag := i;
     btnStopTest[i].Top := btnStartTest[i].Top + btnStartTest[i].Height + 1; //pnlJigTitle.Top + pnlJigTitle.Height + 1;//2;
@@ -1009,7 +1005,6 @@ begin
     btnStopTest[i].Cursor  := crHandPoint;
     btnStopTest[i].OnClick := BtnStopTestClick;
     btnStopTest[i].Cursor := crHandPoint;
-    btnStopTest[i].OnKeyPress := ButtonKeyPress;
 
     // for Jig Information.
 //    pnlTackTimes[i] := TRzPanel.Create(self);
@@ -1061,7 +1056,6 @@ begin
 
       // button for start testing.
     btnVirtualKey[i] := TRzBitBtn.Create(self);
-    btnVirtualKey[i].TabStop := False;
     btnVirtualKey[i].Parent := pnlJigInform;
     btnVirtualKey[i].Tag  := i;
     //btnVirtualK[i]ey.Top := pnlJigTactVal.Top + pnlJigTactVal.Height + 3;//2;
@@ -1075,10 +1069,8 @@ begin
     btnVirtualKey[i].OnClick := btnVirtualKeyClick;
     btnVirtualKey[i].Cursor := crHandPoint;
     btnVirtualKey[i].HotTrack := True;
-    btnVirtualKey[i].OnKeyPress := ButtonKeyPress;
 
     btnLampOnOff[i] := TRzBitBtn.Create(self);
-    btnLampOnOff[i].TabStop := False;
     btnLampOnOff[i].Parent := pnlJigInform;
     btnLampOnOff[i].Tag  := i;
     btnLampOnOff[i].Top := btnVirtualKey[i].Top + btnVirtualKey[i].Height + 1;//2;
@@ -1090,10 +1082,8 @@ begin
     btnLampOnOff[i].OnClick := btnLampOnOffClick;
     btnLampOnOff[i].Cursor := crHandPoint;
     btnLampOnOff[i].HotTrack := True;
-    btnLampOnOff[i].OnKeyPress := ButtonKeyPress;
 
     btnSetIonizer[i] := TRzBitBtn.Create(self);
-    btnSetIonizer[i].TabStop := False;
     btnSetIonizer[i].Parent := pnlJigInform;
     btnSetIonizer[i].Tag  := i;
     btnSetIonizer[i].Top := btnLampOnOff[i].Top + btnLampOnOff[i].Height + 1;//2;
@@ -1105,11 +1095,9 @@ begin
     btnSetIonizer[i].OnClick := btnSetIonizerClick;
     btnSetIonizer[i].Cursor := crHandPoint;
     btnSetIonizer[i].HotTrack := True;
-    btnSetIonizer[i].OnKeyPress := ButtonKeyPress;
 
     if i = DefCommon.CH_TOP then begin
       btnVirtualBcr := TRzBitBtn.Create(self);
-      btnVirtualBcr.TabStop := False;
       btnVirtualBcr.Parent := pnlJigInform;
       btnVirtualBcr.top := btnSetIonizer[i].Top + btnSetIonizer[i].Height  + 1;
       btnVirtualBcr.Left := 2;
@@ -1120,10 +1108,8 @@ begin
       btnVirtualBcr.OnClick := btnVirtualBcrClick;
       btnVirtualBcr.Cursor := crHandPoint;
       btnVirtualBcr.HotTrack := True;
-      btnVirtualBcr.OnKeyPress := ButtonKeyPress;
 
       btnECSRequest := TRzBitBtn.Create(self);
-      btnECSRequest.TabStop := False;
       btnECSRequest.Parent := pnlJigInform;
       btnECSRequest.Top := btnVirtualBcr.top + btnVirtualBcr.Height + 1;
       btnECSRequest.Left := 2;
@@ -1135,7 +1121,6 @@ begin
       btnECSRequest.OnClick := btnECSRequestClick;
       btnECSRequest.Cursor := crHandPoint;
       btnECSRequest.HotTrack := True;
-      btnECSRequest.OnKeyPress := ButtonKeyPress;
     end;
   end;
 
@@ -2780,6 +2765,8 @@ end;
 
 procedure TfrmTest4ChOC.DisplayResult(nCh, nCode, nColorType: Integer; sMsg: String);
 begin
+  try
+    pnlPGStatuses[nCh].DisableAlign;
   case nCode of
     -1, -3 : begin  //ShowCurStatus
       pnlPGStatuses[nCh].Caption := Trim(sMsg);
@@ -2804,8 +2791,8 @@ begin
 
       if nCode = -3 then begin //로그 저장
         sMsg := Format('[ %s ]',[sMsg]);
-        AddLog(sMsg, nCh);
-        //Common.MLog(nCh+self.Tag*4, sMsg);
+//        AddLog(sMsg, nCh);
+        Common.MLog(nCh, sMsg);
       end;
 
       Exit;
@@ -2844,7 +2831,10 @@ begin
     pnlPGStatuses[nCh].Font.Color := clBlack;
     pnlPGStatuses[nCh].Caption := 'PASS';
   end;
-  pnlPGStatuses[nCh].EnableAlign;
+//  pnlPGStatuses[nCh].EnableAlign;
+  finally
+    pnlPGStatuses[nCh].EnableAlign;
+  end;
 
 end;
 
@@ -2919,6 +2909,11 @@ begin
 
 //  VirtualBcr.Free;
 //  VirtualBcr := nil;
+
+  if CtrlCa410 <> nil then begin
+    CtrlCa410.Free;
+    CtrlCa410 := nil;
+  end;
 
 
 
@@ -4317,48 +4312,53 @@ var
   sRet,sReturn : string;
   saReturn : TArray<String>;
 begin
-  Result := 1;
-  AddLog('CA410 CAL START',nCh);
-  Common.R2RLog(nCh,'CA410 CAL START');
-  cdCal.W_X := StrToFloatDef(PasScr[nCH].FR2ROC_Data[0],0);
-  cdCal.W_Y := StrToFloatDef(PasScr[nCH].FR2ROC_Data[1],0);
-  cdCal.W_Z := StrToFloatDef(PasScr[nCH].FR2ROC_Data[2],0);
-  cdCal.W_Lv := StrToFloatDef(PasScr[nCH].FR2ROC_Data[12],0);
-  cdCal.W_xx := StrToFloatDef(PasScr[nCH].FR2ROC_Data[13],0);
-  cdCal.W_yy := StrToFloatDef(PasScr[nCH].FR2ROC_Data[14],0);
+  try
+    Result := 1;
+    AddLog('CA410 CAL START',nCh);
+    Common.R2RLog(nCh,'CA410 CAL START');
+    cdCal.W_X := StrToFloatDef(PasScr[nCH].FR2ROC_Data[0],0);
+    cdCal.W_Y := StrToFloatDef(PasScr[nCH].FR2ROC_Data[1],0);
+    cdCal.W_Z := StrToFloatDef(PasScr[nCH].FR2ROC_Data[2],0);
+    cdCal.W_Lv := StrToFloatDef(PasScr[nCH].FR2ROC_Data[12],0);
+    cdCal.W_xx := StrToFloatDef(PasScr[nCH].FR2ROC_Data[13],0);
+    cdCal.W_yy := StrToFloatDef(PasScr[nCH].FR2ROC_Data[14],0);
 
-  cdCal.R_X := StrToFloatDef(PasScr[nCH].FR2ROC_Data[3],0);
-  cdCal.R_Y := StrToFloatDef(PasScr[nCH].FR2ROC_Data[4],0);
-  cdCal.R_Z := StrToFloatDef(PasScr[nCH].FR2ROC_Data[5],0);
-  cdCal.R_Lv := StrToFloatDef(PasScr[nCH].FR2ROC_Data[15],0);
-  cdCal.R_xx := StrToFloatDef(PasScr[nCH].FR2ROC_Data[16],0);
-  cdCal.R_yy := StrToFloatDef(PasScr[nCH].FR2ROC_Data[17],0);
+    cdCal.R_X := StrToFloatDef(PasScr[nCH].FR2ROC_Data[3],0);
+    cdCal.R_Y := StrToFloatDef(PasScr[nCH].FR2ROC_Data[4],0);
+    cdCal.R_Z := StrToFloatDef(PasScr[nCH].FR2ROC_Data[5],0);
+    cdCal.R_Lv := StrToFloatDef(PasScr[nCH].FR2ROC_Data[15],0);
+    cdCal.R_xx := StrToFloatDef(PasScr[nCH].FR2ROC_Data[16],0);
+    cdCal.R_yy := StrToFloatDef(PasScr[nCH].FR2ROC_Data[17],0);
 
-  cdCal.G_X := StrToFloatDef(PasScr[nCH].FR2ROC_Data[6],0);
-  cdCal.G_Y := StrToFloatDef(PasScr[nCH].FR2ROC_Data[7],0);
-  cdCal.G_Z := StrToFloatDef(PasScr[nCH].FR2ROC_Data[8],0);
-  cdCal.G_Lv := StrToFloatDef(PasScr[nCH].FR2ROC_Data[18],0);
-  cdCal.G_xx := StrToFloatDef(PasScr[nCH].FR2ROC_Data[19],0);
-  cdCal.G_yy := StrToFloatDef(PasScr[nCH].FR2ROC_Data[20],0);
+    cdCal.G_X := StrToFloatDef(PasScr[nCH].FR2ROC_Data[6],0);
+    cdCal.G_Y := StrToFloatDef(PasScr[nCH].FR2ROC_Data[7],0);
+    cdCal.G_Z := StrToFloatDef(PasScr[nCH].FR2ROC_Data[8],0);
+    cdCal.G_Lv := StrToFloatDef(PasScr[nCH].FR2ROC_Data[18],0);
+    cdCal.G_xx := StrToFloatDef(PasScr[nCH].FR2ROC_Data[19],0);
+    cdCal.G_yy := StrToFloatDef(PasScr[nCH].FR2ROC_Data[20],0);
 
-  cdCal.B_X := StrToFloatDef(PasScr[nCH].FR2ROC_Data[9],0);
-  cdCal.B_Y := StrToFloatDef(PasScr[nCH].FR2ROC_Data[10],0);
-  cdCal.B_Z := StrToFloatDef(PasScr[nCH].FR2ROC_Data[11],0);
-  cdCal.B_Lv := StrToFloatDef(PasScr[nCH].FR2ROC_Data[21],0);
-  cdCal.B_xx := StrToFloatDef(PasScr[nCH].FR2ROC_Data[22],0);
-  cdCal.B_yy := StrToFloatDef(PasScr[nCH].FR2ROC_Data[23],0);
-  CtrlCa410.CDCal := cdCal;
+    cdCal.B_X := StrToFloatDef(PasScr[nCH].FR2ROC_Data[9],0);
+    cdCal.B_Y := StrToFloatDef(PasScr[nCH].FR2ROC_Data[10],0);
+    cdCal.B_Z := StrToFloatDef(PasScr[nCH].FR2ROC_Data[11],0);
+    cdCal.B_Lv := StrToFloatDef(PasScr[nCH].FR2ROC_Data[21],0);
+    cdCal.B_xx := StrToFloatDef(PasScr[nCH].FR2ROC_Data[22],0);
+    cdCal.B_yy := StrToFloatDef(PasScr[nCH].FR2ROC_Data[23],0);
+    CtrlCa410.CDCal := cdCal;
 
-  sReturn := CtrlCa410.TestExample(nCh,StrToInt(Common.SystemInfo.CA410_MemoryCh[nCh]),sRet); // 0 is channel num.
+    sReturn := CtrlCa410.TestExample(nCh,StrToInt(Common.SystemInfo.CA410_MemoryCh[nCh]),sRet); // 0 is channel num.
 
-  saReturn:= sReturn.Split([',']);
-  if Length(saReturn) > 4 then  begin
-    if saReturn[5] = 'OK00' then
-      Result := 0;
+    saReturn:= sReturn.Split([',']);
+    if Length(saReturn) > 4 then  begin
+      if saReturn[5] = 'OK00' then
+        Result := 0;
+    end;
+    AddLog('----------------',nCh);
+    AddLog('CA410 CAL END',nCh);
+    Common.R2RLog(nCh,'CA410 CAL END');
+  except
+
   end;
-  AddLog('----------------',nCh);
-  AddLog('CA410 CAL END',nCh);
-  Common.R2RLog(nCh,'CA410 CAL END');
+
 end;
 
 function GetTimeDiffSec(StartTimne,EndTime: TDateTime): Integer;
@@ -4386,7 +4386,18 @@ begin
       nMode := PGUIMessage(PCopyDataStruct(Msg.LParam)^.lpData)^.Mode;
       nCh   := PGUIMessage(PCopyDataStruct(Msg.LParam)^.lpData)^.Channel;
       nTemp := PGUIMessage(PCopyDataStruct(Msg.LParam)^.lpData)^.Param;
+
       case nMode of
+        DefCommon.MSG_MODE_ADDLOG : begin
+          sMsg := Trim(PGUIMessage(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
+          if nTemp = 10 then begin
+            Common.MLog(nCh,sMsg);
+            Exit;
+          end;
+
+          Common.MLog(nCh,sMsg);
+
+        end;
         DefCommon.MSG_MODE_ADDLOG_CHANNEL : begin
           sMsg := Trim(PGUIMessage(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
           if nTemp = 10 then begin
@@ -4396,7 +4407,15 @@ begin
           if nCh <> DefCommon.MAX_SYSTEM_LOG then
             AddLog('[MAIN] ' + sMsg, nCh, nTemp)
           else
-            Common.MLog(nCh,sMsg);
+           Common.MLog(nCh,sMsg);
+        end;
+        MSG_MODE_DISPLAY : begin
+          sMsg := Trim(PGUIMessage(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
+          if nTemp = 1 then
+            ClearChData(nCh)
+          else if nTemp = -3 then
+            DisplayResult(nCh,nTemp,0,sMsg);
+
         end;
       end;
 
@@ -4404,7 +4423,7 @@ begin
     DefCommon.MSG_TYPE_DLL : begin
       nMode := PGuiDLL(PCopyDataStruct(Msg.LParam)^.lpData)^.Mode;
       nCh   := PGuiDLL(PCopyDataStruct(Msg.LParam)^.lpData)^.Channel;
-      nTemp := PGuiDLL(PCopyDataStruct(Msg.LParam)^.lpData)^.nParam;
+      nTemp := PGuiDLL(PCopyDataStruct(Msg.LParam)^.lpData)^.Param;
       case nMode of
         DefCommon.MSG_MODE_LOG_REPGM : begin
           case nTemp of
@@ -5133,6 +5152,7 @@ begin
 
         DefCommon.MSG_MODE_WORKING : begin
           sMsg := Trim(PGuiScript(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
+          nTemp := (PGuiScript(PCopyDataStruct(Msg.LParam)^.lpData)^.nParam);
           if nTemp = 10 then begin
             Common.MLog(nCh+self.Tag*4,sMsg);
             Exit;
@@ -5148,6 +5168,9 @@ begin
     DefCommon.MSG_TYPE_HOST : begin
       bTemp := PSyncHost(PCopyDataStruct(Msg.LParam)^.lpData)^.bError;
       sMsg  := PSyncHost(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg;
+      nCh := PSyncHost(PCopyDataStruct(Msg.LParam)^.lpData)^.Channel;
+      if nCh = -1 then  nCh := 4; // Sys
+
       case PSyncHost(PCopyDataStruct(Msg.LParam)^.lpData)^.MsgMode of
         DefGmes.MES_PCHK : begin  //JHHWANG-GMES: 2018-06-20
       		//Common.MLog(DefCommon.MAX_SYSTEM_LOG,'TfrmTest4ChPocb.WMCopyData: MSG_TYPE_HOST, MES_PCHK, PG'+IntToStr(nCh+1)); //IMSI
@@ -5179,19 +5202,10 @@ begin
     			end;
 				end;
 
-        DefCommon.MSG_MODE_WORKING : begin
-          if nTemp = 10 then begin
-            Common.MLog(nCh+self.Tag*4,sMsg);
-            Exit;
-          end;
-
-          AddLog(sMsg, nCh, nTemp);
-
-        end;
 
         DefGmes.R2R_LOG :
         begin
-          sMsg := Trim(PGuiScript(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
+          AddLog(sMsg, nCh, 0);
           Common.R2RLog(nCh,sMsg);       //R2R LOG 추가
         end;
 
@@ -5206,6 +5220,10 @@ begin
           if (CSharpDll.MainOC_GetOCFlowIsAlive(nCh) = 0) or (CSharpDll.MainOC_GetOCFlowIsAlive(nCh) = 2)  then begin
             if DongaGmes <> nil then
               DongaGmes.SendR2REoda(nCh,WriteR2RData(nCh));
+          end
+          else begin
+            AddLog('Currently measuring the corresponding CH',nCh);
+            Common.R2RLog(nCh,'Currently measuring the corresponding CH');
           end;
 
 				end;

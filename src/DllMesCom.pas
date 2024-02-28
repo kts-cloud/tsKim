@@ -18,10 +18,14 @@ type
     MsgType : Integer;
     Channel : Integer;
     Mode    : Integer;
-    nParam  : Integer;
-    nParam2 : Integer;
+    Param  : Integer;
+    Param2 : Integer;
     Msg     : string;
+    pData   : PBYTE; //Pointer; //Length = Param2
   end;
+
+
+
 
 
   TCommTibRv64 = class(TObject)
@@ -60,7 +64,7 @@ type
       CB_Log                : TCallBackLog;
       procedure SetFunction;
       procedure LOG(nMsgTpye : Integer; sMLOG : string);
-      procedure SendTestGuiDisplay(nCh,nGuiMode: Integer; sMsg: string; nParam: Integer);
+      procedure SendMainGuiDisplay(nGuiMode: Integer; sMsg: string; nParam: Integer);
       function StringToPAnsiChar(AString: string): PAnsiChar;
 
     public
@@ -119,15 +123,15 @@ begin
 
 end;
 
-procedure TCommTibRv64.SendTestGuiDisplay(nCh,nGuiMode: Integer; sMsg: string; nParam: Integer);
+procedure TCommTibRv64.SendMainGuiDisplay(nGuiMode: Integer; sMsg: string; nParam: Integer);
 var
   ccd         : TCopyDataStruct;
   GuiData    : RGuiDLL;
 begin
   GuiData.MsgType := MSG_TYPE_NONE;
-  GuiData.Channel := nCh;
+  GuiData.Channel := 4;
   GuiData.Mode    := nGuiMode;
-  GuiData.nParam := nParam;
+  GuiData.Param := nParam;
   GuiData.Msg     := sMsg;
   ccd.dwData      := 0;
   ccd.cbData      := SizeOf(GuiData);
@@ -139,7 +143,7 @@ procedure TCommTibRv64.LOG(nMsgTpye : integer; sMLOG : string);
 begin
   if Length(sMLOG) > 600 then
     sMLOG := Copy(sMLOG,1,600);
-  SendTestGuiDisplay(0,MSG_MODE_ADDLOG,sMLOG,nMsgTpye);
+  SendMainGuiDisplay(MSG_MODE_ADDLOG,sMLOG,nMsgTpye);
 end;
 
 
@@ -147,10 +151,10 @@ procedure MyCB_Log(nMsgTpye : integer; sAddedText : PAnsiChar);
 var
 sMLOG : string;
 begin
-  if Length(PAnsiChar(sAddedText)) > 600 then
-    sMLOG := Copy(PAnsiChar(sAddedText),1,600)
-  else sMLOG := PAnsiChar(sAddedText);
-  CommTibRv.LOG(nMsgTpye,sMLOG);
+//  if Length(PAnsiChar(sAddedText)) > 600 then
+//    sMLOG := Copy(PAnsiChar(sAddedText),1,600)
+//  else sMLOG := PAnsiChar(sAddedText);
+//  CommTibRv.LOG(nMsgTpye,sMLOG);
 end;
 
 
