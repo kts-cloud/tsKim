@@ -2665,7 +2665,7 @@ begin
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$08+$6 + (nCh*$20), 3), 0); //Load Complte Confirm Off
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$08+$4 + (nCh*$20), 3), 1); //Normal Status - 상태 설정에서....
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_11] := 1;
-      Sleep(500);
+      Sleep(50);
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$08+$1 + (nCh*$20), 3), 1); //Glass Data Request
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_1] := 1;
 
@@ -2682,7 +2682,7 @@ begin
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$10+$6 + (nCh*$20), 3), 0); //Load Complte Confirm Off
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$10+$4 + (nCh*$20), 3), 1); //Normal Status - 상태 설정에서....
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_11] := 1;
-      Sleep(500);
+      Sleep(50);
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$10+$1 + (nCh*$20), 3), 1); //Glass Data Request
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_1] := 1;
 
@@ -2701,7 +2701,7 @@ begin
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$6 + (nCh*$20), 3), 0); //Load Complte Confirm Off
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$4 + (nCh*$20), 3), 1); //Normal Status - 상태 설정에서....
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_11] := 1;
-      Sleep(500);
+//      Sleep(50);
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$1 + (nCh*$20), 3), 1); //Glass Data Request
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_1] := 1;
     end
@@ -2719,7 +2719,7 @@ begin
 
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$12+$4 + (nCh*$20), 3), 1); //Normal Status - 상태 설정에서....
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_11] := 1;
-      Sleep(500);
+//      Sleep(50);
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$12+$1 + (nCh*$20), 3), 1); //Glass Data Request
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_1] := 1;
     end;
