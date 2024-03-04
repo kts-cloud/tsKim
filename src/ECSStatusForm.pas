@@ -1888,10 +1888,10 @@ begin
   if (Common.PLCInfo.InlineGIB)  then
   nCH := 3
   else nCH := 1;
-  for I := 0 to nCH do begin
-    if rbChkCH[i].Checked then
-      RefreshDisplay(i);
-  end;
+//  for I := 0 to nCH do begin
+//    if rbChkCH[i].Checked then
+//      RefreshDisplay(i);
+//  end;
   if (Common.PLCInfo.InlineGIB) then begin
     if Common.SystemInfo.OCType = DefCommon.OCType then begin
       for i := 0 to 15 do begin

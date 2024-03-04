@@ -2457,6 +2457,7 @@ object frmECSStatus: TfrmECSStatus
     Height = 56
     Caption = 'Show Load/UnLoad DATA'
     TabOrder = 9
+    Visible = False
     WordWrap = True
     OnClick = Button2Click
   end

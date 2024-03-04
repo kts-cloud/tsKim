@@ -854,7 +854,7 @@ begin
     Exit(1);
   end;
 
-  SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Unlock PinBlock Finish CH = '+ IntToStr(nCh));
+  SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'lock PinBlock Finish CH = '+ IntToStr(nCh));
 
   Result := 0;
 end;
@@ -2470,27 +2470,37 @@ end;
 
 function TControlDio.IsPreOCInterlockPROBE(nCH : Integer): Integer;
 begin
-  Result:= 0;
-  if Common.SystemInfo.OCType <> DefCommon.OCType  then begin
-    if not ControlDio.ReadInSig(IN_GIB_CH_12_PROBE_UP_SENSOR + nCH * 4) and
-     not ControlDio.ReadInSig(IN_GIB_CH_1_TILTING_SENSOR + nCH *16) and
-     not ControlDio.ReadInSig(IN_GIB_CH_1_TILTING_SENSOR + nCH *16 + 8) then
-    begin
-      Result:= 1;
-    end;
+  try
+    Result:= 0;
+    if Common.SystemInfo.OCType <> DefCommon.OCType  then begin
+      if not ControlDio.ReadInSig(IN_GIB_CH_12_PROBE_UP_SENSOR + nCH * 4) and
+       not ControlDio.ReadInSig(IN_GIB_CH_1_TILTING_SENSOR + nCH *16) and
+       not ControlDio.ReadInSig(IN_GIB_CH_1_TILTING_SENSOR + nCH *16 + 8) then
+      begin
+        Result:= 1;
+      end;
+  end;
+  except
+    Result := 0;
   end;
 end;
 
 function TControlDio.IsPreOCInterlockSHUTTER(nCH : Integer): Integer;
 begin
-  Result:= 0;
-  if Common.SystemInfo.OCType <> DefCommon.OCType  then begin
-    if not ControlDio.ReadInSig(IN_GIB_CH_12_SHUTTER_UP_SENSOR + nCH * 4) and
-      ControlDio.ReadInSig(IN_GIB_CH_12_LIGHTCURTAIN + nCH)then
-    begin
-      Result:= 1;
+  try
+    Result:= 0;
+    if Common.SystemInfo.OCType <> DefCommon.OCType  then begin
+      if not ControlDio.ReadInSig(IN_GIB_CH_12_SHUTTER_UP_SENSOR + nCH * 4) and
+        ControlDio.ReadInSig(IN_GIB_CH_12_LIGHTCURTAIN + nCH)then
+      begin
+        Result:= 1;
+      end;
     end;
+
+  except
+    Result:= 0;
   end;
+
 end;
 
 

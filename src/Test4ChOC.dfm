@@ -254,6 +254,16 @@ object frmTest4ChOC: TfrmTest4ChOC
       BorderOuter = fsFlat
       TabOrder = 1
     end
+    object Memo1: TMemo
+      Left = 832
+      Top = 280
+      Width = 185
+      Height = 89
+      Color = clBlack
+      Lines.Strings = (
+        'Memo1')
+      TabOrder = 2
+    end
   end
   object pnlSwitch: TAdvPanel
     Left = 180

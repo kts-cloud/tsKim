@@ -86,6 +86,7 @@ type
     RzBitBtn7_2: TRzBitBtn;
     RzBitBtn8_2: TRzBitBtn;
     pnlJigInform: TRzPanel;
+    Memo1: TMemo;
     procedure WMCopyData(var Msg : TMessage); message WM_COPYDATA;
     procedure WMCopyData_LOGIC(var WmMsg: TMessage);
     procedure WMCopyData_PG(var CopyMsg: TMessage);
@@ -152,8 +153,8 @@ type
     pnlDelayTimesGroup : array [DefCommon.CH1..DefCommon.MAX_CH] of TPanel;
     m_PlcStatus    : plcStatus;
     pnlLogGrp       : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TRzPanel;
-    mmChannelLog   : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of  TRichEdit;//  TMemo;
-
+//    mmChannelLog   : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of  TRichEdit;//  TMemo;
+    mmChannelLog   : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of  TMemo;//
     // OK NG count.
     pnlTotalNames  : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TPanel;
     pnlTotalValues : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TPanel;
@@ -189,6 +190,9 @@ type
 //    pnlPlcOut      : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TPanel;
 
     gridPWRPGs     : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TAdvStringGrid;
+
+    m_aTempIr : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of array of string;
+
     m_RGB_Avr_Data : array of array of TGammaCmd;
     m_Rgb_Avr      : TGammaAvg;
     m_bInitGetAvr  : boolean;
@@ -197,6 +201,10 @@ type
     FTempIr: array[DefCommon.CH1 .. DefCommon.MAX_PG_CNT * 2 - 1] of Double;
 
 
+    /// <summary> Log 누적 라인 수 - 초과 될 경우 저장</summary>
+    LogAccumulateCount : Integer;
+    /// <summary> Log 누적 시간(초단위) - 초과 될 경우 저장</summary>
+    LogAccumulateSecond : Integer;
 
     procedure CreateGui;
 
@@ -240,7 +248,7 @@ type
     procedure SyncJigUnload(nCh : integer);
     procedure StopTotalTimer(Sender: TObject; nJigCh, nTimerType : Integer);
     procedure DisplayPreviousRet(nCh : Integer);
-    procedure DisplayLogAllCh(nCh : Integer; bNg : Boolean; sMsg : string);
+//    procedure DisplayLogAllCh(nCh : Integer; bNg : Boolean; sMsg : string);
     procedure MakeOpticPassRgb(nCh: Integer);
     // file을 읽고 OC Parameter의 평균값을 구하자.
     procedure GetRgbAvgFromFile;
@@ -260,8 +268,10 @@ type
 
     procedure ControlIRTemp (nCh,nTemp : Integer);
     procedure AddLog(sMsg: string; nCh:Integer; nType: Integer=0);
+
     function PGPowerReset(nCh : Integer): Integer;
     procedure aTaskThreadIsDone(Sender: TObject);
+
   public
     { Public declarations }
     /// <summary> Main 폼 Handle - WM_COPYDATA</summary>
@@ -363,55 +373,63 @@ var
   sLog: string;
 begin
   if Common.StatusInfo.Closing then Exit;
-
+  if (nCh > DefCommon.CH4) or (nCh < DefCommon.CH1) then Exit;
   try
-
+//    mmChannelLog[nCh].DisableAlign;
     case nType of
       1: begin
         //Alarm 등 강조
-        mmChannelLog[nCh].SelAttributes.Color := clRed;
-        mmChannelLog[nCh].SelAttributes.Style := [fsBold];
+
+//        mmChannelLog[nCh].SelAttributes.Color := clRed;
+//        mmChannelLog[nCh].SelAttributes.Style := [fsBold];
       end;
       10: begin
         //저장만 한다.
         Common.MLog(nCh+self.Tag*4, sMsg);
+//        Common.AddMLog(nCh,sMsg,True);
         Exit;
+
       end
     else begin
         if Common.SystemInfo.UIType = DefCommon.UI_WIN10_BLACK then begin
-           mmChannelLog[nCh].SelAttributes.Color := clWhite;
+           mmChannelLog[nCh].Color :=clBlack;
+           mmChannelLog[nCh].Font.Color := clWhite;
         end
         else begin
-          mmChannelLog[nCh].SelAttributes.Color := clBlack;
+           mmChannelLog[nCh].Color :=clWhite;
+           mmChannelLog[nCh].Font.Color := clBlack;
         end;
-        mmChannelLog[nCh].SelAttributes.Style := [];
+//        mmChannelLog[nCh].SelAttributes.Style := [];
       end;
 
     end;
+    try
+      Common.MLog(nCh, sMsg);
+      if Length(sMsg) > 600 then begin
+        sLog := FormatDateTime('[HH:MM:SS.zzz] ',now) + Copy(sMsg,1,600);
+      end
+      else begin
+        sLog := FormatDateTime('[HH:MM:SS.zzz] ',now) + sMsg
+      end;
 
-    Common.MLog(nCh+self.Tag*4, sMsg);
+      mmChannelLog[nCh].Lines.Add(sLog);
+      mmChannelLog[nCh].Perform(WM_VSCROLL, SB_BOTTOM, 0);
 
-    if Length(sMsg) > 600 then begin
-      sLog := FormatDateTime('[HH:MM:SS.zzz] ',now) + Copy(sMsg,1,600);
-    end
-    else begin
-      sLog := FormatDateTime('[HH:MM:SS.zzz] ',now) + sMsg
+    except
+      //유효하지 않은 문자열일 경우 오류(madException) 방지: RichEdit line insertion error.
+      on E: Exception do  begin
+        Sleep(10); //MLog 충돌 방지 딜레이
+  //      Common.MLog(DefCommon.MAX_SYSTEM_LOG, 'MLog Exception:' + E.Message + #13#10 + sMsg);
+      end;
     end;
 
-  except
-    //유효하지 않은 문자열일 경우 오류(madException) 방지: RichEdit line insertion error.
-//    on E: Exception do  Common.MLog(nCh+self.Tag*4, 'AddLog Exception:' + E.Message + #13#10 + sMsg);
-  end;
-
-  try
-    mmChannelLog[nCh].Lines.Add(sLog);
-    mmChannelLog[nCh].Perform(WM_VSCROLL, SB_BOTTOM, 0);
-  except
-    //유효하지 않은 문자열일 경우 오류(madException) 방지: RichEdit line insertion error.
-//    on E: Exception do  Common.MLog(nCh+self.Tag*4, 'AddLog Exception:' + E.Message + #13#10 + sMsg);
+  finally
+//    mmChannelLog[nCh].EnableAlign;
   end;
 
 end;
+
+
 
 procedure TfrmTest4ChOC.btnECSRequestClick(Sender: TObject);
 begin
@@ -796,6 +814,8 @@ var
 I : integer;
 begin
   try
+    if nCh >= DefCommon.MAX_PG_CNT then Exit;
+
     pnlSerials[nCh].Caption := '';
     if Common.SystemInfo.OcManualType then begin
       if Common.SystemInfo.UIType = DefCommon.UI_WIN10_BLACK then begin
@@ -823,7 +843,7 @@ begin
       pnlMESResults[nCh].Font.Color := clYellow;
     end;
     pnlPGStatuses[nCh].Font.Size := 24;
-    if PasScr[Tag*4 + nCh].m_bUse then begin
+    if PasScr[nCh].m_bUse then begin
       pnlPGStatuses[nCh].Caption := 'Ready';
     end
     else begin
@@ -853,8 +873,8 @@ begin
 
     m_nUnitTact[nCh] := 0;
     m_nTotalTact[nCh] := 0;
-   finally
-   end;
+  finally
+  end;
 end;
 
 
@@ -866,6 +886,7 @@ begin
   for i := DefCommon.CH1 to DefCommon.MAX_JIG_CH do begin
     PasScr[Tag*4 + i].m_lstPrevRet.Clear;
 
+    if Common.SystemInfo.NGAlarmCount = 0 then Continue;
     for k := 0 to Common.SystemInfo.NGAlarmCount -1 do begin
       pnlPrevResult[i, k].Caption  := 'Result ' + IntToStr(k+1);
       pnlPrevResult[i, k].Color    := clBtnFace;
@@ -876,6 +897,8 @@ end;
 
 procedure TfrmTest4ChOC.ControlIRTemp(nCh,nTemp: Integer);
 begin
+  if Common.SystemInfo.OCType = DefCommon.PreOCType then exit;
+
   if Common.SystemInfo.Com_IrTempSensor = 0 then Exit;
 
   if nTemp = 1 then begin
@@ -883,6 +906,7 @@ begin
       AddLog('[Source Code] CheckIRTemp : Set Temp : '+ IntToStr(Common.SystemInfo.SetTemperature),nCh);
       tmCheckIRTemp[nCh].Enabled := True;
       m_nTempIrTact[nCh] := 0;
+      setlength(m_aTempIr[nCh],0); //초기화
       SaveCsvTempStatus(nCh,'START',frmTest4ChOC[0].m_bFanOnOff[nCh]);
     end;
   end;
@@ -920,7 +944,7 @@ begin
     tmUnitTactTime[i].Enabled := False;
 
     tmCheckIRTemp[i] := TTimer.Create(Self);
-    tmCheckIRTemp[i].Interval := 1000;
+    tmCheckIRTemp[i].Interval := 5000;
     tmCheckIRTemp[i].Enabled := False;
 
 
@@ -1987,7 +2011,7 @@ begin
 
 
 
-    mmChannelLog[i] := TRichEdit.Create(self);// TMemo.Create(self);
+    mmChannelLog[i] := TMemo.Create(self);// TMemo.Create(self);
     mmChannelLog[i].Parent := pnlLogGrp[i];
     mmChannelLog[i].Align := alClient;
     mmChannelLog[i].ScrollBars := ssVertical;
@@ -2182,13 +2206,14 @@ sMemo : string;
 begin
   sMemo := '';
   Inc(m_nTempIrTact[0]);
-  if (FTempIr[0] > Common.SystemInfo.SetTemperature) or (FTempIr[1] > Common.SystemInfo.SetTemperature) then begin
+  if (FTempIr[0] >= Common.SystemInfo.SetTemperature) or (FTempIr[1] >= Common.SystemInfo.SetTemperature) then begin
     if (not ControlDio.ReadOutSig(DefDio.OUT_CH1_PMIC_FAN_ON)) then begin
       AddLog(format('temp Anomaly - FAN ON Temp 1 : %f 2 : %f ',[FTempIr[0],FTempIr[1]]),0,1);
       ControlDio.WriteDioSig(DefDio.OUT_CH1_PMIC_FAN_ON,false);
       m_bFanOnOff[0] := True;
-    end
-
+      SetLength(m_aTempIr[0], Length(m_aTempIr[0]) + 1);   // Temp 배열 증가
+      m_aTempIr[0][Length(m_aTempIr[0]) - 1] := format('%f',[FTempIr[1]]);
+    end;
   end
   else begin
     if (ControlDio.ReadOutSig(DefDio.OUT_CH1_PMIC_FAN_ON)) then begin
@@ -2212,11 +2237,13 @@ begin
       AddLog(format('temp Anomaly - FAN ON Temp 1 : %f 2 : %f ',[FTempIr[2],FTempIr[3]]),1,1);
       ControlDio.WriteDioSig(DefDio.OUT_CH2_PMIC_FAN_ON,false);
       m_bFanOnOff[1] := True;
-    end
+      SetLength(m_aTempIr[1], Length(m_aTempIr[1]) + 1);   // Temp 배열 증가
+      m_aTempIr[1][Length(m_aTempIr[1]) - 1] := format('%f',[FTempIr[1]]);
+    end;
   end
   else begin
     if (ControlDio.ReadOutSig(DefDio.OUT_CH2_PMIC_FAN_ON)) then begin
-      AddLog('temp Normal - FAN OFF' ,0,0);
+      AddLog('temp Normal - FAN OFF' ,1,0);
       ControlDio.WriteDioSig(DefDio.OUT_CH2_PMIC_FAN_ON,True);
       m_bFanOnOff[1] := False;
     end
@@ -2235,11 +2262,13 @@ begin
       AddLog(format('temp Anomaly - FAN ON Temp 1 : %f 2 : %f ',[FTempIr[4],FTempIr[5]]),2,1);
       ControlDio.WriteDioSig(DefDio.OUT_CH3_PMIC_FAN_ON,false);
       m_bFanOnOff[2] := True;
-    end
+      SetLength(m_aTempIr[2], Length(m_aTempIr[2]) + 1);   // Temp 배열 증가
+      m_aTempIr[2][Length(m_aTempIr[2]) - 1] := format('%f',[FTempIr[1]]);
+    end;
   end
   else begin
     if (ControlDio.ReadOutSig(DefDio.OUT_CH3_PMIC_FAN_ON)) then begin
-      AddLog('temp Normal - FAN OFF' ,0,0);
+      AddLog('temp Normal - FAN OFF' ,2,0);
       ControlDio.WriteDioSig(DefDio.OUT_CH3_PMIC_FAN_ON,True);
       m_bFanOnOff[2] := False;
     end
@@ -2258,11 +2287,13 @@ begin
       AddLog(format('temp Anomaly - FAN ON Temp 1 : %f 2 : %f ',[FTempIr[6],FTempIr[7]]),3,1);
       ControlDio.WriteDioSig(DefDio.OUT_CH4_PMIC_FAN_ON,false);
       m_bFanOnOff[3] := True;
-    end
+      SetLength(m_aTempIr[3], Length(m_aTempIr[3]) + 1);   // Temp 배열 증가
+      m_aTempIr[3][Length(m_aTempIr[3]) - 1] := format('%f',[FTempIr[1]]);
+    end;
   end
   else begin
     if (ControlDio.ReadOutSig(DefDio.OUT_CH4_PMIC_FAN_ON)) then begin
-      AddLog('temp Normal - FAN OFF' ,0,0);
+      AddLog('temp Normal - FAN OFF' ,3,0);
       ControlDio.WriteDioSig(DefDio.OUT_CH4_PMIC_FAN_ON,True);
       m_bFanOnOff[3] := False;
     end
@@ -2309,13 +2340,13 @@ end;
 
 procedure TfrmTest4ChOC.DisplayDio(bIsIn : Boolean);
 var
-  nMod, nShift , i, nCh, nJig, nStep : Integer;
+  nMod, nShift , nCh : Integer;
   bIn, bOut, bTurnA, bTurnB, bShutterUp, bShutterDn : boolean;
 begin
 
 
   if bIsIn then begin
-    for nCh := DefCommon.CH1 to DefCommon.MAX_JIG_CH do begin
+    for nCh := DefCommon.CH1 to DefCommon.CH4 do begin
       if ControlDio <> nil then begin
 
         if Common.SystemInfo.OCType = DefCommon.OCType  then begin
@@ -2434,20 +2465,20 @@ begin
 
 end;
 
-procedure TfrmTest4ChOC.DisplayLogAllCh(nCh : Integer; bNg: Boolean; sMsg: string);
-var
-  i : Integer;
-begin
-  if nCh < Defcommon.CH1 then begin
-    for i := DefCommon.CH1 to DefCommon.MAX_JIG_CH do begin
-      AddLog(sMsg,i,TernaryOp(bNg = False,1,0));
-    end;
-  end
-  else begin
-    AddLog(sMsg,i,TernaryOp(bNg = False,1,0));
-//    mmChannelLog[nCh].Perform(EM_SCROLL,SB_LINEDOWN,0);
-  end;
-end;
+//procedure TfrmTest4ChOC.DisplayLogAllCh(nCh : Integer; bNg: Boolean; sMsg: string);
+//var
+//  i : Integer;
+//begin
+//  if nCh < Defcommon.CH1 then begin
+//    for i := DefCommon.CH1 to DefCommon.MAX_JIG_CH do begin
+//      AddLog(sMsg,i,TernaryOp(bNg = False,i,0));
+//    end;
+//  end
+//  else begin
+//    AddLog(sMsg,i,TernaryOp(bNg = False,i,0));
+////    mmChannelLog[nCh].Perform(EM_SCROLL,SB_LINEDOWN,0);
+//  end;
+//end;
 
 
 
@@ -2576,8 +2607,8 @@ var
               pnlPGStatuses[nCh].Font.Color := clYellow;
               pnlPGStatuses[nCh].Caption    := 'PG Version NG';
               //
-              mmChannelLog[nCh].SelAttributes.Color := clRed;
-              mmChannelLog[nCh].SelAttributes.Style := [fsBold];
+//              mmChannelLog[nCh].SelAttributes.Color := clRed;
+//              mmChannelLog[nCh].SelAttributes.Style := [fsBold];
               sDateTime := FormatDateTime('[HH:MM:SS.zzz] ',now);
               if bPgVerAllNG then begin
                 sTemp  := 'PG Version NG '+ Format('(PG:%s,Model:%s)', [PG[nCh].m_PgVer.VerAll, Common.TestModelInfoPG.PgVer.VerAll]);
@@ -2665,24 +2696,27 @@ end;
 procedure TfrmTest4ChOC.DisplayPGStatuses(nCH, nResult: Integer);
 begin
   if pnlPGStatuses[nCh] = nil then Exit;
+  try
+//    pnlPGStatuses[nCh].DisableAlign;
+    pnlPGStatuses[nCh].Font.Size := 24;
+    pnlPGStatuses[nCh].Font.Name := 'Verdana';
+//    DisplayPreviousRet(nCh);
+    // NG 처리.
+    if nResult <> 0 then  begin
+      pnlPGStatuses[nCh].Color := clMaroon;
+      pnlPGStatuses[nCh].Font.Color := clYellow;
+      pnlPGStatuses[nCh].Caption := Format('%0.3d NG',[nResult]);
+    end
+    // OK 처리.
+    else begin
+      pnlPGStatuses[nCh].Color := clLime;
+      pnlPGStatuses[nCh].Font.Color := clBlack;
+      pnlPGStatuses[nCh].Caption := 'PASS';
+    end;
 
-  pnlPGStatuses[nCh].DisableAlign;
-  pnlPGStatuses[nCh].Font.Size := 24;
-  pnlPGStatuses[nCh].Font.Name := 'Verdana';
-  DisplayPreviousRet(nCh);
-  // NG 처리.
-  if nResult <> 0 then  begin
-    pnlPGStatuses[nCh].Color := clMaroon;
-    pnlPGStatuses[nCh].Font.Color := clYellow;
-    pnlPGStatuses[nCh].Caption := Format('%0.3d NG',[nResult]);
-  end
-  // OK 처리.
-  else begin
-    pnlPGStatuses[nCh].Color := clLime;
-    pnlPGStatuses[nCh].Font.Color := clBlack;
-    pnlPGStatuses[nCh].Caption := 'PASS';
+  finally
+//    pnlPGStatuses[nCh].EnableAlign;
   end;
-  pnlPGStatuses[nCh].EnableAlign;
 
 end;
 
@@ -2713,138 +2747,144 @@ var
   i, nSum: Integer;
   sMsg : string;
 begin
-  if PasScr[nCh] = nil  then Exit;
+  if Common.SystemInfo.NGAlarmCount = 0 then Exit;
 
-  for i := 0 to pred(PasScr[nCh].m_lstPrevRet.Count) do begin
-    if i > (Common.SystemInfo.NGAlarmCount -1) then Continue;
-    nSum := nSum + PasScr[nCh].m_lstPrevRet.Items[i];
-    if PasScr[nCh].m_lstPrevRet.Items[i] = 0 then begin
-      pnlPrevResult[nCh,i].Caption  := 'Pass';
-      pnlPrevResult[nCh,i].Color    := clLime;
-      pnlPrevResult[nCh,i].Font.Color    := clBlack;
-    end
-    else begin
-      pnlPrevResult[nCh,i].Caption  := Format('%0.2d NG',[PasScr[nCh].m_lstPrevRet.Items[i]]);
-      pnlPrevResult[nCh,i].Color    := clRed;
-      pnlPrevResult[nCh,i].Font.Color    := clBlack;
+  try
+    for i := 0 to pred(PasScr[nCh].m_lstPrevRet.Count) do begin
+      if i > (Common.SystemInfo.NGAlarmCount -1) then Continue;
+      nSum := nSum + PasScr[nCh].m_lstPrevRet.Items[i];
+      if PasScr[nCh].m_lstPrevRet.Items[i] = 0 then begin
+        pnlPrevResult[nCh,i].Caption  := 'Pass';
+        pnlPrevResult[nCh,i].Color    := clLime;
+        pnlPrevResult[nCh,i].Font.Color    := clBlack;
+      end
+      else begin
+        pnlPrevResult[nCh,i].Caption  := Format('%0.2d NG',[PasScr[nCh].m_lstPrevRet.Items[i]]);
+        pnlPrevResult[nCh,i].Color    := clRed;
+        pnlPrevResult[nCh,i].Font.Color    := clBlack;
+      end;
     end;
-  end;
-  if (PasScr[nCh].m_lstPrevRet.Count > 0) and (not Common.TestModelInfoFLOW.IDLEMode) then begin
-    if (PasScr[nCh].m_lstPrevRet.Items[0] <> 0) and (nSum <> 0) and ((nSum div Common.SystemInfo.NGAlarmCount) = PasScr[nCh].m_lstPrevRet.Items[0])  then begin
-      sMsg := format('Same NG Occurrence : NG CODE : %d',[PasScr[nCh].m_lstPrevRet.Items[0]]);
-      SendMessageMain(STAGE_MODE_DISPLAY_ALARAM,nCh, ERR_LIST_1_NG_CONUT +nCh, 1, sMsg,nil);
-
-      m_bPassCH[nCh] := True;  // 동일한 NG Count 발생 시 해당 CH 제외
+    if (PasScr[nCh].m_lstPrevRet.Count > 0) and (not Common.TestModelInfoFLOW.IDLEMode) then begin
+      if (PasScr[nCh].m_lstPrevRet.Items[0] <> 0) and (nSum <> 0) and ((nSum div Common.SystemInfo.NGAlarmCount) = PasScr[nCh].m_lstPrevRet.Items[0])  then begin
+        sMsg := format('Same NG Occurrence : NG CODE : %d',[PasScr[nCh].m_lstPrevRet.Items[0]]);
+        SendMessageMain(STAGE_MODE_DISPLAY_ALARAM,nCh, ERR_LIST_1_NG_CONUT +nCh, 1, sMsg,nil);
+        m_bPassCH[nCh] := True;  // 동일한 NG Count 발생 시 해당 CH 제외
+      end;
     end;
-  end;
+  finally
 
+  end;
 
 end;
 
 procedure TfrmTest4ChOC.DisplayPwrData(nPgNo: Integer; PwrData: TPwrData);
 begin
-  gridPWRPGs[nPgNo].DisableAlign;
+  if gridPWRPGs[nPgNo] = nil then  Exit;
+  try
+//    gridPWRPGs[nPgNo].DisableAlign;
+    gridPWRPGs[nPgNo].Cells[1, 1] := Format('%0.3fV', [PwrData.VCC / 1000]);  // VCC/IVCC
+    gridPWRPGs[nPgNo].Cells[2, 1] := Format('%dmA',    [PwrData.IVCC]);
+    gridPWRPGs[nPgNo].Cells[1, 2] := Format('%0.3fV', [PwrData.VIN / 1000]);  // VIN/IVIN
+    gridPWRPGs[nPgNo].Cells[2, 2] := Format('%dmA',    [PwrData.IVIN]);
+    {
+    gridPWRPGs[nPgNo].Cells[1, 3] := Format('%0.3f', [PwrVal.VDD3 / 1000]); // VDD3/IVDD3
+    gridPWRPGs[nPgNo].Cells[2, 3] := Format('%d',    [PwrVal.IVDD3]);
+    gridPWRPGs[nPgNo].Cells[4, 1] := Format('%0.3f', [PwrVal.VDD4 / 1000]); // VDD4/IVDD4
+    gridPWRPGs[nPgNo].Cells[5, 1] := Format('%d',    [PwrVal.IVDD4]);
+    gridPWRPGs[nPgNo].Cells[4, 2] := Format('%0.3f', [PwrVal.VDD5 / 1000]); // VDD5/IVDD5
+    gridPWRPGs[nPgNo].Cells[5, 2] := Format('%d',    [PwrVal.IVDD5]);
+    }
+    AddLog(format('DisplayPwr VCC : %0.3fV VIN : %0.3fV IVCC : %dmA IVIN : %dmA ',[PwrData.VCC / 1000,PwrData.VIN / 1000,PwrData.IVCC,PwrData.IVIN]),nPgNo);
+
+  finally
+//    gridPWRPGs[nPgNo].EnableAlign;
+  end;
+
   // voltage.  gridPWRPGs[nPgNo].DisableAlign;
 
-  gridPWRPGs[nPgNo].Cells[1, 1] := Format('%0.3fV', [PwrData.VCC / 1000]);  // VCC/IVCC
-  gridPWRPGs[nPgNo].Cells[2, 1] := Format('%dmA',    [PwrData.IVCC]);
-  gridPWRPGs[nPgNo].Cells[1, 2] := Format('%0.3fV', [PwrData.VIN / 1000]);  // VIN/IVIN
-  gridPWRPGs[nPgNo].Cells[2, 2] := Format('%dmA',    [PwrData.IVIN]);
-  {
-  gridPWRPGs[nPgNo].Cells[1, 3] := Format('%0.3f', [PwrVal.VDD3 / 1000]); // VDD3/IVDD3
-  gridPWRPGs[nPgNo].Cells[2, 3] := Format('%d',    [PwrVal.IVDD3]);
-  gridPWRPGs[nPgNo].Cells[4, 1] := Format('%0.3f', [PwrVal.VDD4 / 1000]); // VDD4/IVDD4
-  gridPWRPGs[nPgNo].Cells[5, 1] := Format('%d',    [PwrVal.IVDD4]);
-  gridPWRPGs[nPgNo].Cells[4, 2] := Format('%0.3f', [PwrVal.VDD5 / 1000]); // VDD5/IVDD5
-  gridPWRPGs[nPgNo].Cells[5, 2] := Format('%d',    [PwrVal.IVDD5]);
-  }
-  AddLog(format('DisplayPwr VCC : %0.3fV VIN : %0.3fV IVCC : %dmA IVIN : %dmA ',[PwrData.VCC / 1000,PwrData.VIN / 1000,PwrData.IVCC,PwrData.IVIN]),nPgNo);
-  gridPWRPGs[nPgNo].EnableAlign;
 
 end;
 
 procedure TfrmTest4ChOC.DisplayResult(nCh, nCode, nColorType: Integer; sMsg: String);
 begin
+  if pnlPGStatuses[nCh] = nil then Exit;
   try
-    pnlPGStatuses[nCh].DisableAlign;
-  case nCode of
-    -1, -3 : begin  //ShowCurStatus
-      pnlPGStatuses[nCh].Caption := Trim(sMsg);
-      pnlPGStatuses[nCh].Font.Size := 18;
-      pnlPGStatuses[nCh].Font.Name := 'Tahoma';
+//    pnlPGStatuses[nCh].DisableAlign;
+    case nCode of
+      -1, -3 : begin  //ShowCurStatus
+//        pnlPGStatuses[nCh].Caption := Trim(sMsg);
+        pnlPGStatuses[nCh].Font.Size := 18;
+        pnlPGStatuses[nCh].Font.Name := 'Tahoma';
 
-      if nColorType = 1 then begin
-        pnlPGStatuses[nCh].Color := clLime;
-        pnlPGStatuses[nCh].Font.Color := clBlack;
-        pnlPGStatuses[nCh].Caption := sMsg;
-      end
-      else if nColorType = 2 then begin
+        if nColorType = 1 then begin
+          pnlPGStatuses[nCh].Color := clLime;
+          pnlPGStatuses[nCh].Font.Color := clBlack;
+          pnlPGStatuses[nCh].Caption := Trim(sMsg);
+        end
+        else if nColorType = 2 then begin
+          pnlPGStatuses[nCh].Color := clMaroon;
+          pnlPGStatuses[nCh].Font.Color := clYellow;
+          pnlPGStatuses[nCh].Caption := Trim(sMsg);
+        end
+        else  begin
+          pnlPGStatuses[nCh].Color := clBtnFace;
+          pnlPGStatuses[nCh].Font.Color := clBlack;
+          pnlPGStatuses[nCh].Caption := Trim(sMsg);
+        end;
+
+        if nCode = -3 then begin //로그 저장
+          sMsg := Format('[ %s ]',[sMsg]);
+          AddLog(sMsg, nCh);
+  //        Common.MLog(nCh, sMsg);
+        end;
+
+        Exit;
+      end;
+      // Script Loading NG.
+      - 2 : begin
+        pnlPGStatuses[nCh].Font.Size := 24;
+        pnlPGStatuses[nCh].Font.Name := 'Verdana';
+//        DisplayPreviousRet(nCh);
+        // NG 처리.
         pnlPGStatuses[nCh].Color := clMaroon;
         pnlPGStatuses[nCh].Font.Color := clYellow;
-        pnlPGStatuses[nCh].Caption := sMsg;
-      end
-      else  begin
-        pnlPGStatuses[nCh].Color := clBtnFace;
-        pnlPGStatuses[nCh].Font.Color := clBlack;
-        pnlPGStatuses[nCh].Caption := sMsg;
-      end;
+        pnlPGStatuses[nCh].Caption := 'Script Loading NG';
 
-      if nCode = -3 then begin //로그 저장
-        sMsg := Format('[ %s ]',[sMsg]);
-//        AddLog(sMsg, nCh);
-        Common.MLog(nCh, sMsg);
+        Exit;
       end;
-
-      Exit;
     end;
-    // Script Loading NG.
-    - 2 : begin
-      pnlPGStatuses[nCh].DisableAlign;
-      pnlPGStatuses[nCh].Font.Size := 24;
-      pnlPGStatuses[nCh].Font.Name := 'Verdana';
-      DisplayPreviousRet(nCh);
-      // NG 처리.
+
+//    pnlPGStatuses[nCh].DisableAlign;
+    //sMsg := Format('PD %d NG',[nTemp]);
+    pnlPGStatuses[nCh].Font.Size := 24;
+    pnlPGStatuses[nCh].Font.Name := 'Verdana';
+    DisplayPreviousRet(nCh);
+    // NG 처리.
+    if nCode <> 0 then  begin
       pnlPGStatuses[nCh].Color := clMaroon;
-      pnlPGStatuses[nCh].Font.Color := clYellow;
-      pnlPGStatuses[nCh].Caption := 'Script Loading NG';
-
-      pnlPGStatuses[nCh].EnableAlign;
-      Exit;
+  //    pnlPGStatuses[nCh].Font.Color := clYellow;
+  //    pnlPGStatuses[nCh].Caption := Format('%0.3d NG - %s',[nTemp, Common.GmesInfo[nTemp].sErrMsg]);
+      pnlPGStatuses[nCh].Caption := Format('%0.3d NG',[nCode]);
+    end
+    // OK 처리.
+    else begin
+      pnlPGStatuses[nCh].Color := clLime;
+      pnlPGStatuses[nCh].Font.Color := clBlack;
+      pnlPGStatuses[nCh].Caption := 'PASS';
     end;
-  end;
-
-  pnlPGStatuses[nCh].DisableAlign;
-  //sMsg := Format('PD %d NG',[nTemp]);
-  pnlPGStatuses[nCh].Font.Size := 24;
-  pnlPGStatuses[nCh].Font.Name := 'Verdana';
-  DisplayPreviousRet(nCh);
-  // NG 처리.
-  if nCode <> 0 then  begin
-    pnlPGStatuses[nCh].Color := clMaroon;
-//    pnlPGStatuses[nCh].Font.Color := clYellow;
-//    pnlPGStatuses[nCh].Caption := Format('%0.3d NG - %s',[nTemp, Common.GmesInfo[nTemp].sErrMsg]);
-    pnlPGStatuses[nCh].Caption := Format('%0.3d NG',[nCode]);
-  end
-  // OK 처리.
-  else begin
-    pnlPGStatuses[nCh].Color := clLime;
-    pnlPGStatuses[nCh].Font.Color := clBlack;
-    pnlPGStatuses[nCh].Caption := 'PASS';
-  end;
-//  pnlPGStatuses[nCh].EnableAlign;
+  //  pnlPGStatuses[nCh].EnableAlign;
   finally
-    pnlPGStatuses[nCh].EnableAlign;
+//    pnlPGStatuses[nCh].EnableAlign;
   end;
 
 end;
 
 procedure TfrmTest4ChOC.DisplaySysInfo;
 var
-  i, nPgNo: Integer;
+   nPgNo: Integer;
 begin
-  for i := DefCommon.CH1 to DefCommon.MAX_JIG_CH do begin
-    nPgNo := i+self.Tag * 4;
-    chkChannelUse[i].Checked := Common.SystemInfo.UseCh[nPgNo];
+  for nPgNo := DefCommon.CH1 to DefCommon.CH4 do begin
+    chkChannelUse[nPgNo].Checked := Common.SystemInfo.UseCh[nPgNo];
     PasScr[nPgNo].m_bUse := Common.SystemInfo.UseCh[nPgNo];
     Common.StatusInfo.UseChannel[nPgNo]:= Common.SystemInfo.UseCh[nPgNo];
   end;
@@ -2874,6 +2914,7 @@ begin
     m_nNgCnt[i] := 0;
     SetLength(pnlPrevResult[i],m_NGAlarmCount);
   end;
+
 //  SetLength(m_nPreSeqFlowIdx,DefCommon.MAX_PG_CNT);
   m_PlcStatus := psReadyPc;
   m_bAutoPlcProbeBack := False;
@@ -2904,7 +2945,7 @@ begin
       tmCheckIRTemp[i].Free;
       tmCheckIRTemp[i] := nil;
     end;
-
+    setlength(m_aTempIr[i],0);
   end;
 
 //  VirtualBcr.Free;
@@ -2967,17 +3008,17 @@ var
 begin
   try
     m_csBcrRead.Acquire; // Hand Bcr Thread event UI 컨트롤 방지
-    AddLog( '<HAND-BCR> Read Data ' + sScanData,DefCommon.MAX_SYSTEM_LOG,0);
-//    Common.MLog(DefCommon.MAX_SYSTEM_LOG, '<HAND-BCR> Read Data ' + sScanData);
+//    AddLog( '<HAND-BCR> Read Data ' + sScanData,DefCommon.MAX_SYSTEM_LOG,0);
+    Common.MLog(DefCommon.MAX_SYSTEM_LOG, '<HAND-BCR> Read Data ' + sScanData);
     sRemoveCr := StringReplace(sScanData,#$0a,'',[rfReplaceAll]);
     sRemoveCr := StringReplace(sRemoveCr,#$0d,'',[rfReplaceAll]);
-    AddLog(  '<HAND-BCR> Converting Read Data ' + sRemoveCr,DefCommon.MAX_SYSTEM_LOG,0);
-//    Common.MLog(DefCommon.MAX_SYSTEM_LOG, '<HAND-BCR> Converting Read Data ' + sRemoveCr);
+//    AddLog(  '<HAND-BCR> Converting Read Data ' + sRemoveCr,DefCommon.MAX_SYSTEM_LOG,0);
+    Common.MLog(DefCommon.MAX_SYSTEM_LOG, '<HAND-BCR> Converting Read Data ' + sRemoveCr);
     for i := Defcommon.CH1 to DefCommon.MAX_CH do begin // 중복 채널 사전 검사 해서 빼기
       if pnlSerials[i].Caption = sRemoveCr then begin
         sDebug := Format('<HAND-BCR> Same Data Exsit skip(Ch:%d) data(%s)',[i + 1, sRemoveCr]);
-        AddLog( sDebug,DefCommon.MAX_SYSTEM_LOG,0);
-//        Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+//        AddLog(sDebug,DefCommon.MAX_SYSTEM_LOG,0);
+        Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
         if PasScr[i] <> nil then begin // 혹시 모르니까 한번더
           PasScr[i].m_First_Process_DONE := True;
           PasScr[i].g_bIsBcrReady := True;
@@ -3109,8 +3150,8 @@ begin
     end;
     if nJigCh = 4 then begin
       sDebug := Format('<HAND-BCR> NO have to Any Ready Ch BcrData:%s Exit',[sRemoveCr]);
-      AddLog(sDebug,DefCommon.MAX_SYSTEM_LOG,0);
-//      Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+//      AddLog(sDebug,DefCommon.MAX_SYSTEM_LOG,0);
+      Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
       m_csBcrRead.Release;
       Exit;
     end
@@ -3130,8 +3171,8 @@ begin
       end;
     end;
     sDebug := Format('<HAND-BCR> Bcr Data input pasScr Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
-    AddLog(sDebug,DefCommon.MAX_SYSTEM_LOG,0);
-//    Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+//    AddLog(sDebug,DefCommon.MAX_SYSTEM_LOG,0);
+    Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
   finally
     m_csBcrRead.Release;
   end;
@@ -3146,7 +3187,8 @@ begin
   try
     sRemoveCr := StringReplace(sScanData,#$0a,'',[rfReplaceAll]);
     sRemoveCr := StringReplace(sRemoveCr,#$0d,'',[rfReplaceAll]);
-    AddLog('<HAND-BCR> Converting Read Data ' + sRemoveCr,DefCommon.MAX_SYSTEM_LOG,0);
+//    AddLog('<HAND-BCR> Converting Read Data ' + sRemoveCr,DefCommon.MAX_SYSTEM_LOG,0);
+    Common.MLog(DefCommon.MAX_SYSTEM_LOG, '<HAND-BCR> Read Data ' + sScanData);
   // 중복 채널 사전 검사 해서 빼기
     for i := Defcommon.CH1 to DefCommon.MAX_CH do begin
       if pnlSerials[i].Caption = sRemoveCr then begin
@@ -3232,12 +3274,12 @@ begin
         break; //Exit;
       end;
     end;
-//    Common.MLog(DefCommon.MAX_SYSTEM_LOG, '<HAND-BCR> Finish');
-    AddLog('<HAND-BCR> Finish',DefCommon.MAX_SYSTEM_LOG,0);
+    Common.MLog(DefCommon.MAX_SYSTEM_LOG, '<HAND-BCR> Finish');
+//    AddLog('<HAND-BCR> Finish',DefCommon.MAX_SYSTEM_LOG,0);
   except
     on E: Exception do begin
-      AddLog( 'getBcrData Exception: ' + E.Message,DefCommon.MAX_SYSTEM_LOG,1);
-//      Common.MLog(DefCommon.MAX_SYSTEM_LOG, 'getBcrData Exception: ' + E.Message);
+//      AddLog( 'getBcrData Exception: ' + E.Message,DefCommon.MAX_SYSTEM_LOG,1);
+      Common.MLog(DefCommon.MAX_SYSTEM_LOG, 'getBcrData Exception: ' + E.Message);
     end;
   end;
 end;
@@ -3398,8 +3440,8 @@ var
   nPgNo : integer;
 begin
   nPgNo := Self.Tag*4 + nCh;
-  AddLog(Format('MakeUserEvent %d',[nPgNo]),nPgNo,0);
-//  common.MLog(nPgNo,Format('MakeUserEvent %d',[nPgNo]));
+//  AddLog(Format('MakeUserEvent %d',[nPgNo]),nPgNo,0);
+  common.MLog(nPgNo,Format('MakeUserEvent %d',[nPgNo]));
   PasScr[nPgNo].MakeTEndEvt(nIdxErr,sErrMessage);
 end;
 
@@ -3408,8 +3450,8 @@ var
   nPgNo : integer;
 begin
   nPgNo := self.Tag*4 + nCh;
-  AddLog(Format('MakeUserEvent %d',[nPgNo]),nPgNo,0);
-//  common.MLog(nPgNo,Format('MakeUserEvent %d',[nPgNo]));
+//  AddLog(Format('MakeUserEvent %d',[nPgNo]),nPgNo,0);
+  common.MLog(nPgNo,Format('MakeUserEvent %d',[nPgNo]));
   PasScr[nPgNo].MakeTEndEvt(nIdxErr,sErrMessage);
 end;
 
@@ -3460,7 +3502,7 @@ end;
 
 procedure TfrmTest4ChOC.PGUseStatus(nCH: Integer; bOnOff: Boolean);
 begin
-  chkChannelUse[nCH].DisableAlign;
+//  chkChannelUse[nCH].DisableAlign;
   try
     chkChannelUse[nCH].Checked := bOnOff;
     if chkChannelUse[nCH].Checked then  chkChannelUse[nCH].Font.Color := clGreen
@@ -3472,7 +3514,7 @@ begin
 
     Common.StatusInfo.UseChannel[nCH]:= chkChannelUse[nCH].Checked;
   finally
-    chkChannelUse[nCH].EnableAlign;
+//    chkChannelUse[nCH].EnableAlign;
   end;
 end;
 
@@ -3616,13 +3658,29 @@ var
   sDebug : string;
   i: Integer;
 begin
-  AddLog(Format('AutoLogicStart CH : %d',[nCH]),DefCommon.MAX_SYSTEM_LOG,0);
+//  AddLog(Format('AutoLogicStart CH : %d',[nCH]),DefCommon.MAX_SYSTEM_LOG,0);
+  Common.MLog(DefCommon.MAX_SYSTEM_LOG,Format('AutoLogicStart CH : %d',[nCH]));
+  //  if g_CommPLC <> nil then begin
+//    if (Common.PLCInfo.InlineGIB) then begin
+//      g_CommPLC.SaveGlassData_CH(nCh,Common.Path.Ini +Format('GlassData_CH%d.dat',[nCH]));
+//    end
+//    else begin
+//      if nCh = 0 then begin
+//        g_CommPLC.SaveGlassData_CH(0,Common.Path.Ini +Format('GlassData_CH%d.dat',[0]));
+//        g_CommPLC.SaveGlassData_CH(1,Common.Path.Ini +Format('GlassData_CH%d.dat',[1]));
+//      end;
+//      if nCh = 1 then begin
+//        g_CommPLC.SaveGlassData_CH(2,Common.Path.Ini +Format('GlassData_CH%d.dat',[2]));
+//        g_CommPLC.SaveGlassData_CH(3,Common.Path.Ini +Format('GlassData_CH%d.dat',[3]));
+//      end;
+//    end;
+//  end;
   if (Common.PLCInfo.InlineGIB) then begin
     if Common.SystemInfo.OCType = DefCommon.OCType then begin
       ClearChData(nCH);
       PasScr[nCH].TestInfo.StartTime := now;
       AddLog(Format('AutoLogicStart Process : %d',[nCH]),nCH,0);
-
+      g_CommPLC.SaveGlassData_CH(nCh,Common.Path.Ini +Format('GlassData_CH%d.dat',[nCH+1]));
       frmTest4ChOC[0].SetIonizer(nCH div 2,True);  //// 검사 종료 시 SetIonizer ON
 
       ControlDio.LampOnOff(nCH div 2,false); // Added by KTS 2023-01-02 오후 5:39:50 시작 전 Lamp 제어
@@ -3635,6 +3693,8 @@ begin
         PasScr[DefCommon.CH2].TestInfo.StartTime := now;
         ClearChData(DefCommon.CH1);
         ClearChData(DefCommon.CH2);
+        g_CommPLC.SaveGlassData_CH(0,Common.Path.Ini +Format('GlassData_CH%d.dat',[1]));
+        g_CommPLC.SaveGlassData_CH(1,Common.Path.Ini +Format('GlassData_CH%d.dat',[2]));
         frmTest4ChOC[0].SetIonizer(nCH div 2,True);  //// 검사 종료 시 SetIonizer ON
 
         ControlDio.LampOnOff(nCH div 2,false); // Added by KTS 2023-01-02 오후 5:39:50 시작 전 Lamp 제어
@@ -3648,6 +3708,8 @@ begin
         PasScr[DefCommon.CH4].TestInfo.StartTime := now;
         ClearChData(DefCommon.CH3);
         ClearChData(DefCommon.CH4);
+        g_CommPLC.SaveGlassData_CH(2,Common.Path.Ini +Format('GlassData_CH%d.dat',[3]));
+        g_CommPLC.SaveGlassData_CH(3,Common.Path.Ini +Format('GlassData_CH%d.dat',[4]));
         frmTest4ChOC[0].SetIonizer(nCH div 2,True);  //// 검사 종료 시 SetIonizer ON
 
         ControlDio.LampOnOff(nCH div 2,false); // Added by KTS 2023-01-02 오후 5:39:50 시작 전 Lamp 제어
@@ -3683,23 +3745,31 @@ begin
       end;
 
       frmTest4ChOC[0].SetIonizer(nCH,True);  //// 검사 종료 시 SetIonizer ON
+      ///
+      Common.StatusInfo.Exchange_Load[nCh] := False;
+      Common.StatusInfo.Exchange_UnLoad[nCh] := False;
 
       ControlDio.LampOnOff(nCH,false); // Added by KTS 2023-01-02 오후 5:39:50 시작 전 Lamp 제어
       if nCH = DefCommon.CH_TOP then begin
         CSharpDll.m_bIsProcessDone[0] := False;
         CSharpDll.m_bIsProcessDone[1] := False;
+        g_CommPLC.SaveGlassData_CH(0,Common.Path.Ini +Format('GlassData_CH%d.dat',[1]));
+        g_CommPLC.SaveGlassData_CH(1,Common.Path.Ini +Format('GlassData_CH%d.dat',[2]));
         JigLogic[Self.Tag].StartIspd_TOP(DefScript.SEQ_KEY_START);
 
       end
       else if nCH = DefCommon.CH_BOTTOM then  begin
         CSharpDll.m_bIsProcessDone[2] := False;
         CSharpDll.m_bIsProcessDone[3] := False;
+        g_CommPLC.SaveGlassData_CH(2,Common.Path.Ini +Format('GlassData_CH%d.dat',[3]));
+        g_CommPLC.SaveGlassData_CH(3,Common.Path.Ini +Format('GlassData_CH%d.dat',[4]));
         JigLogic[Self.Tag].StartIspd_BOTTOM(DefScript.SEQ_KEY_START);
       end
 
       else begin
         for I := 0 to 3 do begin
           CSharpDll.m_bIsProcessDone[i] := False;
+          g_CommPLC.SaveGlassData_CH(i,Common.Path.Ini +Format('GlassData_CH%d.dat',[i+1]));
         end;
         JigLogic[Self.Tag].StartIspd_TOP(DefScript.SEQ_KEY_START);
         JigLogic[Self.Tag].StartIspd_BOTTOM(DefScript.SEQ_KEY_START);
@@ -3839,12 +3909,15 @@ end;
 
 procedure TfrmTest4ChOC.ScriptLog(nCh: Integer; sDebug: string; isNg: Boolean);
 begin
-  mmChannelLog[nCh].DisableAlign;
+  try
+//    mmChannelLog[nCh].DisableAlign;
 
-  sDebug := FormatDateTime('[HH:MM:SS.zzz] ',now) + sDebug;
-  AddLog(sDebug,nCh,TernaryOp(isNg = True,1,0));
+    sDebug := FormatDateTime('[HH:MM:SS.zzz] ',now) + sDebug;
+    AddLog(sDebug,nCh,TernaryOp(isNg = True,1,0));
 
-  mmChannelLog[nCh].EnableAlign;
+  finally
+//    mmChannelLog[nCh].EnableAlign;
+  end;
 end;
 
 procedure TfrmTest4ChOC.SetBcrData;
@@ -3947,6 +4020,9 @@ begin
   CreateGui;
   frmMain_OC.MessageHandle:= self.Handle;
   JigLogic[Self.Tag] := TJig.Create(Self.Tag,hMain,Self.Handle, self);
+
+  LogAccumulateCount:= 30;
+  LogAccumulateSecond:= 10;
 
   sCh := '';
   sSourceFileName := Common.Path.LGDDLL + format('LGD_OC_%s.dll',[Common.TestModelInfoFLOW.ModelTypeName]);
@@ -4241,11 +4317,11 @@ begin
 
       try
         sDebug := FormatDateTime('[HH:MM:SS.zzz] ',now) + sMsg;
-        mmChannelLog[nCh].DisableAlign;
+//        mmChannelLog[nCh].DisableAlign;
 
         mmChannelLog[nCh].Lines.Add(sDebug);
         CalcLogScroll(nCh, Length(sDebug));
-        mmChannelLog[nCh].EnableAlign;
+//        mmChannelLog[nCh].EnableAlign;
         Common.MLog(nCh + self.Tag * 4, sMsg);
       except
       end;
@@ -4292,14 +4368,14 @@ begin
     DefCommon.MSG_MODE_WORKING: begin
       try
 //        sDebug := FormatDateTime('[HH:MM:SS.zzz] ',now) + sMsg;
-        mmChannelLog[nCh].DisableAlign;
+//        mmChannelLog[nCh].DisableAlign;
         if nTemp = DefCommon.LOG_TYPE_NG then begin
           AddLog(sMsg,nCh,10);
-          mmChannelLog[nCh].EnableAlign;
+//          mmChannelLog[nCh].EnableAlign;
           Exit;
         end;
         AddLog(sMsg,nCh,nTemp);
-        mmChannelLog[nCh].EnableAlign;
+//        mmChannelLog[nCh].EnableAlign;
       except
       end;
     end;
@@ -4388,34 +4464,16 @@ begin
       nTemp := PGUIMessage(PCopyDataStruct(Msg.LParam)^.lpData)^.Param;
 
       case nMode of
-        DefCommon.MSG_MODE_ADDLOG : begin
-          sMsg := Trim(PGUIMessage(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
-          if nTemp = 10 then begin
-            Common.MLog(nCh,sMsg);
-            Exit;
-          end;
-
-          Common.MLog(nCh,sMsg);
-
-        end;
         DefCommon.MSG_MODE_ADDLOG_CHANNEL : begin
           sMsg := Trim(PGUIMessage(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
           if nTemp = 10 then begin
             Common.MLog(nCh+self.Tag*4,sMsg);
             Exit;
           end;
-          if nCh <> DefCommon.MAX_SYSTEM_LOG then
+          if nCh < DefCommon.MAX_SYSTEM_LOG then
             AddLog('[MAIN] ' + sMsg, nCh, nTemp)
           else
            Common.MLog(nCh,sMsg);
-        end;
-        MSG_MODE_DISPLAY : begin
-          sMsg := Trim(PGUIMessage(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
-          if nTemp = 1 then
-            ClearChData(nCh)
-          else if nTemp = -3 then
-            DisplayResult(nCh,nTemp,0,sMsg);
-
         end;
       end;
 
@@ -4493,7 +4551,7 @@ begin
 
           DisplayPGStatuses(nCh,PasScr[nCh].m_nNgCode); // 종료 시 바로 결과 Display
 
-          PGPowerReset(nCH); //종료 후 PG Reset 진행
+//          PGPowerReset(nCH); //종료 후 PG Reset 진행
 
 
           case nCH of
@@ -4803,25 +4861,25 @@ begin
             end;
             // Script Loading NG.
             - 2 : begin
-              pnlPGStatuses[nCh].DisableAlign;
+//              pnlPGStatuses[nCh].DisableAlign;
               pnlPGStatuses[nCh].Font.Size := 24;
               pnlPGStatuses[nCh].Font.Name := 'Verdana';
-              DisplayPreviousRet(nCh);
+//              DisplayPreviousRet(nCh);
               // NG 처리.
               pnlPGStatuses[nCh].Color := clMaroon;
               pnlPGStatuses[nCh].Font.Color := clYellow;
               pnlPGStatuses[nCh].Caption := 'Script Loading NG';
 
-              pnlPGStatuses[nCh].EnableAlign;
+//              pnlPGStatuses[nCh].EnableAlign;
               Exit;
             end;
           end;
 
-          pnlPGStatuses[nCh].DisableAlign;
+          DisplayPreviousRet(nCh);
+//          pnlPGStatuses[nCh].DisableAlign;
           //sMsg := Format('PD %d NG',[nTemp]);
           pnlPGStatuses[nCh].Font.Size := 24;
           pnlPGStatuses[nCh].Font.Name := 'Verdana';
-          DisplayPreviousRet(nCh);
           // NG 처리.
           if nTemp <> 0 then  begin
             pnlPGStatuses[nCh].Color := clMaroon;
@@ -4836,7 +4894,7 @@ begin
             pnlPGStatuses[nCh].Font.Color := clBlack;
             pnlPGStatuses[nCh].Caption := 'PASS';
           end;
-          pnlPGStatuses[nCh].EnableAlign;
+//          pnlPGStatuses[nCh].EnableAlign;
 
           modDB.UpdateNGTypeCount(PGuiScript(PCopyDataStruct(Msg.LParam)^.lpData)^.Channel+1, nTemp); //DB에 NG Ratio 갱신
         end;
@@ -4881,7 +4939,7 @@ begin
                               if CSharpDll.m_bIsProcessDone[DefCommon.CH1] and CSharpDll.m_bIsProcessDone[DefCommon.CH2] then  begin
     //                        SendMessageMain(STAGE_MODE_UNLOAD,0, 2,0, 'OC Flow Process_Finish',nil);
                                 SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, DefCommon.CH1 , DefCommon.CH1 , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
-                                Sleep(100);
+//                                Sleep(100);
                                 SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, DefCommon.CH2 , DefCommon.CH2 , nTemp2, '', nil);
                                 CSharpDll.m_bIsProcessDone[DefCommon.CH1] := false;
                                 CSharpDll.m_bIsProcessDone[DefCommon.CH2] := false;
@@ -4892,7 +4950,7 @@ begin
                               if CSharpDll.m_bIsProcessDone[DefCommon.CH3] and CSharpDll.m_bIsProcessDone[DefCommon.CH4] then begin
         //                        SendMessageMain(STAGE_MODE_UNLOAD, 1, 2,0, 'OC Flow Process_Finish',nil);
                                 SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, DefCommon.CH3 , DefCommon.CH3 , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
-                                Sleep(100);
+//                                Sleep(100);
                                 SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, DefCommon.CH4 , DefCommon.CH4 , nTemp2, '', nil);
                                 CSharpDll.m_bIsProcessDone[DefCommon.CH3] := false;
                                 CSharpDll.m_bIsProcessDone[DefCommon.CH4] := false;
@@ -5144,11 +5202,11 @@ begin
     DefCommon.MSG_TYPE_JIG : begin
       nMode := PGuiJigData(PCopyDataStruct(Msg.LParam)^.lpData)^.Mode;
       case nMode of
-        DefCommon.MSG_MODE_CH_CLEAR : begin
-          for i := DefCommon.CH1 to DefCommon.MAX_JIG_CH do begin
-            ClearChData(i);
-          end;
-        end;
+//        DefCommon.MSG_MODE_CH_CLEAR : begin
+//          for i := DefCommon.CH1 to DefCommon.MAX_JIG_CH do begin
+//            ClearChData(i);
+//          end;
+//        end;
 
         DefCommon.MSG_MODE_WORKING : begin
           sMsg := Trim(PGuiScript(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
@@ -5169,7 +5227,7 @@ begin
       bTemp := PSyncHost(PCopyDataStruct(Msg.LParam)^.lpData)^.bError;
       sMsg  := PSyncHost(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg;
       nCh := PSyncHost(PCopyDataStruct(Msg.LParam)^.lpData)^.Channel;
-      if nCh = -1 then  nCh := 4; // Sys
+      if (nCh < DefCommon.CH1) or (nCh > DefCommon.CH4) then  Exit;
 
       case PSyncHost(PCopyDataStruct(Msg.LParam)^.lpData)^.MsgMode of
         DefGmes.MES_PCHK : begin  //JHHWANG-GMES: 2018-06-20

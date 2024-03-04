@@ -287,14 +287,16 @@ end;
 
 procedure TCommDIOThread.SaveLog(dtSave: TDateTime);
 var
-  sFileName: String;
+  sFileName,sDir: String;
   logFile: TextFile;
 begin
+  sDir:= m_sLogPath + FormatDateTime('YYYYMMDD', dtSave);
+  ForceDirectories(sDir);
   if LogSaveMode = COMMDIO_LOGSAVEMODE_HOUR then begin
-    sFileName:=  m_sLogPath + format('CommDIO_%s.txt',[FormatDateTime('YYYYMMDDHH', dtSave)]);
+    sFileName:=  sDir +'\'+ format('CommDIO_%s.txt',[FormatDateTime('YYYYMMDDHH', dtSave)]);
   end
   else begin
-    sFileName:=  m_sLogPath + format('CommDIO_%s.txt',[FormatDateTime('YYYYMMDD', dtSave)]);
+    sFileName:=  sDir +'\'+ format('CommDIO_%s.txt',[FormatDateTime('YYYYMMDD', dtSave)]);
   end;
 
   AssignFile(logFile, sFileName);
@@ -712,7 +714,7 @@ var
   pHeader: PDIOHeader;
   bPolling: Boolean;
 begin
-  //if not m_bConnected then Exit(1);
+//  if not m_bConnected then Exit(1);
   if not (m_nStop = 0) then Exit(1);
 
   try

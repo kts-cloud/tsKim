@@ -409,7 +409,7 @@ begin
 
   SendMainGuiDisplay(0,MSG_TYPE_DLL,sFileName,3);
 
-  SendTestGuiDisplay(MAX_SYSTEM_LOG,DefCommon.MSG_MODE_WORKING,'TCSharpDll.Create End');
+//  SendTestGuiDisplay(MAX_SYSTEM_LOG,DefCommon.MSG_MODE_WORKING,'TCSharpDll.Create End');
 
 end;
 

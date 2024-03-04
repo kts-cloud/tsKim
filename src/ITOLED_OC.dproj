@@ -5,7 +5,7 @@
         <FrameworkType>VCL</FrameworkType>
         <MainSource>ITOLED_OC.dpr</MainSource>
         <Base>True</Base>
-        <Config Condition="'$(Config)'==''">Release</Config>
+        <Config Condition="'$(Config)'==''">Debug</Config>
         <Platform Condition="'$(Platform)'==''">Win64</Platform>
         <TargetedPlatforms>3</TargetedPlatforms>
         <AppType>Application</AppType>
@@ -121,7 +121,7 @@
         <VerInfo_Locale>1033</VerInfo_Locale>
         <DCC_ExeOutput>..\IT_OLED_OC\</DCC_ExeOutput>
         <BRCC_Defines>SIMULATOR;$(BRCC_Defines)</BRCC_Defines>
-        <DCC_Define>IITOLED_OC;SIMULATOR;madExcept;LeakChecking;$(DCC_Define)</DCC_Define>
+        <DCC_Define>IITOLED_OC;SIMULATOR;$(DCC_Define)</DCC_Define>
         <DCC_MapFile>3</DCC_MapFile>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2)'!=''">

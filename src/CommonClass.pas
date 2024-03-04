@@ -257,6 +257,8 @@ type
     LogIn      : Boolean; //ECS(MES) Login 여부
     Closing    : boolean; //프로그램 닫는 중
     Loading    : boolean; //Robot(PLC) 연동 패널 로딩 중
+    Exchange_Load : array [0..3] of Boolean;
+    Exchange_UnLoad : array [0..3] of Boolean;
     AlarmOn    : Boolean; //Alarm 발생 여부
     RobotDoorOpened: Boolean; //Robot(물류) Door Open 상태
     StageStep: array [0..2]of Integer; //0=None, 1=Loading(Exchange), 2=LoadComplete, 3=LoadingZone, 4=Turnning, 5=CamZone, 6=UnloadZone, 7=Unload
@@ -748,6 +750,7 @@ type
     procedure LoadOcTables(nIdxOcTables : Integer);
     function LoadMesCode : Integer;
     function IsExcelProcess(const ProcessID: DWORD): Boolean;
+//    procedure SaveLog(nCH : Integer; dtSave: TDateTime);
 
     procedure LogWorker;
 
@@ -773,6 +776,7 @@ type
     ExeVersion   : String;
     ComputerName : String;
     DLLVersion   : string;
+    ProductVersion : string;
 
     PGWriteReadPassAddr : array of integer;
 
@@ -782,6 +786,9 @@ type
     StatusInfo      : TStatusInfo;
     m_nDebugLogLevelActive : Integer;  // init(SystemConfig.ini) + change by SetDebugLogLevel() from script //2020-09-16 DEBUG_LOG
 
+//    m_csLog: array [DefCommon.CH1 .. DefCommon.MAX_PG_CNT] of TCriticalSection;
+//    m_dtSaveLog: array [DefCommon.CH1 .. DefCommon.MAX_PG_CNT] of TDateTime;
+//    m_slLog : array [DefCommon.CH1 .. DefCommon.MAX_PG_CNT] of TStringList;
     constructor Create;
     destructor Destroy; override;
     function MakeModelData(model_name : String) : AnsiString;
@@ -824,6 +831,8 @@ type
     function GetVersionDate : String;
     function GetVerOnlyDate : string;
     function GetFileVersion(sFileName : string) : string;
+    function GetProductVersion(sFileName : string) : string;
+
     function GetFileVerDate(sFileName : string;nType : Integer = 0) : string;
     function GetScriptCrc(stData : TStringList): string;
     function GetStringCrc(sData : string) : string;
@@ -843,6 +852,7 @@ type
     procedure SaveModelInfoDLL(fName: String);
     procedure SaveModelInfo2(fName: String);
     procedure MLog(nCh : Integer;const Msg : String);
+
 
     procedure R2RLog(nCh: Integer; const Msg: String);
     procedure RePGMLog(nCh : Integer;const sPID,sSN: String);
@@ -909,6 +919,9 @@ type
     function IfVersionIsLessThan(const currentVersion, targetVersion: string): Integer;
     procedure CompressAndDeleteFolders(const sourceFolder, targetFolder: string);
     procedure ScheduledTask;
+//    procedure AddMLog(nCh : Integer; sLog: String; bSave: Boolean);
+
+
   end;
 
 var
@@ -1041,6 +1054,73 @@ begin
     CombiCodeData.bAuthority := True;
   end;
 end;
+
+//procedure TCommon.AddMLog(nCh : Integer; sLog: String; bSave: Boolean);
+//var
+//  dtNow: TDateTime;
+//begin
+//
+//  dtNow:= Now;
+//  Common.m_csLog[nCh].Enter;
+//
+//  if HourOf(Common.m_dtSaveLog[nCh]) <> HourOf(dtNow) then Common.SaveLog(nCH,Common.m_dtSaveLog[nCh]); //시간 변경된 경우 이전 File로 저장
+//  if bSave and (sLog = '') then begin
+//    //단순 저장 요청
+//  end else begin
+//    //저장 요청이 아닌 경우Log 추가
+//    Common.m_slLog[nCH].Add(FormatDateTime('HH:NN:SS.ZZZ => ', dtNow) + sLog);
+//  end;
+//
+//
+//  //로그 라인수가 누적 라인수 초과이거나누적시간(초) 초과인 경우File로 저장
+//  if (Common.m_slLog[nCh].Count > LogAccumulateCount) or (SecondsBetween(dtNow, Common.m_dtSaveLog[nCh]) > LogAccumulateSecond) or bSave then begin
+//    Common.SaveLog(nCH,dtNow);
+//  end;
+//  Common.m_csLog[nCh].Leave;
+//end;
+
+//procedure TCommon.SaveLog(nCH : Integer; dtSave: TDateTime);
+//var
+//  sFileName: String;
+//  sDir,sDate,sFilePath,sFileDate,FileName: String;
+//  logFile: TextFile;
+//begin
+//  if m_slLog[nCH].Count = 0 then Exit;
+//
+//  if (nCh < DefCommon.CH1) or (nCh > MAX_PLC_LOG) then  nCh := DefCommon.MAX_SYSTEM_LOG;
+//
+//
+//    sDate := FormatDateTime('yyyymmdd', dtSave);
+//    sFilePath := Path.MLOG + sDate + '\';
+//    ForceDirectories(sFilePath);
+//    sFileDate := FormatDateTime('yyyymmdd_AM/PM', dtSave);
+//
+//    case nCh of
+//      DefCommon.MAX_SYSTEM_LOG: FileName := sFilePath + Format('SystemLog_%s_%s.txt',[systemInfo.EQPId,sFileDate]);
+//      DefCommon.MAX_PLC_LOG: FileName :=  sFilePath + Format('PLC_%s_%s.txt',[systemInfo.EQPId,sFileDate])
+//      else
+//        FileName := sFilePath + Format('MLog_%s_%s_Ch%d.txt',[systemInfo.EQPId,sFileDate,nCh + 1]);
+//    end;
+//
+//  AssignFile(logFile, FileName);
+//  try
+//    try
+//      {$I-}
+//      if FileExists(FileName) then Append(logFile) else Rewrite(logFile);
+//
+//      WriteLn(logFile, Trim(m_slLog[nCH].Text));
+//
+//      //m_csLog.Acquire;
+//      m_slLog[nCH].Clear;
+//      //m_csLog.Release;
+//      m_dtSaveLog[nCH]:= dtSave;
+//      {$I+}
+//    except
+//    end;
+//  finally
+//    CloseFile(logFile);
+//  end;
+//end;
 
 
 
@@ -1431,7 +1511,10 @@ begin
 
   for I := 0 to DefCommon.MAX_PG_CNT do begin
     CriticalSection[i] := TCriticalSection.Create;
+//    m_slLog[i]:= TStringList.Create;
+//    m_csLog[i]:= TCriticalSection.Create;
   end;
+
 
 
   FLogQueue:= TQueue<TLogItem>.Create;
@@ -1455,6 +1538,7 @@ begin
   m_bStopWork := False;
   m_bIsChanged := False;
   ExeVersion:= GetFileVersion(Application.ExeName);
+  ProductVersion := GetProductVersion(Application.ExeName);
   ComputerName:= GetComputerName;
   m_csReadCsvLog:= TCriticalSection.Create;
   m_csWriteCsvLog := TCriticalSection.Create;
@@ -1623,7 +1707,11 @@ begin
 
   for I := 0 to DefCommon.MAX_PG_CNT do begin
     CriticalSection[i].Free;
+//    m_slLog[i].Free;
+//    m_csLog[i].Free;
   end;
+
+
 
 
   FLogThread.Terminate;
@@ -2108,12 +2196,62 @@ begin
             HiWord(PVerValue^.dwFileVersionMS), //Major
             LoWord(PVerValue^.dwFileVersionMS), //Minor
             HiWord(PVerValue^.dwFileVersionLS), //Release
-            LoWord(PVerValue^.dwFileVersionLS)]); //Build
+            LoWord(PVerValue^.dwFileVersionLS) //Build
+            ]);
       end;
     end;
   finally
     FreeMem(PVerInfo, VerInfoSize);
   end;
+  //ProductVersion
+
+end;
+
+function TCommon.GetProductVersion(sFileName: string): string;
+var
+  VerInfoSize: Cardinal;
+  VerValueSize: Cardinal;
+  dwHandle: Cardinal;
+  PVerInfo: Pointer;
+  PVerValue: PVSFixedFileInfo;
+begin
+(* Query
+    - CompanyName
+    - FileDescription
+    - FileVersion
+    - InternalName
+    - LegalCopyright
+    - LegalTrademarks
+    - ProductName
+    - ProductVersion
+*)
+  Result := '';
+  VerInfoSize := GetFileVersionInfoSize(PChar(sFileName), dwHandle);
+  GetMem(PVerInfo, VerInfoSize);
+  try
+    if GetFileVersionInfo(PChar(sFileName), dwHandle, VerInfoSize, PVerInfo) then
+    begin
+      // get the locale, this determines the default language
+//      VerQueryValue(Buf, PChar('\VarFileInfo\Translation'), pData, Len);
+//      sLocale := IntToHex(Integer(pData^), 8);
+//      sLocale := Copy(sLocale, 5, 4) + Copy(sLocale, 1, 4);
+//      VerQueryValue(Buf, PChar('\StringFileInfo\' + sLocale + '\ProductVersion'), Pointer(Value), Len)
+
+      if VerQueryValue(PVerInfo, '\', Pointer(PVerValue), VerValueSize) then
+      begin
+          Result := Format('%d.%d.%d.%d', [
+            HiWord(PVerValue^.dwProductVersionMS), //Major
+            LoWord(PVerValue^.dwProductVersionMS), //Minor
+            HiWord(PVerValue^.dwProductVersionLS), //Release
+            LoWord(PVerValue^.dwProductVersionLS) //Build
+            ]);
+      end;
+    end;
+  finally
+    FreeMem(PVerInfo, VerInfoSize);
+  end;
+  //ProductVersion
+
 end;
 
 function TCommon.GetLocalIpList(nIdx : Integer; sSearchIp : string): string;
@@ -3953,11 +4091,14 @@ begin
           else
             Append(_infile);
 
-          sInputData :=  LogItem.Msg;
+          sInputData := format('Queue Cnt : %d ',[FLogQueue.Count])+ LogItem.Msg;
           WriteLn(_infile, sInputData);
         finally
           CloseFile(_infile);
         end;
+        if FLogQueue.Count > 1000 then
+         FLogQueue.Clear;
+
       except
         // Handle exceptions as needed
       end;
@@ -4460,6 +4601,10 @@ var
 begin
   try
     // Enqueue log item for asynchronous processing
+
+//    AddMLog(nCh,Msg,True);
+//    Exit;
+
     if (nCh < DefCommon.CH1) or (nCh > MAX_PLC_LOG) then  nCh := DefCommon.MAX_SYSTEM_LOG;
 
     if CheckDir(Path.MLOG) then
@@ -4486,11 +4631,12 @@ begin
   end;
 end;
 
+
 // MLog 함수 개선
 //procedure TCommon.MLog(nCh: Integer; const Msg: String);
 //var
 //  _infile: TextFile;
-//  sInputData, sFileName, sDate, sFilePath: String;
+//  sInputData, sFileName, sDate, sFilePath,sFileDate: String;
 //  MyClass: TComponent;
 //begin
 //
@@ -4501,14 +4647,16 @@ end;
 //    sDate := FormatDateTime('yyyymmdd', Now);
 //    sFilePath := Path.MLOG + sDate + '\';
 //
+//    sFileDate := FormatDateTime('yyyymmdd_AM/PM', Now);
+//
 //    if CheckDir(sFilePath) then
 //      Exit;
 //
 //    case nCh of
-//      DefCommon.MAX_SYSTEM_LOG: sFileName := sFilePath + Format('SystemLog_%s_%s.txt', [systemInfo.EQPId, FormatDateTime('ddhh', Now)]);
-//      DefCommon.MAX_PLC_LOG: sFileName := sFilePath + Format('PLC_%s_%s.txt', [systemInfo.EQPId, FormatDateTime('ddhh', Now)]);
+//      DefCommon.MAX_SYSTEM_LOG: sFileName := sFilePath + Format('SystemLog_%s_%s.txt',[systemInfo.EQPId,sFileDate]);
+//      DefCommon.MAX_PLC_LOG: sFileName :=  sFilePath + Format('PLC_%s_%s.txt',[systemInfo.EQPId,sFileDate])
 //      else
-//        sFileName := sFilePath + Format('MLog_%s_%s_Ch%d.txt', [systemInfo.EQPId, FormatDateTime('ddhh', Now), nCh + 1]);
+//        sFileName := sFilePath + Format('MLog_%s_%s_Ch%d.txt',[systemInfo.EQPId,sFileDate,nCh + 1]);
 //    end;
 //
 //    AssignFile(_infile, sFileName);
@@ -4528,7 +4676,7 @@ end;
 //  except
 //    on E: Exception do
 //    begin
-//
+//      Sleep(10); //MLog 충돌 방지- IO 103
 //    end;
 //  end;
 //

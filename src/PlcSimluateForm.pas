@@ -1228,7 +1228,7 @@ begin
           nBitLoc:= k;
           nValue:= Get_Bit(Memory_B0[nAddr], nBitLoc);
           if nValue <> Get_Bit(Memory_BPre[nAddr], nBitLoc) then begin
-            Process_Monitoring_EQP(nAddr*$10 + nBitLoc, nValue);
+//            Process_Monitoring_EQP(nAddr*$10 + nBitLoc, nValue);
           end;
         end;
         bChanged:= True;

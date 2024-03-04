@@ -4562,11 +4562,11 @@ begin
                   SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'AABMode - A Mode- EIJR SKIP');
                   Exit;
                 end;
-                if nValue and $38 = 0 then  begin
-//                  Common.MLog(self.FPgNo, 'AABMode - AA Mode EIJR SKIP');
-                  SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'AABMode - AA Mode EIJR SKIP');
-                  Exit;
-                end;
+//                if nValue and $38 = 0 then  begin
+////                  Common.MLog(self.FPgNo, 'AABMode - AA Mode EIJR SKIP');
+//                  SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'AABMode - AA Mode EIJR SKIP');
+//                  Exit;
+//                end;
               end
               else begin
 
@@ -4575,11 +4575,11 @@ begin
                   SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'AABMode - A Mode- EIJR SKIP');
                   Exit;
                 end;
-                if nValue and $E000 = 0 then  begin
-//                  Common.MLog(self.FPgNo, 'AABMode - AA Mode EIJR SKIP');
-                  SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'AABMode - AA Mode EIJR SKIP');
-                  Exit;
-                end;
+//                if nValue and $E000 = 0 then  begin
+////                  Common.MLog(self.FPgNo, 'AABMode - AA Mode EIJR SKIP');
+//                  SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'AABMode - AA Mode EIJR SKIP');
+//                  Exit;
+//                end;
 
               end;
 

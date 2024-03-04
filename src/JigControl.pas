@@ -3,7 +3,7 @@ unit JigControl;
 interface
 {$I Common.inc}
 uses
-  Winapi.Windows, Winapi.Messages, System.Classes, System.SysUtils, DefCommon,NgMsg, {CodeSiteLogging,}
+  Winapi.Windows, Winapi.Messages, System.Classes, System.SysUtils, DefCommon,NgMsg, {CodeSiteLogging,}  dllClass,
   CommonClass, GMesCom, LogicVh, pasScriptClass, DefScript,Forms,CommPLC_ECS, {UdpServerClient,}CommPG,DefPG,  DefDio
 {$IFDEF CA310_USE}
   , Ca310
@@ -365,6 +365,9 @@ begin
 {$ENDIF}
   // Script가 돌고 있으면 시작 하지 말자.
   if CheckScript(0,nSeq) then Exit(False);
+  //검사중 시작하지말자
+  if (CSharpDll.MainOC_GetOCFlowIsAlive(0) = 1) or (CSharpDll.MainOC_GetOCFlowIsAlive(1) = 1) then Exit(False);
+
   if Common.SystemInfo.OCType = DefCommon.PreOCType then  begin
     //두번째인지 확인 필요
     //if ... then
@@ -446,6 +449,8 @@ begin
 {$ENDIF}
   // Script가 돌고 있으면 시작 하지 말자.
   if CheckScript(1,nSeq) then Exit(False);
+  //검사중 시작하지말자
+  if (CSharpDll.MainOC_GetOCFlowIsAlive(2) = 1) or (CSharpDll.MainOC_GetOCFlowIsAlive(3) = 1) then Exit(False);
   if Common.SystemInfo.OCType = DefCommon.PreOCType then  begin
     //두번째인지 확인 필요
     //if ... then                                                 '
