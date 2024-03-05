@@ -2256,30 +2256,6 @@ begin
       AddLog(format('temp Anomaly - FAN ON Temp 1 : %f 2 : %f ',[FTempIr[0],FTempIr[1]]),0,1);
       ControlDio.WriteDioSig(DefDio.OUT_CH1_PMIC_FAN_ON,false);
       m_bFanOnOff[nCH] := True;
-      if CSharpDll.m_CurrentBand[nCH] = 1 then  begin     //1band temp 값 저장
-        SetLength(m_aTempIr[nCH][1], Length(m_aTempIr[nCH][1]) + 1);   // Temp 배열 증가
-        m_aTempIr[nCH][1][Length(m_aTempIr[nCH][1]) - 1] := format('%f',[FTempIr[1]]);
-      end;
-      if CSharpDll.m_CurrentBand[nCH] = 2 then  begin     //2band temp 값 저장
-        SetLength(m_aTempIr[nCH][2], Length(m_aTempIr[nCH][2]) + 1);   // Temp 배열 증가
-        m_aTempIr[nCH][2][Length(m_aTempIr[nCH][2]) - 1] := format('%f',[FTempIr[1]]);
-      end;
-      if CSharpDll.m_CurrentBand[nCH] = 6 then  begin     //6band temp 값 저장
-        SetLength(m_aTempIr[nCH][3], Length(m_aTempIr[nCH][3]) + 1);   // Temp 배열 증가
-        m_aTempIr[nCH][3][Length(m_aTempIr[nCH][3]) - 1] := format('%f',[FTempIr[1]]);
-      end;
-      if CSharpDll.m_CurrentBand[nCH] = 24 then  begin    //24band temp 값 저장
-        SetLength(m_aTempIr[nCH][4], Length(m_aTempIr[nCH][4]) + 1);   // Temp 배열 증가
-        m_aTempIr[nCH][4][Length(m_aTempIr[nCH][4]) - 1] := format('%f',[FTempIr[1]]);
-      end;
-      if CSharpDll.m_CurrentBand[nCH] = 29 then  begin    //29band temp 값 저장
-        SetLength(m_aTempIr[nCH][5], Length(m_aTempIr[nCH][5]) + 1);   // Temp 배열 증가
-        m_aTempIr[nCH][5][Length(m_aTempIr[nCH][5]) - 1] := format('%f',[FTempIr[1]]);
-      end;
-      if (m_nTempIrTact[nCH] mod 12) = 0 then begin
-        SetLength(m_aTempIr[nCH][0], Length(m_aTempIr[nCH][0]) + 1);   // Temp 배열 증가
-        m_aTempIr[nCH][0][Length(m_aTempIr[nCH][0]) - 1] := format('%f',[FTempIr[1]]);
-      end;
     end;
   end
   else begin
@@ -2288,6 +2264,30 @@ begin
       ControlDio.WriteDioSig(DefDio.OUT_CH1_PMIC_FAN_ON,True);
       m_bFanOnOff[0] := False;
     end
+  end;
+  if CSharpDll.m_CurrentBand[nCH] = 1 then  begin     //1band temp 값 저장
+    SetLength(m_aTempIr[nCH][1], Length(m_aTempIr[nCH][1]) + 1);   // Temp 배열 증가
+    m_aTempIr[nCH][1][Length(m_aTempIr[nCH][1]) - 1] := format('%f',[FTempIr[1]]);
+  end;
+  if CSharpDll.m_CurrentBand[nCH] = 2 then  begin     //2band temp 값 저장
+    SetLength(m_aTempIr[nCH][2], Length(m_aTempIr[nCH][2]) + 1);   // Temp 배열 증가
+    m_aTempIr[nCH][2][Length(m_aTempIr[nCH][2]) - 1] := format('%f',[FTempIr[1]]);
+  end;
+  if CSharpDll.m_CurrentBand[nCH] = 6 then  begin     //6band temp 값 저장
+    SetLength(m_aTempIr[nCH][3], Length(m_aTempIr[nCH][3]) + 1);   // Temp 배열 증가
+    m_aTempIr[nCH][3][Length(m_aTempIr[nCH][3]) - 1] := format('%f',[FTempIr[1]]);
+  end;
+  if CSharpDll.m_CurrentBand[nCH] = 24 then  begin    //24band temp 값 저장
+    SetLength(m_aTempIr[nCH][4], Length(m_aTempIr[nCH][4]) + 1);   // Temp 배열 증가
+    m_aTempIr[nCH][4][Length(m_aTempIr[nCH][4]) - 1] := format('%f',[FTempIr[1]]);
+  end;
+  if CSharpDll.m_CurrentBand[nCH] = 29 then  begin    //29band temp 값 저장
+    SetLength(m_aTempIr[nCH][5], Length(m_aTempIr[nCH][5]) + 1);   // Temp 배열 증가
+    m_aTempIr[nCH][5][Length(m_aTempIr[nCH][5]) - 1] := format('%f',[FTempIr[1]]);
+  end;
+  if (m_nTempIrTact[nCH] mod 12) = 0 then begin
+    SetLength(m_aTempIr[nCH][0], Length(m_aTempIr[nCH][0]) + 1);   // Temp 배열 증가
+    m_aTempIr[nCH][0][Length(m_aTempIr[nCH][0]) - 1] := format('%f',[FTempIr[1]]);
   end;
 
   SaveCsvTempStatus(0,sMemo,m_bFanOnOff[0]);
@@ -2306,30 +2306,6 @@ begin
       AddLog(format('temp Anomaly - FAN ON Temp 1 : %f 2 : %f ',[FTempIr[2],FTempIr[3]]),1,1);
       ControlDio.WriteDioSig(DefDio.OUT_CH2_PMIC_FAN_ON,false);
       m_bFanOnOff[1] := True;
-      if CSharpDll.m_CurrentBand[nCH] = 1 then  begin     //1band temp 값 저장
-        SetLength(m_aTempIr[nCH][1], Length(m_aTempIr[nCH][1]) + 1);   // Temp 배열 증가
-        m_aTempIr[nCH][1][Length(m_aTempIr[nCH][1]) - 1] := format('%f',[FTempIr[1]]);
-      end;
-      if CSharpDll.m_CurrentBand[nCH] = 2 then  begin     //2band temp 값 저장
-        SetLength(m_aTempIr[nCH][2], Length(m_aTempIr[nCH][2]) + 1);   // Temp 배열 증가
-        m_aTempIr[nCH][2][Length(m_aTempIr[nCH][2]) - 1] := format('%f',[FTempIr[1]]);
-      end;
-      if CSharpDll.m_CurrentBand[nCH] = 6 then  begin     //6band temp 값 저장
-        SetLength(m_aTempIr[nCH][3], Length(m_aTempIr[nCH][3]) + 1);   // Temp 배열 증가
-        m_aTempIr[nCH][3][Length(m_aTempIr[nCH][3]) - 1] := format('%f',[FTempIr[1]]);
-      end;
-      if CSharpDll.m_CurrentBand[nCH] = 24 then  begin    //24band temp 값 저장
-        SetLength(m_aTempIr[nCH][4], Length(m_aTempIr[nCH][4]) + 1);   // Temp 배열 증가
-        m_aTempIr[nCH][4][Length(m_aTempIr[nCH][4]) - 1] := format('%f',[FTempIr[1]]);
-      end;
-      if CSharpDll.m_CurrentBand[nCH] = 29 then  begin    //29band temp 값 저장
-        SetLength(m_aTempIr[nCH][5], Length(m_aTempIr[nCH][5]) + 1);   // Temp 배열 증가
-        m_aTempIr[nCH][5][Length(m_aTempIr[nCH][5]) - 1] := format('%f',[FTempIr[1]]);
-      end;
-      if (m_nTempIrTact[nCH] mod 12) = 0 then begin
-        SetLength(m_aTempIr[nCH][0], Length(m_aTempIr[nCH][0]) + 1);   // Temp 배열 증가
-        m_aTempIr[nCH][0][Length(m_aTempIr[nCH][0]) - 1] := format('%f',[FTempIr[1]]);
-      end;
     end;
   end
   else begin
@@ -2338,6 +2314,30 @@ begin
       ControlDio.WriteDioSig(DefDio.OUT_CH2_PMIC_FAN_ON,True);
       m_bFanOnOff[1] := False;
     end
+  end;
+  if CSharpDll.m_CurrentBand[nCH] = 1 then  begin     //1band temp 값 저장
+    SetLength(m_aTempIr[nCH][1], Length(m_aTempIr[nCH][1]) + 1);   // Temp 배열 증가
+    m_aTempIr[nCH][1][Length(m_aTempIr[nCH][1]) - 1] := format('%f',[FTempIr[1]]);
+  end;
+  if CSharpDll.m_CurrentBand[nCH] = 2 then  begin     //2band temp 값 저장
+    SetLength(m_aTempIr[nCH][2], Length(m_aTempIr[nCH][2]) + 1);   // Temp 배열 증가
+    m_aTempIr[nCH][2][Length(m_aTempIr[nCH][2]) - 1] := format('%f',[FTempIr[1]]);
+  end;
+  if CSharpDll.m_CurrentBand[nCH] = 6 then  begin     //6band temp 값 저장
+    SetLength(m_aTempIr[nCH][3], Length(m_aTempIr[nCH][3]) + 1);   // Temp 배열 증가
+    m_aTempIr[nCH][3][Length(m_aTempIr[nCH][3]) - 1] := format('%f',[FTempIr[1]]);
+  end;
+  if CSharpDll.m_CurrentBand[nCH] = 24 then  begin    //24band temp 값 저장
+    SetLength(m_aTempIr[nCH][4], Length(m_aTempIr[nCH][4]) + 1);   // Temp 배열 증가
+    m_aTempIr[nCH][4][Length(m_aTempIr[nCH][4]) - 1] := format('%f',[FTempIr[1]]);
+  end;
+  if CSharpDll.m_CurrentBand[nCH] = 29 then  begin    //29band temp 값 저장
+    SetLength(m_aTempIr[nCH][5], Length(m_aTempIr[nCH][5]) + 1);   // Temp 배열 증가
+    m_aTempIr[nCH][5][Length(m_aTempIr[nCH][5]) - 1] := format('%f',[FTempIr[1]]);
+  end;
+  if (m_nTempIrTact[nCH] mod 12) = 0 then begin
+    SetLength(m_aTempIr[nCH][0], Length(m_aTempIr[nCH][0]) + 1);   // Temp 배열 증가
+    m_aTempIr[nCH][0][Length(m_aTempIr[nCH][0]) - 1] := format('%f',[FTempIr[1]]);
   end;
   SaveCsvTempStatus(1,sMemo,m_bFanOnOff[1]);
 end;
@@ -2355,30 +2355,6 @@ begin
       AddLog(format('temp Anomaly - FAN ON Temp 1 : %f 2 : %f ',[FTempIr[4],FTempIr[5]]),2,1);
       ControlDio.WriteDioSig(DefDio.OUT_CH3_PMIC_FAN_ON,false);
       m_bFanOnOff[2] := True;
-      if CSharpDll.m_CurrentBand[nCH] = 1 then  begin     //1band temp 값 저장
-        SetLength(m_aTempIr[nCH][1], Length(m_aTempIr[nCH][1]) + 1);   // Temp 배열 증가
-        m_aTempIr[nCH][1][Length(m_aTempIr[nCH][1]) - 1] := format('%f',[FTempIr[1]]);
-      end;
-      if CSharpDll.m_CurrentBand[nCH] = 2 then  begin     //2band temp 값 저장
-        SetLength(m_aTempIr[nCH][2], Length(m_aTempIr[nCH][2]) + 1);   // Temp 배열 증가
-        m_aTempIr[nCH][2][Length(m_aTempIr[nCH][2]) - 1] := format('%f',[FTempIr[1]]);
-      end;
-      if CSharpDll.m_CurrentBand[nCH] = 6 then  begin     //6band temp 값 저장
-        SetLength(m_aTempIr[nCH][3], Length(m_aTempIr[nCH][3]) + 1);   // Temp 배열 증가
-        m_aTempIr[nCH][3][Length(m_aTempIr[nCH][3]) - 1] := format('%f',[FTempIr[1]]);
-      end;
-      if CSharpDll.m_CurrentBand[nCH] = 24 then  begin    //24band temp 값 저장
-        SetLength(m_aTempIr[nCH][4], Length(m_aTempIr[nCH][4]) + 1);   // Temp 배열 증가
-        m_aTempIr[nCH][4][Length(m_aTempIr[nCH][4]) - 1] := format('%f',[FTempIr[1]]);
-      end;
-      if CSharpDll.m_CurrentBand[nCH] = 29 then  begin    //29band temp 값 저장
-        SetLength(m_aTempIr[nCH][5], Length(m_aTempIr[nCH][5]) + 1);   // Temp 배열 증가
-        m_aTempIr[nCH][5][Length(m_aTempIr[nCH][5]) - 1] := format('%f',[FTempIr[1]]);
-      end;
-      if (m_nTempIrTact[nCH] mod 12) = 0 then begin
-        SetLength(m_aTempIr[nCH][0], Length(m_aTempIr[nCH][0]) + 1);   // Temp 배열 증가
-        m_aTempIr[nCH][0][Length(m_aTempIr[nCH][0]) - 1] := format('%f',[FTempIr[1]]);
-      end;
     end;
   end
   else begin
@@ -2387,6 +2363,30 @@ begin
       ControlDio.WriteDioSig(DefDio.OUT_CH3_PMIC_FAN_ON,True);
       m_bFanOnOff[2] := False;
     end
+  end;
+  if CSharpDll.m_CurrentBand[nCH] = 1 then  begin     //1band temp 값 저장
+    SetLength(m_aTempIr[nCH][1], Length(m_aTempIr[nCH][1]) + 1);   // Temp 배열 증가
+    m_aTempIr[nCH][1][Length(m_aTempIr[nCH][1]) - 1] := format('%f',[FTempIr[1]]);
+  end;
+  if CSharpDll.m_CurrentBand[nCH] = 2 then  begin     //2band temp 값 저장
+    SetLength(m_aTempIr[nCH][2], Length(m_aTempIr[nCH][2]) + 1);   // Temp 배열 증가
+    m_aTempIr[nCH][2][Length(m_aTempIr[nCH][2]) - 1] := format('%f',[FTempIr[1]]);
+  end;
+  if CSharpDll.m_CurrentBand[nCH] = 6 then  begin     //6band temp 값 저장
+    SetLength(m_aTempIr[nCH][3], Length(m_aTempIr[nCH][3]) + 1);   // Temp 배열 증가
+    m_aTempIr[nCH][3][Length(m_aTempIr[nCH][3]) - 1] := format('%f',[FTempIr[1]]);
+  end;
+  if CSharpDll.m_CurrentBand[nCH] = 24 then  begin    //24band temp 값 저장
+    SetLength(m_aTempIr[nCH][4], Length(m_aTempIr[nCH][4]) + 1);   // Temp 배열 증가
+    m_aTempIr[nCH][4][Length(m_aTempIr[nCH][4]) - 1] := format('%f',[FTempIr[1]]);
+  end;
+  if CSharpDll.m_CurrentBand[nCH] = 29 then  begin    //29band temp 값 저장
+    SetLength(m_aTempIr[nCH][5], Length(m_aTempIr[nCH][5]) + 1);   // Temp 배열 증가
+    m_aTempIr[nCH][5][Length(m_aTempIr[nCH][5]) - 1] := format('%f',[FTempIr[1]]);
+  end;
+  if (m_nTempIrTact[nCH] mod 12) = 0 then begin
+    SetLength(m_aTempIr[nCH][0], Length(m_aTempIr[nCH][0]) + 1);   // Temp 배열 증가
+    m_aTempIr[nCH][0][Length(m_aTempIr[nCH][0]) - 1] := format('%f',[FTempIr[1]]);
   end;
   SaveCsvTempStatus(2,sMemo,m_bFanOnOff[2]);
 end;
@@ -2404,30 +2404,6 @@ begin
       AddLog(format('temp Anomaly - FAN ON Temp 1 : %f 2 : %f ',[FTempIr[6],FTempIr[7]]),3,1);
       ControlDio.WriteDioSig(DefDio.OUT_CH4_PMIC_FAN_ON,false);
       m_bFanOnOff[3] := True;
-      if CSharpDll.m_CurrentBand[nCH] = 1 then  begin     //1band temp 값 저장
-        SetLength(m_aTempIr[nCH][1], Length(m_aTempIr[nCH][1]) + 1);   // Temp 배열 증가
-        m_aTempIr[nCH][1][Length(m_aTempIr[nCH][1]) - 1] := format('%f',[FTempIr[1]]);
-      end;
-      if CSharpDll.m_CurrentBand[nCH] = 2 then  begin     //2band temp 값 저장
-        SetLength(m_aTempIr[nCH][2], Length(m_aTempIr[nCH][2]) + 1);   // Temp 배열 증가
-        m_aTempIr[nCH][2][Length(m_aTempIr[nCH][2]) - 1] := format('%f',[FTempIr[1]]);
-      end;
-      if CSharpDll.m_CurrentBand[nCH] = 6 then  begin     //6band temp 값 저장
-        SetLength(m_aTempIr[nCH][3], Length(m_aTempIr[nCH][3]) + 1);   // Temp 배열 증가
-        m_aTempIr[nCH][3][Length(m_aTempIr[nCH][3]) - 1] := format('%f',[FTempIr[1]]);
-      end;
-      if CSharpDll.m_CurrentBand[nCH] = 24 then  begin    //24band temp 값 저장
-        SetLength(m_aTempIr[nCH][4], Length(m_aTempIr[nCH][4]) + 1);   // Temp 배열 증가
-        m_aTempIr[nCH][4][Length(m_aTempIr[nCH][4]) - 1] := format('%f',[FTempIr[1]]);
-      end;
-      if CSharpDll.m_CurrentBand[nCH] = 29 then  begin    //29band temp 값 저장
-        SetLength(m_aTempIr[nCH][5], Length(m_aTempIr[nCH][5]) + 1);   // Temp 배열 증가
-        m_aTempIr[nCH][5][Length(m_aTempIr[nCH][5]) - 1] := format('%f',[FTempIr[1]]);
-      end;
-      if (m_nTempIrTact[nCH] mod 12) = 0 then begin
-        SetLength(m_aTempIr[nCH][0], Length(m_aTempIr[nCH][0]) + 1);   // Temp 배열 증가
-        m_aTempIr[nCH][0][Length(m_aTempIr[nCH][0]) - 1] := format('%f',[FTempIr[1]]);
-      end;
     end;
   end
   else begin
@@ -2436,6 +2412,30 @@ begin
       ControlDio.WriteDioSig(DefDio.OUT_CH4_PMIC_FAN_ON,True);
       m_bFanOnOff[3] := False;
     end
+  end;
+  if CSharpDll.m_CurrentBand[nCH] = 1 then  begin     //1band temp 값 저장
+    SetLength(m_aTempIr[nCH][1], Length(m_aTempIr[nCH][1]) + 1);   // Temp 배열 증가
+    m_aTempIr[nCH][1][Length(m_aTempIr[nCH][1]) - 1] := format('%f',[FTempIr[1]]);
+  end;
+  if CSharpDll.m_CurrentBand[nCH] = 2 then  begin     //2band temp 값 저장
+    SetLength(m_aTempIr[nCH][2], Length(m_aTempIr[nCH][2]) + 1);   // Temp 배열 증가
+    m_aTempIr[nCH][2][Length(m_aTempIr[nCH][2]) - 1] := format('%f',[FTempIr[1]]);
+  end;
+  if CSharpDll.m_CurrentBand[nCH] = 6 then  begin     //6band temp 값 저장
+    SetLength(m_aTempIr[nCH][3], Length(m_aTempIr[nCH][3]) + 1);   // Temp 배열 증가
+    m_aTempIr[nCH][3][Length(m_aTempIr[nCH][3]) - 1] := format('%f',[FTempIr[1]]);
+  end;
+  if CSharpDll.m_CurrentBand[nCH] = 24 then  begin    //24band temp 값 저장
+    SetLength(m_aTempIr[nCH][4], Length(m_aTempIr[nCH][4]) + 1);   // Temp 배열 증가
+    m_aTempIr[nCH][4][Length(m_aTempIr[nCH][4]) - 1] := format('%f',[FTempIr[1]]);
+  end;
+  if CSharpDll.m_CurrentBand[nCH] = 29 then  begin    //29band temp 값 저장
+    SetLength(m_aTempIr[nCH][5], Length(m_aTempIr[nCH][5]) + 1);   // Temp 배열 증가
+    m_aTempIr[nCH][5][Length(m_aTempIr[nCH][5]) - 1] := format('%f',[FTempIr[1]]);
+  end;
+  if (m_nTempIrTact[nCH] mod 12) = 0 then begin
+    SetLength(m_aTempIr[nCH][0], Length(m_aTempIr[nCH][0]) + 1);   // Temp 배열 증가
+    m_aTempIr[nCH][0][Length(m_aTempIr[nCH][0]) - 1] := format('%f',[FTempIr[1]]);
   end;
   SaveCsvTempStatus(3,sMemo,m_bFanOnOff[3]);
 end;

@@ -2451,7 +2451,7 @@ begin
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_11] := 1;
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$08+$4 + (nCh*$20), 3), 1); //Load Normal Status - 상태 설정에서....
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_11] := 1;
-//      Sleep(50);
+      Sleep(50);
 
       ConvertGlassDataToBlock(GlassData[nCh], naGlassData[0]);
       WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$10+$0 + (nCh*$40) , 3), 64, naGlassData[0]); //Unload Glass Data #1
@@ -2478,11 +2478,11 @@ begin
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_11] := 1;
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$10+$4 + (nCh*$20), 3), 1); //Load Normal Status - 상태 설정에서....
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_11] := 1;
-//      Sleep(50);
+      Sleep(50);
 
       ConvertGlassDataToBlock(GlassData[nCh], naGlassData[0]);
       WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$20+$0 + (nCh*$40) , 3), 64, naGlassData[0]); //Unload Glass Data #1
-//      Sleep(50);
+      Sleep(50);
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_1] := 1;
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$11+$1 + (nCh*$20), 3), 1); //Unload Glass Data Report
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_2] := 1;
@@ -2506,7 +2506,7 @@ begin
     Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_11] := 1;
     WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$12+$4 + (nCh*$20), 3), 1); //Load Normal Status - 상태 설정에서....
     Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_11] := 1;
-//    Sleep(50);
+    Sleep(50);
     AddLog('ROBOT_Exchange_Request: 2 : ' + InttoStr(nCh));
     if Common.SystemInfo.CHReversal then begin
       ConvertGlassDataToBlock(GlassData[nCh*2 + 1], naGlassData[0]);
@@ -2665,7 +2665,7 @@ begin
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$08+$6 + (nCh*$20), 3), 0); //Load Complte Confirm Off
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$08+$4 + (nCh*$20), 3), 1); //Normal Status - 상태 설정에서....
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_11] := 1;
-      Sleep(50);
+      Sleep(500);
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$08+$1 + (nCh*$20), 3), 1); //Glass Data Request
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_1] := 1;
 
@@ -2682,7 +2682,7 @@ begin
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$10+$6 + (nCh*$20), 3), 0); //Load Complte Confirm Off
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$10+$4 + (nCh*$20), 3), 1); //Normal Status - 상태 설정에서....
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_11] := 1;
-      Sleep(50);
+      Sleep(500);
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$10+$1 + (nCh*$20), 3), 1); //Glass Data Request
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_1] := 1;
 
@@ -2701,7 +2701,7 @@ begin
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$6 + (nCh*$20), 3), 0); //Load Complte Confirm Off
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$4 + (nCh*$20), 3), 1); //Normal Status - 상태 설정에서....
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_11] := 1;
-      Sleep(50);
+      Sleep(500);
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$1 + (nCh*$20), 3), 1); //Glass Data Request
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_1] := 1;
     end
@@ -2719,15 +2719,13 @@ begin
 
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$12+$4 + (nCh*$20), 3), 1); //Normal Status - 상태 설정에서....
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_11] := 1;
-      Sleep(50);
+      Sleep(500);
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$12+$1 + (nCh*$20), 3), 1); //Glass Data Request
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_1] := 1;
     end;
   end;
   RequestState_Load[nCh]:= 1;
 Exit;
-
-
 
   //Glass Data Report를 보고 대기
   nRet:= WaitSignal('B' + IntToHex(StartAddr_ROBOT+$10*$01+$1 + (nCh*$20) + (EQP_ID * $40), 3), 1, 30000); //Glass Data Report를 보고 대기
@@ -4037,7 +4035,6 @@ begin
       ConvertBlockToGlassData(naGlassData[0], GlassData[nCh*2+1])                 // Added by KTS 2023-03-23 오후 6:14:43
     else
       ConvertBlockToGlassData(naGlassData[0], GlassData[nCh*2]);
-//    Sleep(100);
     if (nCh =1) and (StartAddr2_ROBOT_W <> 0) then
       ReadDeviceBlock('W' + IntToHex(StartAddr2_ROBOT_W+$10*$0+$40, 3), 64, naGlassData[0],nReturnCode) //Load #1 Glass Data
     else
@@ -4046,18 +4043,17 @@ begin
       ConvertBlockToGlassData(naGlassData[0], GlassData[nCh*2])                 // Added by KTS 2023-03-23 오후 6:14:43
     else
       ConvertBlockToGlassData(naGlassData[0], GlassData[nCh*2+1]);
-//    Sleep(100);
     AddLog('ROBOT_Load Request ' + IntToStr(nCh));
 
     Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_3] := 1;
     if Common.SystemInfo.OCType = DefCommon.OCType then  begin
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$5 + (nCh*$20), 3), 1); //Load Request
-//      Sleep(100);
+      Sleep(100);
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$0 + (nCh*$20), 3), 1); //Load Enable
     end
     else begin
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$12+$5 + (nCh*$20), 3), 1); //Load Request
-//      Sleep(100);
+      Sleep(100);
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$12+$0 + (nCh*$20), 3), 1); //Load Enable
     end;
     Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_4] := 1;

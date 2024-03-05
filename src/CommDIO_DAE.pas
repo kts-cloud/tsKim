@@ -10,11 +10,11 @@ uses
   IdGlobal, IdUDPClient, IdUDPServer, IdContext, IdSocketHandle,Vcl.Forms;
 
 const
-//{$IFDEF INSPECTOR_OC}
-//  MAX_DIO_DEVICE_COUNT = 12;
-//{$ELSE}
-//  MAX_DIO_DEVICE_COUNT = 8;
-//{$ENDIF}
+{$IFDEF INSPECTOR_OC}
+  MAX_DIO_DEVICE_COUNT = 12;
+{$ELSE}
+  MAX_DIO_DEVICE_COUNT = 8;
+{$ENDIF}
 //  MAX_DIO_DEVICE_COUNT = 16;
 
 
@@ -63,8 +63,8 @@ type
     ServerIP: Cardinal;
     ServerPort: Cardinal;
     Count : Byte;
-//    Version : array [0..MAX_DIO_DEVICE_COUNT] of Cardinal;  // Added by KTS 2023-04-12 오전 8:32:45
-    Version : array [0..12] of Cardinal;
+    Version : array [0..MAX_DIO_DEVICE_COUNT] of Cardinal;  // Added by KTS 2023-04-12 오전 8:32:45
+//    Version : array [0..12] of Cardinal;
 //    Version : array of Cardinal;
   end;
   PDIODeviceInfo = ^TDIODeviceInfo;

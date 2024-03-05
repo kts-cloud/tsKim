@@ -2377,6 +2377,7 @@ begin
     if Length(arStr) > 2 then begin
       sBand := ExtractNumbersFromString(arStr[1]);
       m_CurrentBand[nChannel_Index] := StrToIntDef(sBand,-1);
+      SendTestGuiDisplay(nChannel_Index,defCommon.MSG_MODE_WORKING,format('%s BAND : Start',[sBand]),nParam);
     end;
   end;
 

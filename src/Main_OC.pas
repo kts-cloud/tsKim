@@ -3180,6 +3180,7 @@ begin
     end;
     DefGmes.EAS_APDR : begin
       sPID := DongaGmes.MesData[nCh].PchkRtnPID;
+
       try
         PasScr[nCh].TestInfo.ApdrData := '';
         if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
@@ -3189,11 +3190,12 @@ begin
           if Length(PasScr[nCh].TestInfo.ApdrData) > 0 then
             sGD_DEFECT := ',GD:GD_DEFECT:' + DongaGmes.MesData[nCh].GDDefectCode
           else sGD_DEFECT := 'GD:GD_DEFECT:' + DongaGmes.MesData[nCh].GDDefectCode;
-          sIRTempData := ',' + frmTest4ChOC[0].GetIRTempData(nCh);
-          PasScr[nCh].TestInfo.ApdrData := PasScr[nCh].TestInfo.ApdrData + sGD_DEFECT + sIRTempData;
+          PasScr[nCh].TestInfo.ApdrData := PasScr[nCh].TestInfo.ApdrData + sGD_DEFECT;
         end
         else begin
+          sIRTempData := ',' + frmTest4ChOC[0].GetIRTempData(nCh);
           PasScr[nCh].TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog_New(sPID,PasScr[nCh].TestInfo.SerialNo,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
+          PasScr[nCh].TestInfo.ApdrData := PasScr[nCh].TestInfo.ApdrData + sIRTempData
         end;
         DongaGmes.MesData[nCh].ApdrData := PasScr[nCh].TestInfo.ApdrData;
         DongaGmes.SendEasApdr(PasScr[nCh].TestInfo.SerialNo, nCh);
@@ -5198,14 +5200,23 @@ begin
 end;
 
 
+
 procedure TfrmMain_OC.Button1Click(Sender: TObject);
 var
   nStartTick, nEndTick : Cardinal;
   sFileName : string;
-  sSerialId,sMLOG : String;
+  sSerialId,sMLOG,sBand : String;
   arStr : TArray<string>;
   i,j,nCH : Integer;
 begin
+  sMLOG := '[00:16] 1-Band Analog Search';
+  if (Pos('Band',sMLOG) > 0) and (pos('Search',sMLOG) > 0)  then begin
+    arStr := sMLOG.Split([' ']);
+    if Length(arStr) > 2 then begin
+      sBand := common.ExtractNumbersFromString(arStr[1]);
+      CSharpDll.m_CurrentBand[0] := StrToIntDef(sBand,-1);
+    end;
+  end;
   nCH := 0;
   for I := 0 to 5 do begin
     setlength(frmTest4ChOC[0].m_aTempIr[0][i],0); //초기화
@@ -5713,13 +5724,12 @@ begin
 //      end;
 //      else begin
         if Common.SystemInfo.UIType = DefCommon.UI_WIN10_BLACK then begin
-              mmoSysLog.Color := clWhite;
-              mmoSysLog.Font.Color := clBlack;
-        end
-
-        else begin
           mmoSysLog.Color := clBlack;
           mmoSysLog.Font.Color := clWhite;
+        end
+        else begin
+          mmoSysLog.Color := clWhite;
+          mmoSysLog.Font.Color := clBlack;
         end;
 
 //        mmoSysLog.SelAttributes.Style := [];

@@ -8,7 +8,7 @@ uses
   Vcl.Forms,Vcl.Dialogs, Winapi.WinSock, Vcl.StdCtrls, psAPI,System.IOUtils,IdGlobal,
   System.IniFiles,  CodeSiteLogging, StrUtils,  DefCommon, system.zip,DefPG, TLHelp32, ComObj, Variants,PdhExample,
 
-  System.Threading, FlexCel.Core, FlexCel.XlsAdapter,System.Diagnostics,System.TimeSpan,
+  System.Threading, FlexCel.Core, FlexCel.XlsAdapter,System.Diagnostics,System.TimeSpan,RegularExpressions,
 
   Graphics,  IdSocketHandle, DateUtils, Winapi.ActiveX, System.Generics.Collections,
   Winapi.Messages,DongaPattern,Registry, SyncObjs,Vcl.Imaging.pngimage, Vcl.Imaging.jpeg,Math; //, AdvGrid, AdvObj, AdvGridWorkbook, , ScrMemo; //, DefScript;
@@ -917,6 +917,7 @@ type
     function IfVersionIsLessThan(const currentVersion, targetVersion: string): Integer;
     procedure CompressAndDeleteFolders(const sourceFolder, targetFolder: string);
     procedure ScheduledTask;
+    function ExtractNumbersFromString(inputString: string): string;
 //    procedure AddMLog(nCh : Integer; sLog: String; bSave: Boolean);
 
 
@@ -4204,6 +4205,24 @@ begin
   MLog(MAX_SYSTEM_LOG, format('PatterGroup CRC=%x', [m_Ver.CRC_Pat]));
 *)
   Result := m_Ver.CRC_Pat;
+end;
+
+function TCommon.ExtractNumbersFromString(inputString: string): string;
+var
+  regex: TRegEx;
+  match: TMatch;
+begin
+  // 정규 표현식을 사용하여 숫자만 추출
+  regex := TRegEx.Create('\d+');
+  match := regex.Match(inputString);
+
+  // 추출된 숫자를 모두 결합하여 반환
+  Result := '';
+  while match.Success do
+  begin
+    Result := Result + match.Value;
+    match := match.NextMatch;
+  end;
 end;
 
 procedure TCommon.MakePatternData(nIdx : Integer;makePatGrp : TPatterGroup; var dCheckSum: dword; var nTotalSize: Integer; var Data: TArray<System.Byte>);

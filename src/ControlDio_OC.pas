@@ -2071,7 +2071,8 @@ begin
   // Error Message ÃÊ±âÈ­.
   for i:= 0 to Pred(DefDio.MAX_ALARM_DATA_SIZE) do DioAlarmData[i] := 0;
     // DIO Connect.
-  CommDaeDIO:= TCommDIOThread.Create(0,DefCommon.MSG_TYPE_DAEIO, DefDio.DAE_IO_DEVICE_PORT,nDeviceCnt,True,3,1);
+  CommDaeDIO:= TCommDIOThread.Create(0,DefCommon.MSG_TYPE_DAEIO, DefDio.DAE_IO_DEVICE_PORT, DefDio.DAE_IO_DEVICE_COUNT + Common.SystemInfo.DioType,True,3,1);
+
   // Polling Mode 3 ==> Notify & Polling.
   CommDaeDIO.OnNotify := CommDIONotify;
   if Common.SimulateInfo.Use_DIO then begin

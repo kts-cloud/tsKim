@@ -5,7 +5,7 @@
         <FrameworkType>VCL</FrameworkType>
         <MainSource>ITOLED_PreOC.dpr</MainSource>
         <Base>True</Base>
-        <Config Condition="'$(Config)'==''">Release</Config>
+        <Config Condition="'$(Config)'==''">Debug</Config>
         <Platform Condition="'$(Platform)'==''">Win64</Platform>
         <TargetedPlatforms>3</TargetedPlatforms>
         <AppType>Application</AppType>
@@ -121,7 +121,7 @@
         <VerInfo_Locale>1033</VerInfo_Locale>
         <DCC_ExeOutput>..\IT_OLED_PreOC\</DCC_ExeOutput>
         <BRCC_Defines>SIMULATOR;$(BRCC_Defines)</BRCC_Defines>
-        <DCC_Define>SIMULATOR;madExcept;LeakChecking;$(DCC_Define)</DCC_Define>
+        <DCC_Define>SIMULATOR;$(DCC_Define)</DCC_Define>
         <DCC_MapFile>3</DCC_MapFile>
         <VerInfo_MajorVer>2</VerInfo_MajorVer>
         <VerInfo_MinorVer>4</VerInfo_MinorVer>
@@ -162,11 +162,10 @@
         <DCC_DebugInformation>2</DCC_DebugInformation>
         <DCC_LocalDebugSymbols>true</DCC_LocalDebugSymbols>
         <VerInfo_MajorVer>2</VerInfo_MajorVer>
-        <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=2.4.5.1;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=2.4.5.29;Comments=</VerInfo_Keys>
+        <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=2.4.5.1;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=2.4.5.32;Comments=</VerInfo_Keys>
         <VerInfo_MinorVer>4</VerInfo_MinorVer>
         <VerInfo_Release>5</VerInfo_Release>
         <VerInfo_Build>1</VerInfo_Build>
-        <DCC_Define>madExcept;LeakChecking;$(DCC_Define)</DCC_Define>
     </PropertyGroup>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">
