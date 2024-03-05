@@ -257,8 +257,6 @@ type
     LogIn      : Boolean; //ECS(MES) Login 여부
     Closing    : boolean; //프로그램 닫는 중
     Loading    : boolean; //Robot(PLC) 연동 패널 로딩 중
-    Exchange_Load : array [0..3] of Boolean;
-    Exchange_UnLoad : array [0..3] of Boolean;
     AlarmOn    : Boolean; //Alarm 발생 여부
     RobotDoorOpened: Boolean; //Robot(물류) Door Open 상태
     StageStep: array [0..2]of Integer; //0=None, 1=Loading(Exchange), 2=LoadComplete, 3=LoadingZone, 4=Turnning, 5=CamZone, 6=UnloadZone, 7=Unload

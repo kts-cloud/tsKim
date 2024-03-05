@@ -86,7 +86,6 @@ type
     RzBitBtn7_2: TRzBitBtn;
     RzBitBtn8_2: TRzBitBtn;
     pnlJigInform: TRzPanel;
-    Memo1: TMemo;
     procedure WMCopyData(var Msg : TMessage); message WM_COPYDATA;
     procedure WMCopyData_LOGIC(var WmMsg: TMessage);
     procedure WMCopyData_PG(var CopyMsg: TMessage);
@@ -190,8 +189,6 @@ type
 //    pnlPlcOut      : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TPanel;
 
     gridPWRPGs     : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TAdvStringGrid;
-
-    m_aTempIr : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of array of string;
 
     m_RGB_Avr_Data : array of array of TGammaCmd;
     m_Rgb_Avr      : TGammaAvg;
@@ -322,6 +319,8 @@ type
     ledDoCarrierUnlockSol  : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TTILed;
     ledDoCarrierLock       : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TTILed;
 
+    m_aTempIr : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of array[0 .. 5] of array of string;
+
 //    ledDetect  : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TPanel;
     /// <summary>로그창에 추가 및 저장. </summary>
     procedure ShowGui(hMain : HWND);
@@ -351,6 +350,7 @@ type
     function GetNGCode_ByErroCode(sErrorCode: string): Integer;
     procedure PGUseStatus(nCH : Integer; bOnOff : Boolean);
     procedure ShowIrTempData(nCh, nData: Integer);
+    function GetIRTempData(nCh : Integer): string;
     procedure SaveCsvTempStatus(nCH : integer;sMemo : string; bFanOnOff : Boolean);
 //    procedure SetLanguage(nIdx : Integer);
   end;
@@ -895,7 +895,49 @@ begin
   end;
 end;
 
+function TfrmTest4ChOC.GetIRTempData(nCh : Integer): string;
+var
+i,j : Integer;
+sNit : string;
+begin
+  Result := '';
+  with TStringBuilder.Create do
+  begin
+    try
+      for I := 0 to 5 do begin
+        case i of
+         0: sNit := 'TEMP';
+         1: sNit := '2100_';
+         2: sNit := '1680_';
+         3: sNit := '600_';
+         4: sNit := '30_';
+         5: sNit := '10_';
+        end;
+
+        for j := 0 to System.Length(m_aTempIr[nCH][i]) -1 do
+        begin
+          Append('OC')
+            .Append(':')
+            .Append(sNit+IntToStr(j +1))
+            .Append(':')
+            .Append(m_aTempIr[nCH][i][j]);
+
+          if (i <> 5) or (System.Length(m_aTempIr[nCH][5]) - 1 <> j) then
+            Append(',');
+        end;
+      end;
+
+      Result := ToString;
+    finally
+      Free;
+    end;
+  end;
+
+end;
+
 procedure TfrmTest4ChOC.ControlIRTemp(nCh,nTemp: Integer);
+var
+i : Integer;
 begin
   if Common.SystemInfo.OCType = DefCommon.PreOCType then exit;
 
@@ -906,7 +948,8 @@ begin
       AddLog('[Source Code] CheckIRTemp : Set Temp : '+ IntToStr(Common.SystemInfo.SetTemperature),nCh);
       tmCheckIRTemp[nCh].Enabled := True;
       m_nTempIrTact[nCh] := 0;
-      setlength(m_aTempIr[nCh],0); //초기화
+      for I := 0 to 5 do
+        setlength(m_aTempIr[nCh][i],0); //초기화
       SaveCsvTempStatus(nCh,'START',frmTest4ChOC[0].m_bFanOnOff[nCh]);
     end;
   end;
@@ -2203,16 +2246,40 @@ end;
 procedure TfrmTest4ChOC.OntmCheckIRTemp1(Sender: TObject);
 var
 sMemo : string;
+nCH : Integer;
 begin
   sMemo := '';
+  nCH := 0;
   Inc(m_nTempIrTact[0]);
   if (FTempIr[0] >= Common.SystemInfo.SetTemperature) or (FTempIr[1] >= Common.SystemInfo.SetTemperature) then begin
     if (not ControlDio.ReadOutSig(DefDio.OUT_CH1_PMIC_FAN_ON)) then begin
       AddLog(format('temp Anomaly - FAN ON Temp 1 : %f 2 : %f ',[FTempIr[0],FTempIr[1]]),0,1);
       ControlDio.WriteDioSig(DefDio.OUT_CH1_PMIC_FAN_ON,false);
-      m_bFanOnOff[0] := True;
-      SetLength(m_aTempIr[0], Length(m_aTempIr[0]) + 1);   // Temp 배열 증가
-      m_aTempIr[0][Length(m_aTempIr[0]) - 1] := format('%f',[FTempIr[1]]);
+      m_bFanOnOff[nCH] := True;
+      if CSharpDll.m_CurrentBand[nCH] = 1 then  begin     //1band temp 값 저장
+        SetLength(m_aTempIr[nCH][1], Length(m_aTempIr[nCH][1]) + 1);   // Temp 배열 증가
+        m_aTempIr[nCH][1][Length(m_aTempIr[nCH][1]) - 1] := format('%f',[FTempIr[1]]);
+      end;
+      if CSharpDll.m_CurrentBand[nCH] = 2 then  begin     //2band temp 값 저장
+        SetLength(m_aTempIr[nCH][2], Length(m_aTempIr[nCH][2]) + 1);   // Temp 배열 증가
+        m_aTempIr[nCH][2][Length(m_aTempIr[nCH][2]) - 1] := format('%f',[FTempIr[1]]);
+      end;
+      if CSharpDll.m_CurrentBand[nCH] = 6 then  begin     //6band temp 값 저장
+        SetLength(m_aTempIr[nCH][3], Length(m_aTempIr[nCH][3]) + 1);   // Temp 배열 증가
+        m_aTempIr[nCH][3][Length(m_aTempIr[nCH][3]) - 1] := format('%f',[FTempIr[1]]);
+      end;
+      if CSharpDll.m_CurrentBand[nCH] = 24 then  begin    //24band temp 값 저장
+        SetLength(m_aTempIr[nCH][4], Length(m_aTempIr[nCH][4]) + 1);   // Temp 배열 증가
+        m_aTempIr[nCH][4][Length(m_aTempIr[nCH][4]) - 1] := format('%f',[FTempIr[1]]);
+      end;
+      if CSharpDll.m_CurrentBand[nCH] = 29 then  begin    //29band temp 값 저장
+        SetLength(m_aTempIr[nCH][5], Length(m_aTempIr[nCH][5]) + 1);   // Temp 배열 증가
+        m_aTempIr[nCH][5][Length(m_aTempIr[nCH][5]) - 1] := format('%f',[FTempIr[1]]);
+      end;
+      if (m_nTempIrTact[nCH] mod 12) = 0 then begin
+        SetLength(m_aTempIr[nCH][0], Length(m_aTempIr[nCH][0]) + 1);   // Temp 배열 증가
+        m_aTempIr[nCH][0][Length(m_aTempIr[nCH][0]) - 1] := format('%f',[FTempIr[1]]);
+      end;
     end;
   end
   else begin
@@ -2229,16 +2296,40 @@ end;
 procedure TfrmTest4ChOC.OntmCheckIRTemp2(Sender: TObject);
 var
 sMemo : string;
+nCH : Integer;
 begin
   sMemo := '';
+  nCH := 1;
   Inc(m_nTempIrTact[1]);
   if (FTempIr[2] > Common.SystemInfo.SetTemperature) or (FTempIr[3] > Common.SystemInfo.SetTemperature) then begin
     if (not ControlDio.ReadOutSig(DefDio.OUT_CH2_PMIC_FAN_ON)) then begin
       AddLog(format('temp Anomaly - FAN ON Temp 1 : %f 2 : %f ',[FTempIr[2],FTempIr[3]]),1,1);
       ControlDio.WriteDioSig(DefDio.OUT_CH2_PMIC_FAN_ON,false);
       m_bFanOnOff[1] := True;
-      SetLength(m_aTempIr[1], Length(m_aTempIr[1]) + 1);   // Temp 배열 증가
-      m_aTempIr[1][Length(m_aTempIr[1]) - 1] := format('%f',[FTempIr[1]]);
+      if CSharpDll.m_CurrentBand[nCH] = 1 then  begin     //1band temp 값 저장
+        SetLength(m_aTempIr[nCH][1], Length(m_aTempIr[nCH][1]) + 1);   // Temp 배열 증가
+        m_aTempIr[nCH][1][Length(m_aTempIr[nCH][1]) - 1] := format('%f',[FTempIr[1]]);
+      end;
+      if CSharpDll.m_CurrentBand[nCH] = 2 then  begin     //2band temp 값 저장
+        SetLength(m_aTempIr[nCH][2], Length(m_aTempIr[nCH][2]) + 1);   // Temp 배열 증가
+        m_aTempIr[nCH][2][Length(m_aTempIr[nCH][2]) - 1] := format('%f',[FTempIr[1]]);
+      end;
+      if CSharpDll.m_CurrentBand[nCH] = 6 then  begin     //6band temp 값 저장
+        SetLength(m_aTempIr[nCH][3], Length(m_aTempIr[nCH][3]) + 1);   // Temp 배열 증가
+        m_aTempIr[nCH][3][Length(m_aTempIr[nCH][3]) - 1] := format('%f',[FTempIr[1]]);
+      end;
+      if CSharpDll.m_CurrentBand[nCH] = 24 then  begin    //24band temp 값 저장
+        SetLength(m_aTempIr[nCH][4], Length(m_aTempIr[nCH][4]) + 1);   // Temp 배열 증가
+        m_aTempIr[nCH][4][Length(m_aTempIr[nCH][4]) - 1] := format('%f',[FTempIr[1]]);
+      end;
+      if CSharpDll.m_CurrentBand[nCH] = 29 then  begin    //29band temp 값 저장
+        SetLength(m_aTempIr[nCH][5], Length(m_aTempIr[nCH][5]) + 1);   // Temp 배열 증가
+        m_aTempIr[nCH][5][Length(m_aTempIr[nCH][5]) - 1] := format('%f',[FTempIr[1]]);
+      end;
+      if (m_nTempIrTact[nCH] mod 12) = 0 then begin
+        SetLength(m_aTempIr[nCH][0], Length(m_aTempIr[nCH][0]) + 1);   // Temp 배열 증가
+        m_aTempIr[nCH][0][Length(m_aTempIr[nCH][0]) - 1] := format('%f',[FTempIr[1]]);
+      end;
     end;
   end
   else begin
@@ -2254,16 +2345,40 @@ end;
 procedure TfrmTest4ChOC.OntmCheckIRTemp3(Sender: TObject);
 var
 sMemo : string;
+nCH : Integer;
 begin
   sMemo := '';
+  nCH := 2;
   Inc(m_nTempIrTact[2]);
   if (FTempIr[4] > Common.SystemInfo.SetTemperature) or (FTempIr[5] > Common.SystemInfo.SetTemperature) then begin
     if (not ControlDio.ReadOutSig(DefDio.OUT_CH3_PMIC_FAN_ON)) then begin
       AddLog(format('temp Anomaly - FAN ON Temp 1 : %f 2 : %f ',[FTempIr[4],FTempIr[5]]),2,1);
       ControlDio.WriteDioSig(DefDio.OUT_CH3_PMIC_FAN_ON,false);
       m_bFanOnOff[2] := True;
-      SetLength(m_aTempIr[2], Length(m_aTempIr[2]) + 1);   // Temp 배열 증가
-      m_aTempIr[2][Length(m_aTempIr[2]) - 1] := format('%f',[FTempIr[1]]);
+      if CSharpDll.m_CurrentBand[nCH] = 1 then  begin     //1band temp 값 저장
+        SetLength(m_aTempIr[nCH][1], Length(m_aTempIr[nCH][1]) + 1);   // Temp 배열 증가
+        m_aTempIr[nCH][1][Length(m_aTempIr[nCH][1]) - 1] := format('%f',[FTempIr[1]]);
+      end;
+      if CSharpDll.m_CurrentBand[nCH] = 2 then  begin     //2band temp 값 저장
+        SetLength(m_aTempIr[nCH][2], Length(m_aTempIr[nCH][2]) + 1);   // Temp 배열 증가
+        m_aTempIr[nCH][2][Length(m_aTempIr[nCH][2]) - 1] := format('%f',[FTempIr[1]]);
+      end;
+      if CSharpDll.m_CurrentBand[nCH] = 6 then  begin     //6band temp 값 저장
+        SetLength(m_aTempIr[nCH][3], Length(m_aTempIr[nCH][3]) + 1);   // Temp 배열 증가
+        m_aTempIr[nCH][3][Length(m_aTempIr[nCH][3]) - 1] := format('%f',[FTempIr[1]]);
+      end;
+      if CSharpDll.m_CurrentBand[nCH] = 24 then  begin    //24band temp 값 저장
+        SetLength(m_aTempIr[nCH][4], Length(m_aTempIr[nCH][4]) + 1);   // Temp 배열 증가
+        m_aTempIr[nCH][4][Length(m_aTempIr[nCH][4]) - 1] := format('%f',[FTempIr[1]]);
+      end;
+      if CSharpDll.m_CurrentBand[nCH] = 29 then  begin    //29band temp 값 저장
+        SetLength(m_aTempIr[nCH][5], Length(m_aTempIr[nCH][5]) + 1);   // Temp 배열 증가
+        m_aTempIr[nCH][5][Length(m_aTempIr[nCH][5]) - 1] := format('%f',[FTempIr[1]]);
+      end;
+      if (m_nTempIrTact[nCH] mod 12) = 0 then begin
+        SetLength(m_aTempIr[nCH][0], Length(m_aTempIr[nCH][0]) + 1);   // Temp 배열 증가
+        m_aTempIr[nCH][0][Length(m_aTempIr[nCH][0]) - 1] := format('%f',[FTempIr[1]]);
+      end;
     end;
   end
   else begin
@@ -2279,16 +2394,40 @@ end;
 procedure TfrmTest4ChOC.OntmCheckIRTemp4(Sender: TObject);
 var
 sMemo : string;
+nCH : Integer;
 begin
   sMemo := '';
+  nCH := 3;
   Inc(m_nTempIrTact[3]);
   if (FTempIr[6] > Common.SystemInfo.SetTemperature) or (FTempIr[7] > Common.SystemInfo.SetTemperature) then begin
     if (not ControlDio.ReadOutSig(DefDio.OUT_CH4_PMIC_FAN_ON)) then begin
       AddLog(format('temp Anomaly - FAN ON Temp 1 : %f 2 : %f ',[FTempIr[6],FTempIr[7]]),3,1);
       ControlDio.WriteDioSig(DefDio.OUT_CH4_PMIC_FAN_ON,false);
       m_bFanOnOff[3] := True;
-      SetLength(m_aTempIr[3], Length(m_aTempIr[3]) + 1);   // Temp 배열 증가
-      m_aTempIr[3][Length(m_aTempIr[3]) - 1] := format('%f',[FTempIr[1]]);
+      if CSharpDll.m_CurrentBand[nCH] = 1 then  begin     //1band temp 값 저장
+        SetLength(m_aTempIr[nCH][1], Length(m_aTempIr[nCH][1]) + 1);   // Temp 배열 증가
+        m_aTempIr[nCH][1][Length(m_aTempIr[nCH][1]) - 1] := format('%f',[FTempIr[1]]);
+      end;
+      if CSharpDll.m_CurrentBand[nCH] = 2 then  begin     //2band temp 값 저장
+        SetLength(m_aTempIr[nCH][2], Length(m_aTempIr[nCH][2]) + 1);   // Temp 배열 증가
+        m_aTempIr[nCH][2][Length(m_aTempIr[nCH][2]) - 1] := format('%f',[FTempIr[1]]);
+      end;
+      if CSharpDll.m_CurrentBand[nCH] = 6 then  begin     //6band temp 값 저장
+        SetLength(m_aTempIr[nCH][3], Length(m_aTempIr[nCH][3]) + 1);   // Temp 배열 증가
+        m_aTempIr[nCH][3][Length(m_aTempIr[nCH][3]) - 1] := format('%f',[FTempIr[1]]);
+      end;
+      if CSharpDll.m_CurrentBand[nCH] = 24 then  begin    //24band temp 값 저장
+        SetLength(m_aTempIr[nCH][4], Length(m_aTempIr[nCH][4]) + 1);   // Temp 배열 증가
+        m_aTempIr[nCH][4][Length(m_aTempIr[nCH][4]) - 1] := format('%f',[FTempIr[1]]);
+      end;
+      if CSharpDll.m_CurrentBand[nCH] = 29 then  begin    //29band temp 값 저장
+        SetLength(m_aTempIr[nCH][5], Length(m_aTempIr[nCH][5]) + 1);   // Temp 배열 증가
+        m_aTempIr[nCH][5][Length(m_aTempIr[nCH][5]) - 1] := format('%f',[FTempIr[1]]);
+      end;
+      if (m_nTempIrTact[nCH] mod 12) = 0 then begin
+        SetLength(m_aTempIr[nCH][0], Length(m_aTempIr[nCH][0]) + 1);   // Temp 배열 증가
+        m_aTempIr[nCH][0][Length(m_aTempIr[nCH][0]) - 1] := format('%f',[FTempIr[1]]);
+      end;
     end;
   end
   else begin
@@ -2945,7 +3084,8 @@ begin
       tmCheckIRTemp[i].Free;
       tmCheckIRTemp[i] := nil;
     end;
-    setlength(m_aTempIr[i],0);
+    for j := 0 to 5 do
+     setlength(m_aTempIr[i][j],0);
   end;
 
 //  VirtualBcr.Free;
@@ -3746,8 +3886,6 @@ begin
 
       frmTest4ChOC[0].SetIonizer(nCH,True);  //// 검사 종료 시 SetIonizer ON
       ///
-      Common.StatusInfo.Exchange_Load[nCh] := False;
-      Common.StatusInfo.Exchange_UnLoad[nCh] := False;
 
       ControlDio.LampOnOff(nCH,false); // Added by KTS 2023-01-02 오후 5:39:50 시작 전 Lamp 제어
       if nCH = DefCommon.CH_TOP then begin

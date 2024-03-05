@@ -737,13 +737,13 @@ begin
             Set_AlarmData(IN_GIB_CH_2_CARRIER_SENSOR, 1, 1);
             bResult := False;
           end;
-          if g_CommPLC.RobotLoadingStatus[0] and not ControlDio.ReadInSig(IN_GIB_CH_1_CARRIER_SENSOR) then begin
+          if not ControlDio.ReadInSig(IN_GIB_CH_1_CARRIER_SENSOR) then begin
             ShowSysLog('Empty 1 Ch(CheckDetect_Loaded)',1);
 //            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Empty 1 Ch(CheckDetect_Loaded)');
             Set_AlarmData(IN_GIB_CH_1_CARRIER_SENSOR, 1, 1);
             bResult := False;
           end;
-          if g_CommPLC.RobotLoadingStatus[1] and not ControlDio.ReadInSig(IN_GIB_CH_2_CARRIER_SENSOR) then begin
+          if not ControlDio.ReadInSig(IN_GIB_CH_2_CARRIER_SENSOR) then begin
             ShowSysLog( 'Empty 2 Ch(CheckDetect_Loaded)',1);
 //            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Empty 2 Ch(CheckDetect_Loaded)');
             Set_AlarmData(IN_GIB_CH_2_CARRIER_SENSOR, 1, 1);
@@ -758,13 +758,13 @@ begin
             Set_AlarmData(IN_GIB_CH_4_CARRIER_SENSOR, 1, 1);
             bResult := False;
           end;
-          if g_CommPLC.RobotLoadingStatus[2] and not ControlDio.ReadInSig(IN_GIB_CH_3_CARRIER_SENSOR) then begin
+          if not ControlDio.ReadInSig(IN_GIB_CH_3_CARRIER_SENSOR) then begin
             ShowSysLog('Empty 3 Ch(CheckDetect_Loaded)',1);
 //            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Empty 3 Ch(CheckDetect_Loaded)');
             Set_AlarmData(IN_GIB_CH_3_CARRIER_SENSOR, 1, 1);
             bResult := False;
           end;
-          if g_CommPLC.RobotLoadingStatus[3] and not ControlDio.ReadInSig(IN_GIB_CH_4_CARRIER_SENSOR) then begin
+          if not ControlDio.ReadInSig(IN_GIB_CH_4_CARRIER_SENSOR) then begin
             ShowSysLog( 'Empty 4 Ch(CheckDetect_Loaded)',1);
 //            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Empty 4 Ch(CheckDetect_Loaded)');
             Set_AlarmData(IN_GIB_CH_4_CARRIER_SENSOR, 1, 1);
@@ -3138,7 +3138,7 @@ end;
 procedure TfrmMain_OC.ProcessMsg_SCRIPT(pGUIMsg: PGUIMessage);
 var
   nCh : Integer;
-  sDebug,sSN,sPID,sGD_DEFECT : string;
+  sDebug,sSN,sPID,sGD_DEFECT,sIRTempData : string;
 begin
   nCh:= pGUIMsg.Channel;
   case pGUIMsg.Mode of
@@ -3180,27 +3180,27 @@ begin
     end;
     DefGmes.EAS_APDR : begin
       sPID := DongaGmes.MesData[nCh].PchkRtnPID;
-      ThreadTask(procedure begin
-        try
-          PasScr[nCh].TestInfo.ApdrData := '';
-          if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
+      try
+        PasScr[nCh].TestInfo.ApdrData := '';
+        if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
 
-            PasScr[nCh].TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog_New(sPID,PasScr[nCh].TestInfo.SerialNo,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
-    //        ShowSysLog('ReadLGDDLLSummaryLog_New : ' + PasScr[nCh].TestInfo.ApdrData);
-            if Length(PasScr[nCh].TestInfo.ApdrData) > 0 then
-              sGD_DEFECT := ',GD:GD_DEFECT:' + DongaGmes.MesData[nCh].GDDefectCode
-            else sGD_DEFECT := 'GD:GD_DEFECT:' + DongaGmes.MesData[nCh].GDDefectCode;
-            PasScr[nCh].TestInfo.ApdrData := PasScr[nCh].TestInfo.ApdrData + sGD_DEFECT;
-          end
-          else begin
-            PasScr[nCh].TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog_New(sPID,PasScr[nCh].TestInfo.SerialNo,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
-          end;
-          DongaGmes.MesData[nCh].ApdrData := PasScr[nCh].TestInfo.ApdrData;
-          DongaGmes.SendEasApdr(PasScr[nCh].TestInfo.SerialNo, nCh);
-        except
-          on E: Exception do  ShowSysLog('EAS_APDR : ' + E.Message,1);
+          PasScr[nCh].TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog_New(sPID,PasScr[nCh].TestInfo.SerialNo,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
+  //        ShowSysLog('ReadLGDDLLSummaryLog_New : ' + PasScr[nCh].TestInfo.ApdrData);
+          if Length(PasScr[nCh].TestInfo.ApdrData) > 0 then
+            sGD_DEFECT := ',GD:GD_DEFECT:' + DongaGmes.MesData[nCh].GDDefectCode
+          else sGD_DEFECT := 'GD:GD_DEFECT:' + DongaGmes.MesData[nCh].GDDefectCode;
+          sIRTempData := ',' + frmTest4ChOC[0].GetIRTempData(nCh);
+          PasScr[nCh].TestInfo.ApdrData := PasScr[nCh].TestInfo.ApdrData + sGD_DEFECT + sIRTempData;
+        end
+        else begin
+          PasScr[nCh].TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog_New(sPID,PasScr[nCh].TestInfo.SerialNo,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
         end;
-      end);
+        DongaGmes.MesData[nCh].ApdrData := PasScr[nCh].TestInfo.ApdrData;
+        DongaGmes.SendEasApdr(PasScr[nCh].TestInfo.SerialNo, nCh);
+      except
+        on E: Exception do  ShowSysLog('EAS_APDR : ' + E.Message,1);
+      end;
+
     end;
   end;
 end;
@@ -3318,8 +3318,6 @@ begin
   for I := 1 to 10 do
     Common.StatusInfo.LoadUnloadFlowData[nCh][i] := 0; // 초기화
 
-  Common.StatusInfo.Exchange_Load[nCh] := True;
-  Common.StatusInfo.Exchange_UnLoad[nCh] := False;
 
 
   ThreadTask(procedure begin
@@ -3706,15 +3704,6 @@ begin
   for I := 21 to 30 do
     Common.StatusInfo.LoadUnloadFlowData[nCh][i] := 0; // 초기화
 
-  if (Common.SystemInfo.OCType = DefCommon.PreOCType) and (not Common.PLCInfo.InlineGIB) then begin
-    Common.StatusInfo.Exchange_Load[nCh] := false;
-    Common.StatusInfo.Exchange_UnLoad[nCh] := True;
-  end
-  else begin
-    Common.StatusInfo.Exchange_Load[nCh] := True;
-    Common.StatusInfo.Exchange_UnLoad[nCh] := True;
-  end;
-
 
   ThreadTask(procedure begin
     //ContactDown 때문에 쓰레드 필요
@@ -3919,18 +3908,6 @@ begin
               g_CommPLC.EQP_UnloadBeforeCh(DefCommon.CH_TOP,DefCommon.CH1,nRet);
               nRet := ControlDio.CheckPreOCPanelDetectCh(DefCommon.CH2, 1);
               g_CommPLC.EQP_UnloadBeforeCh(DefCommon.CH_TOP,DefCommon.CH2,nRet);
-              if g_CommPLC.RobotLoadingStatus[0] and not ControlDio.ReadInSig(IN_GIB_CH_1_CARRIER_SENSOR) then begin
-                ShowSysLog( 'Empty 1 Ch(CheckDetect_Loaded)',1);
-//                SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Empty 1 Ch(CheckDetect_Loaded)');
-                Set_AlarmData(IN_GIB_CH_1_CARRIER_SENSOR, 1, 1);
-                Exit;
-              end;
-              if g_CommPLC.RobotLoadingStatus[1] and not ControlDio.ReadInSig(IN_GIB_CH_2_CARRIER_SENSOR) then begin
-                ShowSysLog('Empty 2 Ch(CheckDetect_Loaded)',1);
-//                SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Empty 2 Ch(CheckDetect_Loaded)');
-                Set_AlarmData(IN_GIB_CH_2_CARRIER_SENSOR, 1, 1);
-                Exit;
-              end;
             end;
 
             frmTest4ChOC[nStage].DisplayResult(0, -3, 0, 'Request Exchange');
@@ -4084,18 +4061,6 @@ begin
               g_CommPLC.EQP_UnloadBeforeCh(DefCommon.CH_BOTTOM,DefCommon.CH3,nRet);
               nRet := ControlDio.CheckPreOCPanelDetectCh(DefCommon.CH4, 1);
               g_CommPLC.EQP_UnloadBeforeCh(DefCommon.CH_BOTTOM,DefCommon.CH4,nRet);
-              if g_CommPLC.RobotLoadingStatus[2] and not ControlDio.ReadInSig(IN_GIB_CH_3_CARRIER_SENSOR) then begin
-                ShowSysLog('Empty 3 Ch(CheckDetect_Loaded)',1);
-//                SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Empty 3 Ch(CheckDetect_Loaded)');
-                Set_AlarmData(IN_GIB_CH_3_CARRIER_SENSOR, 1, 1);
-                Exit;
-              end;
-              if g_CommPLC.RobotLoadingStatus[3] and not ControlDio.ReadInSig(IN_GIB_CH_4_CARRIER_SENSOR) then begin
-                ShowSysLog('Empty 4 Ch(CheckDetect_Loaded)',1);
-//                SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Empty 4 Ch(CheckDetect_Loaded)');
-                Set_AlarmData(IN_GIB_CH_4_CARRIER_SENSOR, 1, 1);
-                Exit;
-              end;
             end;
             frmTest4ChOC[nStage].DisplayResult(2, -3, 0, 'Request Exchange');
 //            sleep(50);
@@ -4148,24 +4113,6 @@ begin
 
   for I := 1 to 10 do
     Common.StatusInfo.LoadUnloadFlowData[nCh][i] := 0; // 초기화
-  Common.StatusInfo.Exchange_Load[nCh] := True;
-  Common.StatusInfo.Exchange_UnLoad[nCh] := False;
-
-//  if g_CommPLC <> nil then begin
-//    if (Common.PLCInfo.InlineGIB) then begin
-//      g_CommPLC.SaveGlassData_CH(nCh,Common.Path.Ini +Format('GlassData_CH%d.dat',[nCH]));
-//    end
-//    else begin
-//      if nCh = 0 then begin
-//        g_CommPLC.SaveGlassData_CH(0,Common.Path.Ini +Format('GlassData_CH%d.dat',[0]));
-//        g_CommPLC.SaveGlassData_CH(1,Common.Path.Ini +Format('GlassData_CH%d.dat',[1]));
-//      end;
-//      if nCh = 1 then begin
-//        g_CommPLC.SaveGlassData_CH(2,Common.Path.Ini +Format('GlassData_CH%d.dat',[2]));
-//        g_CommPLC.SaveGlassData_CH(3,Common.Path.Ini +Format('GlassData_CH%d.dat',[3]));
-//      end;
-//    end;
-//  end;
 
   ThreadTask(procedure begin
     try
@@ -4831,8 +4778,6 @@ begin
   for I := 21 to 30 do
     Common.StatusInfo.LoadUnloadFlowData[nCh][i] := 0; // 초기화
 
-  Common.StatusInfo.Exchange_Load[nCh] := False;
-  Common.StatusInfo.Exchange_UnLoad[nCh] := True;
 //  if g_CommPLC <> nil then begin
 //    if (Common.PLCInfo.InlineGIB) then begin
 //      g_CommPLC.SaveGlassData_CH(nCh,Common.Path.Ini +Format('GlassData_CH%d.dat',[nCH]));
@@ -5259,11 +5204,33 @@ var
   sFileName : string;
   sSerialId,sMLOG : String;
   arStr : TArray<string>;
-  i : Integer;
+  i,j,nCH : Integer;
 begin
-  Edit1.Text := Format('%0.4f',[1.11111]);
-  if DongaGmes <> nil then
-   DongaGmes.SendR2REodsTest;
+  nCH := 0;
+  for I := 0 to 5 do begin
+    setlength(frmTest4ChOC[0].m_aTempIr[0][i],0); //초기화
+  end;
+  for j := 0 to 3 do begin
+      SetLength(frmTest4ChOC[0].m_aTempIr[nCH][1], Length(frmTest4ChOC[0].m_aTempIr[nCH][1]) + 1);   // Temp 배열 증가
+      frmTest4ChOC[0].m_aTempIr[nCH][1][Length(frmTest4ChOC[0].m_aTempIr[nCH][1]) - 1] := format('%d',[Round(100)]);
+      SetLength(frmTest4ChOC[0].m_aTempIr[nCH][2], Length(frmTest4ChOC[0].m_aTempIr[nCH][2]) + 1);   // Temp 배열 증가
+      frmTest4ChOC[0].m_aTempIr[nCH][2][Length(frmTest4ChOC[0].m_aTempIr[nCH][2]) - 1] := format('%d',[Round(100)]);
+      SetLength(frmTest4ChOC[0].m_aTempIr[nCH][3], Length(frmTest4ChOC[0].m_aTempIr[nCH][3]) + 1);   // Temp 배열 증가
+      frmTest4ChOC[0].m_aTempIr[nCH][3][Length(frmTest4ChOC[0].m_aTempIr[nCH][3]) - 1] := format('%d',[Round(100)]);
+      SetLength(frmTest4ChOC[0].m_aTempIr[nCH][4], Length(frmTest4ChOC[0].m_aTempIr[nCH][4]) + 1);   // Temp 배열 증가
+      frmTest4ChOC[0].m_aTempIr[nCH][4][Length(frmTest4ChOC[0].m_aTempIr[nCH][4]) - 1] := format('%d',[Round(100)]);
+      SetLength(frmTest4ChOC[0].m_aTempIr[nCH][5], Length(frmTest4ChOC[0].m_aTempIr[nCH][5]) + 1);   // Temp 배열 증가
+      frmTest4ChOC[0].m_aTempIr[nCH][5][Length(frmTest4ChOC[0].m_aTempIr[nCH][5]) - 1] := format('%d',[Round(100)]);
+      SetLength(frmTest4ChOC[0].m_aTempIr[nCH][0], Length(frmTest4ChOC[0].m_aTempIr[nCH][0]) + 1);   // Temp 배열 증가
+      frmTest4ChOC[0].m_aTempIr[nCH][0][Length(frmTest4ChOC[0].m_aTempIr[nCH][0]) - 1] := format('%d',[Round(100)]);
+  end;
+
+   sMLOG := frmTest4ChOC[0].GetIRTempData(0);
+
+
+//  Edit1.Text := Format('%0.4f',[1.11111]);
+//  if DongaGmes <> nil then
+//   DongaGmes.SendR2REodsTest;
 
  Exit;
  i := (20 shr 2) and $01;

@@ -593,8 +593,8 @@ var
 begin
   if m_nStop = 1 then Exit;
 
-  m_csLog.Acquire;
   dtNow:= Now;
+  m_csLog.Enter;
 
   if HourOf(m_dtSaveLog) <> HourOf(dtNow) then SaveLog(m_dtSaveLog); //시간 변경된 경우 이전 File로 저장
   if bSave and (sLog = '') then begin
@@ -609,7 +609,7 @@ begin
   if (m_slLog.Count > LogAccumulateCount) or (SecondsBetween(dtNow, m_dtSaveLog) > LogAccumulateSecond) or bSave then begin
     SaveLog(dtNow);
   end;
-  m_csLog.Release;
+  m_csLog.Leave;
 end;
 
 procedure TCommPLCThread.SaveLog(dtSave: TDateTime);
@@ -2701,7 +2701,7 @@ begin
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$6 + (nCh*$20), 3), 0); //Load Complte Confirm Off
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$4 + (nCh*$20), 3), 1); //Normal Status - 상태 설정에서....
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_11] := 1;
-//      Sleep(50);
+      Sleep(50);
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$1 + (nCh*$20), 3), 1); //Glass Data Request
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_1] := 1;
     end
@@ -2719,7 +2719,7 @@ begin
 
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$12+$4 + (nCh*$20), 3), 1); //Normal Status - 상태 설정에서....
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_11] := 1;
-//      Sleep(50);
+      Sleep(50);
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$12+$1 + (nCh*$20), 3), 1); //Glass Data Request
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_1] := 1;
     end;
@@ -3298,17 +3298,17 @@ try
         if (Common.SystemInfo.OCType = DefCommon.PreOCType) and (not Common.PLCInfo.InlineGIB)  then begin
           case nIndex of
             $0A: begin //Load CH 1
-              if nValue <> 0 then RobotLoadingStatus[0] := IntegerToBoolean(nValue);
+              RobotLoadingStatus[0] := IntegerToBoolean(nValue);
             end;
             $0B: begin //Load CH 2
-              if nValue <> 0 then RobotLoadingStatus[1] := IntegerToBoolean(nValue);
+              RobotLoadingStatus[1] := IntegerToBoolean(nValue);
             end;
 
             $2A: begin //Load CH 3
-              if nValue <> 0 then RobotLoadingStatus[2] := IntegerToBoolean(nValue);
+              RobotLoadingStatus[2] := IntegerToBoolean(nValue);
             end;
             $2B: begin //Load CH 4
-              if nValue <> 0 then RobotLoadingStatus[3] := IntegerToBoolean(nValue);
+              RobotLoadingStatus[3] := IntegerToBoolean(nValue);
             end;
           end;
         end;
@@ -3373,53 +3373,37 @@ try
             end;
 
             $12: begin  //Robot Unload Busy
-              if Common.StatusInfo.Exchange_UnLoad[0] then begin
                 if nValue = 0 then Process_ROBOT_UnloadBusy_Off(0)
                 else Process_ROBOT_UnloadBusy_On(0)
-              end;
             end;
             $32: begin  //Robot Unload Busy
-              if Common.StatusInfo.Exchange_UnLoad[1] then begin
                 if nValue = 0 then Process_ROBOT_UnloadBusy_Off(1)
                 else Process_ROBOT_UnloadBusy_On(1)
-              end;
             end;
             $52: begin  //Robot Unload Busy
-              if Common.StatusInfo.Exchange_UnLoad[2] then begin
                 if nValue = 0 then Process_ROBOT_UnloadBusy_Off(2)
                 else Process_ROBOT_UnloadBusy_On(2)
-              end;
             end;
             $72: begin  //Robot Unload Busy
-              if Common.StatusInfo.Exchange_UnLoad[3] then begin
                 if nValue = 0 then Process_ROBOT_UnloadBusy_Off(3)
                 else Process_ROBOT_UnloadBusy_On(3)
-              end;
             end;
             $02: begin //Robot Load Busy
-              if Common.StatusInfo.Exchange_Load[0] then begin
                 if nValue = 0 then Process_ROBOT_LoadBusy_Off(0)
                 else Process_ROBOT_LoadBusy_On(0);
-              end;
             end;
             $22: begin //Robot Load Busy
-              if Common.StatusInfo.Exchange_Load[1] then begin
                 if nValue = 0 then Process_ROBOT_LoadBusy_Off(1)
                 else Process_ROBOT_LoadBusy_On(1);
-              end;
             end;
 
             $42: begin //Robot Load Busy
-              if Common.StatusInfo.Exchange_Load[2] then begin
                 if nValue = 0 then Process_ROBOT_LoadBusy_Off(2)
                 else Process_ROBOT_LoadBusy_On(2);
-              end;
             end;
             $62: begin //Robot Load Busy
-              if Common.StatusInfo.Exchange_Load[3] then begin
                 if nValue = 0 then Process_ROBOT_LoadBusy_Off(3)
                 else Process_ROBOT_LoadBusy_On(3);
-              end;
             end;
 
             $04, $24, $44, $64: begin
@@ -4136,14 +4120,14 @@ begin
     if Common.SystemInfo.OCType = DefCommon.OCType then begin
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$08+$1 + (nCh*$20), 3), 0); //Glass Data Request off
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$08+$5 + (nCh*$20), 3), 0); //Load Request off
-//      Sleep(100);
+      Sleep(50);
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$08+$6 + (nCh*$20), 3), 1); //Load Complete Confrim
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_7] := 1;
     end
     else begin
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$10+$1 + (nCh*$20), 3), 0); //Glass Data Request off
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$10+$5 + (nCh*$20), 3), 0); //Load Request off
-//      Sleep(100);
+      Sleep(50);
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$10+$6 + (nCh*$20), 3), 1); //Load Complete Confrim
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_7] := 1;
     end;
@@ -4153,13 +4137,13 @@ begin
     if Common.SystemInfo.OCType = DefCommon.OCType then begin
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$1 + (nCh*$20), 3), 0); //Glass Data Request off
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$5 + (nCh*$20), 3), 0); //Load Request off
-//      Sleep(100);
+      Sleep(50);
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$6 + (nCh*$20), 3), 1); //Load Complete Confrim
     end
     else begin
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$12+$1 + (nCh*$20), 3), 0); //Glass Data Request off
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$12+$5 + (nCh*$20), 3), 0); //Load Request off
-//      Sleep(100);
+      Sleep(50);
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$12+$6 + (nCh*$20), 3), 1); //Load Complete Confrim
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_7] := 1;
     end;
@@ -4233,8 +4217,6 @@ end;
 procedure TCommPLCThread.Process_ROBOT_LoadBusy_Off(nCh: Integer);
 begin
   AddLog('Process_ROBOT_LoadBusy_Off ' + IntToStr(nCh), True);
-  if True then
-
 
   if (Common.PLCInfo.InlineGIB)  then begin
     if not IsBusy_Robot_Each(nCh) then begin

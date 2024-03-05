@@ -2766,6 +2766,7 @@ begin
 //      SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPg,sDebug);
     end;
 {$ENDIF}
+    sSendMsg := '';
     if bIsChMsg then begin  //JHHWANG-GMES 2018-06-20
       if (nMsgType <> DefGmes.EAS_APDR) and (nMsgType <> DefGmes.R2R_EODS_R) and (nMsgType <> DefGmes.R2R_EODA) then begin
         MesData[nPg].MesSentMsg := nMsgType;

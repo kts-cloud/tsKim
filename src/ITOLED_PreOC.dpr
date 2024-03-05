@@ -83,6 +83,4 @@ var
 
     CloseHandle(runOnceMutex);
 
-
-
 end.

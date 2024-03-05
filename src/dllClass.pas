@@ -164,7 +164,7 @@ type
 //    m_sFlagString : array [DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of string[255];
 
     m_sSerialNo : array [DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of string;
-    m_CurrentBand : array [DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of integer;
+
     m_CurrentTap : array [DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of integer;
 
     CB_PowerOnOff           : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackAllPowerOnOff;
@@ -220,6 +220,7 @@ type
     m_GetOCversion : function : PAnsiChar; cdecl;
     m_OCFlowStart : array [DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of Boolean;
     m_OCCkSerialNB : array [DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of Boolean;
+    m_CurrentBand : array [DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of integer;
     constructor Create(hMain,hTest: HWND;sDLLPath, sFileName: string);
     procedure  Create_Test;
     destructor Destroy; override;
@@ -2371,16 +2372,14 @@ begin
   if Pos('[cnt]',sMLOG) >0 then
     inc(m_CountInspections[nChannel_Index]);
 
-  if Pos('Band Digital Search',sMLOG) > 0 then begin
+  if (Pos('Band',sMLOG) > 0) and (pos('Search',sMLOG) > 0)  then begin
     arStr := sMLOG.Split([' ']);
     if Length(arStr) > 2 then begin
       sBand := ExtractNumbersFromString(arStr[1]);
       m_CurrentBand[nChannel_Index] := StrToIntDef(sBand,-1);
     end;
   end;
-  if Pos('Band Analog Search',sMLOG) > 0 then begin
-    m_CurrentBand[nChannel_Index] := 0;
-  end;
+
   SendTestGuiDisplay(nChannel_Index,defCommon.MSG_MODE_WORKING,sMLOG,nParam);
 end;
 
