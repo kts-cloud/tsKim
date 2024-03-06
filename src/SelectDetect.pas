@@ -41,7 +41,7 @@ begin
     btnNo.Caption := 'UnLoad';
   end
   else if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
-    btnNo.Caption := 'Exchange';
+    btnNo.Caption := 'UnLoad';
     pnlCaption.Caption := 'Panel Detected'
   end;
 

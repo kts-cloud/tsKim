@@ -854,27 +854,29 @@ procedure TfrmECSStatus.RefreshDisplay(nCH : Integer);
 var
   I: Integer;
 begin
-  //LOAD
-  ShapeCheck(shppLoadFlow_1,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_LOAD_1] <> 1);
-  ShapeCheck(shppLoadFlow_2,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_LOAD_2] <> 1);
-  ShapeCheck(shppLoadFlow_3,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_LOAD_3] <> 1);
-  ShapeCheck(shppLoadFlow_4,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_LOAD_4] <> 1);
-  ShapeCheck(shppLoadFlow_5,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_LOAD_5] <> 1);
-  ShapeCheck(shppLoadFlow_6,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_LOAD_6] <> 1);
-  ShapeCheck(shppLoadFlow_7,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_LOAD_7] <> 1);
-  ShapeCheck(shppLoad_EQP_Normal,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_LOAD_11] <> 1);
-  ShapeCheck(shppLoad_ROBOT_Normal,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_LOAD_12] <> 1);
+  try
+    ShapeCheck(shppLoadFlow_1,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_LOAD_1] <> 1);
+    ShapeCheck(shppLoadFlow_2,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_LOAD_2] <> 1);
+    ShapeCheck(shppLoadFlow_3,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_LOAD_3] <> 1);
+    ShapeCheck(shppLoadFlow_4,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_LOAD_4] <> 1);
+    ShapeCheck(shppLoadFlow_5,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_LOAD_5] <> 1);
+    ShapeCheck(shppLoadFlow_6,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_LOAD_6] <> 1);
+    ShapeCheck(shppLoadFlow_7,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_LOAD_7] <> 1);
+    ShapeCheck(shppLoad_EQP_Normal,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_LOAD_11] <> 1);
+    ShapeCheck(shppLoad_ROBOT_Normal,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_LOAD_12] <> 1);
 
-  //UNLOAD
-  ShapeCheck(shppUnLoadFlow_1,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_UNLOAD_1] <> 1);
-  ShapeCheck(shppUnLoadFlow_2,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_UNLOAD_2] <> 1);
-  ShapeCheck(shppUnLoadFlow_3,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_UNLOAD_3] <> 1);
-  ShapeCheck(shppUnLoadFlow_4,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_UNLOAD_4] <> 1);
-  ShapeCheck(shppUnLoadFlow_5,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_UNLOAD_5] <> 1);
-  ShapeCheck(shppUnLoadFlow_6,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_UNLOAD_6] <> 1);
-  ShapeCheck(shppUnLoad_EQP_Normal,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_UNLOAD_11] <> 1);
-  ShapeCheck(shppUnLoad_ROBOT_Normal,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_UNLOAD_12] <> 1);
+    //UNLOAD
+    ShapeCheck(shppUnLoadFlow_1,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_UNLOAD_1] <> 1);
+    ShapeCheck(shppUnLoadFlow_2,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_UNLOAD_2] <> 1);
+    ShapeCheck(shppUnLoadFlow_3,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_UNLOAD_3] <> 1);
+    ShapeCheck(shppUnLoadFlow_4,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_UNLOAD_4] <> 1);
+    ShapeCheck(shppUnLoadFlow_5,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_UNLOAD_5] <> 1);
+    ShapeCheck(shppUnLoadFlow_6,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_UNLOAD_6] <> 1);
+    ShapeCheck(shppUnLoad_EQP_Normal,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_UNLOAD_11] <> 1);
+    ShapeCheck(shppUnLoad_ROBOT_Normal,Common.StatusInfo.LoadUnloadFlowData[nCH][COMMPLC_MODE_UNLOAD_12] <> 1);
+  finally
 
+  end;
 end;
 
 procedure TfrmECSStatus.btnGlassDataReportClick(Sender: TObject);
@@ -1888,10 +1890,10 @@ begin
   if (Common.PLCInfo.InlineGIB)  then
   nCH := 3
   else nCH := 1;
-//  for I := 0 to nCH do begin
-//    if rbChkCH[i].Checked then
-//      RefreshDisplay(i);
-//  end;
+  for I := 0 to nCH do begin
+    if rbChkCH[i].Checked then
+      RefreshDisplay(i);
+  end;
   if (Common.PLCInfo.InlineGIB) then begin
     if Common.SystemInfo.OCType = DefCommon.OCType then begin
       for i := 0 to 15 do begin

@@ -3244,6 +3244,7 @@ begin
               m_sMateriID := g_CommPLC.GlassData[FPgNo].MateriID;
             end;
           end;
+
           SendTestGuiDisplay(DefCommon.MSG_MODE_IRTEMP,'IRTEM : Start','',1);   //Start
         end;
         if Length(sSerialNumber) = 0 then sSerialNumber := 'TEST123456789012345678901';

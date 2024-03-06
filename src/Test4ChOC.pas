@@ -325,7 +325,7 @@ type
     /// <summary>로그창에 추가 및 저장. </summary>
     procedure ShowGui(hMain : HWND);
     procedure SetHandleAgain(hMain : HWND);
-    procedure DisplaySysInfo;
+    procedure DisplaySysInfo(nCh : Integer);
     procedure ClearChData(nCh : Integer);
     procedure DisplayResult(nCh, nCode, nColorType : Integer; sMsg: String);
     procedure SetConfig;
@@ -379,26 +379,21 @@ begin
     case nType of
       1: begin
         //Alarm 등 강조
-
 //        mmChannelLog[nCh].SelAttributes.Color := clRed;
 //        mmChannelLog[nCh].SelAttributes.Style := [fsBold];
       end;
       10: begin
         //저장만 한다.
         Common.MLog(nCh+self.Tag*4, sMsg);
-//        Common.AddMLog(nCh,sMsg,True);
         Exit;
-
       end
     else begin
-        if Common.SystemInfo.UIType = DefCommon.UI_WIN10_BLACK then begin
-           mmChannelLog[nCh].Color :=clBlack;
-           mmChannelLog[nCh].Font.Color := clWhite;
-        end
-        else begin
-           mmChannelLog[nCh].Color :=clWhite;
-           mmChannelLog[nCh].Font.Color := clBlack;
-        end;
+//        if Common.SystemInfo.UIType = DefCommon.UI_WIN10_BLACK then begin
+//           mmChannelLog[nCh].SelAttributes.Color := clWhite;
+//        end
+//        else begin
+//          mmChannelLog[nCh].SelAttributes.Color := clBlack;
+//        end;
 //        mmChannelLog[nCh].SelAttributes.Style := [];
       end;
 
@@ -2752,7 +2747,7 @@ var
               if bPgVerAllNG then begin
                 sTemp  := 'PG Version NG '+ Format('(PG:%s,Model:%s)', [PG[nCh].m_PgVer.VerAll, Common.TestModelInfoPG.PgVer.VerAll]);
                 sDebug := sDateTime + sTemp;
-                AddLog(sDebug,nCh,0);
+                AddLog(sDebug,nCh,1);
 //                mmChannelLog[nCh].Lines.Add(sDebug);
 //                mmChannelLog[nCh].Perform(EM_SCROLL,SB_LINEDOWN,0);
 //                Common.MLog(nCh,sTemp);
@@ -2761,7 +2756,7 @@ var
               if bPgVerHwNG then begin
                 sTemp  := 'PG Version NG - HW '+ Format('(PG:%s,Model:%s)', [PG[nCh].m_PgVer.HW, Common.TestModelInfoPG.PgVer.HW]);
                 sDebug := sDateTime + sTemp;
-                AddLog(sDebug,nCh,0);
+                AddLog(sDebug,nCh,1);
 //                mmChannelLog[nCh].Lines.Add(sDebug);
 //                mmChannelLog[nCh].Perform(EM_SCROLL,SB_LINEDOWN,0);
 //                Common.MLog(nCh,sTemp);
@@ -2769,14 +2764,14 @@ var
               if bPgVerFwNG then begin
                 sTemp  := 'PG Version NG - FW '+ Format('(PG:%s,Model:%s)', [PG[nCh].m_PgVer.FW, Common.TestModelInfoPG.PgVer.FW]);
                 sDebug := sDateTime + sTemp;
-                AddLog(sDebug,nCh,0);
+                AddLog(sDebug,nCh,1);
 //                mmChannelLog[nCh].Lines.Add(sDebug);
 //                mmChannelLog[nCh].Perform(EM_SCROLL,SB_LINEDOWN,0);
 //                Common.MLog(nCh,sTemp);
               end;
               if bPgVerSubFwNG then begin
                 sTemp  := 'PG Version NG - SubFW '+ Format('(PG:%s,Model:%s)', [PG[nCh].m_PgVer.SubFW, Common.TestModelInfoPG.PgVer.SubFW]);
-                AddLog(sTemp,nCh,0);
+                AddLog(sTemp,nCh,1);
 //                mmChannelLog[nCh].Lines.Add(sDebug);
 //                mmChannelLog[nCh].Perform(EM_SCROLL,SB_LINEDOWN,0);
 //                Common.MLog(nCh,sTemp);
@@ -2784,7 +2779,7 @@ var
               if bPgVerFpgaNG then begin
                 sTemp  := 'PG Version NG - FPGA '+ Format('(PG:%s,Model:%s)', [PG[nCh].m_PgVer.FPGA, Common.TestModelInfoPG.PgVer.FPGA]);
                 sDebug := sDateTime + sTemp;
-                AddLog(sDebug,nCh,0);
+                AddLog(sDebug,nCh,1);
 //                mmChannelLog[nCh].Lines.Add(sDebug);
 //                mmChannelLog[nCh].Perform(EM_SCROLL,SB_LINEDOWN,0);
 //                Common.MLog(nCh,sTemp);
@@ -2792,7 +2787,7 @@ var
               if bPgVerPwrNG then begin
                 sTemp  := 'PG Version NG - POWER '+ Format('(PG:%s,Model:%s)', [PG[nCh].m_PgVer.PWR, Common.TestModelInfoPG.PgVer.PWR]);
                 sDebug := sDateTime + sTemp;
-                AddLog(sDebug,nCh,0);
+                AddLog(sDebug,nCh,1);
 //                mmChannelLog[nCh].Lines.Add(sDebug);
 //                mmChannelLog[nCh].Perform(EM_SCROLL,SB_LINEDOWN,0);
 //                Common.MLog(nCh,sTemp);
@@ -2801,7 +2796,7 @@ var
               if bPgVerScriptNG then begin
                 sTemp  := 'PG Model Script Version NG '+ Format('(PG:%s,Model:%s)', [PG[nCh].m_PgVer.VerScript, Common.TestModelInfoPG.PgVer.VerScript]);
                 sDebug := sDateTime + sTemp;
-                AddLog(sDebug,nCh,0);
+                AddLog(sDebug,nCh,1);
 //                mmChannelLog[nCh].Lines.Add(sDebug);
 //                mmChannelLog[nCh].Perform(EM_SCROLL,SB_LINEDOWN,0);
 //                Common.MLog(nCh,sTemp);
@@ -3018,15 +3013,11 @@ begin
 
 end;
 
-procedure TfrmTest4ChOC.DisplaySysInfo;
-var
-   nPgNo: Integer;
+procedure TfrmTest4ChOC.DisplaySysInfo(nCh : Integer);
 begin
-  for nPgNo := DefCommon.CH1 to DefCommon.CH4 do begin
-    chkChannelUse[nPgNo].Checked := Common.SystemInfo.UseCh[nPgNo];
-    PasScr[nPgNo].m_bUse := Common.SystemInfo.UseCh[nPgNo];
-    Common.StatusInfo.UseChannel[nPgNo]:= Common.SystemInfo.UseCh[nPgNo];
-  end;
+  chkChannelUse[nCh].Checked := Common.SystemInfo.UseCh[nCh];
+  PasScr[nCh].m_bUse := Common.SystemInfo.UseCh[nCh];
+  Common.StatusInfo.UseChannel[nCh]:= Common.SystemInfo.UseCh[nCh];
 end;
 
 procedure TfrmTest4ChOC.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
@@ -4068,9 +4059,12 @@ end;
 
 
 procedure TfrmTest4ChOC.SetConfig;
+var
+ I : Integer;
 begin
 //  DisplaySeq;
-  DisplaySysInfo;
+ for I := DefCommon.CH1 to DefCommon.CH4 do
+  DisplaySysInfo(i);
 end;
 
 
@@ -4602,6 +4596,17 @@ begin
       nTemp := PGUIMessage(PCopyDataStruct(Msg.LParam)^.lpData)^.Param;
 
       case nMode of
+        DefCommon.MSG_MODE_ADDLOG : begin
+          sMsg := Trim(PGUIMessage(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
+          if nTemp = 10 then begin
+            Common.MLog(nCh+self.Tag*4,sMsg);
+            Exit;
+          end;
+          if nCh < DefCommon.MAX_SYSTEM_LOG then
+            AddLog('[MAIN] ' + sMsg, nCh, nTemp)
+          else
+           Common.MLog(nCh,sMsg);
+        end;
         DefCommon.MSG_MODE_ADDLOG_CHANNEL : begin
           sMsg := Trim(PGUIMessage(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
           if nTemp = 10 then begin
