@@ -8,7 +8,7 @@ uses
   Vcl.Forms,Vcl.Dialogs, Winapi.WinSock, Vcl.StdCtrls, psAPI,System.IOUtils,IdGlobal,
   System.IniFiles,  CodeSiteLogging, StrUtils,  DefCommon, system.zip,DefPG, TLHelp32, ComObj, Variants,PdhExample,
 
-  System.Threading, FlexCel.Core, FlexCel.XlsAdapter,System.Diagnostics,System.TimeSpan,RegularExpressions,
+  System.Threading, {FlexCel.Core, FlexCel.XlsAdapter,}System.Diagnostics,System.TimeSpan,RegularExpressions,
 
   Graphics,  IdSocketHandle, DateUtils, Winapi.ActiveX, System.Generics.Collections,
   Winapi.Messages,DongaPattern,Registry, SyncObjs,Vcl.Imaging.pngimage, Vcl.Imaging.jpeg,Math; //, AdvGrid, AdvObj, AdvGridWorkbook, , ScrMemo; //, DefScript;
@@ -738,22 +738,28 @@ type
     m_nCsvLineCnt : Integer;
     m_bModelInfoNg : Boolean;
 
-        /// <summary> Log 누적 라인 수 - 초과 될 경우 저장</summary>
+    m_sFileName : array [DefCommon.CH1..MAX_PG_CNT] of string;
+    m_slLog : array [DefCommon.CH1..MAX_PG_CNT] of TStringList;
+    m_dtSaveLog :array [DefCommon.CH1..MAX_PG_CNT] of TDateTime;
+    m_csLog : array [DefCommon.CH1..MAX_PG_CNT] of TCriticalSection;
+
+    /// <summary> Log 누적 라인 수 - 초과 될 경우 저장</summary>
     LogAccumulateCount : Integer;
     /// <summary> Log 누적 시간(초단위) - 초과 될 경우 저장</summary>
     LogAccumulateSecond : Integer;
-    CriticalSection: array [0.. DefCommon.MAX_PG_CNT + 1] of  TCriticalSection;
     m_bExecuteOncePerDay: Boolean;
     procedure SetResolution(nH, nV : Word);
     procedure LoadOcTables(nIdxOcTables : Integer);
     function LoadMesCode : Integer;
     function IsExcelProcess(const ProcessID: DWORD): Boolean;
+    procedure SaveMLog(nCh : Integer; dtSave: TDateTime);
 //    procedure SaveLog(nCH : Integer; dtSave: TDateTime);
 
     procedure LogWorker;
+    procedure ProcessCycle;
 
   public
-    FLogQueue:  TQueue<TLogItem>;
+//    FLogQueue:  TQueue<TLogItem>;
     FLogThread:  TThread;
 
     AutoReStart : Boolean;
@@ -849,7 +855,8 @@ type
     procedure SaveModelInfo(fName: String);
     procedure SaveModelInfoDLL(fName: String);
     procedure SaveModelInfo2(fName: String);
-    procedure MLog(nCh : Integer;const Msg : String);
+//    procedure MLog(nCh : Integer;const Msg : String);
+    procedure MLog(nCh : Integer; const sLog: String; bSave: Boolean = False);
 
 
     procedure R2RLog(nCh: Integer; const Msg: String);
@@ -1509,15 +1516,12 @@ begin
   LoadBaseData;
 
   for I := 0 to DefCommon.MAX_PG_CNT do begin
-    CriticalSection[i] := TCriticalSection.Create;
-//    m_slLog[i]:= TStringList.Create;
-//    m_csLog[i]:= TCriticalSection.Create;
+    m_slLog[i]:= TStringList.Create;
+    m_csLog[i] := TCriticalSection.Create;
+    m_dtSaveLog[i]:= Now;
   end;
 
-
-
-  FLogQueue:= TQueue<TLogItem>.Create;
-  FLogThread := TThread.CreateAnonymousThread(LogWorker);
+  FLogThread := TThread.CreateAnonymousThread(ProcessCycle);
   FLogThread.FreeOnTerminate := False;
   FLogThread.Start;
 
@@ -1528,8 +1532,7 @@ begin
 //    FLogThread[i].Start;
 //  end;
 
-  LogAccumulateCount:= 30;
-  LogAccumulateSecond:= 10;
+
 
   m_csvLine :=	0;
   m_csvFile :=	0;
@@ -1702,21 +1705,16 @@ begin
   SetLength(PGWriteReadPassAddr,0);
   SetLength(DGMA_Para,0);
 
-
-
-  for I := 0 to DefCommon.MAX_PG_CNT do begin
-    CriticalSection[i].Free;
-//    m_slLog[i].Free;
-//    m_csLog[i].Free;
-  end;
-
-
-
-
   FLogThread.Terminate;
   FLogThread.WaitFor;
   FLogThread.Free;
-  FLogQueue.Free;
+
+  for I := 0 to DefCommon.MAX_PG_CNT do begin
+    SaveMLog(I, Now);
+    m_slLog[i].Free;
+    m_csLog[i].Free;
+  end;
+//  FLogQueue.Free;
 
 //  for I := 0 to 5 do begin
 //    FLogThread[i].Terminate;
@@ -4073,37 +4071,79 @@ var
   LogItem: TLogItem;
   _infile: TextFile;
   sInputData: string;
+  i : Integer;
+  dtNow: TDateTime;
 begin
   while not TThread.CheckTerminated do
   begin
-    if FLogQueue.Count > 0 then
-    begin
-      LogItem := FLogQueue.Dequeue;
-      try
-        if CheckDir(ExtractFilePath(LogItem.FileName)) then
-          Continue;
-
-        AssignFile(_infile, LogItem.FileName);
-        try
-          if not FileExists(LogItem.FileName) then
-            Rewrite(_infile)
-          else
-            Append(_infile);
-
-          sInputData := format('Queue Cnt : %d ',[FLogQueue.Count])+ LogItem.Msg;
-          WriteLn(_infile, sInputData);
-        finally
-          CloseFile(_infile);
-        end;
-        if FLogQueue.Count > 1000 then
-         FLogQueue.Clear;
-
-      except
-        // Handle exceptions as needed
-      end;
-    end;
+    
+//    for I := DefCommon.CH1 to DefCommon.MAX_PG_CNT do begin
+//      dtNow := Now;
+//      if m_slLog[i].Count = 0 then break;
+//      if (m_slLog[i].Count > 30) or (SecondsBetween(dtNow, m_dtSaveLog[i]) > 10) then begin
+//        try
+//
+//          AssignFile(_infile, m_sFileName[i]);
+//          try
+//            if not FileExists(m_sFileName[i]) then
+//              Rewrite(_infile)
+//            else
+//              Append(_infile);
+//
+//            WriteLn(_infile, m_slLog[i].Text);
+//            m_slLog[i].Clear;
+//            m_dtSaveLog[i]:= now;
+//          finally
+//            CloseFile(_infile);
+//          end;
+//
+//        except
+//          // Handle exceptions as needed
+//        end;
+//      end;
+//    end;
+//    Sleep(5);
   end;
 end;
+
+
+//procedure TCommon.LogWorker;
+//var
+//  LogItem: TLogItem;
+//  _infile: TextFile;
+//  sInputData: string;
+//begin
+//  while not TThread.CheckTerminated do
+//  begin
+//    
+//    if FLogQueue = nil then Continue;
+//
+//    if FLogQueue.Count > 0 then
+//    begin
+//      LogItem := FLogQueue.Dequeue;
+//      try
+//        if CheckDir(ExtractFilePath(LogItem.FileName)) then
+//          Continue;
+//
+//        AssignFile(_infile, LogItem.FileName);
+//        try
+//          if not FileExists(LogItem.FileName) then
+//            Rewrite(_infile)
+//          else
+//            Append(_infile);
+//
+//          sInputData := format('Queue Cnt : %d ',[FLogQueue.Count])+ LogItem.Msg;
+//          WriteLn(_infile, sInputData);
+//        finally
+//          CloseFile(_infile);
+//        end;
+//
+//      except
+//        // Handle exceptions as needed
+//      end;
+//    end;
+//  end;
+//end;
 
 function TCommon.MakeModelData(model_name: String): AnsiString;
 var
@@ -4588,8 +4628,8 @@ end;
 
 procedure TCommon.R2RLog(nCh: Integer; const Msg: String);
 var
-  LogItem: TLogItem;
-  sDate,sFilePath : string;
+  sDate,sFilePath,sFileName,sMsg : string;
+  _infile: TextFile;
 begin
   try
     // Enqueue log item for asynchronous processing
@@ -4601,52 +4641,209 @@ begin
 
     if CheckDir(sFilePath) then
       Exit;
-    LogItem.FileName := sFilePath + Format('R2RLog_%s_%s_Ch%d.txt', [systemInfo.EQPId, FormatDateTime('mmdd', Now), nCh + 1]);
+    sFileName := sFilePath + Format('R2RLog_%s_%s_Ch%d.txt', [systemInfo.EQPId, FormatDateTime('mmdd', Now), nCh + 1]);
 
-    LogItem.Msg := FormatDateTime('(hh:mm:ss.zzz) : ', Now) + Msg;
-    FLogQueue.Enqueue(LogItem);
-  except
-    // Handle exceptions as needed
-  end;
-end;
+    sMsg := FormatDateTime('(hh:mm:ss.zzz) : ', Now) + Msg;
+    AssignFile(_infile, sFileName);
 
-
-procedure TCommon.MLog(nCh: Integer; const Msg: String);
-var
-  LogItem: TLogItem;
-  sDate,sFilePath,sFileDate : string;
-begin
-  try
-    // Enqueue log item for asynchronous processing
-
-//    AddMLog(nCh,Msg,True);
-//    Exit;
-
-    if (nCh < DefCommon.CH1) or (nCh > MAX_PLC_LOG) then  nCh := DefCommon.MAX_SYSTEM_LOG;
-
-    if CheckDir(Path.MLOG) then
-      Exit;
-
-    sDate := FormatDateTime('yyyymmdd', Now);
-    sFilePath := Path.MLOG + sDate + '\';
-
-    sFileDate := FormatDateTime('yyyymmdd_AM/PM', Now);
-
-    if CheckDir(sFilePath) then
-      Exit;
-
-    case nCh of
-      DefCommon.MAX_SYSTEM_LOG: LogItem.FileName := sFilePath + Format('SystemLog_%s_%s.txt',[systemInfo.EQPId,sFileDate]);
-      DefCommon.MAX_PLC_LOG: LogItem.FileName :=  sFilePath + Format('PLC_%s_%s.txt',[systemInfo.EQPId,sFileDate])
+    try
+      if not FileExists(sFileName) then
+        Rewrite(_infile)
       else
-        LogItem.FileName := sFilePath + Format('MLog_%s_%s_Ch%d.txt',[systemInfo.EQPId,sFileDate,nCh + 1]);
+        Append(_infile);
+
+      WriteLn(_infile, sMsg);
+    finally
+      CloseFile(_infile);
     end;
-    LogItem.Msg :=FormatDateTime('(hh:mm:ss.zzz) : ', Now) + Msg;
-    FLogQueue.Enqueue(LogItem);
+
   except
-    // Handle exceptions as needed
+    on E: Exception do
+    begin
+      Sleep(10); //MLog 충돌 방지- IO 103
+    end;
   end;
 end;
+
+procedure TCommon.ProcessCycle;
+var
+  dtNow: TDateTime;
+  nCh: Integer;
+begin
+  while not TThread.CheckTerminated do begin
+    try
+       dtNow:= Now;
+      //MLog 저장 확인
+      for nCh := DefCommon.CH1 to DefCommon.MAX_SYSTEM_LOG do begin
+        if (m_slLog[nCh].Count > 0) then begin
+          if  DayOf(m_dtSaveLog[nCh]) <> DayOf(dtNow) then begin
+            SaveMLog(nCh, m_dtSaveLog[nCh]); //날짜가 변경된 경우 이전날짜 File로 저장
+          end
+          else if (m_slLog[nCh].Count > LogAccumulateCount) or (SecondsBetween(dtNow, m_dtSaveLog[nCh]) > LogAccumulateSecond) then begin
+            SaveMLog(nCh, dtNow);
+          end;
+        end;
+      end;
+
+    finally
+      Sleep(1000);
+    end;
+  end;
+ 
+  //종료 시 마지막 저장
+  dtNow:= Now;
+  for nCh := DefCommon.CH1 to DefCommon.MAX_SYSTEM_LOG do begin
+    SaveMLog(nCh, dtNow);
+  end;
+end;
+
+procedure TCommon.SaveMLog(nCh : Integer; dtSave: TDateTime);
+var
+  sDate, sFilePath, sFileName,sFileDate: String;
+  sDir: String;
+  logFile: TextFile;
+begin
+  if m_slLog[nCh].Count = 0 then Exit;
+ 
+  sDate := FormatDateTime('yyyymmdd', dtSave);
+  sFilePath := Path.MLOG + sDate + '\';
+  ForceDirectories(sFilePath);
+
+  sFileDate := FormatDateTime('yyyymmdd_AM/PM', dtSave);
+ 
+  case nCh of
+    DefCommon.MAX_SYSTEM_LOG  : sFileName := sFilePath + Format('SystemLog_%s_%s.txt',[systemInfo.EQPId,sFileDate]);
+    DefCommon.MAX_PLC_LOG     : sFileName := sFilePath + Format('PLC_%s_%s.txt',[systemInfo.EQPId,sFileDate])
+    else begin
+      sFileName := sFilePath + Format('MLog_%s_%s_Ch%d.txt',[systemInfo.EQPId,sFileDate,nCh + 1]);
+    end;
+  end;
+ 
+  AssignFile(logFile, sFileName);
+  try
+    try
+      {$I-}
+      if FileExists(sFileName) then Append(logFile) else Rewrite(logFile);
+ 
+      WriteLn(logFile, Trim(m_slLog[nCh].Text));
+ 
+      m_csLog[nCh].Acquire;
+      m_slLog[nCh].Clear;
+      m_csLog[nCh].Release;
+      m_dtSaveLog[nCh]:= Now; //dtSave;
+      {$I+}
+    except
+      on E: Exception do  begin
+        Sleep(10); //MLog 충돌 방지- IO 103
+        if nCh <> MAX_SYSTEM_LOG then begin
+          MLog(MAX_SYSTEM_LOG, format('Exception On SaveMLog Ch=%d, Err=%s', [nCh, E.Message]));
+        end;
+      end;
+    end;
+  finally
+    CloseFile(logFile);
+  end;
+end;
+
+procedure TCommon.MLog(nCh : Integer; const sLog: String; bSave: Boolean);
+var
+  dtNow: TDateTime;
+begin
+  if (nCh < DefCommon.CH1) or (nCh > DefCommon.MAX_PG_CNT) then nCh := DefCommon.MAX_SYSTEM_LOG;
+
+  dtNow:= Now;
+ 
+  if (m_slLog[nCh].Count > 0) and (DayOf(m_dtSaveLog[nCh]) <> DayOf(dtNow)) then begin
+    SaveMLog(nCh, m_dtSaveLog[nCh]); //날짜가 변경된 경우 이전 File로 저장
+  end;
+ 
+  if bSave and (sLog = '') then begin
+    //단순 저장 요청 - 프로그램 종료 시나 즉시 저장이 필요할 경우
+    SaveMLog(nCh, dtNow);
+  end
+  else begin
+    //저장 요청이 아닌 경우Log 추가
+    m_csLog[nCh].Enter;
+    m_slLog[nCh].Add(FormatDateTime('HH:NN:SS.ZZZ => ', dtNow) + sLog);
+    m_csLog[nCh].Leave;
+  end;
+ 
+  //로그 라인수가 누적 라인수 초과이거나누적시간(초) 초과인 경우File로 저장
+  if (m_slLog[nCh].Count > LogAccumulateCount) or (SecondsBetween(dtNow, m_dtSaveLog[nCh]) > LogAccumulateSecond) or bSave then begin
+    SaveMLog(nCh, dtNow);
+  end;
+ 
+end;
+
+//procedure TCommon.MLog(nCh: Integer; const Msg: String);
+//var
+//  sDate,sFilePath,sFileDate,sFileName : string;
+//begin
+//  try
+//
+//    if (nCh < DefCommon.CH1) or (nCh > MAX_PLC_LOG) then  nCh := DefCommon.MAX_SYSTEM_LOG;
+//
+//    if CheckDir(Path.MLOG) then
+//      Exit;
+//
+//    sDate := FormatDateTime('yyyymmdd', Now);
+//    sFilePath := Path.MLOG + sDate + '\';
+//
+//    sFileDate := FormatDateTime('yyyymmdd_AM/PM', Now);
+//
+//    if CheckDir(sFilePath) then
+//      Exit;
+//
+//    case nCh of
+//      DefCommon.MAX_SYSTEM_LOG: sFileName := sFilePath + Format('SystemLog_%s_%s.txt',[systemInfo.EQPId,sFileDate]);
+//      DefCommon.MAX_PLC_LOG: sFileName :=  sFilePath + Format('PLC_%s_%s.txt',[systemInfo.EQPId,sFileDate])
+//      else
+//        sFileName := sFilePath + Format('MLog_%s_%s_Ch%d.txt',[systemInfo.EQPId,sFileDate,nCh + 1]);
+//    end;
+//    m_sFileName[nCh] := sFileName;
+//    m_slLog[nCh].Add(FormatDateTime('(hh:mm:ss.zzz) : ', Now) + Msg);
+//  except
+//    // Handle exceptions as needed
+//  end;
+//end;
+
+
+//procedure TCommon.MLog(nCh: Integer; const Msg: String);
+//var
+//  LogItem: TLogItem;
+//  sDate,sFilePath,sFileDate : string;
+//begin
+//  try
+//    // Enqueue log item for asynchronous processing
+//
+////    AddMLog(nCh,Msg,True);
+////    Exit;
+//
+//    if (nCh < DefCommon.CH1) or (nCh > MAX_PLC_LOG) then  nCh := DefCommon.MAX_SYSTEM_LOG;
+//
+//    if CheckDir(Path.MLOG) then
+//      Exit;
+//
+//    sDate := FormatDateTime('yyyymmdd', Now);
+//    sFilePath := Path.MLOG + sDate + '\';
+//
+//    sFileDate := FormatDateTime('yyyymmdd_AM/PM', Now);
+//
+//    if CheckDir(sFilePath) then
+//      Exit;
+//
+//    case nCh of
+//      DefCommon.MAX_SYSTEM_LOG: LogItem.FileName := sFilePath + Format('SystemLog_%s_%s.txt',[systemInfo.EQPId,sFileDate]);
+//      DefCommon.MAX_PLC_LOG: LogItem.FileName :=  sFilePath + Format('PLC_%s_%s.txt',[systemInfo.EQPId,sFileDate])
+//      else
+//        LogItem.FileName := sFilePath + Format('MLog_%s_%s_Ch%d.txt',[systemInfo.EQPId,sFileDate,nCh + 1]);
+//    end;
+//    LogItem.Msg :=FormatDateTime('(hh:mm:ss.zzz) : ', Now) + Msg;
+//    FLogQueue.Enqueue(LogItem);
+//  except
+//    // Handle exceptions as needed
+//  end;
+//end;
 
 
 // MLog 함수 개선
@@ -5643,6 +5840,8 @@ begin
       SystemInfo.AutoLGDLogBackup     := fSys.ReadBool('SYSTEMDATA','AUTO_LGDLOG_BACKUP_USE',false);
 
       SystemInfo.SystemLogUse         := fSys.Readbool('SYSTEMDATA', 		'SYSTEM_LOG_USE',  False);
+      LogAccumulateCount              := fsys.ReadInteger('SYSTEMDATA', 'LogAccumulateCount', 10);
+      LogAccumulateSecond             := fsys.ReadInteger('SYSTEMDATA', 'LogAccumulateSecond', 10);
       SystemInfo.MIPILog              := fSys.Readbool('SYSTEMDATA', 		'MIPI_LOG_USE',  False);
       SystemInfo.NGAlarmCount         := fsys.ReadInteger('SYSTEMDATA', 'NGAlarmCount', 3);
       SystemInfo.RetryCount           := fsys.ReadInteger('SYSTEMDATA', 'RetryCount', 1);

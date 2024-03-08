@@ -2578,7 +2578,10 @@ end;
 
 function TCSharpDll.MainOC_GetOCFlowIsAlive(nCH : Integer): Integer;
 begin
-  Result := m_MainOC_IsAlive(nCH);
+  if nCH > DefCommon.MAX_CH then
+    Result := 0
+  else
+    Result := m_MainOC_IsAlive(nCH);
 end;
 
 function TCSharpDll.MainOC_GetSummaryLogData(nCH : Integer; sParameter : string): string;

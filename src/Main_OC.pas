@@ -311,7 +311,7 @@ var
 begin
   for i := DefCommon.CH1 to DefCommon.MAX_CH do
 //    common.MLog(i, 'Program InitialAll');
-    SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, 0, i, 'Program InitialAll');
+    SendCHMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, 0, i, 'Program InitialAll');
 end;
 
 procedure TfrmMain_OC.ApplicationEvents1ShortCut(var Msg: TWMKey; var Handled: Boolean);
@@ -419,7 +419,7 @@ begin
     sDebug := '[Click Event] Initialize';
     ShowSysLog(sDebug);
     for i := DefCommon.CH1 to DefCommon.MAX_CH do
-      SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, 0, i, sDebug);
+      SendCHMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, 0, i, sDebug);
     InitialAll;
   end;
 end;
@@ -463,7 +463,7 @@ begin
     ShowSysLog(sDebug);
     for i := DefCommon.CH1 to DefCommon.MAX_CH do
 //    common.MLog(i,sDebug);
-      SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, 0, i, sDebug);
+      SendCHMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, 0, i, sDebug);
 //    if Common.SystemInfo.UIType <> DefCommon.UI_WIN10_NOR then TStyleManager.SetStyle('Windows10');
     frmMainter := TfrmMainter.Create(Application);
     try
@@ -522,7 +522,7 @@ begin
     ShowSysLog(sDebug);
     for i := DefCommon.CH1 to DefCommon.MAX_CH do
 //    common.MLog(i,sDebug);
-      SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, 0, i, sDebug);
+      SendCHMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, 0, i, sDebug);
 
     // Fusing model Data.
     Common.LoadModelInfo(Common.SystemInfo.TestModel);
@@ -581,7 +581,7 @@ begin
       ShowSysLog(sDebug);
       for i := DefCommon.CH1 to DefCommon.MAX_CH do
 //      common.MLog(i,sDebug);
-        SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, 0, i, sDebug);
+        SendCHMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, 0, i, sDebug);
       InitialAll;
     end;
 //    Common.LoadModelInfo(Common.SystemInfo.TestModel);
@@ -616,7 +616,7 @@ begin
     ShowSysLog(sDebug);
     for i := DefCommon.CH1 to DefCommon.MAX_CH do
 //    common.MLog(i,sDebug);
-      SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, 0, i, sDebug);
+      SendCHMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, 0, i, sDebug);
 //    if Common.SystemInfo.UIType <> DefCommon.UI_WIN10_NOR then TStyleManager.SetStyle('Windows10');
     frmSystemSetup := TfrmSystemSetup.Create(nil);
     try
@@ -695,8 +695,8 @@ begin
   Result:= True;
   bResult := true;
   nJig := nCh;
-//  ShowSysLog('Check Empty Pair Carrier or Panel(CheckDetect_Loaded)',0);
-  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Check Empty Pair Carrier or Panel(CheckDetect_Loaded)');
+  ShowSysLog('Check Empty Pair Carrier or Panel(CheckDetect_Loaded)',0);
+//  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Check Empty Pair Carrier or Panel(CheckDetect_Loaded)');
   for i := (nCh*2) to (nCh*2 + 1) do begin
     Common.StatusInfo.UseChannel[i]:= frmTest4ChOC[0].chkChannelUse[i].Checked;
     if Common.StatusInfo.UseChannel[i] then begin
@@ -715,15 +715,15 @@ begin
       if (common.SystemInfo.OCType = DefCommon.OCType) and (not Result)  then begin // 둘중 하나라도 있으면 exchange 배출 할 수 있도록
         if nJig = DefCommon.CH_TOP then begin
           if not ControlDio.ReadInSig(IN_CH_1_CARRIER_SENSOR) and not ControlDio.ReadInSig(IN_CH_2_CARRIER_SENSOR) then begin
-//            ShowSysLog('Empty 1,2 Ch(CheckDetect_Loaded)',1);
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Empty 1,2 Ch(CheckDetect_Loaded)');
+            ShowSysLog('Empty 1,2 Ch(CheckDetect_Loaded)',1);
+//            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Empty 1,2 Ch(CheckDetect_Loaded)');
             bResult := False;
           end;
         end
         else if nJig = DefCommon.CH_BOTTOM then begin
           if not ControlDio.ReadInSig(IN_CH_3_CARRIER_SENSOR) and not ControlDio.ReadInSig(IN_CH_4_CARRIER_SENSOR) then begin
-//            ShowSysLog('Empty 3,4 Ch(CheckDetect_Loaded)',1);
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Empty 3,4 Ch(CheckDetect_Loaded)');
+            ShowSysLog('Empty 3,4 Ch(CheckDetect_Loaded)',1);
+//            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Empty 3,4 Ch(CheckDetect_Loaded)');
             bResult := False;
           end;
         end;
@@ -731,28 +731,28 @@ begin
       if (common.SystemInfo.OCType = DefCommon.PreOCType) and (not Result)  then begin // 둘중 하나라도 있으면 exchange 배출 할 수 있도록
         if nJig = DefCommon.CH_TOP then begin
           if not ControlDio.ReadInSig(IN_GIB_CH_1_CARRIER_SENSOR) then begin
-//            ShowSysLog('Empty 1 Ch(CheckDetect_Loaded)',1);
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Empty 1 Ch(CheckDetect_Loaded)');
+            ShowSysLog('Empty 1 Ch(CheckDetect_Loaded)',1);
+//            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Empty 1 Ch(CheckDetect_Loaded)');
             Set_AlarmData(IN_GIB_CH_1_CARRIER_SENSOR, 1, 1);
             bResult := False;
           end;
           if not ControlDio.ReadInSig(IN_GIB_CH_2_CARRIER_SENSOR) then begin
-//            ShowSysLog( 'Empty 2 Ch(CheckDetect_Loaded)',1);
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Empty 2 Ch(CheckDetect_Loaded)');
+            ShowSysLog( 'Empty 2 Ch(CheckDetect_Loaded)',1);
+//            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Empty 2 Ch(CheckDetect_Loaded)');
             Set_AlarmData(IN_GIB_CH_2_CARRIER_SENSOR, 1, 1);
             bResult := False;
           end;
         end
         else if nJig = DefCommon.CH_BOTTOM then begin
           if not ControlDio.ReadInSig(IN_GIB_CH_3_CARRIER_SENSOR) then begin
-//            ShowSysLog('Empty 3 Ch(CheckDetect_Loaded)',1);
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Empty 3 Ch(CheckDetect_Loaded)');
+            ShowSysLog('Empty 3 Ch(CheckDetect_Loaded)',1);
+//            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Empty 3 Ch(CheckDetect_Loaded)');
             Set_AlarmData(IN_GIB_CH_3_CARRIER_SENSOR, 1, 1);
             bResult := False;
           end;
           if not ControlDio.ReadInSig(IN_GIB_CH_4_CARRIER_SENSOR) then begin
-//            ShowSysLog( 'Empty 4 Ch(CheckDetect_Loaded)',1);
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Empty 4 Ch(CheckDetect_Loaded)');
+            ShowSysLog( 'Empty 4 Ch(CheckDetect_Loaded)',1);
+//            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Empty 4 Ch(CheckDetect_Loaded)');
             Set_AlarmData(IN_GIB_CH_4_CARRIER_SENSOR, 1, 1);
             bResult := False;
           end;
@@ -794,8 +794,8 @@ var
 begin
   Result:= True;
   bResult := true;
-//  ShowSysLog('Check Empty Pair Carrier or Panel(CheckEmpty_Pair)',0);
-  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Check Empty Pair Carrier or Panel(CheckEmpty_Pair)');
+  ShowSysLog('Check Empty Pair Carrier or Panel(CheckEmpty_Pair)',0);
+//  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Check Empty Pair Carrier or Panel(CheckEmpty_Pair)');
   if (Common.PLCInfo.InlineGIB) then begin
     if Common.SystemInfo.OCType = DefCommon.OCType  then  begin
       if not ControlDio.ReadInSig(IN_CH_1_CARRIER_SENSOR + (nPair*16)) then begin
@@ -828,15 +828,15 @@ begin
     if (common.SystemInfo.OCType = DefCommon.OCType) or (not Result)  then begin // 둘중 하나라도 있으면 exchange 배출 할 수 있도록
       if nPair = DefCommon.CH_TOP then begin
         if not ControlDio.ReadInSig(IN_CH_1_CARRIER_SENSOR) and not ControlDio.ReadInSig(IN_CH_2_CARRIER_SENSOR) then begin
-//          ShowSysLog('Empty 1,2 Ch(CheckEmpty_Pair)',1);
-          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Empty 1,2 Ch(CheckEmpty_Pair)');
+          ShowSysLog('Empty 1,2 Ch(CheckEmpty_Pair)',1);
+//          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Empty 1,2 Ch(CheckEmpty_Pair)');
           bResult := False;
         end;
       end
       else if nPair = DefCommon.CH_BOTTOM then begin
         if not ControlDio.ReadInSig(IN_CH_3_CARRIER_SENSOR) and not ControlDio.ReadInSig(IN_CH_4_CARRIER_SENSOR) then begin
-//          ShowSysLog('Empty 3,4 Ch(CheckEmpty_Pair)',1);
-          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Empty 3,4 Ch(CheckEmpty_Pair)');
+          ShowSysLog('Empty 3,4 Ch(CheckEmpty_Pair)',1);
+//          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Empty 3,4 Ch(CheckEmpty_Pair)');
           bResult := False;
         end;
       end;
@@ -844,15 +844,15 @@ begin
     if (common.SystemInfo.OCType = DefCommon.PreOCType) or (not Result)  then begin // 둘중 하나라도 있으면 exchange 배출 할 수 있도록
       if nPair = DefCommon.CH_TOP then begin
         if (not ControlDio.ReadInSig(IN_GIB_CH_1_CARRIER_SENSOR)) and (not ControlDio.ReadInSig(IN_GIB_CH_2_CARRIER_SENSOR)) then begin
-//          ShowSysLog('Empty 1,2 Ch(CheckEmpty_Pair)',1);
-          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Empty 1,2 Ch(CheckEmpty_Pair)');
+          ShowSysLog('Empty 1,2 Ch(CheckEmpty_Pair)',1);
+//          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Empty 1,2 Ch(CheckEmpty_Pair)');
           bResult := False;
         end;
       end
       else if nPair = DefCommon.CH_BOTTOM then begin
         if (not ControlDio.ReadInSig(IN_GIB_CH_3_CARRIER_SENSOR)) and (not ControlDio.ReadInSig(IN_GIB_CH_4_CARRIER_SENSOR)) then begin
-//          ShowSysLog('Empty 3,4 Ch(CheckEmpty_Pair)',1);
-          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Empty 3,4 Ch(CheckEmpty_Pair)');
+          ShowSysLog('Empty 3,4 Ch(CheckEmpty_Pair)',1);
+//          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Empty 3,4 Ch(CheckEmpty_Pair)');
           bResult := False;
         end;
       end;
@@ -886,38 +886,38 @@ function TfrmMain_OC.CheckState_DIO: Boolean;
 begin
   Result:= False;
   if not ControlDio.Connected then begin
-    SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'CheckState: DIO not Connected ');
+    ShowSysLog('CheckState: DIO not Connected ', 1);
     Exit;
   end;
 
   if Common.SystemInfo.OCType = DefCommon.OCType then begin
 
     if ControlDio.ReadInSig(IN_EMO_SWITCH)  then begin
-      SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'CheckState: EMS');
+      ShowSysLog('CheckState: EMS', 1);
       Exit;
     end;
 
     if not ControlDio.ReadInSig(IN_MC_MONITORING) then begin
-      SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'CheckState: MC MONITORING');
+      ShowSysLog('CheckState: MC MONITORING', 1);
       Exit;
     end;
   end
   else begin
     if  ControlDio.ReadInSig(IN_GIB_CH_12_EMO_SWITCH)  then begin
-      SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'CheckState: CH 1..2 EMS');
+      ShowSysLog('CheckState: CH 1..2 EMS', 1);
       Exit;
     end;
     if  ControlDio.ReadInSig(IN_GIB_CH_34_EMO_SWITCH)  then begin
-      SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'CheckState: CH 3..4 EMS');
+      ShowSysLog('CheckState: CH 3..4 EMS', 1);
       Exit;
     end;
 
     if not ControlDio.ReadInSig(IN_GIB_CH_12_MC_MONITORING) then begin
-      SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'CheckState:CH 1..2 MC MONITORING');
+      ShowSysLog('CheckState:CH 1..2 MC MONITORING', 1);
       Exit;
     end;
     if not ControlDio.ReadInSig(IN_GIB_CH_34_MC_MONITORING) then begin
-      SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'CheckState:CH 3..4 MC MONITORING');
+      ShowSysLog('CheckState:CH 3..4 MC MONITORING', 1);
       Exit;
     end;
 
@@ -1103,8 +1103,8 @@ var
 begin
   //자동 시작 여부 검사
   //캐리어가 최대 사용 개수만큼 인식 되었는가?
-//  ShowSysLog('Check Empty Pair Carrier or Panel(CheckReadyToAutoStart)',0);
-  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Check Empty Pair Carrier or Panel(CheckReadyToAutoStart)');
+  ShowSysLog('Check Empty Pair Carrier or Panel(CheckReadyToAutoStart)',0);
+//  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Check Empty Pair Carrier or Panel(CheckReadyToAutoStart)');
   Result:= True;
   bResult := True;
   for I := 0 to DefCommon.MAX_CH do
@@ -1148,15 +1148,15 @@ begin
         if (common.SystemInfo.OCType = DefCommon.PreOCType) or (not Result)  then begin // 둘중 하나라도 있으면 exchange 배출 할 수 있도록
           if nPair = DefCommon.CH_TOP then begin
             if not ControlDio.ReadInSig(IN_GIB_CH_1_CARRIER_SENSOR) and not ControlDio.ReadInSig(IN_GIB_CH_2_CARRIER_SENSOR) then begin
-//              ShowSysLog('Empty 1,2 Ch(CheckReadyToAutoStart)',1);
-              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Empty 1,2 Ch(CheckReadyToAutoStart)');
+              ShowSysLog('Empty 1,2 Ch(CheckReadyToAutoStart)',1);
+//              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Empty 1,2 Ch(CheckReadyToAutoStart)');
               bResult := False;
             end;
           end
           else if nPair = DefCommon.CH_BOTTOM then begin
             if not ControlDio.ReadInSig(IN_GIB_CH_3_CARRIER_SENSOR) and not ControlDio.ReadInSig(IN_GIB_CH_4_CARRIER_SENSOR) then begin
-//              ShowSysLog('Empty 3,4 Ch(CheckReadyToAutoStart)',1);
-              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Empty 3,4 Ch(CheckReadyToAutoStart)');
+              ShowSysLog('Empty 3,4 Ch(CheckReadyToAutoStart)',1);
+//              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Empty 3,4 Ch(CheckReadyToAutoStart)');
               bResult := False;
             end;
           end;
@@ -1298,8 +1298,7 @@ var
 begin
   if g_CommPLC = nil then Exit;
   //Dectect Flag에 따른 보고
-//  ShowSysLog('UpdateECS_Glass_Position ' + IntToStr(nCh));
-  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'UpdateECS_Glass_Position ' + IntToStr(nCh));
+  ShowSysLog('UpdateECS_Glass_Position ' + IntToStr(nCh));
   nUseCount:= 0;
   nExistsCount:= 0;
 
@@ -1337,14 +1336,12 @@ begin
   if (Common.PLCInfo.InlineGIB) then begin
     if (Common.SystemInfo.OCType = DefCommon.OCType) then begin
       bExist1:= ControlDio.ReadInSig(IN_CH_1_CARRIER_SENSOR + nPair*16);
-      SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,format('UpdateECS_Glass_Position_Pair Station=%d, Pair=%d : Exists=%d', [nStage, nPair, Ord(bExist1)]));
-//      ShowSysLog(format('UpdateECS_Glass_Position_Pair Station=%d, Pair=%d : Exists=%d', [nStage, nPair, Ord(bExist1)]));
+      ShowSysLog(format('UpdateECS_Glass_Position_Pair Station=%d, Pair=%d : Exists=%d', [nStage, nPair, Ord(bExist1)]));
       g_CommPLC.ECS_Glass_Position(nPair, bExist1);
     end
     else begin
       bExist1:= ControlDio.ReadInSig(IN_GIB_CH_1_CARRIER_SENSOR + nPair*8);
-      SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,format('UpdateECS_Glass_Position_Pair Station=%d, Pair=%d : Exists=%d', [nStage, nPair, Ord(bExist1)]));
-//      ShowSysLog(format('UpdateECS_Glass_Position_Pair Station=%d, Pair=%d : Exists=%d', [nStage, nPair, Ord(bExist1)]));
+      ShowSysLog(format('UpdateECS_Glass_Position_Pair Station=%d, Pair=%d : Exists=%d', [nStage, nPair, Ord(bExist1)]));
       g_CommPLC.ECS_Glass_Position(nPair, bExist1);
     end;
   end
@@ -1358,8 +1355,8 @@ begin
       bExist2:= ControlDio.ReadInSig( 8 + IN_GIB_CH_1_CARRIER_SENSOR + nPair*16);
     end;
 
-//    ShowSysLog(format('UpdateECS_Glass_Position_Pair Station=%d, Pair=%d : Exists=%d, %d', [nStage, nPair, Ord(bExist1), Ord(bExist2)]));
-    SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,format('UpdateECS_Glass_Position_Pair Station=%d, Pair=%d : Exists=%d, %d', [nStage, nPair, Ord(bExist1), Ord(bExist2)]));
+    ShowSysLog(format('UpdateECS_Glass_Position_Pair Station=%d, Pair=%d : Exists=%d, %d', [nStage, nPair, Ord(bExist1), Ord(bExist2)]));
+
     g_CommPLC.ECS_Glass_Position(nPair*2, bExist1);  // Added by KTS 2022-11-14 오전 11:03:14
 //    sleep(10);
     g_CommPLC.ECS_Glass_Position(nPair*2+ 1, bExist2);  // Added by KTS 2022-11-14 오전 11:03:17
@@ -1759,8 +1756,8 @@ begin
     else                              frmTest4ChOC[0].chkChannelUse[i].Font.Color := clRed;
     PasScr[i].m_bUse := frmTest4ChOC[0].chkChannelUse[i].Checked;
     if PasScr[i].m_bUse THEN
-      SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,Format('m_bUse CH: %d' ,[I]))
-    else SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,Format('m_bUse no CH: %d' ,[I]));
+      ShowSysLog(Format('m_bUse CH: %d' ,[I]))
+    else ShowSysLog(Format('m_bUse no CH: %d' ,[I]));
 
 
     Common.StatusInfo.UseChannel[i]:= frmTest4ChOC[0].chkChannelUse[i].Checked;
@@ -2761,12 +2758,12 @@ begin
 //            Display_Memory_DI;
 //            Display_Memory_DO;
         ledDio.Value := True;
-        SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'DIO Connected:' + pGUIMsg.Msg);
+        ShowSysLog('DIO Connected:' + pGUIMsg.Msg);
       end
       else begin
         pnlDioStatus.Caption := 'Disconnected'; // + PGuiDaeDio(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg;
         ledDio.Value := False;
-        SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'DIO Disconnected:' + pGUIMsg.Msg);
+        ShowSysLog('DIO Disconnected:' + pGUIMsg.Msg, 1);
       end;
     end; //COMMPLC_MODE_CONNECT: begin
     CommDIO_DAE.COMMDIO_MSG_CHANGE_DI : begin //COMMDIO_MSG_CHANGE_DI: begin
@@ -2782,12 +2779,12 @@ begin
     end; //COMMDIO_MSG_CHANGE_DO: begin
     CommDIO_DAE.COMMDIO_MSG_LOG: begin //COMMDIO_MSG_LOG: begin
       //단순 로그
-      SendMsgAddLog(MSG_MODE_ADDLOG, pGUIMsg.Param2, 4,pGUIMsg.Msg);
+      ShowSysLog(pGUIMsg.Msg,pGUIMsg.Param2);
     end; //COMMDIO_MSG_LOG
 
 
     CommDIO_DAE.COMMDIO_MSG_ERROR: begin //COMMDIO_MSG_LOG: begin
-      SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'DIO ERROR : ' + pGUIMsg.Msg);
+      ShowSysLog('DIO ERROR : ' + pGUIMsg.Msg, 1);
     end; //COMMPLC_MODE_CHANGEDATA: begin
     ControlDio_OC.MSG_MODE_DISPLAY_ALARAM :  begin//  COMMDIO_MSG_CONNECT: begin
       Set_AlarmData(pGUIMsg.Param, pGUIMsg.Param2, 0); //경 알람
@@ -2795,25 +2792,21 @@ begin
     ControlDio_OC.MSG_MODE_SYSTEM_ALARAM :  begin
       if Common.SystemInfo.OCType = DefCommon.OCType then begin
         if (pGUIMsg.Param = DefDio.IN_EMO_SWITCH) and (pGUIMsg.Param2 = 1) then begin //EMO시에 검사 stop상태 대기
-//          ShowSysLog('<EMO> Script Stop Start');
-          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'<EMO> Script Stop Start');
+          ShowSysLog('<EMO> Script Stop Start');
           AddLog_AllCh('<EMO> Script Stop Start');
 //          JigLogic[0].StopIspd_TOP;
 //          JigLogic[0].StopIspd_BOTTOM;
-//          ShowSysLog('<EMO> Script Stop End');
-          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'<EMO> Script Stop End');
+          ShowSysLog('<EMO> Script Stop End');
           AddLog_AllCh('<EMO> Script Stop End');
         end;
       end
       else if Common.SystemInfo.OCType = Defcommon.PreOCType then begin
         if (pGUIMsg.Param = DefDio.IN_GIB_CH_12_EMO_SWITCH) and (pGUIMsg.Param2 = 1) then begin //EMO시에 검사 stop상태 대기
-          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'<EMO> 1,2 Ch Script Stop Start');
-//          ShowSysLog('<EMO> 1,2 Ch Script Stop Start');
+          ShowSysLog('<EMO> 1,2 Ch Script Stop Start');
 //          JigLogic[0].StopIspd_TOP;
         end
         else if (pGUIMsg.Param = DefDio.IN_GIB_CH_34_EMO_SWITCH) and (pGUIMsg.Param2 = 1) then begin
-//          ShowSysLog('<EMO> 3,4 Ch Script Stop Start');
-          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'<EMO> 3,4 Ch Script Stop Start');
+          ShowSysLog('<EMO> 3,4 Ch Script Stop Start');
 //          JigLogic[0].StopIspd_BOTTOM;
         end;
       end;
@@ -2903,8 +2896,7 @@ begin
     COMMPLC_MODE_EVENT_ROBOT: begin
       case pGUIMsg.Param of  //Robot 이벤트 종류
         COMMPLC_PARAM_GALSSDATA_REPORT: begin
-          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,format('GlassData Report: Pair=%d, %s', [pGUIMsg.Channel, pGUIMsg.Msg]));
-
+          ShowSysLog(format('GlassData Report: Pair=%d, %s', [pGUIMsg.Channel, pGUIMsg.Msg]));
           if (Common.PLCInfo.InlineGIB)  then begin
             frmTest4ChOC[nStage].DisplayResult(pGUIMsg.Channel, -3, 0, 'GlassData Report');
             PasScr[pGUIMsg.Channel].TestInfo.GlassID:=  g_CommPLC.GlassData[pGUIMsg.Channel].GlassID;
@@ -2920,12 +2912,11 @@ begin
 
         COMMPLC_PARAM_LOADCOMPLETE: begin
           if pGUIMsg.Param2 <> 0 then begin
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,format('Load Complete On: Pair=%d, %s', [pGUIMsg.Channel, pGUIMsg.Msg]));
-//            ShowSysLog(format('Load Complete On: Pair=%d, %s', [pGUIMsg.Channel, pGUIMsg.Msg]));
+            ShowSysLog(format('Load Complete On: Pair=%d, %s', [pGUIMsg.Channel, pGUIMsg.Msg]));
             if (Common.PLCInfo.InlineGIB) then begin
               frmTest4ChOC[nStage].DisplayResult(pGUIMsg.Channel, -3, 0, 'Load Complete');
               sMsg:= '[LOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[pGUIMsg.Channel]);
-              SendchMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, 0, pGUIMsg.Channel,sMsg);
+              SendCHMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, 0, pGUIMsg.Channel,sMsg);
 //              frmTest4ChOC[nStage].AddLog(sMsg, pGUIMsg.Channel);
               PasScr[pGUIMsg.Channel].TestInfo.MateriID := g_CommPLC.GlassData[pGUIMsg.Channel].MateriID;
               PasScr[pGUIMsg.Channel].m_nConfirmHostRet := 0;
@@ -2951,42 +2942,37 @@ begin
 
           end
           else begin
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,format('Load Complete Off: Pair=%d, %s', [pGUIMsg.Channel, pGUIMsg.Msg]));
-//            ShowSysLog(format('Load Complete Off: Pair=%d, %s', [pGUIMsg.Channel, pGUIMsg.Msg]));
+            ShowSysLog(format('Load Complete Off: Pair=%d, %s', [pGUIMsg.Channel, pGUIMsg.Msg]));
 
           end; //else begin
         end; //COMMPLC_PARAM_LOADCOMPLETE_OFF: begin
 
         COMMPLC_PARAM_LOADBUSY: begin
           if pGUIMsg.Param2 <> 0 then begin
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,format('Load Busy On: Pair=%d, %s', [pGUIMsg.Channel, pGUIMsg.Msg]));
-//            ShowSysLog(format('Load Busy On: Pair=%d, %s', [pGUIMsg.Channel, pGUIMsg.Msg]));
+            ShowSysLog(format('Load Busy On: Pair=%d, %s', [pGUIMsg.Channel, pGUIMsg.Msg]));
             {$IFDEF SIMULATOR_DIO}
             ControlDio.WriteDioSig(DefDio.OUT_UNDEFINED_37 + pGUIMsg.Channel*32,false);
             {$ENDIF}
           end
           else begin
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,format('Load Busy Off: Pair=%d, %s', [pGUIMsg.Channel, pGUIMsg.Msg]));
-//            ShowSysLog(format('Load Busy Off: Pair=%d, %s', [pGUIMsg.Channel, pGUIMsg.Msg]));
+            ShowSysLog(format('Load Busy Off: Pair=%d, %s', [pGUIMsg.Channel, pGUIMsg.Msg]));
             if not Common.StatusInfo.AutoMode then begin // Added by sam81 2023-04-27 오후 12:37:48
-              SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4,'Do not Auto Start - Manual Mode(COMMPLC_PARAM_LOADBUSY)');
-//              ShowSysLog('Do not Auto Start - Manual Mode(COMMPLC_PARAM_LOADBUSY)');
+              ShowSysLog('Do not Auto Start - Manual Mode(COMMPLC_PARAM_LOADBUSY)');
               Exit;
             end;
 
             //Glass Position 보고
             UpdateECS_Glass_Position_Pair(nStage, pGUIMsg.Channel); //ECS_Glass_Postion  // Added by KTS 2023-03-23 오후 4:51:22
 
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,format('CheckDetect_Loaded CH=%d', [pGUIMsg.Channel]));
-//            ShowSysLog(format('CheckDetect_Loaded CH=%d', [pGUIMsg.Channel]));
+
+            ShowSysLog(format('CheckDetect_Loaded CH=%d', [pGUIMsg.Channel]));
 
             //일반 처리
             if (Common.PLCInfo.InlineGIB) then begin
               if not CheckDetect_Loaded_Each(pGUIMsg.Channel) then Exit;
             end
             else begin
-              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,format('CheckDetect_Loaded CH=%d', [pGUIMsg.Channel]));
-//              ShowSysLog(format('CheckDetect_Loaded CH=%d', [pGUIMsg.Channel]));
+              ShowSysLog(format('CheckDetect_Loaded JIG=%d', [pGUIMsg.Channel]));
               if not CheckDetect_Loaded(pGUIMsg.Channel) then begin
                 //로드 이상 - Detect NG는  Pair로 처리
                 if Common.SystemInfo.OCType = DefCommon.OCType then begin
@@ -2996,16 +2982,13 @@ begin
                 Exit;
               end;
             end;
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,format('CheckDetect_Loaded CH=%d Doen', [pGUIMsg.Channel]));
-//            ShowSysLog(format('CheckDetect_Loaded CH=%d Doen', [pGUIMsg.Channel]));
+            ShowSysLog(format('CheckDetect_Loaded CH=%d Doen', [pGUIMsg.Channel]));
 
             //Unload가 남아 있으면
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,format('IsUnloadRequest_Robot CH=%d, %s', [pGUIMsg.Channel, pGUIMsg.Msg]));
-//            ShowSysLog(format('IsUnloadRequest_Robot CH=%d, %s', [pGUIMsg.Channel, pGUIMsg.Msg]));
+            ShowSysLog(format('IsUnloadRequest_Robot CH=%d, %s', [pGUIMsg.Channel, pGUIMsg.Msg]));
 
             if g_CommPLC.IsUnloadRequest_Robot(pGUIMsg.Channel) then begin
-//              ShowSysLog('Do not Start - Unloading..');
-              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'Do not Start - Unloading..');
+              ShowSysLog('Do not Start - Unloading..');
               Exit;
             end;
 //
@@ -3016,16 +2999,14 @@ begin
 //            end;
 
             //자동 시작 확인
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,format('CheckReadyToAutoStart CH=%d Doen', [pGUIMsg.Channel]));
-//            ShowSysLog(format('CheckReadyToAutoStart CH=%d Doen', [pGUIMsg.Channel]));
+            ShowSysLog(format('CheckReadyToAutoStart CH=%d Doen', [pGUIMsg.Channel]));
             if CheckReadyToAutoStart(pGUIMsg.Channel) then begin
-//              ShowSysLog('Auto Start - Full Load');
+              ShowSysLog('Auto Start - Full Load');
               Execute_AutoStart(pGUIMsg.Channel); // Added by KTS 2023-03-28 오후 3:28:34
-//              ShowSysLog('Auto Start - End');
+              ShowSysLog('Auto Start - End');
             end
             else begin
-              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,format('Ready To Start Pair=%d', [pGUIMsg.Channel]));
-//              ShowSysLog(format('Ready To Start Pair=%d', [pGUIMsg.Channel]));
+              ShowSysLog(format('Ready To Start Pair=%d', [pGUIMsg.Channel]));
             end;
           end;
         end; //COMMPLC_PARAM_LOADBUSY: begin
@@ -3035,8 +3016,7 @@ begin
 
           //Exchange에서 요청 된 것이 아닐 경우 Load 요청
           if pGUIMsg.Param2 <> 0 then begin
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, format('Unload Complete On: Pair=%d, %s', [pGUIMsg.Channel, pGUIMsg.Msg]));
-//            ShowSysLog(format('Unload Complete On: Pair=%d, %s', [pGUIMsg.Channel, pGUIMsg.Msg]));
+            ShowSysLog(format('Unload Complete On: Pair=%d, %s', [pGUIMsg.Channel, pGUIMsg.Msg]));
             if (Common.PLCInfo.InlineGIB) then
               frmTest4ChOC[nStage].DisplayResult(pGUIMsg.Channel, -3, 0, 'Unload Complete')
             else begin
@@ -3049,8 +3029,7 @@ begin
             {$ENDIF}
           end
           else begin
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,format('Unload Complete Off: Pair=%d, %s', [pGUIMsg.Channel, pGUIMsg.Msg]));
-//            ShowSysLog(format('Unload Complete Off: Pair=%d, %s', [pGUIMsg.Channel, pGUIMsg.Msg]));
+            ShowSysLog(format('Unload Complete Off: Pair=%d, %s', [pGUIMsg.Channel, pGUIMsg.Msg]));
             if (Common.PLCInfo.InlineGIB) then
               UpdateECS_Glass_Position_Pair(0,pGUIMsg.Channel); //
           end;
@@ -3058,10 +3037,10 @@ begin
 
         COMMPLC_PARAM_UNLOADBUSY: begin
           if pGUIMsg.Param2 <> 0 then begin
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,format('Unload Busy On: Pair=%d, %s', [pGUIMsg.Channel, pGUIMsg.Msg]));
+            ShowSysLog(format('Unload Busy On: Pair=%d, %s', [pGUIMsg.Channel, pGUIMsg.Msg]));
           end
           else begin
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,format('Unload Busy Off: Pair=%d, %s', [pGUIMsg.Channel, pGUIMsg.Msg]));
+            ShowSysLog(format('Unload Busy Off: Pair=%d, %s', [pGUIMsg.Channel, pGUIMsg.Msg]));
             if (Common.PLCInfo.InlineGIB)  then begin
               UpdateECS_Glass_Position_Pair(pGUIMsg.Channel, pGUIMsg.Channel); //ECS_Glass_Postion   // Added by KTS 2023-03-23 오후 4:51:33
             end
@@ -3112,14 +3091,14 @@ begin
 
         COMMPLC_PARAM_DOOR_OPENED: begin
           //log만 남김
-          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'Robot Door Opened: ' + pGUIMsg.Msg);
+          ShowSysLog('Robot Door Opened: ' + pGUIMsg.Msg);
           if pGUIMsg.Param2 = 1 then begin
             PollingDoorOpened := True;
             if frmDoorOpenAlarmMsg = nil then begin
               frmDoorOpenAlarmMsg:= TfrmDoorOpenAlarmMsg.Create(self);
             end;
             Set_AlarmData(114, pGUIMsg.Param2, 1); //중 알람
-            SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4,Common.StatusInfo.AlarmMsg[114]);
+            ShowSysLog(Common.StatusInfo.AlarmMsg[114], 1);
             frmDoorOpenAlarmMsg.Show; //ShowModal; //어차피 전체 창이므로 Modal일 필요 없다.
             frmDoorOpenAlarmMsg.CloseEnable(False);
           end
@@ -3208,8 +3187,9 @@ begin
         DongaGmes.MesData[nCh].ApdrData := PasScr[nCh].TestInfo.ApdrData;
         DongaGmes.SendEasApdr(PasScr[nCh].TestInfo.SerialNo, nCh);
       except
-        on E: Exception do SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'EAS_APDR : ' + E.Message);
+        on E: Exception do  ShowSysLog('EAS_APDR : ' + E.Message,1);
       end;
+
     end;
   end;
 end;
@@ -3238,12 +3218,12 @@ begin
 
       if pGUIMsg.Param = 2 then begin
         //A Front
-        SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,Format('STAGE_MODE_UNLOAD - CH %d',[nCHGoup]));
+        ShowSysLog(Format('STAGE_MODE_UNLOAD - CH %d',[nCHGoup]));
 
         if ControlDio.IsDetected(nCHGoup) then begin
           //패널이 있을 경우
           //if Common.StatusInfo.StageStep[JIG_A] >= STAGE_STEP_CAMZONE_FINISH then begin
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,format('UnloadScriptStart CH = %d',[nCHGoup]));
+            ShowSysLog(format('UnloadScriptStart CH = %d',[nCHGoup]));
             Common.StatusInfo.StageStep[nCHGoup]:= STAGE_STEP_UNLOADZONE;
             frmTest4ChOC[DefCommon.JIG_A].UnloadScriptStart(nCHGoup);
           //end;
@@ -3251,7 +3231,7 @@ begin
         else begin
           //패널이 없을 경우 로드 요청
           if Common.StatusInfo.AutoMode then begin
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'Stage Not Detected A - Request Load');
+            ShowSysLog('Stage Not Detected A - Request Load');
             Robot_Request_Load(nCHGoup);
           end;
         end;
@@ -3259,13 +3239,13 @@ begin
       end
       else begin
         //예외
-        SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'Unknown Msg: ' + pGUIMsg.Msg);
+        ShowSysLog('Unknown Msg: ' + pGUIMsg.Msg);
       end;
     end;
 
     STAGE_MODE_SCRIPT_DONE_UNLOAD: begin
       //Unloadzone 종료
-      SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,format('Stage Script UnloadZone Done Stage=%d, Ch=%d, Step=%d', [pGUIMsg.Channel, pGUIMsg.Param, pGUIMsg.Param2]));
+      ShowSysLog(format('Stage Script UnloadZone Done Stage=%d, Ch=%d, Step=%d', [pGUIMsg.Channel, pGUIMsg.Param, pGUIMsg.Param2]));
 
       if Common.StatusInfo.AutoMode then begin
         if (Common.PLCInfo.InlineGIB) then begin
@@ -3285,7 +3265,7 @@ begin
 
     STAGE_MODE_TEST_START: begin
       //Start 버튼
-      SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,format('Start Test Stage=%d', [pGUIMsg.Channel]));
+      ShowSysLog(format('Start Test Stage=%d', [pGUIMsg.Channel]));
       if Common.StatusInfo.AutoMode then begin
 //          g_CommPLC.EQP_Clear_ROBOT_Request(pGUIMsg.Channel);     // Added by KTS 2023-03-19 오전 10:33:43
       end;
@@ -3293,7 +3273,7 @@ begin
 
     STAGE_MODE_TEST_STOP: begin
       //Start 버튼
-      SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,format('Stop Test Stage=%d', [pGUIMsg.Channel]));
+      ShowSysLog(format('Stop Test Stage=%d', [pGUIMsg.Channel]));
       if Common.StatusInfo.AutoMode then begin
 //          g_CommPLC.EQP_Clear_ROBOT_Request(pGUIMsg.Channel);     // Added by KTS 2023-03-19 오전 10:33:50
       end;
@@ -3321,7 +3301,7 @@ begin
 
   nStage:= GetStageNo_LoadZone;
 
-  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,format('Robot_Request_Exchange Load %d', [nCh]));
+  ShowSysLog(format('Robot_Request_Exchange Load %d', [nCh]));
 
   Common.StatusInfo.Loading:= True; //로딩 중 Interlock
   for I := 1 to 10 do
@@ -3651,7 +3631,7 @@ begin
 
   nStage:= GetStageNo_LoadZone;
 
-  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,format('Robot_Request_Exchange UnLoad %d', [nCh]));
+  ShowSysLog(format('Robot_Request_Exchange UnLoad %d', [nCh]));
 
   Common.StatusInfo.Loading:= True; //로딩 중 Interlock
   for I := 21 to 30 do
@@ -3715,7 +3695,8 @@ begin
             end;
           end;
 //          frmTest4ChOC[nStage].ClearChData(nCH);
-          frmTest4ChOC[nStage].DisplayResult(nCH, -3, 0, 'Request Exchange');
+          SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, nCH, 'Request Exchange');
+//          frmTest4ChOC[nStage].DisplayResult(nCH, -3, 0, 'Request Exchange');
 
           sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[nCH]);
           SendCHMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, nCH, sMsg);
@@ -3833,9 +3814,11 @@ begin
               g_CommPLC.EQP_UnloadBeforeCh(DefCommon.CH_TOP,DefCommon.CH2,nRet);
             end;
 
-            frmTest4ChOC[nStage].DisplayResult(0, -3, 0, 'Request Exchange');
+            SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, 0, 'Request Exchange');
+//            frmTest4ChOC[nStage].DisplayResult(0, -3, 0, 'Request Exchange');
 //            sleep(50);
-            frmTest4ChOC[nStage].DisplayResult(1, -3, 0, 'Request Exchange');
+            SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, 1, 'Request Exchange');
+//            frmTest4ChOC[nStage].DisplayResult(1, -3, 0, 'Request Exchange');
             sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[0 + nStage*4]);
             SendCHMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 0, sMsg);
             sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[1 + nStage*4]);
@@ -3957,9 +3940,11 @@ begin
               nRet := ControlDio.CheckPreOCPanelDetectCh(DefCommon.CH4, 1);
               g_CommPLC.EQP_UnloadBeforeCh(DefCommon.CH_BOTTOM,DefCommon.CH4,nRet);
             end;
-            frmTest4ChOC[nStage].DisplayResult(2, -3, 0, 'Request Exchange');
+            SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, 2, 'Request Exchange');
+//            frmTest4ChOC[nStage].DisplayResult(2, -3, 0, 'Request Exchange');
 //            sleep(50);
-            frmTest4ChOC[nStage].DisplayResult(3, -3, 0, 'Request Exchange');
+            SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, 3, 'Request Exchange');
+//            frmTest4ChOC[nStage].DisplayResult(3, -3, 0, 'Request Exchange');
 
             sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[2 + nStage*4]);
             SendCHMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 2, sMsg);
@@ -3997,7 +3982,7 @@ begin
   //4채널 동시 진행으로 수정
   nStage:= GetStageNo_LoadZone;
 
-  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,format('Robot_Request_Load %d', [nCh]));
+  ShowSysLog(format('Robot_Request_Load %d', [nCh]));
 
   Common.StatusInfo.Loading:= True; //로딩 중 Interlock
 
@@ -4047,8 +4032,10 @@ begin
             SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, format('Request Load %s 0', [chr(ord('A') + nStage)]));
 //            frmTest4ChOC[nStage].ClearChData(0);
 //            frmTest4ChOC[nStage].ClearChData(1);
-            frmTest4ChOC[nStage].DisplayResult(0, -3, 0, 'Request Load');
-            frmTest4ChOC[nStage].DisplayResult(1, -3, 0, 'Request Load');
+            SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, 0, 'Request Load');
+            SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, 1, 'Request Load');
+//            frmTest4ChOC[nStage].DisplayResult(0, -3, 0, 'Request Load');
+//            frmTest4ChOC[nStage].DisplayResult(1, -3, 0, 'Request Load');
 
             Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_LOADING;
             g_CommPLC.ROBOT_Load_Request(COMMPLC_CH_12);
@@ -4096,8 +4083,10 @@ begin
 
 //            frmTest4ChOC[nStage].ClearChData(2);
 //            frmTest4ChOC[nStage].ClearChData(3);
-            frmTest4ChOC[nStage].DisplayResult(2, -3, 0, 'Request Load');
-            frmTest4ChOC[nStage].DisplayResult(3, -3, 0, 'Request Load');
+            SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, 2, 'Request Load');
+            SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, 3, 'Request Load');
+//            frmTest4ChOC[nStage].DisplayResult(2, -3, 0, 'Request Load');
+//            frmTest4ChOC[nStage].DisplayResult(3, -3, 0, 'Request Load');
 
             Common.StatusInfo.StageStep[JIG_A]:= STAGE_STEP_LOADING;
             g_CommPLC.ROBOT_Load_Request(COMMPLC_CH_34);
@@ -4132,7 +4121,8 @@ begin
 
           SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, format('Request Load  CH : %d ',[nCH]));
 //          frmTest4ChOC[nStage].ClearChData(nCH);
-          frmTest4ChOC[nStage].DisplayResult(nCH, -3, 0, 'Request Load');
+          SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, nCH, 'Request Load');
+//          frmTest4ChOC[nStage].DisplayResult(nCH, -3, 0, 'Request Load');
 
           Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_LOADING;
           g_CommPLC.ROBOT_Load_Request(nCH);
@@ -4620,13 +4610,14 @@ var
   nStage: Integer;
   sMsg: String;
   i : integer;
+  bStep : Boolean;
 begin
   if g_CommPLC = nil then  Exit;
 
   //4채널 동시 진행으로 수정
   nStage:= GetStageNo_LoadZone;
 
-  SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,format('Robot_Request_UnLoad %d', [nCh]));
+  ShowSysLog(format('Robot_Request_UnLoad %d', [nCh]));
 
   Common.StatusInfo.Loading:= True; //로딩 중 Interlock
   for I := 21 to 30 do
@@ -4649,38 +4640,105 @@ try
           end;
 //
           if not CheckProbe(COMMPLC_CH_12) then begin
-            nRet := 0;
-            nRet := ControlDio.ProbeBackward(0);
+            if Common.SystemInfo.OCType = DefCommon.OCType  then  begin
+              nRet := 0;
+              nRet := ControlDio.ProbeBackward(0);
+              if nRet > 0 then begin
+                SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'ProbeBackward 1 - NG');
+                Exit;
+              end;
+              nRet := ControlDio.UnlockCarrier(0,true);
+              if nRet > 0 then begin
+                SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'UnlockCarrier 1 - NG');
+                Exit;
+              end;
+              nRet := ControlDio.ProbeBackward(1);
+              if nRet > 0 then begin
+                SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'ProbeBackward 2 - NG');
+                Exit;
+              end;
+              nRet := ControlDio.UnlockCarrier(1,true);
+              if nRet > 0 then begin
+                SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'UnlockCarrier  2- NG');
+                Exit;
+              end;
+            end
+            else begin
+              nRet := 0;
+              nRet := ControlDio.MovingProbe(DefCommon.CH_TOP,true);
+              if nRet > 0 then begin
+                SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'MovingProbe UP CH 1,2 - NG');
+                Exit;
+              end;
+              nRet := ControlDio.MovingShutter(DefCommon.CH_TOP,true);
+              if nRet > 0 then begin
+                SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'MovingShutter UP CH 1,2 - NG');
+                Exit;
+              end;
+              if not CheckPinBlock(0) then begin
+                nRet := ControlDio.VaccumOFF(DefCommon.CH1);
+                if nRet > 0 then begin
+                  SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'VaccumOFF CH 1 - NG');
+                  Exit;
+                end;
+                nRet := ControlDio.VaccumOFF(DefCommon.CH2);
+                if nRet > 0 then begin
+                  SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'VaccumOFF CH 2 - NG');
+                  Exit;
+                end;
+                nRet := ControlDio.UnlockPinBlock(DefCommon.CH1);
+                if nRet > 0 then begin
+                  SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'UnlockPinBlock CH 1 - NG');
+                  Exit;
+                end;
+                nRet := ControlDio.UnlockPinBlock(DefCommon.CH2);
+                if nRet > 0 then begin
+                  SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'UnlockPinBlock CH 2 - NG');
+                  Exit;
+                end;
+                nRet := ControlDio.CLOSE_Dn_PinBlock(DefCommon.CH1);
+                if nRet > 0 then begin
+                  SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'PinBlock CLose Prev. Down CH 1 - NG');
+                  Exit;
+                end;
+                nRet := ControlDio.CLOSE_Dn_PinBlock(DefCommon.CH2);
+                if nRet > 0 then begin
+                  SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'PinBlock CLose Prev. Down CH 2 - NG');
+                  Exit;
+                end;
+              end;
+            end;
+          end;
+          if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
+            bStep := true;
+            nRet := ControlDio.CheckPreOcUnloadStatus(DefCommon.CH1);
             if nRet > 0 then begin
-//              ShowSysLog('ProbeBackward 1- NG',1);
-              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'ProbeBackward 1- NG');
+              SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'PinBlock Close Status CH 1 - NG');
+//              Exit;
+              bStep := False;
+            end;
+            nRet := ControlDio.CheckPreOcUnloadStatus(DefCommon.CH2);
+            if nRet > 0 then begin
+              SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'PinBlock Close Status CH 2 - NG');
+//              Exit;
+              bStep := False;
+            end;
+            if not bStep then begin
               Exit;
             end;
-            nRet := ControlDio.UnlockCarrier(0,true);
-            if nRet > 0 then begin
-//              ShowSysLog('UnlockCarrier 1 - NG',1);
-              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'UnlockCarrier 1 - NG');
-              Exit;
-            end;
-            nRet := ControlDio.ProbeBackward(1);
-            if nRet > 0 then begin
-//              ShowSysLog('ProbeBackward 2 - NG',1);
-              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'ProbeBackward 2 - NG');
-              Exit;
-            end;
-            nRet := ControlDio.UnlockCarrier(1,true);
-            if nRet > 0 then begin
-//              ShowSysLog('UnlockCarrier  2- NG',1);
-              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'UnlockCarrier  2- NG');
-              Exit;
-            end;
+
+            nRet := ControlDio.CheckPreOCPanelDetectCh(DefCommon.CH1, 1);
+            g_CommPLC.EQP_UnloadBeforeCh(DefCommon.CH_TOP,DefCommon.CH1,nRet);
+            nRet := ControlDio.CheckPreOCPanelDetectCh(DefCommon.CH2, 1);
+            g_CommPLC.EQP_UnloadBeforeCh(DefCommon.CH_TOP,DefCommon.CH2,nRet);
           end;
 
 //          ShowSysLog(format('Request UnLoad %s 0', [chr(ord('A') + nStage)]),0);
           SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,format('Request UnLoad %s 0', [chr(ord('A') + nStage)]));
-          frmTest4ChOC[nStage].DisplayResult(0, -3, 0, 'Request UnLoad');
-//          sleep(50);
-          frmTest4ChOC[nStage].DisplayResult(1, -3, 0, 'Request UnLoad');
+//          frmTest4ChOC[nStage].DisplayResult(0, -3, 0, 'Request UnLoad');
+//          frmTest4ChOC[nStage].DisplayResult(1, -3, 0, 'Request UnLoad');
+          SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, 0, 'Request UnLoad');
+          SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, 1, 'Request UnLoad');
 
           sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[0 + nStage*4]);
 //          Common.MLog(0 + nStage*4, sMsg);
@@ -4714,42 +4772,108 @@ try
             SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Do not Request - Script is Running');
             Exit;
           end;
-          if not CheckProbe(COMMPLC_CH_34) then begin
+            if not CheckProbe(COMMPLC_CH_34) then begin
+              if Common.SystemInfo.OCType = DefCommon.OCType  then  begin
+                nRet := 0;
+                nRet := ControlDio.ProbeBackward(2);
+                if nRet > 0 then begin
+                  SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'ProbeBackward CH 3- NG');
+                  Exit;
+                end;
+                nRet := ControlDio.UnlockCarrier(2,true);
+                if nRet > 0 then begin
+                  SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'UnlockCarrier CH 3 - NG');
+                  Exit;
+                end;
+                nRet := ControlDio.ProbeBackward(3);
+                if nRet > 0 then begin
+                  SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'ProbeBackward CH 4 - NG');
+                  Exit;
+                end;
+                nRet := ControlDio.UnlockCarrier(3,true);
+                if nRet > 0 then begin
+                  SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'UnlockCarrier CH 4 - NG');
+                  Exit;
+                end;
+              end
+              else begin
+                nRet := 0;
+                nRet := ControlDio.MovingProbe(DefCommon.CH_BOTTOM,true);
+                if nRet > 0 then begin
+                  SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'MovingProbe UP CH 3,4 - NG');
+                  Exit;
+                end;
+                nRet := ControlDio.MovingShutter(DefCommon.CH_BOTTOM,true);
+                if nRet > 0 then begin
+                  SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'MovingShutter UP CH 3,4 - NG');
+                  Exit;
+                end;
+                if not CheckPinBlock(1) then begin
+                  nRet := ControlDio.VaccumOFF(DefCommon.CH3);
+                  if nRet > 0 then begin
+                    SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'VaccumOFF CH 3 - NG');
+                    Exit;
+                  end;
+                  nRet := ControlDio.VaccumOFF(DefCommon.CH4);
+                  if nRet > 0 then begin
+                    SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'VaccumOFF CH 4 - NG');
+                    Exit;
+                  end;
+                  nRet := ControlDio.UnlockPinBlock(DefCommon.CH3);
+                  if nRet > 0 then begin
+                    SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'UnlockPinBlock CH 3 - NG');
+                    Exit;
+                  end;
+                  nRet := ControlDio.UnlockPinBlock(DefCommon.CH4);
+                  if nRet > 0 then begin
+                    SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'UnlockPinBlock CH 4 - NG');
+                    Exit;
+                  end;
+                  nRet := ControlDio.CLOSE_Dn_PinBlock(DefCommon.CH3);
+                  if nRet > 0 then begin
+                    SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'PinBlock CLose Prev. Down CH 3 - NG');
+                    Exit;
+                  end;
+                  nRet := ControlDio.CLOSE_Dn_PinBlock(DefCommon.CH4);
+                  if nRet > 0 then begin
+                    SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'PinBlock Close Prev. Down CH 4 - NG');
+                    Exit;
+                  end;
+                end;
+              end;
+            end;
+            if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
+              bStep := true;
+              nRet := ControlDio.CheckPreOcUnloadStatus(DefCommon.CH3);
+              if nRet > 0 then begin
+                SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'PinBlock Close Status CH 3 - NG');
+  //              Exit;
+                bStep := False;
+              end;
+              nRet := ControlDio.CheckPreOcUnloadStatus(DefCommon.CH4);
+              if nRet > 0 then begin
+                SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'PinBlock Close Status CH 4 - NG');
+  //              Exit;
+                bStep := False;
+              end;
+              if not bStep then begin
+                Exit;
+              end;
 
-            nRet := 0;
-            nRet := ControlDio.ProbeBackward(2);
-            if nRet > 0 then begin
-//              ShowSysLog('ProbeBackward 3- NG',1);
-              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'ProbeBackward 3- NG');
-              Exit;
+              nRet := ControlDio.CheckPreOCPanelDetectCh(DefCommon.CH3, 1);
+              g_CommPLC.EQP_UnloadBeforeCh(DefCommon.CH_BOTTOM,DefCommon.CH3,nRet);
+              nRet := ControlDio.CheckPreOCPanelDetectCh(DefCommon.CH4, 1);
+              g_CommPLC.EQP_UnloadBeforeCh(DefCommon.CH_BOTTOM,DefCommon.CH4,nRet);
             end;
-            nRet := ControlDio.UnlockCarrier(2,true);
-            if nRet > 0 then begin
-//              ShowSysLog('UnlockCarrier 3 - NG',1);
-              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'UnlockCarrier 3 - NG');
-              Exit;
-            end;
-            nRet := ControlDio.ProbeBackward(3);
-            if nRet > 0 then begin
-//              ShowSysLog('ProbeBackward 4 - NG',1);
-              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'ProbeBackward 4 - NG');
-              Exit;
-            end;
-            nRet := ControlDio.UnlockCarrier(3,true);
-            if nRet > 0 then begin
-//              ShowSysLog('UnlockCarrier 4 - NG',1);
-              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'UnlockCarrier 4 - NG');
-              Exit;
-            end;
-          end;
 
 //          ShowSysLog(format('Request UnLoad %s 1', [chr(ord('A') + nStage)]),0);
           SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, format('Request UnLoad %s 1', [chr(ord('A') + nStage)]));
 //          frmTest4ChOC[nStage].ClearChData(2);
 //          frmTest4ChOC[nStage].ClearChData(3);
-          frmTest4ChOC[nStage].DisplayResult(2, -3, 0, 'Request UnLoad');
-//          sleep(50);
-          frmTest4ChOC[nStage].DisplayResult(3, -3, 0, 'Request UnLoad');
+//          frmTest4ChOC[nStage].DisplayResult(2, -3, 0, 'Request UnLoad');
+//          frmTest4ChOC[nStage].DisplayResult(3, -3, 0, 'Request UnLoad');
+          SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, 2, 'Request UnLoad');
+          SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, 3, 'Request UnLoad');
 
           sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[2 + nStage*4]);
           //Common.MLog(2 + nStage*4, sMsg);
@@ -4804,16 +4928,12 @@ try
         SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, format('Request UnLoad %s 0', [chr(ord('A') + nStage)]));
 
 //        frmTest4ChOC[nStage].ClearChData(nCH);
-        frmTest4ChOC[nStage].DisplayResult(nCH, -3, 0, 'Request UnLoad');
+//        frmTest4ChOC[nStage].DisplayResult(nCH, -3, 0, 'Request UnLoad');
+        SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, nCH, 'Request UnLoad');
 
         sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[nCH]);
-//        Common.MLog(nCH, sMsg);
-//        frmTest4ChOC[nStage].AddLog(sMsg, 0);
-        SendCHMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 0, sMsg);
 
-//        if g_CommPLC <> nil then begin
-//          g_CommPLC.SaveGlassData_CH(nCH,Common.Path.Ini + format('GlassData_CH%d.dat',[nCH + 1]));
-//        end;
+        SendCHMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 0, sMsg);
 
         Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_UNLOADING;
         g_CommPLC.ROBOT_Unload_Request(nCH);
@@ -4858,13 +4978,13 @@ begin
 
   if Common.SystemInfo.OCType = DefCommon.OCType then begin
     if Common.StatusInfo.AutoMode then begin
-      SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'AutoMode Runing!!!');
+      ShowSysLog('AutoMode Runing!!!');
       Exit; //Auto일 경우 키 입력 무 - 실수로 인한 동작 방지
     end;
   end
   else if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
     if not Common.StatusInfo.AutoMode then begin
-      SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'Manual Mode Runing!!!! ');
+      ShowSysLog('Manual Mode Runing!!!! ');
       Exit; //Auto일 경우 키 입력 무 - 실수로 인한 동작 방지
     end;
 
@@ -4883,58 +5003,58 @@ begin
 //  ShowSysLog(sDebug );
   case btData of
     $4E : begin   // Next
-      SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'Press Switch Key #9');
+      ShowSysLog('Press Switch Key #9');
       if nGroup = DefCommon.CH_TOP then
         JigLogic[nJigNo].StartIspd_TOP(DefScript.SEQ_KEY_9)
       else JigLogic[nJigNo].StartIspd_BOTTOM(DefScript.SEQ_KEY_9);
     end;
     $42 : begin  // 1
-      SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'Press Switch Key #1');
+      ShowSysLog('Press Switch Key #1');
       if nGroup = DefCommon.CH_TOP then
       JigLogic[nJigNo].StartIspd_TOP(DefScript.SEQ_KEY_1)
       else JigLogic[nJigNo].StartIspd_BOTTOM(DefScript.SEQ_KEY_1);
     end;
     $31 : begin  // 2
-      SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'Press Switch Key #2');
+      ShowSysLog('Press Switch Key #2');
       if nGroup = DefCommon.CH_TOP then
       JigLogic[nJigNo].StopIspd_TOP
       else JigLogic[nJigNo].StopIspd_BOTTOM;
       //JigLogic[nJigNo].StartIspd_A(DefScript.SEQ_KEY_2);
     end;
     $45 : begin  // 3
-      SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'Press Switch Key #3');
+      ShowSysLog('Press Switch Key #3');
       if nGroup = DefCommon.CH_TOP then
       JigLogic[nJigNo].StartIspd_TOP(DefScript.SEQ_KEY_3)
       else JigLogic[nJigNo].StartIspd_BOTTOM(DefScript.SEQ_KEY_3);
     end;
     //5
     $33 : begin //4
-      SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'Press Switch Key #4');
+      ShowSysLog('Press Switch Key #4');
       if nGroup = DefCommon.CH_TOP then
       JigLogic[nJigNo].StartIspd_TOP(DefScript.SEQ_KEY_4)
       else JigLogic[nJigNo].StartIspd_BOTTOM(DefScript.SEQ_KEY_4);
     end;
     $36 : begin  // 5
       // back ---
-      SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'Press Switch Key #5');
+      ShowSysLog('Press Switch Key #5');
       if nGroup = DefCommon.CH_TOP then
       JigLogic[nJigNo].StartIspd_TOP(DefScript.SEQ_KEY_5)//NextIspd(False);
       else JigLogic[nJigNo].StartIspd_BOTTOM(DefScript.SEQ_KEY_5);
     end;
     $35 : begin  // 6
-      SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'Press Switch Key #6');
+      ShowSysLog('Press Switch Key #6');
       if nGroup = DefCommon.CH_TOP then
       JigLogic[nJigNo].StartIspd_TOP(DefScript.SEQ_KEY_6)//StartIspd_A_Repeat;
       else JigLogic[nJigNo].StartIspd_BOTTOM(DefScript.SEQ_KEY_6);
     end;
     $38 : begin  // 7
-      SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'Press Switch Key #7');
+      ShowSysLog('Press Switch Key #7');
       if nGroup = DefCommon.CH_TOP then
       JigLogic[nJigNo].StartIspd_TOP(DefScript.SEQ_KEY_7)//StopIspd_A;
       else JigLogic[nJigNo].StartIspd_BOTTOM(DefScript.SEQ_KEY_7);
     end;
     $37 : begin  // 8
-      SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'Press Switch Key #8');
+      ShowSysLog('Press Switch Key #8');
       if nGroup = DefCommon.CH_TOP then
       JigLogic[nJigNo].StartIspd_TOP(DefScript.SEQ_KEY_8)//.StartIspd_A_Auto;
       else JigLogic[nJigNo].StartIspd_BOTTOM(DefScript.SEQ_KEY_8);
@@ -5007,11 +5127,6 @@ begin
       Common.StatusInfo.StageStep[JIG_A]:= STAGE_STEP_LOADZONE;
       frmTest4ChOC[DefCommon.JIG_A].AutoLogicStart(JIG_A);
     end;
-    lzsB : begin
-      ShowSysLog('AutoLogicStart B');
-      Common.StatusInfo.StageStep[JIG_B]:= STAGE_STEP_LOADZONE;
-      frmTest4ChOC[DefCommon.JIG_B].AutoLogicStart(JIG_B);
-    end
     else begin
       if ControlDio.Connected then begin
         ControlDio.Set_TowerLampState(LAMP_STATE_MANUAL);
@@ -5270,7 +5385,7 @@ begin
   if nType <> 0 then begin
     //Heavy Alarm
     if nValue <> 0 then begin
-      SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4,'[ALARM ON] ' + Common.StatusInfo.AlarmMsg[nIndex]);
+      ShowSysLog('[ALARM ON] ' + Common.StatusInfo.AlarmMsg[nIndex], 1);
       for I := 0 to DefCommon.MAX_CH do
         bTEST :=  Common.StatusInfo.UseChannel[i];
       Set_AutoMode(False); //매뉴얼 모드로 전환
@@ -5300,7 +5415,7 @@ begin
     end
     else begin
       //알람 없을 경우 해제
-      SendMsgAddLog(MSG_MODE_ADDLOG, 3, 4,'[ALARM OFF] ' + Common.StatusInfo.AlarmMsg[nIndex]);
+      ShowSysLog('[ALARM OFF] ' + Common.StatusInfo.AlarmMsg[nIndex], 3);
       if frmDisplayAlarm <> nil then begin
         frmDisplayAlarm.RefreshDisplay;
       end;
@@ -5332,13 +5447,13 @@ begin
   else begin
     //Light Alarm
     if nValue <> 0 then begin
-      SendMsgAddLog(MSG_MODE_ADDLOG, 2, 4,'[ALARM ON] ' + Common.StatusInfo.AlarmMsg[nIndex]);
+      ShowSysLog('[ALARM ON] ' + Common.StatusInfo.AlarmMsg[nIndex], 2);
 
       g_CommPLC.ECS_Alarm_Add(0, nIndex, 1); //알람 보고  // Added by KTS 2022-08-04 오후 4:34:53
 //      ShowNgMessage(Common.StatusInfo.AlarmMsg[nIndex]);
     end
     else begin
-      SendMsgAddLog(MSG_MODE_ADDLOG, 3, 4,'[ALARM OFF] ' + Common.StatusInfo.AlarmMsg[nIndex]);
+      ShowSysLog('[ALARM OFF] ' + Common.StatusInfo.AlarmMsg[nIndex], 3);
 
       g_CommPLC.ECS_Alarm_Add(0, nIndex, 0); //알람 해제 보고// Added by KTS 2022-08-04 오후 4:34:56
     end;
@@ -5429,7 +5544,7 @@ begin
       end;
       chkCH;
       for I := DefCommon.CH1 to DefCommon.MAX_CH do begin
-        SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, 0, i, 'Auto Mode');
+        SendCHMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, 0, i, 'Auto Mode');
         frmTest4ChOC[0].chkChannelUse[i].Enabled := False;
         g_CommPLC.RobotLoadingStatus[i] := False;
       end;
@@ -5465,7 +5580,7 @@ begin
       ShowSysLog('Manual Mode');
       ControlDio.Set_TowerLampState(LAMP_STATE_MANUAL);
       for I := DefCommon.CH1 to DefCommon.MAX_CH do begin
-        SendMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, 0, i, 'Manual Mode');
+        SendCHMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, 0, i, 'Manual Mode');
         frmTest4ChOC[0].chkChannelUse[i].Enabled := True;
       end;
 //      frmTest4ChOC[0].DisplaySysInfo;
@@ -5558,7 +5673,7 @@ var
 begin
   try
     sDebug := FormatDateTime('[HH:MM:SS.zzz] ',now) + sMsg;
-    Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+    Common.MLog(DefCommon.MAX_SYSTEM_LOG, sMsg);
 //    mmoSysLog.DisableAlign;
     if mmoSysLog.Lines.Count > 1000 then begin
       mmoSysLog.Clear;
@@ -5658,7 +5773,7 @@ begin
         nRet:= frmSelectDetect.ShowModal;
         frmSelectDetect.Free;
         if nRet = mrYes then begin
-          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'StartAutoProcess Carrier Detected. Start A');
+          ShowSysLog('StartAutoProcess Carrier Detected. Start A');
 
           if ControlDio.IsDetected(CH1)then Execute_AutoStart(CH1)
           else Robot_Request_Load(CH1);
@@ -5670,7 +5785,7 @@ begin
           else Robot_Request_Load(CH4);
         end
         else if nRet = mrNo then begin
-          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'StartAutoProcess Carrier Detected. Request Exchange A');
+          ShowSysLog('StartAutoProcess Carrier Detected. Request Exchange A');
           g_CommPLC.ECS_Unit_Status(COMMPLC_UNIT_STATE_RUN, 0);
           Common.StatusInfo.StageStep[JIG_A]:= STAGE_STEP_LOADING;
 
@@ -5692,14 +5807,14 @@ begin
   //        Robot_Request_Exchange_UnLoad(CH4);
         end
         else begin
-          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'StartAutoProcess Carrier Detected. User Cancel');
+          ShowSysLog('StartAutoProcess Carrier Detected. User Cancel');
           Set_AutoMode(False);
           Exit;
         end;
       end
       else begin
         //로드 요청
-        SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'StartAutoProcess Request Load A');
+        ShowSysLog('StartAutoProcess Request Load A');
 
         Robot_Request_Exchange_Load(CH1);
 //        Common.Delay(100);
@@ -5724,7 +5839,7 @@ begin
 
         if nRetCH12 = mrCancel then  begin   // Cancel 시 종료
           frmSelectDetect.Free;
-          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'StartAutoProcess Carrier Detected. User Cancel');
+          ShowSysLog('StartAutoProcess Carrier Detected. User Cancel');
           Set_AutoMode(False);
           Exit;
         end;
@@ -5734,13 +5849,13 @@ begin
 
         if nRetCH34 = mrCancel then  begin   // Cancel 시 종료
           frmSelectDetect.Free;
-          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'StartAutoProcess Carrier Detected. User Cancel');
+          ShowSysLog('StartAutoProcess Carrier Detected. User Cancel');
           Set_AutoMode(False);
           Exit;
         end;
 
         if nRetCH12 = mrYes then begin
-          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'StartAutoProcess Carrier Detected. Start CH 1,2');
+          ShowSysLog('StartAutoProcess Carrier Detected. Start CH 1,2');
           if ControlDio.IsDetected(CH1) or  ControlDio.IsDetected(CH2) then begin
             if ControlDio.IsDetected(CH1) then
               Execute_AutoStart(CH1);
@@ -5755,7 +5870,7 @@ begin
           end;
         end
         else if nRetCH12 = mrNo then begin
-          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'StartAutoProcess Carrier Detected. Request Exchange CH 1,2');
+          ShowSysLog('StartAutoProcess Carrier Detected. Request Exchange CH 1,2');
           g_CommPLC.ECS_Unit_Status(COMMPLC_UNIT_STATE_RUN, 0);
           Common.StatusInfo.StageStep[JIG_A]:= STAGE_STEP_LOADING;
           if ControlDio.IsDetected(CH1) or  ControlDio.IsDetected(CH2) then begin
@@ -5773,7 +5888,7 @@ begin
         end;
 
         if nRetCH34 = mrYes then begin
-          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'StartAutoProcess Carrier Detected. Start CH 3,4');
+          ShowSysLog('StartAutoProcess Carrier Detected. Start CH 3,4');
           if ControlDio.IsDetected(CH3) or  ControlDio.IsDetected(CH4) then begin
             if ControlDio.IsDetected(CH3) then
               Execute_AutoStart(CH3);
@@ -5788,7 +5903,7 @@ begin
           end;
         end
         else if nRetCH34 = mrNo then begin
-          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'StartAutoProcess Carrier Detected. Request Exchange CH 3,4');
+          ShowSysLog('StartAutoProcess Carrier Detected. Request Exchange CH 3,4');
           g_CommPLC.ECS_Unit_Status(COMMPLC_UNIT_STATE_RUN, 0);
           Common.StatusInfo.StageStep[JIG_A]:= STAGE_STEP_LOADING;
           if ControlDio.IsDetected(CH3) or  ControlDio.IsDetected(CH4) then begin
@@ -5808,7 +5923,7 @@ begin
       end
       else begin
         //로드 요청
-        SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'StartAutoProcess Request Load A');
+        ShowSysLog('StartAutoProcess Request Load A');
 
         Robot_Request_Exchange_Load(CH1);
 //        Sleep(100);
@@ -5835,7 +5950,7 @@ begin
 
           if nRetCH12 = mrCancel then  begin   // Cancel 시 종료
             frmSelectDetect.Free;
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'StartAutoProcess Carrier Detected. User Cancel');
+            ShowSysLog('StartAutoProcess Carrier Detected. User Cancel');
             Set_AutoMode(False);
             Exit;
           end;
@@ -5845,19 +5960,19 @@ begin
 
           if nRetCH34 = mrCancel then  begin   // Cancel 시 종료
             frmSelectDetect.Free;
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'StartAutoProcess Carrier Detected. User Cancel');
+            ShowSysLog('StartAutoProcess Carrier Detected. User Cancel');
             Set_AutoMode(False);
             Exit;
           end;
 
           if nRetCH12 = mrYes then begin
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'StartAutoProcess Carrier Detected. Start CH 1,2');
+            ShowSysLog('StartAutoProcess Carrier Detected. Start CH 1,2');
 
             if ControlDio.IsDetected(CH_TOP)then Execute_AutoStart(CH_TOP)
             else Robot_Request_Load(CH_TOP);
           end
           else if nRetCH12 = mrNo then begin
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'StartAutoProcess Carrier Detected. Request Exchange CH 1,2');
+            ShowSysLog('StartAutoProcess Carrier Detected. Request Exchange CH 1,2');
             g_CommPLC.ECS_Unit_Status(COMMPLC_UNIT_STATE_RUN, 0);
             Common.StatusInfo.StageStep[JIG_A]:= STAGE_STEP_LOADING;
             if Common.SystemInfo.OCType = DefCommon.OCType then begin
@@ -5873,12 +5988,12 @@ begin
           end;
 //          Sleep(100);
           if nRetCH34 = mrYes then begin
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'StartAutoProcess Carrier Detected. Start CH 3,4');
+            ShowSysLog('StartAutoProcess Carrier Detected. Start CH 3,4');
             if ControlDio.IsDetected(CH_BOTTOM)then Execute_AutoStart(CH_BOTTOM)
             else Robot_Request_Load(CH_BOTTOM);
           end
           else if nRetCH34 = mrNo then begin
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'StartAutoProcess Carrier Detected. Request Exchange CH 3,4');
+            ShowSysLog('StartAutoProcess Carrier Detected. Request Exchange CH 3,4');
             g_CommPLC.ECS_Unit_Status(COMMPLC_UNIT_STATE_RUN, 0);
             Common.StatusInfo.StageStep[JIG_A]:= STAGE_STEP_LOADING;
             if Common.SystemInfo.OCType = DefCommon.OCType then begin
@@ -5894,7 +6009,7 @@ begin
         end
         else begin
           //로드 요청
-          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'StartAutoProcess Request Load A');
+          ShowSysLog('StartAutoProcess Request Load A');
 
           if Common.SystemInfo.OCType = DefCommon.OCType  then  begin
             Robot_Request_Load(CH_TOP);
@@ -5912,7 +6027,7 @@ begin
       end;
       else begin
         //중간에 멈춘 경우 A Front 처리
-        SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'StartAutoProcess Turn Stage Continue');
+        ShowSysLog('StartAutoProcess Turn Stage Continue');
   //      ThreadTurnStage;
       end;
     end;
@@ -6242,7 +6357,7 @@ begin
       if DirectoryExists(sTarget) then begin
         aTask := TThread.CreateAnonymousThread(
           procedure begin
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'Execute Auto Backup '  + sSource + ' -> '  + sTarget,0);
+            ShowSysLog('Execute Auto Backup '  + sSource + ' -> '  + sTarget,0);
 //            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 0, 'Execute Auto Backup '  + sSource + ' -> '  + sTarget);
             Common.CopyDirectoryAll(sSource,sTarget, True);
           end);
@@ -6592,12 +6707,12 @@ begin
             1 : begin
               pnlLGDDLLName.Caption :=  sMsg;
               Common.SystemInfo.LGD_DLLVER_Name := sMsg;
-              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,Format('LGDDLLNam : %s',[sMsg]), 0);
+              ShowSysLog(Format('LGDDLLNam : %s',[sMsg]), 0);
 
             end;
             2: begin
               pnlOC_conVer.Caption :=  sMsg;
-              SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,Format('DAE_DLLNam : %s',[sMsg]), 0);
+              ShowSysLog(Format('DAE_DLLNam : %s',[sMsg]), 0);
 
               sDLLVer := Copy(sMsg,Pos(':',sMsg)+1,Length(sMsg));
               Common.SystemInfo.OC_Converter_Name := Trim(sDLLVer);
@@ -6677,10 +6792,10 @@ begin
         CommThermometerMulti.COMMTHERMOMETER_CONNECT: begin
           //Connect
           case pGUIMsg.Param of
-            0: SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'Disconnected: ' + pGUIMsg.Msg);
-            1: SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'Connected: ' + pGUIMsg.Msg);
-            2: SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,'Timeout: ' + pGUIMsg.Msg);
-            3: SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,pGUIMsg.Msg);
+            0: ShowSysLog('Disconnected: ' + pGUIMsg.Msg);
+            1: ShowSysLog('Connected: ' + pGUIMsg.Msg);
+            2: ShowSysLog('Timeout: ' + pGUIMsg.Msg);
+            3: ShowSysLog(pGUIMsg.Msg);
           end;
           ledTempIr.Value := False;
           case pGUIMsg.Param of
@@ -6753,7 +6868,7 @@ begin
                   ledCam1.Value := False;
                   if g_CommPLC <> nil then
                     Set_AlarmData(100, 1, 1);
-                  SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4,sMsg);
+                  ShowSysLog(sMsg, 1);
 
                 end
                 else begin
@@ -6766,7 +6881,7 @@ begin
                   ledCam2.Value := False;
                   if g_CommPLC <> nil then
                     Set_AlarmData(101, 1, 1);
-                  SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4,sMsg);
+                  ShowSysLog(sMsg, 1);
 
                 end
                 else begin
@@ -6779,7 +6894,7 @@ begin
                   ledCam3.Value := False;
                   if g_CommPLC <> nil then
                     Set_AlarmData(102, 1, 1);
-                  SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4,sMsg);
+                  ShowSysLog(sMsg, 1);
 
                 end
                 else begin
@@ -6792,7 +6907,7 @@ begin
                   ledCam4.Value := False;
                   if g_CommPLC <> nil then
                     Set_AlarmData(103, 1, 1);
-                  SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4,sMsg);
+                  ShowSysLog(sMsg, 1);
 
                 end
                 else begin
@@ -6807,7 +6922,7 @@ begin
         DefCommon.MSG_MODE_CA310_NG : begin
           if PSyncCa(PCopyDataStruct(Msg.LParam)^.lpData)^.bError then begin
 //            Common.MLog(DefCommon.MAX_SYSTEM_LOG,PSyncCa(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
-            SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4,PSyncCa(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
+            ShowSysLog(PSyncCa(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg,1);
 //            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, PSyncCa(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
           end;
         end;
@@ -6867,7 +6982,7 @@ begin
               pnlIonizer.Caption := sMsg;
               if ledIonizer.Value then begin
                 ledIonizer.Value:= False;
-                SendMsgAddLog(MSG_MODE_ADDLOG, 2, 4,'Ionizer Status NG: ' + sMsg);
+                ShowSysLog('Ionizer Status NG: ' + sMsg, 2);
                 ShowNgMessage('Ionizer Status NG: ' + sMsg);
               end;
             end;
@@ -6875,7 +6990,7 @@ begin
               pnlIonizer2.Caption := sMsg;
               if ledIonizer2.Value then begin
                 ledIonizer2.Value:= False;
-                SendMsgAddLog(MSG_MODE_ADDLOG, 2, 4,'Ionizer Status NG: ' + sMsg);
+                ShowSysLog('Ionizer Status NG: ' + sMsg, 2);
                 ShowNgMessage('Ionizer Status NG: ' + sMsg);
               end;
 
@@ -6904,11 +7019,11 @@ begin
       sMsg  := pGUIMsg.Msg;
       case nMode of
         1: begin //Initialize
-          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,Format('Program Initialize from External : %s ',[sMsg]));
+          ShowSysLog(Format('Program Initialize from External : %s ',[sMsg]));
         end;
 
         2 :  begin //Teminate Program
-          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,Format('Program Terminate from External : %s ',[sMsg]));
+          ShowSysLog(Format('Program Terminate from External : %s ',[sMsg]));
         end;
       end;
     end;
@@ -6927,7 +7042,7 @@ begin
       else begin
         pnlDioStatus.Caption := 'Disconnected'; // + PGuiDaeDio(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg;
         ledDio.Value := False;
-        SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4,'DIO Disconnected');
+        ShowSysLog('DIO Disconnected', 1);
       end;
     end;
 

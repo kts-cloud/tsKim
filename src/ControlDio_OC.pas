@@ -824,6 +824,7 @@ var
   i,nWaitingCount: Integer;
   bRet : Boolean;
 begin
+  Result := 1;
   if Common.SystemInfo.OCType <> DefCommon.PreOCType  then Exit(2);
   nWaitingCount:= 50; //100ms * nWaitingCount
   // Return ==> 0 : OK. 1 ==> NG.
@@ -864,6 +865,7 @@ var
   i,nWaitingCount: Integer;
   bRet : Boolean;
 begin
+  Result := 1;
   if Common.SystemInfo.OCType <> DefCommon.PreOCType  then Exit(2);
   nWaitingCount:= 50; //100ms * nWaitingCount
   // Return ==> 0 : OK. 1 ==> NG.
@@ -907,15 +909,6 @@ begin
   nWaitingCount:= 50; //100ms * nWaitingCount
   // Return ==> 0 : OK. 1 ==> NG.
   SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'PIN BLOCK CLOSE Prevention Up Start - CH = '+ IntToStr(nCh));
-
-//  for i := 0 to 30 do begin
-//    Sleep(100);
-//    if  (not ReadInSig(DefDio.IN_GIB_CH_1_PINBLOCK_OPEN_SENSOR +nCh*8)) then begin  // 제품 PINBLOCK_OPEN_SENSOR 미감지  시 NG 발생
-//
-//      SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_GIB_CH_1_PINBLOCK_OPEN_SENSOR + nCh*8, 1, '');
-//      Exit(1);
-//    end;
-//  end;
 
   bRet := True;
 

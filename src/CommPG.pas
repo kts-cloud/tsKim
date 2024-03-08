@@ -2614,7 +2614,7 @@ begin
     if m_bWaitEvent then Exit;
     if m_bWaitPwrEvent then Exit;
     //
-    if (m_nConnCheckNG > 4) and (StatusPg <> pgDisconn) then begin  //TBD:DP860? 3?
+    if (m_nConnCheckNG > 2) and (StatusPg <> pgDisconn) then begin  //TBD:DP860? 3?
       m_nConnCheckNG := 0;
       StatusPg := pgDisconn;
       //

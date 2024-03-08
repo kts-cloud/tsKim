@@ -13,7 +13,7 @@ unit CommPLC_ECS;
 interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils,DefCommon,  System.Classes, System.AnsiStrings
-  , SyncObjs, System.DateUtils, Vcl.Forms, {DllActUtlType64Com,} CommTCP_PLC, IdTCPClient,IdTCPServer, Generics.Collections,CommonClass;
+  , SyncObjs, System.DateUtils, Vcl.Forms,dllClass, {DllActUtlType64Com,} CommTCP_PLC, IdTCPClient,IdTCPServer, Generics.Collections,CommonClass;
 
 {$I Common.inc}
 const
@@ -1019,8 +1019,8 @@ begin
       Result:= 0;
       Exit; //break;
     end;
-    WaitForSingleObject(self.Handle, 100);
-//    Sleep(100);
+//    WaitForSingleObject(self.Handle, 100);
+    Sleep(100);
     nTick:= GetTickCount;
   end;
 end;
@@ -2540,21 +2540,21 @@ begin
     if Common.SystemInfo.OCType = DefCommon.OCType then
           WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$0 + (nCh*$20), 3), 1) //Unload Enable
     else  WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$0 + (nCh*$20), 3), 1); //Unload Enable
-    if (nCh = 1) and (StartAddr2_ROBOT <> 0) then  // Addr2 있는 경우
-          nRet:= WaitSignal('B' + IntToHex(StartAddr2_ROBOT+$10*$00+$1 , 3), 1, 2000) //Glass Data Report를 보고 대기
-    else  nRet:= WaitSignal('B' + IntToHex(StartAddr_ROBOT+$10*$00+$1 + (nCh*$20), 3), 1, 2000); //Glass Data Report를 보고 대기
+//    if (nCh = 1) and (StartAddr2_ROBOT <> 0) then  // Addr2 있는 경우
+//          nRet:= WaitSignal('B' + IntToHex(StartAddr2_ROBOT+$10*$00+$1 , 3), 1, 2000) //Glass Data Report를 보고 대기
+//    else  nRet:= WaitSignal('B' + IntToHex(StartAddr_ROBOT+$10*$00+$1 + (nCh*$20), 3), 1, 2000); //Glass Data Report를 보고 대기
     AddLog('ROBOT_Exchange_Request: 5 : ' + InttoStr(nCh));
   end;
-  if nRet = 0 then begin
-    //응답이 있을 경우
-    UnloadOnly[nCh]:= False;
-    AddLog('ROBOT_Exchange_Request GlassData Report OK');
-  end
-  else begin
-    //Unload Only 모드로 설정
-    UnloadOnly[nCh]:= True;
-    AddLog('ROBOT_Exchange_Request - No Glass Data Report: Unload  Only');
-  end;
+//  if nRet = 0 then begin
+//    //응답이 있을 경우
+//    UnloadOnly[nCh]:= False;
+//    AddLog('ROBOT_Exchange_Request GlassData Report OK');
+//  end
+//  else begin
+//    //Unload Only 모드로 설정
+//    UnloadOnly[nCh]:= True;
+//    AddLog('ROBOT_Exchange_Request - No Glass Data Report: Unload  Only');
+//  end;
   AddLog('ROBOT_Exchange_Request: 6 : ' + InttoStr(nCh));
 
   Exit;
@@ -3989,6 +3989,7 @@ begin
   Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_2] := 1;
   AddLog('Process_ROBOT_GlassData_Report ' + IntToStr(nCh));
   if (Common.PLCInfo.InlineGIB) then begin
+    if CSharpDll.MainOC_GetOCFlowIsAlive(nCh) = 1 then Exit;
     if (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
       ReadDeviceBlock('W' + IntToHex(StartAddr_ROBOT_W+$10*$0+$0+(nCh *$40), 3), 64, naGlassData[0],nReturnCode); //Load #1 Glass Data
       ConvertBlockToGlassData(naGlassData[0], GlassData[nCh]);
@@ -4027,6 +4028,7 @@ begin
 
   end
   else begin
+    if (CSharpDll.MainOC_GetOCFlowIsAlive(2*nCh) = 1) or (CSharpDll.MainOC_GetOCFlowIsAlive(2*nCh +1) = 1) then Exit;
     if (nCh =1) and (StartAddr2_ROBOT_W <> 0) then
       ReadDeviceBlock('W' + IntToHex(StartAddr2_ROBOT_W+$10*$0+$0, 3), 64, naGlassData[0],nReturnCode) //Load #1 Glass Data
     else
@@ -4113,6 +4115,7 @@ begin
   Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_6] := 1;
   Read_ROBOT_GlassData(nCh);   // Added by KTS 2023-03-23 오후 8:21:15
   if (Common.PLCInfo.InlineGIB) then begin
+    if (CSharpDll.MainOC_GetOCFlowIsAlive(nCh) = 1) then Exit;
     if Common.SystemInfo.OCType = DefCommon.OCType then begin
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$08+$1 + (nCh*$20), 3), 0); //Glass Data Request off
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$08+$5 + (nCh*$20), 3), 0); //Load Request off
@@ -4130,6 +4133,7 @@ begin
 
   end
   else begin
+    if (CSharpDll.MainOC_GetOCFlowIsAlive(2*nCh) = 1) or (CSharpDll.MainOC_GetOCFlowIsAlive(2*nCh +1) = 1) then Exit;
     if Common.SystemInfo.OCType = DefCommon.OCType then begin
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$1 + (nCh*$20), 3), 0); //Glass Data Request off
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$5 + (nCh*$20), 3), 0); //Load Request off
@@ -4153,11 +4157,13 @@ procedure TCommPLCThread.Process_ROBOT_LoadComplete_Off(nCh: Integer);
 begin
   AddLog('Process_ROBOT_LoadComplete_Off ' + IntToStr(nCh));
   if (Common.PLCInfo.InlineGIB) then begin
+    if (CSharpDll.MainOC_GetOCFlowIsAlive(nCh) = 1) then Exit;
     if Common.SystemInfo.OCType = DefCommon.OCType then
           WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$08+$6 + (nCh*$20), 3), 0) //Load Complete Confrim off
     else  WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$10+$6 + (nCh*$20), 3), 0); //Load Complete Confrim off
   end
   else begin
+    if (CSharpDll.MainOC_GetOCFlowIsAlive(2*nCh) = 1) or (CSharpDll.MainOC_GetOCFlowIsAlive(2*nCh +1) = 1) then Exit;
     if Common.SystemInfo.OCType = DefCommon.OCType then
           WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$6 + (nCh*$20), 3), 0) //Load Complete Confrim off
     else  WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$12+$6 + (nCh*$20), 3), 0); //Load Complete Confrim off
@@ -4265,6 +4271,7 @@ begin
 //    Sleep(300);
 //  end;
   if (Common.PLCInfo.InlineGIB) then begin
+    if (CSharpDll.MainOC_GetOCFlowIsAlive(2*nCh) = 1)  then Exit;
     if (Common.SystemInfo.OCType = DefCommon.OCType) then begin
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_6] := 1;
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$09+$6 + (nCh*$20), 3), 1); //Unload Complete Confrim
@@ -4279,6 +4286,7 @@ begin
     end;
   end
   else begin
+    if (CSharpDll.MainOC_GetOCFlowIsAlive(2*nCh) = 1) or (CSharpDll.MainOC_GetOCFlowIsAlive(2*nCh +1) = 1) then Exit;
     if Common.SystemInfo.OCType = DefCommon.OCType then begin
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_6] := 1;
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$6 + (nCh*$20), 3), 1); //Unload Complete Confrim

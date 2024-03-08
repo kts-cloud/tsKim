@@ -3410,7 +3410,7 @@ begin
   except
     on E: Exception do begin
 //      AddLog( 'getBcrData Exception: ' + E.Message,DefCommon.MAX_SYSTEM_LOG,1);
-      Common.MLog(DefCommon.MAX_SYSTEM_LOG, 'getBcrData Exception: ' + E.Message);
+//      Common.MLog(DefCommon.MAX_SYSTEM_LOG, 'getBcrData Exception: ' + E.Message);
     end;
   end;
 end;
@@ -3596,11 +3596,11 @@ begin
   nMin := (m_nTotalTact[DefCommon.CH1] div 60);
 //  nMin := m_nTotalTact;
   pnlNowValues[DefCommon.CH1].Caption := Format('%0.3d : %0.2d',[nMin, nSec]);
-  nPopupMsgTime := Common.SystemInfo.PopupMsgTime;
-  if (nPopupMsgTime <> 0) and (not PasScr[DefCommon.CH1].m_bIDLE) then begin
-    if (m_nTotalTact[DefCommon.CH1] = nPopupMsgTime) and (Common.SystemInfo.OCType = DefCommon.PreOCType) and (m_nUnitTact[DefCommon.CH1] = 0) then   // 30초때PopUp 창
-      ShowNgMessage(format('CH : %d been %d seconds!!',[1,nPopupMsgTime]));
-  end;
+//  nPopupMsgTime := Common.SystemInfo.PopupMsgTime;
+//  if (nPopupMsgTime <> 0) and (not PasScr[DefCommon.CH1].m_bIDLE) then begin
+//    if (m_nTotalTact[DefCommon.CH1] = nPopupMsgTime) and (Common.SystemInfo.OCType = DefCommon.PreOCType) and (m_nUnitTact[DefCommon.CH1] = 0) then   // 30초때PopUp 창
+//      ShowNgMessage(format('CH : %d been %d seconds!!',[1,nPopupMsgTime]));
+//  end;
 end;
 
 procedure TfrmTest4ChOC.OnUnitTimer(Sender: TObject);
@@ -3675,11 +3675,11 @@ begin
 //  nMin := m_nTotalTact;
   pnlNowValues[DefCommon.CH2].Caption := Format('%0.3d : %0.2d',[nMin, nSec]);
 
-  nPopupMsgTime := Common.SystemInfo.PopupMsgTime;
-  if (nPopupMsgTime <> 0) and (not PasScr[DefCommon.CH2].m_bIDLE) then begin
-    if (m_nTotalTact[DefCommon.CH2] = nPopupMsgTime) and (Common.SystemInfo.OCType = DefCommon.PreOCType) and (m_nUnitTact[DefCommon.CH2] = 0)  then   // 30초때PopUp 창
-      ShowNgMessage(format('CH : %d been %d seconds!!',[2,nPopupMsgTime]));
-  end;
+//  nPopupMsgTime := Common.SystemInfo.PopupMsgTime;
+//  if (nPopupMsgTime <> 0) and (not PasScr[DefCommon.CH2].m_bIDLE) then begin
+//    if (m_nTotalTact[DefCommon.CH2] = nPopupMsgTime) and (Common.SystemInfo.OCType = DefCommon.PreOCType) and (m_nUnitTact[DefCommon.CH2] = 0)  then   // 30초때PopUp 창
+//      ShowNgMessage(format('CH : %d been %d seconds!!',[2,nPopupMsgTime]));
+//  end;
 end;
 
 procedure TfrmTest4ChOC.OnTotal3Timer(Sender: TObject);
@@ -3691,11 +3691,11 @@ begin
   nMin := (m_nTotalTact[DefCommon.CH3] div 60);
 //  nMin := m_nTotalTact;
   pnlNowValues[DefCommon.CH3].Caption := Format('%0.3d : %0.2d',[nMin, nSec]);
-  nPopupMsgTime := Common.SystemInfo.PopupMsgTime;
-  if (nPopupMsgTime <> 0) and (not PasScr[DefCommon.CH3].m_bIDLE) then begin
-    if (m_nTotalTact[DefCommon.CH3] = nPopupMsgTime) and (Common.SystemInfo.OCType = DefCommon.PreOCType) and (m_nUnitTact[DefCommon.CH3] = 0)  then   // 30초때PopUp 창
-      ShowNgMessage(format('CH : %d been %d seconds!!',[3,nPopupMsgTime]));
-  end;
+//  nPopupMsgTime := Common.SystemInfo.PopupMsgTime;
+//  if (nPopupMsgTime <> 0) and (not PasScr[DefCommon.CH3].m_bIDLE) then begin
+//    if (m_nTotalTact[DefCommon.CH3] = nPopupMsgTime) and (Common.SystemInfo.OCType = DefCommon.PreOCType) and (m_nUnitTact[DefCommon.CH3] = 0)  then   // 30초때PopUp 창
+//      ShowNgMessage(format('CH : %d been %d seconds!!',[3,nPopupMsgTime]));
+//  end;
 end;
 
 procedure TfrmTest4ChOC.OnTotal4Timer(Sender: TObject);
@@ -3707,11 +3707,11 @@ begin
   nMin := (m_nTotalTact[DefCommon.CH4] div 60);
 //  nMin := m_nTotalTact;
   pnlNowValues[DefCommon.CH4].Caption := Format('%0.3d : %0.2d',[nMin, nSec]);
-  nPopupMsgTime := Common.SystemInfo.PopupMsgTime;
-  if (nPopupMsgTime <> 0) and (not PasScr[DefCommon.CH4].m_bIDLE) then begin
-    if (m_nTotalTact[DefCommon.CH4] = nPopupMsgTime) and (Common.SystemInfo.OCType = DefCommon.PreOCType) and (m_nUnitTact[DefCommon.CH4] = 0)  then   // 30초때PopUp 창
-      ShowNgMessage(format('CH : %d been %d seconds!!',[4,nPopupMsgTime]));
-  end;
+//  nPopupMsgTime := Common.SystemInfo.PopupMsgTime;
+//  if (nPopupMsgTime <> 0) and (not PasScr[DefCommon.CH4].m_bIDLE) then begin
+//    if (m_nTotalTact[DefCommon.CH4] = nPopupMsgTime) and (Common.SystemInfo.OCType = DefCommon.PreOCType) and (m_nUnitTact[DefCommon.CH4] = 0)  then   // 30초때PopUp 창
+//      ShowNgMessage(format('CH : %d been %d seconds!!',[4,nPopupMsgTime]));
+//  end;
 end;
 
 procedure TfrmTest4ChOC.OnUnit2Timer(Sender: TObject);
@@ -3791,21 +3791,7 @@ var
 begin
 //  AddLog(Format('AutoLogicStart CH : %d',[nCH]),DefCommon.MAX_SYSTEM_LOG,0);
   Common.MLog(DefCommon.MAX_SYSTEM_LOG,Format('AutoLogicStart CH : %d',[nCH]));
-  //  if g_CommPLC <> nil then begin
-//    if (Common.PLCInfo.InlineGIB) then begin
-//      g_CommPLC.SaveGlassData_CH(nCh,Common.Path.Ini +Format('GlassData_CH%d.dat',[nCH]));
-//    end
-//    else begin
-//      if nCh = 0 then begin
-//        g_CommPLC.SaveGlassData_CH(0,Common.Path.Ini +Format('GlassData_CH%d.dat',[0]));
-//        g_CommPLC.SaveGlassData_CH(1,Common.Path.Ini +Format('GlassData_CH%d.dat',[1]));
-//      end;
-//      if nCh = 1 then begin
-//        g_CommPLC.SaveGlassData_CH(2,Common.Path.Ini +Format('GlassData_CH%d.dat',[2]));
-//        g_CommPLC.SaveGlassData_CH(3,Common.Path.Ini +Format('GlassData_CH%d.dat',[3]));
-//      end;
-//    end;
-//  end;
+
   if (Common.PLCInfo.InlineGIB) then begin
     if Common.SystemInfo.OCType = DefCommon.OCType then begin
       ClearChData(nCH);
@@ -3874,6 +3860,7 @@ begin
           PasScr[i].TestInfo.StartTime := now;
         end;
       end;
+
 
       frmTest4ChOC[0].SetIonizer(nCH,True);  //// 검사 종료 시 SetIonizer ON
       ///
@@ -4502,11 +4489,11 @@ begin
 //        sDebug := FormatDateTime('[HH:MM:SS.zzz] ',now) + sMsg;
 //        mmChannelLog[nCh].DisableAlign;
         if nTemp = DefCommon.LOG_TYPE_NG then begin
-          AddLog(sMsg,nCh,10);
+          AddLog(sMsg,nCh,1);
 //          mmChannelLog[nCh].EnableAlign;
           Exit;
         end;
-        AddLog(sMsg,nCh,nTemp);
+        AddLog(sMsg,nCh,10);
 //        mmChannelLog[nCh].EnableAlign;
       except
       end;
@@ -4596,17 +4583,6 @@ begin
       nTemp := PGUIMessage(PCopyDataStruct(Msg.LParam)^.lpData)^.Param;
 
       case nMode of
-        DefCommon.MSG_MODE_ADDLOG : begin
-          sMsg := Trim(PGUIMessage(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
-          if nTemp = 10 then begin
-            Common.MLog(nCh+self.Tag*4,sMsg);
-            Exit;
-          end;
-          if nCh < DefCommon.MAX_SYSTEM_LOG then
-            AddLog('[MAIN] ' + sMsg, nCh, nTemp)
-          else
-           Common.MLog(nCh,sMsg);
-        end;
         DefCommon.MSG_MODE_ADDLOG_CHANNEL : begin
           sMsg := Trim(PGUIMessage(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
           if nTemp = 10 then begin
@@ -4616,7 +4592,12 @@ begin
           if nCh < DefCommon.MAX_SYSTEM_LOG then
             AddLog('[MAIN] ' + sMsg, nCh, nTemp)
           else
-           Common.MLog(nCh,sMsg);
+            Common.MLog(nCh,sMsg);
+        end;
+
+        DefCommon.MSG_MODE_DISPLAY : begin
+          sMsg := Trim(PGUIMessage(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
+          frmTest4ChOC[0].DisplayResult(nCH, nTemp, 0, sMsg);
         end;
       end;
 
@@ -5380,7 +5361,7 @@ begin
             pnlMESResults[nCh].Font.Color := clYellow;
             pnlMESResults[nCh].Caption    := 'PCHK NG';
 
-            AddLog(sMsg, nCh, 1);
+            PasScr[Self.Tag*4 + nCh].g_bIsBcrReady := False;
 
             PasScr[Self.Tag*4 + nCh].SetHostEvent(1);
           end
@@ -5388,6 +5369,7 @@ begin
             pnlMESResults[nCh].Color      := clGreen;
             pnlMESResults[nCh].Font.Color := clYellow;
             pnlMESResults[nCh].Caption    := 'PCHK OK';
+            PasScr[Self.Tag*4 + nCh].g_bIsBcrReady := True;
             PasScr[Self.Tag*4 + nCh].SetHostEvent(0);
           end;
 
