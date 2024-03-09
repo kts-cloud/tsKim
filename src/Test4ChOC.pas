@@ -374,6 +374,7 @@ var
 begin
   if Common.StatusInfo.Closing then Exit;
   if (nCh > DefCommon.CH4) or (nCh < DefCommon.CH1) then Exit;
+  Common.MLog(nCh, sMsg);
   try
 //    mmChannelLog[nCh].DisableAlign;
     case nType of
@@ -399,7 +400,6 @@ begin
 
     end;
     try
-      Common.MLog(nCh, sMsg);
       if Length(sMsg) > 600 then begin
         sLog := FormatDateTime('[HH:MM:SS.zzz] ',now) + Copy(sMsg,1,600);
       end
@@ -4597,7 +4597,7 @@ begin
 
         DefCommon.MSG_MODE_DISPLAY : begin
           sMsg := Trim(PGUIMessage(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
-          frmTest4ChOC[0].DisplayResult(nCH, nTemp, 0, sMsg);
+          DisplayResult(nCH, nTemp, 0, sMsg);
         end;
       end;
 
@@ -5354,6 +5354,9 @@ begin
       if (nCh < DefCommon.CH1) or (nCh > DefCommon.CH4) then  Exit;
 
       case PSyncHost(PCopyDataStruct(Msg.LParam)^.lpData)^.MsgMode of
+        DefCommon.MSG_MODE_WORKING : begin
+          Common.MLog(nCh,sMsg);
+        end;
         DefGmes.MES_PCHK : begin  //JHHWANG-GMES: 2018-06-20
       		//Common.MLog(DefCommon.MAX_SYSTEM_LOG,'TfrmTest4ChPocb.WMCopyData: MSG_TYPE_HOST, MES_PCHK, PG'+IntToStr(nCh+1)); //IMSI
           if bTemp then begin // error

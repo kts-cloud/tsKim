@@ -2811,6 +2811,7 @@ begin
   //참조 Interlock 사양3.5.1
   //참조 Interlock 사양3.10.2 Type 10 Unload Only
   Result:= 0;
+  AddLog('ROBOT_UnLoad_Request: ' + InttoStr(nCh));
   if not (Common.PLCInfo.InlineGIB)  then begin
     if Common.SystemInfo.OCType = DefCommon.OCType then begin
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$4 + (nCh*$20), 3), 1); //UnLoad Normal Status
@@ -2834,10 +2835,12 @@ begin
       RequestState_Unload[nCh]:= 1;
     end
     else begin
+      AddLog('ROBOT_Unload_Request: 1 : ' + InttoStr(nCh));
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$4 + (nCh*$20), 3), 1); //UnLoad Normal Status
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_11] := 1;
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$12+$4 + (nCh*$20), 3), 1); //Load Normal Status - 상태 설정에서....
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_11] := 1;
+      AddLog('ROBOT_Unload_Request: 2 : ' + InttoStr(nCh));
   //  Unload GlassData
       if Common.SystemInfo.CHReversal then begin
         ConvertGlassDataToBlock(GlassData[nCh*2 + 1], naGlassData[0]);
@@ -2855,14 +2858,16 @@ begin
         WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$20+$0 + $40 + (nCh*$80), 3), 64, naGlassData[0]); //Unload Glass Data #2
 //        Sleep(100);
       end;
+      AddLog('ROBOT_Unload_Request: 3 : ' + InttoStr(nCh));
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_1] := 1;
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$1 + (nCh*$20), 3), 1); //Glass Data Report
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_2] := 1;
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$5 + (nCh*$20), 3), 1); //Unload Request
-//      Sleep(500);
+      AddLog('ROBOT_Unload_Request: 4 : ' + InttoStr(nCh));
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_3] := 1;
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$0 + (nCh*$20), 3), 1); //Unload Enable
       RequestState_Unload[nCh]:= 1;
+      AddLog('ROBOT_Unload_Request: 5 : ' + InttoStr(nCh));
     end;
   end
   else begin
@@ -2887,8 +2892,42 @@ begin
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$09+$0 + (nCh*$20), 3), 1); //Unload Enable
       RequestState_Unload[nCh]:= 1;
     end
-
+    else begin
+      AddLog('ROBOT_Unload_Request: 1 : ' + InttoStr(nCh));
+      WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$4 + (nCh*$20), 3), 1); //Unload Normal Status
+      Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_11] := 1;
+      WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$12+$4 + (nCh*$20), 3), 1); //Load Normal Status - 상태 설정에서....
+      Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_11] := 1;
+      Sleep(50);
+      AddLog('ROBOT_Unload_Request: 2 : ' + InttoStr(nCh));
+      if Common.SystemInfo.CHReversal then begin
+        ConvertGlassDataToBlock(GlassData[nCh*2 + 1], naGlassData[0]);
+        WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$20+$0 + (nCh*$80) , 3), 64, naGlassData[0]); //Unload Glass Data #1
+  //      Sleep(100);
+        ConvertGlassDataToBlock(GlassData[nCh*2], naGlassData[0]);
+        WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$20+$0 + $40 + (nCh*$80), 3), 64, naGlassData[0]); //Unload Glass Data #2
+  //      Sleep(100);
+      end
+      else begin
+        ConvertGlassDataToBlock(GlassData[nCh*2], naGlassData[0]);
+        WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$20+$0 + (nCh*$80) , 3), 64, naGlassData[0]); //Unload Glass Data #1
+  //      Sleep(100);
+        ConvertGlassDataToBlock(GlassData[nCh*2+1], naGlassData[0]);
+        WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$20+$0 + $40 + (nCh*$80), 3), 64, naGlassData[0]); //Unload Glass Data #2
+  //      Sleep(100);
+      end;
+      AddLog('ROBOT_Unload_Request: 3 : ' + InttoStr(nCh));
+      Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_1] := 1;
+      WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$1 + (nCh*$20), 3), 1); //Unload Glass Data Report
+      Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_2] := 1;
+      WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$5 + (nCh*$20), 3), 1); //Unload Request
+      AddLog('ROBOT_Unload_Request: 4 : ' + InttoStr(nCh));
+      WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$0 + (nCh*$20), 3), 1); //Unload Enable
+      RequestState_Unload[nCh]:= 1;
+      AddLog('ROBOT_Unload_Request: 5 : ' + InttoStr(nCh));
+    end;
   end;
+  AddLog('ROBOT_Unload_Request: Finish : ' + InttoStr(nCh),true);
 end;
 
 

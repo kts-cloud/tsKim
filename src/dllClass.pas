@@ -2342,15 +2342,19 @@ var
   match: TMatch;
 begin
   // 정규 표현식을 사용하여 숫자만 추출
-  regex := TRegEx.Create('\d+');
-  match := regex.Match(inputString);
+  try
+    regex := TRegEx.Create('\d+');
+    match := regex.Match(inputString);
 
-  // 추출된 숫자를 모두 결합하여 반환
-  Result := '';
-  while match.Success do
-  begin
-    Result := Result + match.Value;
-    match := match.NextMatch;
+    // 추출된 숫자를 모두 결합하여 반환
+    Result := '';
+    while match.Success do
+    begin
+      Result := Result + match.Value;
+      match := match.NextMatch;
+    end;
+  except
+    Result := '';
   end;
 end;
 
@@ -2363,21 +2367,18 @@ var
 begin
   if bClear then nParam := 10
   else nParam := 0;
-  if pos('Delay_Time',sMLOG) > 0 then begin
-    sLog := ExtractNumbersFromString(sMLOG);
-
-    SendTestGuiDisplay(nChannel_Index,defCommon.MSG_MODE_DELAY_TIME,sLog,nParam);
-    Exit;
-  end;
-  if Pos('[cnt]',sMLOG) >0 then
-    inc(m_CountInspections[nChannel_Index]);
+//  if pos('Delay_Time',sMLOG) > 0 then begin
+//    sLog := ExtractNumbersFromString(sMLOG);
+//
+//    SendTestGuiDisplay(nChannel_Index,defCommon.MSG_MODE_DELAY_TIME,sLog,nParam);
+//    Exit;
+//  end;
 
   if (Pos('Band',sMLOG) > 0) and (pos('Search',sMLOG) > 0)  then begin
     arStr := sMLOG.Split([' ']);
     if Length(arStr) > 2 then begin
       sBand := ExtractNumbersFromString(arStr[1]);
       m_CurrentBand[nChannel_Index] := StrToIntDef(sBand,-1);
-      SendTestGuiDisplay(nChannel_Index,defCommon.MSG_MODE_WORKING,format('%s BAND : Start',[sBand]),nParam);
     end;
   end;
 

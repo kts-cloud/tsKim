@@ -1709,8 +1709,10 @@ begin
   FLogThread.WaitFor;
   FLogThread.Free;
 
-  for I := 0 to DefCommon.MAX_PG_CNT do begin
-    SaveMLog(I, Now);
+  for i := 0 to DefCommon.MAX_PG_CNT do begin
+    m_csLog[i].Enter;
+    SaveMLog(i, Now);
+    m_csLog[i].Leave;
     m_slLog[i].Free;
     m_csLog[i].Free;
   end;
@@ -4671,30 +4673,28 @@ var
   nCh: Integer;
 begin
   while not TThread.CheckTerminated do begin
-    try
-       dtNow:= Now;
-      //MLog 저장 확인
-      for nCh := DefCommon.CH1 to DefCommon.MAX_SYSTEM_LOG do begin
-        if (m_slLog[nCh].Count > 0) then begin
-          if  DayOf(m_dtSaveLog[nCh]) <> DayOf(dtNow) then begin
-            SaveMLog(nCh, m_dtSaveLog[nCh]); //날짜가 변경된 경우 이전날짜 File로 저장
-          end
-          else if (m_slLog[nCh].Count > LogAccumulateCount) or (SecondsBetween(dtNow, m_dtSaveLog[nCh]) > LogAccumulateSecond) then begin
-            SaveMLog(nCh, dtNow);
-          end;
+     dtNow:= Now;
+    //MLog 저장 확인
+    for nCh := DefCommon.CH1 to DefCommon.MAX_SYSTEM_LOG do begin
+      m_csLog[nCh].Enter;
+      if (m_slLog[nCh].Count > 0) then begin
+        if  DayOf(m_dtSaveLog[nCh]) <> DayOf(dtNow) then begin
+          SaveMLog(nCh, m_dtSaveLog[nCh]); //날짜가 변경된 경우 이전날짜 File로 저장
+        end
+        else if (m_slLog[nCh].Count > LogAccumulateCount) or (SecondsBetween(dtNow, m_dtSaveLog[nCh]) > LogAccumulateSecond) then begin
+          SaveMLog(nCh, dtNow);
         end;
       end;
-
-    finally
-      Sleep(1000);
+      m_csLog[nCh].Leave;
     end;
+    Sleep(1000);
   end;
  
   //종료 시 마지막 저장
-  dtNow:= Now;
-  for nCh := DefCommon.CH1 to DefCommon.MAX_SYSTEM_LOG do begin
-    SaveMLog(nCh, dtNow);
-  end;
+//  dtNow:= Now;
+//  for nCh := DefCommon.CH1 to DefCommon.MAX_SYSTEM_LOG do begin
+//    SaveMLog(nCh, dtNow);
+//  end;
 end;
 
 procedure TCommon.SaveMLog(nCh : Integer; dtSave: TDateTime);
@@ -4727,9 +4727,7 @@ begin
  
       WriteLn(logFile, Trim(m_slLog[nCh].Text));
  
-      m_csLog[nCh].Acquire;
       m_slLog[nCh].Clear;
-      m_csLog[nCh].Release;
       m_dtSaveLog[nCh]:= Now; //dtSave;
       {$I+}
     except
@@ -4752,7 +4750,7 @@ begin
   if (nCh < DefCommon.CH1) or (nCh > DefCommon.MAX_PG_CNT) then nCh := DefCommon.MAX_SYSTEM_LOG;
 
   dtNow:= Now;
- 
+  m_csLog[nCh].Enter;
   if (m_slLog[nCh].Count > 0) and (DayOf(m_dtSaveLog[nCh]) <> DayOf(dtNow)) then begin
     SaveMLog(nCh, m_dtSaveLog[nCh]); //날짜가 변경된 경우 이전 File로 저장
   end;
@@ -4763,15 +4761,14 @@ begin
   end
   else begin
     //저장 요청이 아닌 경우Log 추가
-    m_csLog[nCh].Enter;
     m_slLog[nCh].Add(FormatDateTime('HH:NN:SS.ZZZ => ', dtNow) + sLog);
-    m_csLog[nCh].Leave;
   end;
  
   //로그 라인수가 누적 라인수 초과이거나누적시간(초) 초과인 경우File로 저장
   if (m_slLog[nCh].Count > LogAccumulateCount) or (SecondsBetween(dtNow, m_dtSaveLog[nCh]) > LogAccumulateSecond) or bSave then begin
     SaveMLog(nCh, dtNow);
   end;
+  m_csLog[nCh].Leave;
  
 end;
 
