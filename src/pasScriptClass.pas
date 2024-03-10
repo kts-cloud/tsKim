@@ -4901,7 +4901,7 @@ begin
         end;
       end;
 
-
+      SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,format('SetGlassData : 1 %d',[FPgNo]),'',10);
       if nNgCode = 0 then begin
         g_CommPLC.SetGlassData_JudgCode(g_CommPLC.GlassData[FPgNo], ord('G'));
       end
@@ -4933,7 +4933,7 @@ begin
           end;
         end;
       end;
-
+      SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,format('SetGlassData : 2 %d',[FPgNo]),'',10);
       if (Common.SystemInfo.Use_GIB) then begin //GIB구분- Auto이고 GIB 모드이면 Inline GIB
         if (Common.SystemInfo.OCType = DefCommon.OCType) then begin
           if (Common.PLCInfo.EQP_ID - 6) = 1 then
@@ -4956,9 +4956,9 @@ begin
           g_CommPLC.SetGlassData_Previous_Unit_Processing(g_CommPLC.GlassData[FPgNo], g_CommPLC.EQP_ID-13);
       end;
       wdRet := 0;
-
-      g_CommPLC.SaveGlassData_CH(FPgNo,Common.Path.Ini + format('GlassData_CH%d.dat',[FPgNo +1]));
-
+      SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,format('SetGlassData : 3 %d',[FPgNo]),'',10);
+//      g_CommPLC.SaveGlassData_CH(FPgNo,Common.Path.Ini + format('GlassData_CH%d.dat',[FPgNo +1]));
+//      SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,format('SetGlassData : 4 %d',[FPgNo]),'',10);
       ReturnOutputArg(wdRet);
     except
       ReturnOutputArg(wdRet);
@@ -6299,7 +6299,7 @@ begin
           15 :wdRet := ControlDio.CLOSE_Up_PinBlock(Self.FPgNo);
           16 :wdRet := ControlDio.CLOSE_DN_PinBlock(Self.FPgNo);
 
-          17 : wdRet := ControlDio.MovingAll(nGroup,true);
+          17 : wdRet := 0;                    // SW 내부에서 처리
           18 : wdRet := ControlDio.MovingAll(nGroup,False);
         end;
 

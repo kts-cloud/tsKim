@@ -2576,8 +2576,7 @@ begin
       SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_GIB_CH_12_SHUTTER_UP_SENSOR + nGroup *4, 1, '');
     end;
     if bStateShutter and bStateProbe then begin
-      SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Shutter UP Finish ' + sCH);
-      SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Probe UP Finish ' + sCH);
+      SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Probe and Shutter UP Finish ' + sCH);
     end
     else begin
       Exit(2);
@@ -2601,7 +2600,7 @@ begin
       Exit(3);
     end;
 
-    SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Probe DN and Shutter DN Start ' + sCH);
+    SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Probe and Shutter DN Start ' + sCH);
     ClearOutDioSig(DefDio.OUT_GIB_CH_12_PROBE_UP_SOL + nGroup *4);
     ClearOutDioSig(DefDio.OUT_GIB_CH_12_SHUTTER_UP_SOL + nGroup *4);
     if not ReadInSig(DefDio.IN_GIB_CH_12_PROBE_DN_SENSOR + nGroup *4) then begin
@@ -2641,8 +2640,7 @@ begin
     end;
 
     if bStateShutter and bStateProbe then begin
-      SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Shutter DN Finish ' + sCH);
-      SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Probe DN Finish ' + sCH);
+      SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Probe and Shutter DN Finish ' + sCH);
     end
     else begin
       Exit(2);

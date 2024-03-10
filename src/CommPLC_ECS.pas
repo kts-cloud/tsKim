@@ -5372,11 +5372,13 @@ var
   i: Integer;
 begin
   fs:= TFileStream.Create(sFileName, fmCreate);
+  AddLog(format('SaveGlassData_CH %d : Start',[nCh]),True);
   try
     ConvertGlassDataToBlock(GlassData[nCH], naGlassData[0]);
     fs.Write(naGlassData[0], Sizeof(naGlassData));
   finally
     FreeAndNil(fs);
+    AddLog(format('SaveGlassData_CH : End',[nCH]),True);
   end;
 end;
 
