@@ -4673,28 +4673,34 @@ var
   nCh: Integer;
 begin
   while not TThread.CheckTerminated do begin
+    try
      dtNow:= Now;
     //MLog 저장 확인
-    for nCh := DefCommon.CH1 to DefCommon.MAX_SYSTEM_LOG do begin
-      m_csLog[nCh].Enter;
-      if (m_slLog[nCh].Count > 0) then begin
-        if  DayOf(m_dtSaveLog[nCh]) <> DayOf(dtNow) then begin
-          SaveMLog(nCh, m_dtSaveLog[nCh]); //날짜가 변경된 경우 이전날짜 File로 저장
-        end
-        else if (m_slLog[nCh].Count > LogAccumulateCount) or (SecondsBetween(dtNow, m_dtSaveLog[nCh]) > LogAccumulateSecond) then begin
-          SaveMLog(nCh, dtNow);
+      for nCh := DefCommon.CH1 to DefCommon.MAX_SYSTEM_LOG do begin
+        m_csLog[nCh].Enter;
+        if (m_slLog[nCh].Count > 0) then begin
+          if  DayOf(m_dtSaveLog[nCh]) <> DayOf(dtNow) then begin
+            SaveMLog(nCh, m_dtSaveLog[nCh]); //날짜가 변경된 경우 이전날짜 File로 저장
+          end
+          else if (m_slLog[nCh].Count > LogAccumulateCount) or (SecondsBetween(dtNow, m_dtSaveLog[nCh]) > LogAccumulateSecond) then begin
+            SaveMLog(nCh, dtNow);
+          end;
         end;
+        m_csLog[nCh].Leave;
       end;
-      m_csLog[nCh].Leave;
+      Sleep(1000);
+    finally
     end;
-    Sleep(1000);
   end;
  
   //종료 시 마지막 저장
-//  dtNow:= Now;
-//  for nCh := DefCommon.CH1 to DefCommon.MAX_SYSTEM_LOG do begin
-//    SaveMLog(nCh, dtNow);
-//  end;
+  dtNow:= Now;
+  for nCh := DefCommon.CH1 to DefCommon.MAX_SYSTEM_LOG do begin
+    m_csLog[nCh].Enter;
+    SaveMLog(nCh, dtNow);
+    m_csLog[nCh].Leave;
+  end;
+
 end;
 
 procedure TCommon.SaveMLog(nCh : Integer; dtSave: TDateTime);

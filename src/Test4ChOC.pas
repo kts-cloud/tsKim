@@ -378,17 +378,11 @@ begin
   try
 //    mmChannelLog[nCh].DisableAlign;
     case nType of
-      1: begin
-        //Alarm 등 강조
-//        mmChannelLog[nCh].SelAttributes.Color := clRed;
-//        mmChannelLog[nCh].SelAttributes.Style := [fsBold];
-      end;
       10: begin
         //저장만 한다.
-        Common.MLog(nCh+self.Tag*4, sMsg);
         Exit;
       end
-    else begin
+      else begin
 //        if Common.SystemInfo.UIType = DefCommon.UI_WIN10_BLACK then begin
 //           mmChannelLog[nCh].SelAttributes.Color := clWhite;
 //        end
@@ -397,7 +391,6 @@ begin
 //        end;
 //        mmChannelLog[nCh].SelAttributes.Style := [];
       end;
-
     end;
     try
       if Length(sMsg) > 600 then begin
@@ -5132,7 +5125,7 @@ begin
                           begin
                             for i := DefCommon.CH1 to DefCommon.CH2 do begin
                               if PasScr[i].m_bIsScriptWork then begin
-                                Common.MLog(i, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(nCh));
+                                Common.MLog(nCH, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(i));
                                 Exit;
                               end;
                             end;
@@ -5150,7 +5143,7 @@ begin
                           begin
                             for i := DefCommon.CH3 to DefCommon.CH4 do begin
                               if PasScr[i].m_bIsScriptWork then begin
-                                Common.MLog(i, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(nCh));
+                                Common.MLog(nCH, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(i));
                                 Exit;
                               end;
                             end;
@@ -5177,7 +5170,7 @@ begin
                         begin
                           for i := DefCommon.CH1 to DefCommon.CH2 do begin
                             if PasScr[i].m_bIsScriptWork then begin
-                              Common.MLog(i, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(nCh));
+                              Common.MLog(nCh, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(i));
                               Exit;
                             end;
                           end;
@@ -5200,7 +5193,7 @@ begin
                         begin
                           for i := DefCommon.CH3 to DefCommon.CH4 do begin
                             if PasScr[i].m_bIsScriptWork then begin
-                              Common.MLog(i, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(nCh));
+                              Common.MLog(nCH, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(i));
                               Exit;
                             end;
                           end;
@@ -5232,7 +5225,7 @@ begin
                 begin
                   for i := DefCommon.CH1 to DefCommon.CH2 do begin
                     if PasScr[i].m_bIsScriptWork then begin
-                      Common.MLog(i, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(nCh));
+                      Common.MLog(nCh, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(i));
                       Exit;
                     end;
                   end;
@@ -5244,7 +5237,7 @@ begin
                 begin
                   for i := DefCommon.CH3 to DefCommon.CH4 do begin
                     if PasScr[i].m_bIsScriptWork then begin
-                      Common.MLog(i, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(nCh));
+                      Common.MLog(nCh, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(i));
                       Exit;
                     end;
                   end;
@@ -5259,7 +5252,7 @@ begin
                 begin
                   for i := DefCommon.CH1 to DefCommon.CH2 do begin
                     if PasScr[i].m_bIsScriptWork then begin
-                      Common.MLog(i, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(nCh));
+                      Common.MLog(nCh, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(i));
                       Exit;
                     end;
                   end;
@@ -5271,7 +5264,7 @@ begin
                 begin
                   for i := DefCommon.CH3 to DefCommon.CH4 do begin
                     if PasScr[i].m_bIsScriptWork then begin
-                      Common.MLog(i, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(nCh));
+                      Common.MLog(nCh, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(i));
                       Exit;
                     end;
                   end;

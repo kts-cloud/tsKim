@@ -105,6 +105,7 @@ type
     tmNgMsg: TTimer;
     pnlSubTitle: TPanel;
     mmoSysLog: TRichEdit;
+//    mmoSysLog: TMemo;
     pnlMesReady: TPanel;
     btnLogIn: TRzToolButton;
     lblMesReady: TLabel;
@@ -6486,7 +6487,8 @@ var
 	bPgVerAllNG, bPgVerHwNG, bPgVerFwNG, bPgVerSubFwNG, bPgVerFpgaNG, bPgVerPwrNG : Boolean;
 	{$ENDIF}
 begin
-  nType := DefCommon.MSG_TYPE_PG;
+  nType := DefCommon.
+  MSG_TYPE_PG;
   nCh   := PGuiPg2Main(PCopyDataStruct(CopyMsg.LParam)^.lpData)^.PgNo;
   nMode := PGuiPg2Main(PCopyDataStruct(CopyMsg.LParam)^.lpData)^.Mode;
   case nMode of

@@ -4848,7 +4848,8 @@ begin
             end
             else begin
               nRet:= m_MESItemValue.Ack;
-              Common.MLog(self.FPgNo, format('ECS_PCHK NG %d ', [m_MESItemValue.Ack]));
+              SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,format('ECS_PCHK NG %d ', [m_MESItemValue.Ack]));
+//              Common.MLog(self.FPgNo, format('ECS_PCHK NG %d ', [m_MESItemValue.Ack]));
             end;
           end;
           WAIT_TIMEOUT  : begin

@@ -237,7 +237,7 @@ type
     procedure ReturnDataToTestForm(nMode,nPg : Integer; bError : Boolean; sMsg : string);
     procedure OnGmesChMsgTimer(Sender : TObject);   // JHHWANG-GMES 2018-06-27
     procedure OnGemsResponseTimer(Sender : TObject);
-    procedure SendTestGuiDisplay(nGuiMode,nCH: Integer; sMsg : string = ''; sMsg2 : string = ''; nParam: Integer = 0; nParam2: Integer = 0);
+//    procedure SendTestGuiDisplay(nGuiMode,nCH: Integer; sMsg : string = ''; sMsg2 : string = ''; nParam: Integer = 0; nParam2: Integer = 0);
 
     { Private declarations }
   public
@@ -408,8 +408,8 @@ begin
     else begin
       sDebug := sDebug + sMsg;
     end;
-//    Common.MLog(nPgNo,sDebug);
-    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPgNo,sDebug);
+    Common.MLog(nPgNo,sDebug);
+//    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPgNo,sDebug);
   end;
   if bMes then begin
     //MES만 처리- EAS는 리턴 기다리지 않음
@@ -544,8 +544,8 @@ begin
   FEiJRSend := False;
 
   if nPgNo in [DefCommon.CH1 .. DefCommon.MAX_CH] then begin
-//    Common.MLog(nPgNo,sMsg);
-    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPgNo,sMsg);
+    Common.MLog(nPgNo,sMsg);
+//    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPgNo,sMsg);
   end;
 
   MesData[nPgNo].ErrMsg_Cd:= FMesErrCd;
@@ -613,8 +613,8 @@ begin
 //    end;
 //  end;
   if nPgNo in [DefCommon.CH1 .. DefCommon.MAX_CH] then begin
-//    Common.MLog(nPgNo,'MES REV : ' + sMsg);
-    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPgNo,'MES REV : ' + sMsg);
+    Common.MLog(nPgNo,'MES REV : ' + sMsg);
+//    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPgNo,'MES REV : ' + sMsg);
   end;
   MesData[nPgNo].MesPendingMsg := MES_UNKNOWN;   //JHHWANG-COMMON: 2018-06-20
   MesData[nPgNo].PchkRtnCode     := FMesRtnCd;     // PCHK_R.RTN_CD
@@ -682,8 +682,8 @@ begin
   end;
 
   if nPgNo in [DefCommon.CH1 .. DefCommon.MAX_CH] then begin
-//    Common.MLog(nPgNo,'MES REV : ' + sMsg);
-    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPgNo,'MES REV : ' + sMsg);
+    Common.MLog(nPgNo,'MES REV : ' + sMsg);
+//    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPgNo,'MES REV : ' + sMsg);
   end;
   MesData[nPgNo].MesPendingMsg := MES_UNKNOWN;   //
   MesData[nPgNo].LpirProcessCode     := FMesProsessCode;     // LPIR_R.PROCESS_CODE
@@ -743,8 +743,8 @@ begin
   end;
 
   if nPgNo in [DefCommon.CH1 .. DefCommon.MAX_CH] then begin
-//    Common.MLog(nPgNo,'MES REV : ' + sMsg);
-    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPgNo,'MES REV : ' + sMsg);
+    Common.MLog(nPgNo,'MES REV : ' + sMsg);
+//    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPgNo,'MES REV : ' + sMsg);
   end;
   MesData[nPgNo].MesPendingMsg := MES_UNKNOWN;   //JHHWANG-COMMON: 2018-06-20
   MesData[nPgNo].PchkRtnCode     := FMesRtnCd;     // PCHK_R.RTN_CD
@@ -802,8 +802,8 @@ begin
   end;
 
   if nPgNo in [DefCommon.CH1 .. DefCommon.MAX_CH] then begin
-//    Common.MLog(nPgNo,'MES REV : ' + sMsg);
-    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPgNo,'MES REV : ' + sMsg);
+    Common.MLog(nPgNo,'MES REV : ' + sMsg);
+//    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPgNo,'MES REV : ' + sMsg);
   end;
   MesData[nPgNo].MesPendingMsg := MES_UNKNOWN;
   MesData[nPgNo].PchkRtnCode     := FMesRtnCd;     // SGEN_R.RTN_CD
@@ -852,8 +852,8 @@ begin
   end;
 
   if nPgNo in [DefCommon.CH1 .. DefCommon.MAX_CH] then begin
-//    Common.MLog(nPgNo,'MES REV : '+sMsg);
-    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPgNo,'MES REV : ' + sMsg);
+    Common.MLog(nPgNo,'MES REV : '+sMsg);
+//    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPgNo,'MES REV : ' + sMsg);
   end;
   FEiJRSend := False;
   MesData[nPgNo].MesPendingMsg := MES_UNKNOWN;   //JHHWANG-COMMON: 2018-06-20
@@ -1585,8 +1585,10 @@ begin
   if CompareStr(sMode,'EODS') = 0 then begin
     SeperateData(sMsg,nCh);
 
-    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,StrToIntdef(FR2RUnit,1)-1,sMsg);
-    SendTestGuiDisplay(DefGmes.R2R_LOG,StrToIntdef(FR2RUnit,1)-1,sMsg);
+    Common.Mlog(StrToIntdef(FR2RUnit,1)-1,sMsg);
+//    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,StrToIntdef(FR2RUnit,1)-1,sMsg);
+    Common.R2RLog(StrToIntdef(FR2RUnit,1)-1,sMsg);
+//    SendTestGuiDisplay(DefGmes.R2R_LOG,StrToIntdef(FR2RUnit,1)-1,sMsg);
     SeperateR2RData(StrToIntdef(FR2RUnit,1)-1,FR2RDatainfo);
     ReturnDataToTestForm(DefGmes.R2R_EODS, StrToIntdef(FR2RUnit,1)-1, False, 'R2R_DATA');
     parse_EODS(StrToIntdef(FR2RUnit,1)-1);
@@ -1942,21 +1944,21 @@ begin
   end;
 end;
 
-procedure TGmes.SendTestGuiDisplay(nGuiMode,nCH: Integer; sMsg, sMsg2: string; nParam, nParam2: Integer);
-var
-  ccd         : TCopyDataStruct;
-  GuiData    : RSyncHost;
-begin
-  GuiData.MsgType := MSG_TYPE_HOST;
-  GuiData.Channel	:= nCH;
-  GuiData.MsgMode := nGuiMode;
-  GuiData.bError  := nParam <> 0;
-  GuiData.Msg     := sMsg;
-  ccd.dwData      := 0;
-  ccd.cbData      := SizeOf(GuiData);
-  ccd.lpData      := @GuiData;
-  SendMessage(hTestHandle1,WM_COPYDATA,0, LongInt(@ccd));
-end;
+//procedure TGmes.SendTestGuiDisplay(nGuiMode,nCH: Integer; sMsg, sMsg2: string; nParam, nParam2: Integer);
+//var
+//  ccd         : TCopyDataStruct;
+//  GuiData    : RSyncHost;
+//begin
+//  GuiData.MsgType := MSG_TYPE_HOST;
+//  GuiData.Channel	:= nCH;
+//  GuiData.MsgMode := nGuiMode;
+//  GuiData.bError  := nParam <> 0;
+//  GuiData.Msg     := sMsg;
+//  ccd.dwData      := 0;
+//  ccd.cbData      := SizeOf(GuiData);
+//  ccd.lpData      := @GuiData;
+//  SendMessage(hTestHandle1,WM_COPYDATA,0, LongInt(@ccd));
+//end;
 
 procedure TGmes.SendHostRePn(sSerialNo: string; nPg: Integer); // Added by modong 2014-06-20 Label Print 통신 추가
 var
@@ -2182,18 +2184,18 @@ begin
       if Common.PLCInfo.InlineGIB then begin
 //        Common.MLog(nPg,format('LpirProcessCode : %s EQPId_MGIB : %s EQPId_PGIB : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_PGIB]));
         if MesData[nPg].LpirProcessCode = Common.SystemInfo.EQPId_MGIB_Process_Code then begin
-          SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPg,format('LpirProcessCode : %s EQPId_MGIB : %s MGIB_Process_Code : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_MGIB_Process_Code]));
-//          Common.MLog(nPg,format('LpirProcessCode : %s EQPId_MGIB : %s MGIB_Process_Code : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_MGIB_Process_Code]));
+//          SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPg,format('LpirProcessCode : %s EQPId_MGIB : %s MGIB_Process_Code : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_MGIB_Process_Code]));
+          Common.MLog(nPg,format('LpirProcessCode : %s EQPId_MGIB : %s MGIB_Process_Code : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_MGIB_Process_Code]));
           sSendMsg := sSendMsg  + ' EQP=' + Common.SystemInfo.EQPId_MGIB;
         end
         else if MesData[nPg].LpirProcessCode = Common.SystemInfo.EQPId_PGIB_Process_Code then begin
-          SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPg,format('LpirProcessCode : %s EQPId_PGIB : %s PGIB_Process_Code : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_PGIB,Common.SystemInfo.EQPId_PGIB_Process_Code]));
-//          Common.MLog(nPg,format('LpirProcessCode : %s EQPId_PGIB : %s PGIB_Process_Code : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_PGIB,Common.SystemInfo.EQPId_PGIB_Process_Code]));
+//          SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPg,format('LpirProcessCode : %s EQPId_PGIB : %s PGIB_Process_Code : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_PGIB,Common.SystemInfo.EQPId_PGIB_Process_Code]));
+          Common.MLog(nPg,format('LpirProcessCode : %s EQPId_PGIB : %s PGIB_Process_Code : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_PGIB,Common.SystemInfo.EQPId_PGIB_Process_Code]));
           sSendMsg := sSendMsg  + ' EQP=' + Common.SystemInfo.EQPId_PGIB;
         end
         else begin
-          SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPg,format('Mismatch !! - LpirProcessCode : %s MGIB_Process_Code : %s PGIB_Process_Code : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB_Process_Code,Common.SystemInfo.EQPId_PGIB_Process_Code]));
-//          Common.MLog(nPg,format('Mismatch !! - LpirProcessCode : %s MGIB_Process_Code : %s PGIB_Process_Code : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB_Process_Code,Common.SystemInfo.EQPId_PGIB_Process_Code]));
+//          SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPg,format('Mismatch !! - LpirProcessCode : %s MGIB_Process_Code : %s PGIB_Process_Code : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB_Process_Code,Common.SystemInfo.EQPId_PGIB_Process_Code]));
+          Common.MLog(nPg,format('Mismatch !! - LpirProcessCode : %s MGIB_Process_Code : %s PGIB_Process_Code : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB_Process_Code,Common.SystemInfo.EQPId_PGIB_Process_Code]));
           sSendMsg := sSendMsg  + ' EQP=' + FSystemNo;
         end;
 
@@ -2424,8 +2426,8 @@ begin
       sSendMsg := 'EIJR';
 			sSendMsg := sSendMsg  + ' ADDR=' + m_sLocal + ',' + m_sLocal;
       if Common.PLCInfo.InlineGIB then begin
-//        Common.MLog(nPg,format('LpirProcessCode : %s EQPId_MGIB : %s EQPId_PGIB : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_PGIB]));
-        SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPg,format('LpirProcessCode : %s EQPId_MGIB : %s EQPId_PGIB : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_PGIB]));
+        Common.MLog(nPg,format('LpirProcessCode : %s EQPId_MGIB : %s EQPId_PGIB : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_PGIB]));
+//        SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPg,format('LpirProcessCode : %s EQPId_MGIB : %s EQPId_PGIB : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_PGIB]));
         if MesData[nPg].LpirProcessCode = Common.SystemInfo.EQPId_MGIB_Process_Code then
           sSendMsg := sSendMsg  + ' EQP=' + Common.SystemInfo.EQPId_MGIB
         else if MesData[nPg].LpirProcessCode = Common.SystemInfo.EQPId_PGIB_Process_Code then
@@ -2480,8 +2482,8 @@ begin
       sSendMsg := 'RPR_EIJR';
 			sSendMsg := sSendMsg  + ' ADDR=' + m_sLocal + ',' + m_sLocal;
       if Common.PLCInfo.InlineGIB then begin
-//        Common.MLog(nPg,format('LpirProcessCode : %s EQPId_MGIB : %s EQPId_PGIB : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_PGIB]));
-        SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPg,format('LpirProcessCode : %s EQPId_MGIB : %s EQPId_PGIB : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_PGIB]));
+        Common.MLog(nPg,format('LpirProcessCode : %s EQPId_MGIB : %s EQPId_PGIB : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_PGIB]));
+//        SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPg,format('LpirProcessCode : %s EQPId_MGIB : %s EQPId_PGIB : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_PGIB]));
 
         if MesData[nPg].LpirProcessCode = Common.SystemInfo.EQPId_MGIB_Process_Code then
           sSendMsg := sSendMsg  + ' EQP=' + Common.SystemInfo.EQPId_MGIB
@@ -2580,8 +2582,8 @@ begin
       sSendMsg := 'APDR';
       sSendMsg := sSendMsg  + ' ADDR=' + m_sEasLocal + ',' + m_sEasLocal;
       if Common.PLCInfo.InlineGIB then begin
-//        Common.MLog(nPg,format('LpirProcessCode : %s EQPId_MGIB : %s EQPId_PGIB : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_PGIB]));
-        SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPg,format('LpirProcessCode : %s EQPId_MGIB : %s EQPId_PGIB : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_PGIB]));
+        Common.MLog(nPg,format('LpirProcessCode : %s EQPId_MGIB : %s EQPId_PGIB : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_PGIB]));
+//        SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPg,format('LpirProcessCode : %s EQPId_MGIB : %s EQPId_PGIB : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_PGIB]));
 
         if MesData[nPg].LpirProcessCode = Common.SystemInfo.EQPId_MGIB_Process_Code then
           sSendMsg := sSendMsg  + ' EQP=' + Common.SystemInfo.EQPId_MGIB
@@ -2647,8 +2649,8 @@ begin
 
       m_bDoneEODS[nPg] := False;
 
-      SendTestGuiDisplay(R2R_LOG,nPg,sSendMsg);
-//      Common.R2RLog(nPg,sSendMsg);
+//      SendTestGuiDisplay(R2R_LOG,nPg,sSendMsg);
+      Common.R2RLog(nPg,sSendMsg);
 
     end;
 
@@ -2712,12 +2714,12 @@ begin
       if Length(sSendMsg) > 500 then begin
         sDebug := Copy(sSendMsg,1,500);
       end;
-      case nMsgType of
+      case nMsgType of           SendTestGuiDisplay
         DefGmes.EAS_APDR : sDebug := 'EAS SEND :  ' + sDebug
         else               sDebug := 'MES SEND :  ' + sDebug;
       end;
-//      Common.MLog(nPg,sDebug);
-      SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPg,sDebug);
+      Common.MLog(nPg,sDebug);
+//      SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPg,sDebug);
 
     end;
 {$ENDIF}
@@ -2760,10 +2762,10 @@ begin
       end;
       case nMsgType of
         DefGmes.EAS_APDR : sDebug := 'EAS SEND :  ' + sDebug
-        else               sDebug := 'MES SEND :  ' + sDebug;
+        else               sDebug := 'MES SEND :  ' + sDebug;           
       end;
-//      Common.MLog(nPg,sDebug);
-      SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPg,sDebug);
+      Common.MLog(nPg,sDebug);
+//      (DefCommon.MSG_MODE_WORKING,nPg,sDebug);
     end;
 {$ENDIF}
     sSendMsg := '';
@@ -2790,8 +2792,8 @@ begin
 //    end;
   end
   else begin
-//    Common.Mlog(nPg, Format('[HOST] Can not USE Host MsgType: %d, PG : %d, Serial: %s', [nMsgType, nPg, sSerialNo]));
-    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPg,Format('[HOST] Can not USE Host MsgType: %d, PG : %d, Serial: %s', [nMsgType, nPg, sSerialNo]));
+    Common.Mlog(nPg, Format('[HOST] Can not USE Host MsgType: %d, PG : %d, Serial: %s', [nMsgType, nPg, sSerialNo]));
+//    TestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPg,Format('[HOST] Can not USE Host MsgType: %d, PG : %d, Serial: %s', [nMsgType, nPg, sSerialNo]));
     bRtn := False;
   end;
 
@@ -3083,9 +3085,9 @@ begin
     if (tick - m_MESItem.Tick) > m_MESItem.Timeout then begin
       //timeout 처리
       if m_MESItem.Kind in [MES_EAYT, MES_EDTI, MES_EQCC, MES_FLDR, MES_UCHK] then begin
-        OnGmsEvent(m_MESItem.Kind, 0, False, 'Timeout');
+        OnGmsEvent(m_MESItem.Kind, 0, True, 'Timeout');
       end else begin
-        ReturnDataToTestForm(m_MESItem.Kind, m_MESItem.Channel, False, 'Timeout');
+        ReturnDataToTestForm(m_MESItem.Kind, m_MESItem.Channel, True, 'Timeout');
       end;
       m_MESItem.State:= MES_UNKNOWN;
     end
@@ -3116,8 +3118,6 @@ begin
         MesData[m_MESItem.Channel].ErrCode:= m_MESItem.ErrCode;
 //      MesData[m_MESItem.Channel].LpirProcessCode:= m_MESItem.LpirProcessCode;
     end;
-
-
     SEND_MESG2HOST(m_MESItem.Kind, m_MESItem.SerialNo, m_MESItem.CarrierID, m_MESItem.Channel);
   end
   else begin

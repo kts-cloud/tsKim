@@ -422,20 +422,22 @@ begin
   nPGCH := 0;
   if (m_OCFlowStart[nPGCH]) and Pg[nPGCH].bIsReProgramming  then begin
     Pg[nPGCH].bIsReProgramming := False;
-//    common.MLog(DefCommon.CH1,'<SEQUENCE> ReProgramming - NG');
-    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,'<SEQUENCE> ReProgramming - NG');
+    common.MLog(nPGCH,'<SEQUENCE> ReProgramming - NG');
+//    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,'<SEQUENCE> ReProgramming - NG');
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',0);
     CSharpDll.MainOC_Stop_CH1(nPGCH);
   end;
   if (m_OCFlowStart[nPGCH]) and Pg[nPGCH].m_bChkShutdown_Fault  then begin
-    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,'<SEQUENCE> Shutdown_Fault - NG');
+    common.MLog(nPGCH,'<SEQUENCE> Shutdown_Fault - NG');
+//    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,'<SEQUENCE> Shutdown_Fault - NG');
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',1);
     CSharpDll.MainOC_Stop_CH1(nPGCH);
   end;
 
   if (m_OCFlowStart[nPGCH]) and  m_OCCkSerialNB[nPGCH] then begin
     m_OCCkSerialNB[nPGCH] := False;
-    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sSerialNo[nPGCH])]));
+    common.MLog(nPGCH,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sSerialNo[nPGCH])]));
+//    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sSerialNo[nPGCH])]));
     CSharpDll.MainOC_Stop_CH1(nPGCH);
   end;
 
@@ -443,7 +445,8 @@ begin
     m_OCFlowStart[nPGCH] := False;
     tmCheckOCAlive[nPGCH].Enabled := false;
     m_nFlagCount[nPGCH] := 0;
-    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,Format('<SEQUENCE> CountInspections : %d',[m_CountInspections[nPGCH]]));
+    common.MLog(nPGCH,Format('<SEQUENCE> CountInspections : %d',[m_CountInspections[nPGCH]]));
+//    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,Format('<SEQUENCE> CountInspections : %d',[m_CountInspections[nPGCH]]));
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_WORK_DONE,'OKFLOW_END',0);
   end;
 
@@ -457,18 +460,21 @@ begin
   if (m_OCFlowStart[nPGCH]) and Pg[nPGCH].bIsReProgramming then begin
     Pg[nPGCH].bIsReProgramming := False;
 //    common.MLog(DefCommon.CH2,'<SEQUENCE> ReProgramming - NG');
-    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,'<SEQUENCE> ReProgramming - NG');
+    common.MLog(nPGCH,'<SEQUENCE> ReProgramming - NG');
+//    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,'<SEQUENCE> ReProgramming - NG');
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',0);
     CSharpDll.MainOC_Stop_CH2(nPGCH);
   end;
   if (m_OCFlowStart[nPGCH]) and Pg[nPGCH].m_bChkShutdown_Fault  then begin
-    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,'<SEQUENCE> Shutdown_Fault - NG');
+    common.MLog(nPGCH,'<SEQUENCE> Shutdown_Fault - NG');
+//    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,'<SEQUENCE> Shutdown_Fault - NG');
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',1);
     CSharpDll.MainOC_Stop_CH2(nPGCH);
   end;
   if (m_OCFlowStart[nPGCH]) and  m_OCCkSerialNB[nPGCH] then begin
     m_OCCkSerialNB[nPGCH] := False;
-    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sSerialNo[nPGCH])]));
+    common.MLog(nPGCH,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sSerialNo[nPGCH])]));
+//    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sSerialNo[nPGCH])]));
     CSharpDll.MainOC_Stop_CH2(nPGCH);
   end;
 
@@ -476,7 +482,8 @@ begin
     m_OCFlowStart[nPGCH] := False;
     tmCheckOCAlive[nPGCH].Enabled := false;
     m_nFlagCount[nPGCH] := 0;
-    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,Format('<SEQUENCE> CountInspections : %d',[m_CountInspections[nPGCH]]));
+    common.MLog(nPGCH,Format('<SEQUENCE> CountInspections : %d',[m_CountInspections[nPGCH]]));
+//    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,Format('<SEQUENCE> CountInspections : %d',[m_CountInspections[nPGCH]]));
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_WORK_DONE,'OKFLOW_END',0);
 
   end;
@@ -491,25 +498,29 @@ begin
   if (m_OCFlowStart[nPGCH]) and Pg[nPGCH].bIsReProgramming then begin
     Pg[nPGCH].bIsReProgramming := False;
 //    common.MLog(nPGCH,'<SEQUENCE> ReProgramming - NG');
-    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,'<SEQUENCE> ReProgramming - NG');
+    common.MLog(nPGCH,'<SEQUENCE> ReProgramming - NG');
+//    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,'<SEQUENCE> ReProgramming - NG');
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',0);
     CSharpDll.MainOC_Stop_CH3(nPGCH);
   end;
   if (m_OCFlowStart[nPGCH]) and Pg[nPGCH].m_bChkShutdown_Fault  then begin
-    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,'<SEQUENCE> Shutdown_Fault - NG');
+    common.MLog(nPGCH,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sSerialNo[nPGCH])]));
+//    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,'<SEQUENCE> Shutdown_Fault - NG');
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',1);
     CSharpDll.MainOC_Stop_CH3(nPGCH);
   end;
   if (m_OCFlowStart[nPGCH]) and  m_OCCkSerialNB[nPGCH] then begin
     m_OCCkSerialNB[nPGCH] := False;
-    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sSerialNo[nPGCH])]));
+    common.MLog(nPGCH,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sSerialNo[nPGCH])]));
+//    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sSerialNo[nPGCH])]));
     CSharpDll.MainOC_Stop_CH3(nPGCH);
   end;
   if (m_OCFlowStart[nPGCH]) and (MainOC_GetOCFlowIsAlive(nPGCH) = 0) then begin
     m_OCFlowStart[nPGCH] := False;
     tmCheckOCAlive[nPGCH].Enabled := false;
     m_nFlagCount[nPGCH] := 0;
-    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,Format('<SEQUENCE> CountInspections : %d',[m_CountInspections[nPGCH]]));
+    common.MLog(nPGCH,Format('<SEQUENCE> CountInspections : %d',[m_CountInspections[nPGCH]]));
+//    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,Format('<SEQUENCE> CountInspections : %d',[m_CountInspections[nPGCH]]));
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_WORK_DONE,'OKFLOW_END',0);
 
   end;
@@ -523,26 +534,29 @@ begin
   nPGCH := 3;
   if (m_OCFlowStart[nPGCH]) and Pg[nPGCH].bIsReProgramming then begin
     Pg[nPGCH].bIsReProgramming := False;
-//    common.MLog(nPGCH,'<SEQUENCE> ReProgramming - NG');
-    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,'<SEQUENCE> ReProgramming - NG');
+    common.MLog(nPGCH,'<SEQUENCE> ReProgramming - NG');
+//    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,'<SEQUENCE> ReProgramming - NG');
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',0);
     CSharpDll.MainOC_Stop_CH4(nPGCH);
   end;
   if (m_OCFlowStart[nPGCH]) and Pg[nPGCH].m_bChkShutdown_Fault  then begin
-    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,'<SEQUENCE> Shutdown_Fault - NG');
+    common.MLog(nPGCH,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sSerialNo[nPGCH])]));
+//    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,'<SEQUENCE> Shutdown_Fault - NG');
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',1);
     CSharpDll.MainOC_Stop_CH4(nPGCH);
   end;
   if (m_OCFlowStart[nPGCH]) and  m_OCCkSerialNB[nPGCH] then begin
     m_OCCkSerialNB[nPGCH] := False;
-    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sSerialNo[nPGCH])]));
+    common.MLog(nPGCH,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sSerialNo[nPGCH])]));
+//    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sSerialNo[nPGCH])]));
     CSharpDll.MainOC_Stop_CH4(nPGCH);
   end;
   if (m_OCFlowStart[nPGCH]) and (MainOC_GetOCFlowIsAlive(nPGCH) = 0) then begin
-    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,Format('<SEQUENCE> CountInspections : %d',[m_CountInspections[nPGCH]]));
     m_OCFlowStart[nPGCH] := False;
     tmCheckOCAlive[nPGCH].Enabled := false;
     m_nFlagCount[nPGCH] := 0;
+    common.MLog(nPGCH,Format('<SEQUENCE> CountInspections : %d',[m_CountInspections[nPGCH]]));
+//    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,Format('<SEQUENCE> CountInspections : %d',[m_CountInspections[nPGCH]]));
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_WORK_DONE,'OKFLOW_END',0);
 
   end;
@@ -2367,12 +2381,12 @@ var
 begin
   if bClear then nParam := 10
   else nParam := 0;
-//  if pos('Delay_Time',sMLOG) > 0 then begin
+  if pos('Delay_Time',sMLOG) > 0 then begin
 //    sLog := ExtractNumbersFromString(sMLOG);
-//
+
 //    SendTestGuiDisplay(nChannel_Index,defCommon.MSG_MODE_DELAY_TIME,sLog,nParam);
-//    Exit;
-//  end;
+    Exit;
+  end;
 
   if (Pos('Band',sMLOG) > 0) and (pos('Search',sMLOG) > 0)  then begin
     arStr := sMLOG.Split([' ']);
@@ -2600,7 +2614,7 @@ begin
       Result := PAnsiChar(m_GetSummaryLogData(nCH,Common.StringToPAnsiChar(sParameter)));
     end;
   except
-    SendTestGuiDisplay(nCH,defCommon.MSG_MODE_WORKING,'GetSummaryLogData Error Occurrence!!',10);
+    Common.MLog(nCH,'GetSummaryLogData Error Occurrence!!');
     Result := PAnsiChar(m_GetSummaryLogData(nCH,Common.StringToPAnsiChar(sParameter)));
   end;
 end;
