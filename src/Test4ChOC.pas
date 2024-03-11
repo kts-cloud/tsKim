@@ -2641,6 +2641,7 @@ var
         pnlPGStatuses[nCh].Font.Color := clYellow;
         sDebug := FormatDateTime('[HH:MM:SS.zzz] ',now) + 'PG BOARD DISCONNECT NG ';
         AddLog(sDebug,nCh,1);
+//        Set_AlarmData(111, 1, 1);
 
       end;
       DefCommon.PG_CONN_CONNECTED : begin
@@ -4651,6 +4652,9 @@ begin
           if DongaGmes <> nil then begin
             if DongaGmes.m_bDoneEODS[nCH] then begin   // R2R Data Down 확인 후
               DongaGmes.SendR2REoda(nCh,WriteR2RData(nCH));
+            end
+            else begin
+              Common.MLog(nCh,'R2R m_bDoneEODS : OFF');
             end;
           end;
 
@@ -5055,7 +5059,7 @@ begin
                             begin
                               if CSharpDll.m_bIsProcessDone[DefCommon.CH1] and CSharpDll.m_bIsProcessDone[DefCommon.CH2] then  begin
     //                        SendMessageMain(STAGE_MODE_UNLOAD,0, 2,0, 'OC Flow Process_Finish',nil);
-                                ControlDio.MovingAll(0,true);   // Probe and Shutter  UP
+//                                ControlDio.MovingAll(0,true);   // Probe and Shutter  UP
                                 SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, DefCommon.CH1 , DefCommon.CH1 , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
 //                                Sleep(100);
                                 SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, DefCommon.CH2 , DefCommon.CH2 , nTemp2, '', nil);
@@ -5067,7 +5071,7 @@ begin
                             begin
                               if CSharpDll.m_bIsProcessDone[DefCommon.CH3] and CSharpDll.m_bIsProcessDone[DefCommon.CH4] then begin
         //                        SendMessageMain(STAGE_MODE_UNLOAD, 1, 2,0, 'OC Flow Process_Finish',nil);
-                                ControlDio.MovingAll(1,true);   // Probe and Shutter  UP
+//                                ControlDio.MovingAll(1,true);   // Probe and Shutter  UP
                                 SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, DefCommon.CH3 , DefCommon.CH3 , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
 //                                Sleep(100);
                                 SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, DefCommon.CH4 , DefCommon.CH4 , nTemp2, '', nil);
@@ -5084,7 +5088,7 @@ begin
                           begin
                             if CSharpDll.m_bIsProcessDone[DefCommon.CH1] and CSharpDll.m_bIsProcessDone[DefCommon.CH2] then  begin
   //                        SendMessageMain(STAGE_MODE_UNLOAD,0, 2,0, 'OC Flow Process_Finish',nil);
-                              ControlDio.MovingAll(0,true);   // Probe and Shutter  UP
+//                              ControlDio.MovingAll(0,true);   // Probe and Shutter  UP
                               SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, 0 , 0 , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
 
                               CSharpDll.m_bIsProcessDone[DefCommon.CH1] := false;
@@ -5095,7 +5099,7 @@ begin
                           begin
                             if CSharpDll.m_bIsProcessDone[DefCommon.CH3] and CSharpDll.m_bIsProcessDone[DefCommon.CH4] then begin
       //                        SendMessageMain(STAGE_MODE_UNLOAD, 1, 2,0, 'OC Flow Process_Finish',nil);
-                              ControlDio.MovingAll(1,true);   // Probe and Shutter  UP
+//                              ControlDio.MovingAll(1,true);   // Probe and Shutter  UP
                               SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, 1 , 1 , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
 
                               CSharpDll.m_bIsProcessDone[DefCommon.CH3] := false;
@@ -5133,7 +5137,7 @@ begin
                                 Exit;
                               end;
                             end;
-                            ControlDio.MovingAll(0,true);   // Probe and Shutter  UP
+//                            ControlDio.MovingAll(0,true);   // Probe and Shutter  UP
                             if ControlDio.IsDetected(0) then begin
                               SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, DefCommon.CH1 , DefCommon.CH1 , nTemp2, '', nil);
                               CSharpDll.m_bIsProcessDone[DefCommon.CH1] := false;
@@ -5152,7 +5156,7 @@ begin
                                 Exit;
                               end;
                             end;
-                            ControlDio.MovingAll(1,true);   // Probe and Shutter  UP
+//                            ControlDio.MovingAll(1,true);   // Probe and Shutter  UP
                             if ControlDio.IsDetected(2) then begin
                               SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, DefCommon.CH3 , DefCommon.CH3 , nTemp2, '', nil);
                               CSharpDll.m_bIsProcessDone[DefCommon.CH3] := false;
@@ -5182,7 +5186,7 @@ begin
                           end;
 //                          if CSharpDll.m_bIsProcessDone[DefCommon.CH1] and CSharpDll.m_bIsProcessDone[DefCommon.CH2] then  begin
 //                        SendMessageMain(STAGE_MODE_UNLOAD,0, 2,0, 'OC Flow Process_Finish',nil);
-                          ControlDio.MovingAll(0,true);   // Probe and Shutter  UP
+//                          ControlDio.MovingAll(0,true);   // Probe and Shutter  UP
                           if NOT Common.AutoReStart  then  begin
                             SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, 0 , 0 , nTemp2, '', nil);
                           end
@@ -5206,7 +5210,7 @@ begin
                           end;
 //                          if CSharpDll.m_bIsProcessDone[DefCommon.CH3] and CSharpDll.m_bIsProcessDone[DefCommon.CH4] then begin
     //                        SendMessageMain(STAGE_MODE_UNLOAD, 1, 2,0, 'OC Flow Process_Finish',nil);
-                          ControlDio.MovingAll(1,true);   // Probe and Shutter  UP
+//                          ControlDio.MovingAll(1,true);   // Probe and Shutter  UP
                           if NOT Common.AutoReStart  then  begin
                             SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, 1 , 1 , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
                           end

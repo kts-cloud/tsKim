@@ -2795,8 +2795,8 @@ begin
         if (pGUIMsg.Param = DefDio.IN_EMO_SWITCH) and (pGUIMsg.Param2 = 1) then begin //EMO시에 검사 stop상태 대기
           ShowSysLog('<EMO> Script Stop Start');
           AddLog_AllCh('<EMO> Script Stop Start');
-//          JigLogic[0].StopIspd_TOP;
-//          JigLogic[0].StopIspd_BOTTOM;
+          JigLogic[0].StopIspd_TOP;
+          JigLogic[0].StopIspd_BOTTOM;
           ShowSysLog('<EMO> Script Stop End');
           AddLog_AllCh('<EMO> Script Stop End');
         end;
@@ -2804,11 +2804,11 @@ begin
       else if Common.SystemInfo.OCType = Defcommon.PreOCType then begin
         if (pGUIMsg.Param = DefDio.IN_GIB_CH_12_EMO_SWITCH) and (pGUIMsg.Param2 = 1) then begin //EMO시에 검사 stop상태 대기
           ShowSysLog('<EMO> 1,2 Ch Script Stop Start');
-//          JigLogic[0].StopIspd_TOP;
+          JigLogic[0].StopIspd_TOP;
         end
         else if (pGUIMsg.Param = DefDio.IN_GIB_CH_34_EMO_SWITCH) and (pGUIMsg.Param2 = 1) then begin
           ShowSysLog('<EMO> 3,4 Ch Script Stop Start');
-//          JigLogic[0].StopIspd_BOTTOM;
+          JigLogic[0].StopIspd_BOTTOM;
         end;
       end;
       Set_AlarmData(pGUIMsg.Param, pGUIMsg.Param2, 1); //중 알람
@@ -5148,39 +5148,39 @@ var
   arStr : TArray<string>;
   i,j,nCH : Integer;
 begin
-  sMLOG := '[00:16] 1-Band Analog Search';
-  if (Pos('Band',sMLOG) > 0) and (pos('Search',sMLOG) > 0)  then begin
-    arStr := sMLOG.Split([' ']);
-    if Length(arStr) > 2 then begin
-      sBand := common.ExtractNumbersFromString(arStr[1]);
-      CSharpDll.m_CurrentBand[0] := StrToIntDef(sBand,-1);
-    end;
-  end;
-  nCH := 0;
-  for I := 0 to 5 do begin
-    setlength(frmTest4ChOC[0].m_aTempIr[0][i],0); //초기화
-  end;
-  for j := 0 to 3 do begin
-      SetLength(frmTest4ChOC[0].m_aTempIr[nCH][1], Length(frmTest4ChOC[0].m_aTempIr[nCH][1]) + 1);   // Temp 배열 증가
-      frmTest4ChOC[0].m_aTempIr[nCH][1][Length(frmTest4ChOC[0].m_aTempIr[nCH][1]) - 1] := format('%d',[Round(100)]);
-      SetLength(frmTest4ChOC[0].m_aTempIr[nCH][2], Length(frmTest4ChOC[0].m_aTempIr[nCH][2]) + 1);   // Temp 배열 증가
-      frmTest4ChOC[0].m_aTempIr[nCH][2][Length(frmTest4ChOC[0].m_aTempIr[nCH][2]) - 1] := format('%d',[Round(100)]);
-      SetLength(frmTest4ChOC[0].m_aTempIr[nCH][3], Length(frmTest4ChOC[0].m_aTempIr[nCH][3]) + 1);   // Temp 배열 증가
-      frmTest4ChOC[0].m_aTempIr[nCH][3][Length(frmTest4ChOC[0].m_aTempIr[nCH][3]) - 1] := format('%d',[Round(100)]);
-      SetLength(frmTest4ChOC[0].m_aTempIr[nCH][4], Length(frmTest4ChOC[0].m_aTempIr[nCH][4]) + 1);   // Temp 배열 증가
-      frmTest4ChOC[0].m_aTempIr[nCH][4][Length(frmTest4ChOC[0].m_aTempIr[nCH][4]) - 1] := format('%d',[Round(100)]);
-      SetLength(frmTest4ChOC[0].m_aTempIr[nCH][5], Length(frmTest4ChOC[0].m_aTempIr[nCH][5]) + 1);   // Temp 배열 증가
-      frmTest4ChOC[0].m_aTempIr[nCH][5][Length(frmTest4ChOC[0].m_aTempIr[nCH][5]) - 1] := format('%d',[Round(100)]);
-      SetLength(frmTest4ChOC[0].m_aTempIr[nCH][0], Length(frmTest4ChOC[0].m_aTempIr[nCH][0]) + 1);   // Temp 배열 증가
-      frmTest4ChOC[0].m_aTempIr[nCH][0][Length(frmTest4ChOC[0].m_aTempIr[nCH][0]) - 1] := format('%d',[Round(100)]);
-  end;
-
-   sMLOG := frmTest4ChOC[0].GetIRTempData(0);
+//  sMLOG := '[00:16] 1-Band Analog Search';
+//  if (Pos('Band',sMLOG) > 0) and (pos('Search',sMLOG) > 0)  then begin
+//    arStr := sMLOG.Split([' ']);
+//    if Length(arStr) > 2 then begin
+//      sBand := common.ExtractNumbersFromString(arStr[1]);
+//      CSharpDll.m_CurrentBand[0] := StrToIntDef(sBand,-1);
+//    end;
+//  end;
+//  nCH := 0;
+//  for I := 0 to 5 do begin
+//    setlength(frmTest4ChOC[0].m_aTempIr[0][i],0); //초기화
+//  end;
+//  for j := 0 to 3 do begin
+//      SetLength(frmTest4ChOC[0].m_aTempIr[nCH][1], Length(frmTest4ChOC[0].m_aTempIr[nCH][1]) + 1);   // Temp 배열 증가
+//      frmTest4ChOC[0].m_aTempIr[nCH][1][Length(frmTest4ChOC[0].m_aTempIr[nCH][1]) - 1] := format('%d',[Round(100)]);
+//      SetLength(frmTest4ChOC[0].m_aTempIr[nCH][2], Length(frmTest4ChOC[0].m_aTempIr[nCH][2]) + 1);   // Temp 배열 증가
+//      frmTest4ChOC[0].m_aTempIr[nCH][2][Length(frmTest4ChOC[0].m_aTempIr[nCH][2]) - 1] := format('%d',[Round(100)]);
+//      SetLength(frmTest4ChOC[0].m_aTempIr[nCH][3], Length(frmTest4ChOC[0].m_aTempIr[nCH][3]) + 1);   // Temp 배열 증가
+//      frmTest4ChOC[0].m_aTempIr[nCH][3][Length(frmTest4ChOC[0].m_aTempIr[nCH][3]) - 1] := format('%d',[Round(100)]);
+//      SetLength(frmTest4ChOC[0].m_aTempIr[nCH][4], Length(frmTest4ChOC[0].m_aTempIr[nCH][4]) + 1);   // Temp 배열 증가
+//      frmTest4ChOC[0].m_aTempIr[nCH][4][Length(frmTest4ChOC[0].m_aTempIr[nCH][4]) - 1] := format('%d',[Round(100)]);
+//      SetLength(frmTest4ChOC[0].m_aTempIr[nCH][5], Length(frmTest4ChOC[0].m_aTempIr[nCH][5]) + 1);   // Temp 배열 증가
+//      frmTest4ChOC[0].m_aTempIr[nCH][5][Length(frmTest4ChOC[0].m_aTempIr[nCH][5]) - 1] := format('%d',[Round(100)]);
+//      SetLength(frmTest4ChOC[0].m_aTempIr[nCH][0], Length(frmTest4ChOC[0].m_aTempIr[nCH][0]) + 1);   // Temp 배열 증가
+//      frmTest4ChOC[0].m_aTempIr[nCH][0][Length(frmTest4ChOC[0].m_aTempIr[nCH][0]) - 1] := format('%d',[Round(100)]);
+//  end;
+//
+//   sMLOG := frmTest4ChOC[0].GetIRTempData(0);
 
 
 //  Edit1.Text := Format('%0.4f',[1.11111]);
-//  if DongaGmes <> nil then
-//   DongaGmes.SendR2REodsTest;
+  if DongaGmes <> nil then
+   DongaGmes.SendR2REodsTest;
 
  Exit;
  i := (20 shr 2) and $01;
@@ -5460,9 +5460,11 @@ begin
       ShowSysLog('PLC not Connected', 1);
       Exit;
     end;
-    if not CheckPG_Connect(DefCommon.MAX_PG_CNT) then begin
-      ShowSysLog('Do not Auto Start - PG Disconnected');
-      Exit;
+    if bAuto then begin
+      if not CheckPG_Connect(DefCommon.MAX_PG_CNT) then begin
+        ShowSysLog('Do not Auto Start - PG Disconnected');
+        Exit;
+      end;
     end;
 
 
@@ -6358,6 +6360,9 @@ begin
     end;
   end;
 
+  for I := DefCommon.ch1 to DefCommon.CH4 do
+    PG[i].m_hMain := Self.Handle;
+
   try
     if Common.SystemInfo.OCType = DefCommon.OCType then
       nDeviceCnt := 12
@@ -6487,8 +6492,7 @@ var
 	bPgVerAllNG, bPgVerHwNG, bPgVerFwNG, bPgVerSubFwNG, bPgVerFpgaNG, bPgVerPwrNG : Boolean;
 	{$ENDIF}
 begin
-  nType := DefCommon.
-  MSG_TYPE_PG;
+  nType := DefCommon.MSG_TYPE_PG;
   nCh   := PGuiPg2Main(PCopyDataStruct(CopyMsg.LParam)^.lpData)^.PgNo;
   nMode := PGuiPg2Main(PCopyDataStruct(CopyMsg.LParam)^.lpData)^.Mode;
   case nMode of

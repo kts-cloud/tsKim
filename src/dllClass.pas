@@ -2502,8 +2502,6 @@ begin
   end;
 end;
 
-
-
 procedure TCSharpDll.tmrCycleTimer(Sender : TObject);
 var
 nResult : THandle;

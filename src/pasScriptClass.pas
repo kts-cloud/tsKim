@@ -6299,7 +6299,7 @@ begin
           15 :wdRet := ControlDio.CLOSE_Up_PinBlock(Self.FPgNo);
           16 :wdRet := ControlDio.CLOSE_DN_PinBlock(Self.FPgNo);
 
-          17 : wdRet := 0;                    // SW 내부에서 처리
+          17 : wdRet := ControlDio.MovingAll(nGroup,True);
           18 : wdRet := ControlDio.MovingAll(nGroup,False);
         end;
 

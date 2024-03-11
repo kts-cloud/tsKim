@@ -1572,12 +1572,10 @@ begin
   if Length(sMsg) < 4 then Exit;
 
   sMode := Copy(sMsg,1,4);
-
-
   {$IFDEF SIMULATOR_GMES}
 //  if CompareStr(sMode,'EODS_R') = 0 then parse_EODS;
   {$ENDIF}
-//  if CompareStr(sMode,'EAYT_R') = 0 then begin
+//  if CompareStr(sMode,'EAYT_R')     = 0 then begin
 //    SeperateData(sMsg,nCh);
 //  	parse_R2REAYT;
 //  end
@@ -1585,17 +1583,21 @@ begin
   if CompareStr(sMode,'EODS') = 0 then begin
     SeperateData(sMsg,nCh);
 
-    Common.Mlog(StrToIntdef(FR2RUnit,1)-1,sMsg);
+    sDebug := StringReplace(sMsg,#$0a, #$24, [rfReplaceAll]);
+    sDebug := StringReplace(sDebug,#$0d, #$25, [rfReplaceAll]);
+    Common.Mlog(StrToIntdef(FR2RUnit,1)-1,Format('[R2R] Recv Msg: %s PG : %d', [sDebug, StrToIntdef(FR2RUnit,1)-1]));
+
+//    Common.Mlog(StrToIntdef(FR2RUnit,1)-1,sMsg);
 //    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,StrToIntdef(FR2RUnit,1)-1,sMsg);
     Common.R2RLog(StrToIntdef(FR2RUnit,1)-1,sMsg);
 //    SendTestGuiDisplay(DefGmes.R2R_LOG,StrToIntdef(FR2RUnit,1)-1,sMsg);
     SeperateR2RData(StrToIntdef(FR2RUnit,1)-1,FR2RDatainfo);
     ReturnDataToTestForm(DefGmes.R2R_EODS, StrToIntdef(FR2RUnit,1)-1, False, 'R2R_DATA');
-    parse_EODS(StrToIntdef(FR2RUnit,1)-1);
     m_bDoneEODS[StrToIntdef(FR2RUnit,1)-1] := True;
-
+    parse_EODS(StrToIntdef(FR2RUnit,1)-1);
+    Common.Mlog(StrToIntdef(FR2RUnit,1)-1,'Send EODS_R Done');
     ReturnDataToTestForm(DefGmes.R2R_EODA, StrToIntdef(FR2RUnit,1)-1, False, 'R2R_DATA');
-
+    m_MESItem.State:= MES_UNKNOWN; //아이템 작업 완료
   end;
 
 end;
@@ -2014,6 +2016,7 @@ var
   item: TQueItemValue;
 begin
   MesData[nPg].MesSentMsg := MES_UNKNOWN;
+  m_bDoneEODS[nPg] := False;
   R2RAACK[nPg] := IntToStr(nAACK);
   item.State := 0;
   item.Channel:=      nPg;
@@ -2646,8 +2649,6 @@ begin
       sSendMsg := sSendMsg  + ' LOT=';
       sSendMsg := sSendMsg  + ' AACK=' + R2RAACK[nPg];
       sSendMsg := sSendMsg  + ' MMC_TXN_ID=' + FR2RMmcTxnID;
-
-      m_bDoneEODS[nPg] := False;
 
 //      SendTestGuiDisplay(R2R_LOG,nPg,sSendMsg);
       Common.R2RLog(nPg,sSendMsg);
