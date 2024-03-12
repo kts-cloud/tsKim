@@ -13,7 +13,7 @@ uses
   AXDioLib,
 {$ENDIF}
   Winapi.WinSock, Vcl.Imaging.pngimage, AdvPanel, AdvSmoothListBox, AdvSmoothComboBox, CommPLC_ECS
-  ,CA_SDK2, Vcl.ComCtrls,LibCa410Option, VclTee.TeeGDIPlus, AdvChartView,GMesCom
+  ,CA_SDK2, Vcl.ComCtrls,LibCa410Option, VclTee.TeeGDIPlus, {AdvChartView,} GMesCom
   ;
   const
 
@@ -3052,34 +3052,67 @@ var
   i,nRet : Integer;
 begin
   if MessageDlg(#13#10 + format('Do you want to change to the following data on Memory Channel %d on CA410 CH %d??',[cboCa310Channel.ItemIndex,RzComboBox1.ItemIndex + 1]), mtConfirmation, [mbYes, mbNo], 0) = mrYes then begin
-    cdCal.W_X := StrToFloatDef(pnlR2RData[0].text,0);
-    cdCal.W_Y := StrToFloatDef(pnlR2RData[1].text,0);
-    cdCal.W_Z := StrToFloatDef(pnlR2RData[2].text,0);
-    cdCal.W_Lv := StrToFloatDef(pnlR2RData[12].text,0);
-    cdCal.W_xx := StrToFloatDef(pnlR2RData[13].text,0);
-    cdCal.W_yy := StrToFloatDef(pnlR2RData[14].text,0);
+    if Length(PasScr[RzComboBox1.ItemIndex].FR2ROC_Data[0]) > 0 then  begin
+      cdCal.W_X := StrToFloatDef(PasScr[RzComboBox1.ItemIndex].FR2ROC_Data[0],0);
+      cdCal.W_Y := StrToFloatDef(PasScr[RzComboBox1.ItemIndex].FR2ROC_Data[1],0);
+      cdCal.W_Z := StrToFloatDef(PasScr[RzComboBox1.ItemIndex].FR2ROC_Data[2],0);
+      cdCal.W_Lv := StrToFloatDef(PasScr[RzComboBox1.ItemIndex].FR2ROC_Data[12],0);
+      cdCal.W_xx := StrToFloatDef(PasScr[RzComboBox1.ItemIndex].FR2ROC_Data[13],0);
+      cdCal.W_yy := StrToFloatDef(PasScr[RzComboBox1.ItemIndex].FR2ROC_Data[14],0);
 
-    cdCal.R_X := StrToFloatDef(pnlR2RData[3].Text,0);
-    cdCal.R_Y := StrToFloatDef(pnlR2RData[4].Text,0);
-    cdCal.R_Z := StrToFloatDef(pnlR2RData[5].Text,0);
-    cdCal.R_Lv := StrToFloatDef(pnlR2RData[15].Text,0);
-    cdCal.R_xx := StrToFloatDef(pnlR2RData[16].Text,0);
-    cdCal.R_yy := StrToFloatDef(pnlR2RData[17].Text,0);
+      cdCal.R_X := StrToFloatDef(PasScr[RzComboBox1.ItemIndex].FR2ROC_Data[3],0);
+      cdCal.R_Y := StrToFloatDef(PasScr[RzComboBox1.ItemIndex].FR2ROC_Data[4],0);
+      cdCal.R_Z := StrToFloatDef(PasScr[RzComboBox1.ItemIndex].FR2ROC_Data[5],0);
+      cdCal.R_Lv := StrToFloatDef(PasScr[RzComboBox1.ItemIndex].FR2ROC_Data[15],0);
+      cdCal.R_xx := StrToFloatDef(PasScr[RzComboBox1.ItemIndex].FR2ROC_Data[16],0);
+      cdCal.R_yy := StrToFloatDef(PasScr[RzComboBox1.ItemIndex].FR2ROC_Data[17],0);
 
-    cdCal.G_X := StrToFloatDef(pnlR2RData[6].Text,0);
-    cdCal.G_Y := StrToFloatDef(pnlR2RData[7].Text,0);
-    cdCal.G_Z := StrToFloatDef(pnlR2RData[8].Text,0);
-    cdCal.G_Lv := StrToFloatDef(pnlR2RData[18].Text,0);
-    cdCal.G_xx := StrToFloatDef(pnlR2RData[19].Text,0);
-    cdCal.G_yy := StrToFloatDef(pnlR2RData[20].Text,0);
+      cdCal.G_X := StrToFloatDef(PasScr[RzComboBox1.ItemIndex].FR2ROC_Data[6],0);
+      cdCal.G_Y := StrToFloatDef(PasScr[RzComboBox1.ItemIndex].FR2ROC_Data[7],0);
+      cdCal.G_Z := StrToFloatDef(PasScr[RzComboBox1.ItemIndex].FR2ROC_Data[8],0);
+      cdCal.G_Lv := StrToFloatDef(PasScr[RzComboBox1.ItemIndex].FR2ROC_Data[18],0);
+      cdCal.G_xx := StrToFloatDef(PasScr[RzComboBox1.ItemIndex].FR2ROC_Data[19],0);
+      cdCal.G_yy := StrToFloatDef(PasScr[RzComboBox1.ItemIndex].FR2ROC_Data[20],0);
 
-    cdCal.B_X := StrToFloatDef(pnlR2RData[9].Text,0);
-    cdCal.B_Y := StrToFloatDef(pnlR2RData[10].Text,0);
-    cdCal.B_Z := StrToFloatDef(pnlR2RData[11].Text,0);
-    cdCal.B_Lv := StrToFloatDef(pnlR2RData[21].Text,0);
-    cdCal.B_xx := StrToFloatDef(pnlR2RData[22].Text,0);
-    cdCal.B_yy := StrToFloatDef(pnlR2RData[23].Text,0);
-    CtrlCa410.CDCal := cdCal;
+      cdCal.B_X := StrToFloatDef(PasScr[RzComboBox1.ItemIndex].FR2ROC_Data[9],0);
+      cdCal.B_Y := StrToFloatDef(PasScr[RzComboBox1.ItemIndex].FR2ROC_Data[10],0);
+      cdCal.B_Z := StrToFloatDef(PasScr[RzComboBox1.ItemIndex].FR2ROC_Data[11],0);
+      cdCal.B_Lv := StrToFloatDef(PasScr[RzComboBox1.ItemIndex].FR2ROC_Data[21],0);
+      cdCal.B_xx := StrToFloatDef(PasScr[RzComboBox1.ItemIndex].FR2ROC_Data[22],0);
+      cdCal.B_yy := StrToFloatDef(PasScr[RzComboBox1.ItemIndex].FR2ROC_Data[23],0);
+    end
+    else begin
+      cdCal.W_X := StrToFloatDef(pnlR2RData[0].text,0);
+      cdCal.W_Y := StrToFloatDef(pnlR2RData[1].text,0);
+      cdCal.W_Z := StrToFloatDef(pnlR2RData[2].text,0);
+      cdCal.W_Lv := StrToFloatDef(pnlR2RData[12].text,0);
+      cdCal.W_xx := StrToFloatDef(pnlR2RData[13].text,0);
+      cdCal.W_yy := StrToFloatDef(pnlR2RData[14].text,0);
+
+      cdCal.R_X := StrToFloatDef(pnlR2RData[3].Text,0);
+      cdCal.R_Y := StrToFloatDef(pnlR2RData[4].Text,0);
+      cdCal.R_Z := StrToFloatDef(pnlR2RData[5].Text,0);
+      cdCal.R_Lv := StrToFloatDef(pnlR2RData[15].Text,0);
+      cdCal.R_xx := StrToFloatDef(pnlR2RData[16].Text,0);
+      cdCal.R_yy := StrToFloatDef(pnlR2RData[17].Text,0);
+
+      cdCal.G_X := StrToFloatDef(pnlR2RData[6].Text,0);
+      cdCal.G_Y := StrToFloatDef(pnlR2RData[7].Text,0);
+      cdCal.G_Z := StrToFloatDef(pnlR2RData[8].Text,0);
+      cdCal.G_Lv := StrToFloatDef(pnlR2RData[18].Text,0);
+      cdCal.G_xx := StrToFloatDef(pnlR2RData[19].Text,0);
+      cdCal.G_yy := StrToFloatDef(pnlR2RData[20].Text,0);
+
+      cdCal.B_X := StrToFloatDef(pnlR2RData[9].Text,0);
+      cdCal.B_Y := StrToFloatDef(pnlR2RData[10].Text,0);
+      cdCal.B_Z := StrToFloatDef(pnlR2RData[11].Text,0);
+      cdCal.B_Lv := StrToFloatDef(pnlR2RData[21].Text,0);
+      cdCal.B_xx := StrToFloatDef(pnlR2RData[22].Text,0);
+      cdCal.B_yy := StrToFloatDef(pnlR2RData[23].Text,0);
+      CtrlCa410.CDCal := cdCal;
+    end;
+
+
 
     CtrlCa410.TestExample(RzComboBox1.ItemIndex,cboCa310Channel.ItemIndex,sRet); // 0 is channel num.
     mmoLog.Lines.Add('----------------');
@@ -3100,7 +3133,7 @@ end;
 procedure TfrmMainter.Button2Click(Sender: TObject);
 begin
   if DongaGmes <> nil then
-   DongaGmes.SendR2REodsTest;
+   DongaGmes.SendR2REodsTest(1);
    Exit;
 
   pnlR2RData[0].text := edtW_X.Text;

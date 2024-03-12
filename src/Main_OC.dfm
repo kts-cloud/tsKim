@@ -1615,12 +1615,13 @@ object frmMain_OC: TfrmMain_OC
     TabOrder = 4
   end
   object Button1: TButton
-    Left = 150
-    Top = 559
+    Left = 33
+    Top = 553
     Width = 75
     Height = 25
     Caption = 'Button1'
     TabOrder = 5
+    Visible = False
     OnClick = Button1Click
   end
   object Edit1: TEdit
@@ -1631,6 +1632,36 @@ object frmMain_OC: TfrmMain_OC
     TabOrder = 6
     Text = 'Edit1'
     Visible = False
+  end
+  object Button2: TButton
+    Left = 135
+    Top = 553
+    Width = 75
+    Height = 25
+    Caption = 'Button2'
+    TabOrder = 7
+    Visible = False
+    OnClick = Button2Click
+  end
+  object Button3: TButton
+    Left = 33
+    Top = 614
+    Width = 75
+    Height = 25
+    Caption = 'Button3'
+    TabOrder = 8
+    Visible = False
+    OnClick = Button3Click
+  end
+  object Button4: TButton
+    Left = 138
+    Top = 614
+    Width = 75
+    Height = 25
+    Caption = 'Button4'
+    TabOrder = 9
+    Visible = False
+    OnClick = Button4Click
   end
   object ilIMGMain: TImageList
     ColorDepth = cd32Bit

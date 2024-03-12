@@ -130,7 +130,7 @@ type
 
 
     //R2R Scenario
-    R2RMachine     : string;
+    FR2RMachine     : string;
     FR2RUnit        : string;
     FR2RMmcTxnID   : string;
     FR2RDatainfo   : string;
@@ -237,6 +237,7 @@ type
     procedure ReturnDataToTestForm(nMode,nPg : Integer; bError : Boolean; sMsg : string);
     procedure OnGmesChMsgTimer(Sender : TObject);   // JHHWANG-GMES 2018-06-27
     procedure OnGemsResponseTimer(Sender : TObject);
+    function GetR2RMmcTxnID(Index: Integer): string;
 //    procedure SendTestGuiDisplay(nGuiMode,nCH: Integer; sMsg : string = ''; sMsg2 : string = ''; nParam: Integer = 0; nParam2: Integer = 0);
 
     { Private declarations }
@@ -290,7 +291,7 @@ type
     procedure SendHostApdr(sSerialNo : string; nPg : Integer; bIsDelayed : Boolean = False);
     procedure SendEasApdr(sSerialNo : string; nPg : Integer; bIsDelayed : Boolean = False);
     procedure SendR2REods(nPG : Integer);
-    procedure SendR2REodsTest;
+    procedure SendR2REodsTest(nCH : Integer);
     procedure SendR2REoda(nPg,nAACK : Integer);
     procedure SendR2REayt;
 
@@ -331,6 +332,8 @@ type
     property  FtpUser     : string read FFtpUser write FFtpUser;
     property  FtpPass     : string read FFtpPass write FFtpPass;
     property  FtpCombiPath  : string read FFtpCombiPath write FFtpCombiPath;
+    property R2RMachine : string read FR2RMachine;
+    property R2RMmcTxnID : string read FR2RMmcTxnID;
 
 
     property OnGmsEvent   : TGmesEvent read FOnGmsEvent write SetOnGmsEvent;
@@ -905,7 +908,8 @@ end;
 
 function TGmes.R2R_Initial(sServicePort, sNetwork, sDemonPort, sLocal, sRemote, sPath: string): Boolean;
 var
-  nCh : Integer;
+  nCh,i,j: Integer;
+  EODS_Data : TArray<String>;
 begin
 {$IFDEF WIN32}
   {$IFDEF EAS_USE}
@@ -930,8 +934,20 @@ begin
   if not FCanUseR2R then begin
     ShowMessage('[R2R initialization failure - Confirm HOST environment setup]');
   end;
-
+  for I := DefCommon.CH1 to DefCommon.CH4 do begin
+    EODS_Data:= Common.SystemInfo.R2REODS_Data[i].Split([',']);
+    if Length(EODS_Data) = 24 then begin
+      for j := 0 to 23 do
+       PasScr[i].FR2R_Old_OC_Data[j] := EODS_Data[j];
+    end;
+    PasScr[i].FR2R_Old_MmcTxnID_Data := Common.SystemInfo.R2RMmcTxnID_Data[i];
+  end;
   Result := FCanUseR2R;
+end;
+
+function TGmes.GetR2RMmcTxnID(Index: Integer): string;
+begin
+  Result := FR2RMmcTxnID[Index];
 end;
 
 
@@ -2031,9 +2047,9 @@ begin
 //  SEND_MESG2HOST(DefGmes.R2R_EODA,'','',nPg);
 end;
 
-procedure TGmes.SendR2REodsTest;
+procedure TGmes.SendR2REodsTest(nCH : Integer);
 begin
-  SEND_MESG2HOST(DefGmes.R2R_EODS,'','',1);
+  SEND_MESG2HOST(DefGmes.R2R_EODS,'','',nCH);
 end;
 
 procedure TGmes.SendR2REods(nPG : Integer);
@@ -2604,14 +2620,13 @@ begin
       //sSendMsg := sSendMsg  + ' FOG_ID='+sSerialNo;
       sSendMsg := sSendMsg  + format(' PATH=%d',[nPg +1]);
       //sSendMsg := sSendMsg  + ' MODEL='+MesData[FMesApdrPg].Model; //' MODEL=LH542WF1-EDA1-VM1-S';
-
-      sSendMsg := sSendMsg  + ' APD_INFO=['+ MesData[nPg].ApdrData+']';
       sSendMsg := sSendMsg  + ' USER_ID=' + FUserId ;
       sSendMsg := sSendMsg  + ' MODE=AUTO';
       sSendMsg := sSendMsg  + ' CLIENT_DATE='+FormatDateTime('yyyymmddhhnnss', Now);
       sSendMsg := sSendMsg  + ' COMMENT=[]';
       sSendMsg := sSendMsg  + ' START_TIME='+FormatDateTime('yyyymmddhhnnss', PasScr[nPg].TestInfo.StartTime);
       sSendMsg := sSendMsg  + ' END_TIME='+FormatDateTime('yyyymmddhhnnss', PasScr[nPg].TestInfo.EndTime);
+      sSendMsg := sSendMsg  + ' APD_INFO=['+ MesData[nPg].ApdrData+']';
       bIsChMsg := True;
 //      Common.MLog(nPg,'SEND_MESG2HOST2 : Send Msg :  ' + sSendMsg);
     end;
@@ -2632,10 +2647,10 @@ begin
       sSendMsg := sSendMsg  + ' UNIT=' + IntToStr(nPg +1);
       sSendMsg := sSendMsg  + ' LOT=';
 
-      sSendMsg := sSendMsg  +' DATAINFO=[::::[[OC_W600_X#569.4916^OC_W600_Y#599.1388^OC_W600_Z#653.0140^OC_R600_X#345.0315^OC_R600_Y#155.0830^OC_R600_Z'
+      sSendMsg := sSendMsg  +format(' DATAINFO=[::::[[OC_W600_X#5f^OC_W600_Y#599.1388^OC_W600_Z#653.0140^OC_R600_X#345.0315^OC_R600_Y#155.0830^OC_R600_Z',[569.4916+nPg])
       +'#1.9375^OC_G600_X#141.1762^OC_G600_Y#435.7469^OC_G600_Z#28.4507^OC_B600_X#110.7873^OC_B600_Y#36.3658^OC_B600_Z#639.3447^MPO_W600_L#606.6714'
       +'^MPO_W600_X#0.3162^MPO_W600_Y#0.3328^MPO_R600_L#157.8681^MPO_R600_X#0.6899^MPO_R600_Y#0.3098^MPO_G600_L#440.9931^MPO_G600_X#0.2383^MPO_G600_Y'
-      +'#0.7188^MPO_B600_L#36.8475^MPO_B600_X#0.1382^MPO_B600_Y#0.0476]] MMC_TXN_ID=20240224175048941H9AMAL535J';
+      +format('#0.7188^MPO_B600_L#36.8475^MPO_B600_X#0.1382^MPO_B600_Y#0.0476]] MMC_TXN_ID=20240224175048941H9AMAL535%d',[nPG+1]);
 
       bIsChMsg := True;
     end;
@@ -2649,7 +2664,7 @@ begin
       sSendMsg := sSendMsg  + ' RECIPE=';
       sSendMsg := sSendMsg  + ' LOT=';
       sSendMsg := sSendMsg  + ' AACK=' + R2RAACK[nPg];
-      sSendMsg := sSendMsg  + ' MMC_TXN_ID=' + FR2RMmcTxnID;
+      sSendMsg := sSendMsg  + ' MMC_TXN_ID=' + PasScr[nPg].FR2R_MmcTxnID_Data;
 
       bIsChMsg := True;
 //      SendTestGuiDisplay(R2R_LOG,nPg,sSendMsg);
@@ -2663,7 +2678,7 @@ begin
       sSendMsg := sSendMsg  + ' EQP=' + FSystemNo;
       sSendMsg := sSendMsg  + ' DATAINFO=['+ R2RMachine+'::0]';
 //      sSendMsg := sSendMsg  + ' UNIT=' + IntToStr(nPg +1);
-      sSendMsg := sSendMsg  + ' MMC_TXN_ID=' + FR2RMmcTxnID;
+      sSendMsg := sSendMsg  + ' MMC_TXN_ID=' + PasScr[nPg].FR2R_MmcTxnID_Data;
       bIsChMsg := True;
     end;
   end;
@@ -2759,18 +2774,36 @@ begin
     end;
 
     if bIsChMsg then begin
-      sDebug := sSendMsg;
       if Length(sSendMsg) > 300 then begin
-        sDebug := Copy(sSendMsg,1,300);
+        //sDebug:= format('(300/%d) ', [Length(sSendMsg)]);
+        sDebug := sDebug +  Copy(sSendMsg,1,300);
+        sDebug:= sDebug + format('▶(Cut 300/%d) ', [Length(sSendMsg)]);
+      end
+      else begin
+        sDebug := sSendMsg;
       end;
+
       case nMsgType of
         DefGmes.EAS_APDR : sDebug := 'EAS SEND :  ' + sDebug;
         DefGmes.R2R_EODS_R .. DefGmes.R2R_EODA : sDebug := 'R2R SEND :  ' + sDebug;
         else               sDebug := 'MES SEND :  ' + sDebug;
       end;
       Common.MLog(nPg,sDebug,True);
-//      (DefCommon.MSG_MODE_WORKING,nPg,sDebug);
     end;
+
+//    if bIsChMsg then begin
+//      sDebug := sSendMsg;
+//      if Length(sSendMsg) > 300 then begin
+//        sDebug := Copy(sSendMsg,1,300);
+//      end;
+//      case nMsgType of
+//        DefGmes.EAS_APDR : sDebug := 'EAS SEND :  ' + sDebug;
+//        DefGmes.R2R_EODS_R .. DefGmes.R2R_EODA : sDebug := 'R2R SEND :  ' + sDebug;
+//        else               sDebug := 'MES SEND :  ' + sDebug;
+//      end;
+//      Common.MLog(nPg,sDebug,True);
+////      (DefCommon.MSG_MODE_WORKING,nPg,sDebug);
+//    end;
 {$ENDIF}
     sSendMsg := '';
     if bIsChMsg then begin  //JHHWANG-GMES 2018-06-20
@@ -2919,6 +2952,7 @@ var
   i,j: integer;
   Key: string;
   Value: string;
+  sEods_data : string;
   Dict: TDictionary<string, string>;
 begin
   Dict := ExtractOCValues(sMsg);  // 문자열을 분할하여 TDictionary<string, string> 유형의 배열로 변환
@@ -2937,6 +2971,8 @@ begin
       end;
     end;
   end;
+
+  PasScr[nCH].FR2R_MmcTxnID_Data := FR2RMmcTxnID;
 
 end;
 
@@ -2979,7 +3015,7 @@ begin
     else if Uppercase(string(sMsgId))= 'MODEL'          then FMesModel     		:= Trim(string(sMsgCont))
     else if UpperCase(string(sMsgId))= 'INSPCHANEL_A'   then sChRet           := Trim(string(sMsgCont))
     else if Uppercase(string(sMsgId))= 'FOG_ID'         then FMesFogId     		:= Trim(string(sMsgCont))
-    else if Uppercase(string(sMsgId))= 'MACHINE'        then R2RMachine     	:= Trim(string(sMsgCont))
+    else if Uppercase(string(sMsgId))= 'MACHINE'        then FR2RMachine     	:= Trim(string(sMsgCont))
     else if Uppercase(string(sMsgId))= 'SERIAL_NO'      then FMesFogId     		:= Trim(string(sMsgCont))
     else if Uppercase(string(sMsgId))= 'UNIT'           then FR2RUnit         := Trim(string(sMsgCont))
     else if Uppercase(string(sMsgId))= 'MMC_TXN_ID'     then FR2RMmcTxnID     := Trim(string(sMsgCont))
@@ -3101,34 +3137,37 @@ begin
       SEND_MESG2HOST(m_MESItem.Kind, m_MESItem.SerialNo, m_MESItem.CarrierID, m_MESItem.Channel);
       Exit;
     end;
-  end;
-
-  if m_Queue.Count > 0 then begin
-    m_MESItem:= m_Queue.Dequeue;
-    if (m_MESItem.Kind = EAS_APDR) or (m_MESItem.Kind = R2R_EODS_R) or (m_MESItem.Kind = R2R_EODA) then  //EAS_APDR 제외
-    else
-      m_MESItem.State:= m_MESItem.Kind;
-    m_MESItem.Tick:= GetTickCount;
-
-      //MesData 값을 직접 설정하는 경우 대응 - 차후 이부분은 개선 필요
-    if m_MESItem.Channel < DefCommon.MAX_PG_CNT then begin
-      if Length(m_MESItem.Tact) > 0 then
-        MesData[m_MESItem.Channel].Tact:= m_MESItem.Tact;
-      if Length(m_MESItem.MESCode) > 0 then
-        MesData[m_MESItem.Channel].Rwk:= m_MESItem.MESCode;
-      if Length(m_MESItem.ErrCode) > 0 then
-        MesData[m_MESItem.Channel].ErrCode:= m_MESItem.ErrCode;
-//      MesData[m_MESItem.Channel].LpirProcessCode:= m_MESItem.LpirProcessCode;
-    end;
-    SEND_MESG2HOST(m_MESItem.Kind, m_MESItem.SerialNo, m_MESItem.CarrierID, m_MESItem.Channel);
-
-    if (m_MESItem.Kind = EAS_APDR) then
-      MesData[m_MESItem.Channel].ApdrData := '';
-
   end
   else begin
-    tmGmesChMsg.Enabled := False;
+    if m_Queue.Count > 0 then begin
+      m_MESItem:= m_Queue.Dequeue;
+      if (m_MESItem.Kind = EAS_APDR) or (m_MESItem.Kind = R2R_EODS_R) or (m_MESItem.Kind = R2R_EODA) then  //EAS_APDR 제외
+      else
+        m_MESItem.State:= m_MESItem.Kind;
+      m_MESItem.Tick:= GetTickCount;
+
+        //MesData 값을 직접 설정하는 경우 대응 - 차후 이부분은 개선 필요
+      if m_MESItem.Channel < DefCommon.MAX_PG_CNT then begin
+        if Length(m_MESItem.Tact) > 0 then
+          MesData[m_MESItem.Channel].Tact:= m_MESItem.Tact;
+        if Length(m_MESItem.MESCode) > 0 then
+          MesData[m_MESItem.Channel].Rwk:= m_MESItem.MESCode;
+        if Length(m_MESItem.ErrCode) > 0 then
+          MesData[m_MESItem.Channel].ErrCode:= m_MESItem.ErrCode;
+  //      MesData[m_MESItem.Channel].LpirProcessCode:= m_MESItem.LpirProcessCode;
+      end;
+      SEND_MESG2HOST(m_MESItem.Kind, m_MESItem.SerialNo, m_MESItem.CarrierID, m_MESItem.Channel);
+
+      if (m_MESItem.Kind = EAS_APDR) then
+        MesData[m_MESItem.Channel].ApdrData := '';
+
+    end
+    else begin
+      tmGmesChMsg.Enabled := False;
+    end;
+
   end;
+
 
   Exit;
 

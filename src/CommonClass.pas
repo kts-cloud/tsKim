@@ -190,6 +190,8 @@ type
     ConfigVer : array of TSWVer;
     ConfigVerCount : Integer;
     R2RCa410MemCh : Integer;
+    R2REODS_Data :   array[DefCommon.CH1 .. Defcommon.MAX_CH] of string;
+    R2RMmcTxnID_Data :   array[DefCommon.CH1 .. Defcommon.MAX_CH] of string;
   end;
 
 
@@ -5827,6 +5829,12 @@ begin
       SystemInfo.R2R_DeamonPort		 		:= fSys.ReadString('SYSTEMDATA',  'R2R_DAEMONPORT', 	     'tcp:28401');
       SystemInfo.R2R_LocalSubject	 	  := fSys.ReadString('SYSTEMDATA',  'R2R_LOCALSUBJECT',      'HN.G3.EQP.HN.');
       SystemInfo.R2R_RemoteSubject	 	:= fSys.ReadString('SYSTEMDATA',  'R2R_REMOTESUBJECT',     'HN.G1.DIFsvr.HN');
+
+      for i := DefCommon.CH1 to DefCommon.MAX_CH do begin
+        SystemInfo.R2REODS_Data[i]	 	:= fSys.ReadString('SYSTEMDATA',  format('R2R_EODS_DATA_%d',[i+1]),     '');
+        SystemInfo.R2RMmcTxnID_Data[i] := fSys.ReadString('SYSTEMDATA',  format('R2R_MMCTXN_ID_DATA_%d',[i+1]),     '');
+      end;
+
       if Length(SystemInfo.R2R_Service) > 0 then
         SystemInfo.Service_Cnt := SystemInfo.Service_Cnt + 1;
 
@@ -6373,6 +6381,10 @@ begin
       WriteString('SYSTEMDATA',  'R2R_LOCALSUBJECT',  		SystemInfo.R2R_LocalSubject);
       WriteString('SYSTEMDATA',  'R2R_REMOTESUBJECT',  		SystemInfo.R2R_RemoteSubject);
 
+      for i := DefCommon.CH1 to DefCommon.MAX_CH do begin
+        WriteString('SYSTEMDATA',  format('R2R_EODS_DATA_%d',[i +1]),  		Common.SystemInfo.R2REODS_Data[i]);
+        WriteString('SYSTEMDATA',  format('R2R_MMCTXN_ID_DATA_%d',[i +1]),  		Common.SystemInfo.R2RMmcTxnID_Data[i]);
+      end;
 
 
       WriteString('SYSTEMDATA',  'MES_EQCC_INTERVAL',  		SystemInfo.EqccInterval);

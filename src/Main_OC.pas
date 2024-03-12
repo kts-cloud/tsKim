@@ -10,7 +10,7 @@ uses
   CommLightNaratech, Vcl.AppEvnts, Vcl.StdCtrls, Vcl.ComCtrls, AdvListV,  DfsFtp, CommIonizer, JigControl, DefScript,
   {UdpServerClient,} Test4ChOC, SwitchBtn, ScriptClass, ModelSelect, {ModelDownload,} SystemSetup, RzStatus,
   DoorOpenAlarmMsg, CommPLC_ECS, ECSStatusForm, DBModule, NGRatioForm,ShellApi,CommThermometerMulti,LibCa410Option
-  , CA_SDK2, dllClass,CommPG,DefPG, Registry, Inifiles,DllMesCom ,OtlTaskControl, OtlParallel, SyncObjs, RzPrgres, tmsAdvGridExcel
+  , CA_SDK2, dllClass,CommPG,DefPG, Registry, Inifiles,DllMesCom, {OtlTaskControl, OtlParallel,} SyncObjs, RzPrgres, tmsAdvGridExcel
 
 ;
   {$I Common.inc}
@@ -156,6 +156,9 @@ type
     RzPanel20: TRzPanel;
     pnlUserId: TRzPanel;
     pnlUserName: TRzPanel;
+    Button2: TButton;
+    Button3: TButton;
+    Button4: TButton;
     procedure FormCreate(Sender: TObject);
     procedure MyExceptionHandler(Sender : TObject; E : Exception );
     procedure btnInitClick(Sender: TObject);
@@ -192,6 +195,9 @@ type
     procedure RzPanel6DblClick(Sender: TObject);
     procedure grpDIODblClick(Sender: TObject);
     procedure chkAutoReStartClick(Sender: TObject);
+    procedure Button2Click(Sender: TObject);
+    procedure Button3Click(Sender: TObject);
+    procedure Button4Click(Sender: TObject);
   private
     { Private declarations }
     // DIO
@@ -5180,7 +5186,7 @@ begin
 
 //  Edit1.Text := Format('%0.4f',[1.11111]);
   if DongaGmes <> nil then
-   DongaGmes.SendR2REodsTest;
+   DongaGmes.SendR2REodsTest(0);
 
  Exit;
  i := (20 shr 2) and $01;
@@ -5196,6 +5202,24 @@ CSharpDll.MainOC_GetSummaryLogData(0,'DEFECT_CODE');
   CSharpDll.MainOC_ChangeDLL('LGD_OC_X2146_v61.081_VARGB_1.5');
   Edit1.Text := PAnsiChar(CSharpDll.m_GetOCversion);
 
+end;
+
+procedure TfrmMain_OC.Button2Click(Sender: TObject);
+begin
+  if DongaGmes <> nil then
+   DongaGmes.SendR2REodsTest(1);
+end;
+
+procedure TfrmMain_OC.Button3Click(Sender: TObject);
+begin
+  if DongaGmes <> nil then
+   DongaGmes.SendR2REodsTest(2);
+end;
+
+procedure TfrmMain_OC.Button4Click(Sender: TObject);
+begin
+  if DongaGmes <> nil then
+   DongaGmes.SendR2REodsTest(3);
 end;
 
 procedure TfrmMain_OC.SaveCsvSummaryLog(nCh: Integer);

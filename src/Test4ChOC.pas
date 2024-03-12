@@ -4497,11 +4497,27 @@ end;
 function TfrmTest4ChOC.WriteR2RData(nCh : Integer): integer;
 var
   cdCal : LibCa410Option.TCalValue;
-  sRet,sReturn : string;
+  sRet,sReturn,sEods_data : string;
   saReturn : TArray<String>;
+  i : Integer;
 begin
   try
     Result := 1;
+    if DongaGmes.R2RMachine <> Common.SystemInfo.EQPId then begin
+      AddLog('EODS machine information and EQP ID different',nCh);
+      Exit;
+    end;
+    if PasScr[nCh].FR2R_Old_MmcTxnID_Data = PasScr[nCH].FR2R_MmcTxnID_Data then begin
+      AddLog('Receive the same MmcTxnID!!',nCh);
+      Exit;
+    end;
+    for I := 0 to 23 do begin
+      if PasScr[nCH].FR2R_Old_OC_Data[i] = PasScr[nCH].FR2ROC_Data[i] then begin
+        AddLog('EODS SAME DATA RECEIVED!!',nCh);
+        Exit;
+      end;
+    end;
+
     AddLog('CA410 CAL START',nCh);
     Common.R2RLog(nCh,'CA410 CAL START');
     cdCal.W_X := StrToFloatDef(PasScr[nCH].FR2ROC_Data[0],0);
@@ -4539,6 +4555,22 @@ begin
     if Length(saReturn) > 4 then  begin
       if saReturn[5] = 'OK00' then
         Result := 0;
+    end;
+    if Result = 0 then begin
+      sEods_data := '';
+      for i := Low(PasScr[nCH].FR2ROC_Data) to High(PasScr[nCH].FR2ROC_Data) do
+      begin
+        PasScr[nCH].FR2R_Old_OC_Data[i] := PasScr[nCH].FR2ROC_Data[i];
+        sEods_data := sEods_data + PasScr[nCH].FR2ROC_Data[i];
+        if i <> High(PasScr[nCH].FR2ROC_Data) then
+          sEods_data := sEods_data + ',';
+      end;
+      PasScr[nCH].FR2R_Old_MmcTxnID_Data := PasScr[nCH].FR2R_MmcTxnID_Data;
+      AddLog(format('R2R - Save User Cal Data : CH %d',[nCh]),nCh);
+      Common.SystemInfo.R2REODS_Data[nCH] := sEods_data;
+      Common.SystemInfo.R2RMmcTxnID_Data[nCh] := DongaGmes.R2RMmcTxnID[nCH];
+      Common.SaveSystemInfo;
+      AddLog(format('SaveSystemInfo - Save Done User Cal Data : CH %d',[nCh]),nCh);
     end;
 
   finally

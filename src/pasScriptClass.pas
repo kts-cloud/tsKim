@@ -547,6 +547,9 @@ type
     FR2ROC_EODSName  : array [0..23] of string;
     FR2ROC_EODSData  : array [0..23] of string;
     FR2ROC_Data  : array [0..23] of string;
+    FR2R_Old_OC_Data  : array [0..23] of string;
+    FR2R_MmcTxnID_Data  : string;
+    FR2R_Old_MmcTxnID_Data  : string;
     procedure DefineMethodFunc(SetPaScript : TatPascalScripter);
     constructor Create(nPgNo : Integer; hMain, hTest : HWND; AOwner : TComponent); virtual;
     destructor Destroy; override;
