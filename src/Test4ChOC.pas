@@ -2641,7 +2641,6 @@ var
         pnlPGStatuses[nCh].Font.Color := clYellow;
         sDebug := FormatDateTime('[HH:MM:SS.zzz] ',now) + 'PG BOARD DISCONNECT NG ';
         AddLog(sDebug,nCh,1);
-//        Set_AlarmData(111, 1, 1);
 
       end;
       DefCommon.PG_CONN_CONNECTED : begin
@@ -4534,18 +4533,18 @@ begin
     cdCal.B_yy := StrToFloatDef(PasScr[nCH].FR2ROC_Data[23],0);
     CtrlCa410.CDCal := cdCal;
 
-    sReturn := CtrlCa410.TestExample(nCh,StrToInt(Common.SystemInfo.CA410_MemoryCh[nCh]),sRet); // 0 is channel num.
+    sReturn := CtrlCa410.TestExample(nCh,StrToIntDef(Common.SystemInfo.CA410_MemoryCh[nCh],0),sRet); // 0 is channel num.
 
     saReturn:= sReturn.Split([',']);
     if Length(saReturn) > 4 then  begin
       if saReturn[5] = 'OK00' then
         Result := 0;
     end;
+
+  finally
     AddLog('----------------',nCh);
     AddLog('CA410 CAL END',nCh);
     Common.R2RLog(nCh,'CA410 CAL END');
-  except
-
   end;
 
 end;
@@ -4660,7 +4659,7 @@ begin
 
           pnlNowDelayTimes[nCh].Caption := '0'; // DLL Delay Time 0 표시
           PG[nCH].DP860_SendOcOnOff(0{end},2000,0); //2023-03-28 jhhwang (for T/T Test)
-          PG[nCH].SetCyclicTimer(True); //2023-03-28 jhhwang (for T/T Test)
+//          PG[nCH].SetCyclicTimer(True); //2023-03-28 jhhwang (for T/T Test)
           CSharpDll.m_bIsProcessDone[nCH] := true;    // CH 종료 확인
           PasScr[nCH].m_First_Process_DONE := false;  //Pre OC First_Process 진행 여부 확인 초기화
           AddLog(format('DLL DONE : %d, NG Code=%d', [nCH +1, PasScr[nCh].m_nNgCode]), nCH, 0);
@@ -5060,6 +5059,8 @@ begin
                               if CSharpDll.m_bIsProcessDone[DefCommon.CH1] and CSharpDll.m_bIsProcessDone[DefCommon.CH2] then  begin
     //                        SendMessageMain(STAGE_MODE_UNLOAD,0, 2,0, 'OC Flow Process_Finish',nil);
 //                                ControlDio.MovingAll(0,true);   // Probe and Shutter  UP
+                                PG[0].SetCyclicTimer(True);
+                                PG[1].SetCyclicTimer(True);
                                 SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, DefCommon.CH1 , DefCommon.CH1 , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
 //                                Sleep(100);
                                 SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, DefCommon.CH2 , DefCommon.CH2 , nTemp2, '', nil);
@@ -5072,6 +5073,8 @@ begin
                               if CSharpDll.m_bIsProcessDone[DefCommon.CH3] and CSharpDll.m_bIsProcessDone[DefCommon.CH4] then begin
         //                        SendMessageMain(STAGE_MODE_UNLOAD, 1, 2,0, 'OC Flow Process_Finish',nil);
 //                                ControlDio.MovingAll(1,true);   // Probe and Shutter  UP
+                                PG[2].SetCyclicTimer(True);
+                                PG[3].SetCyclicTimer(True);
                                 SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, DefCommon.CH3 , DefCommon.CH3 , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
 //                                Sleep(100);
                                 SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, DefCommon.CH4 , DefCommon.CH4 , nTemp2, '', nil);
@@ -5090,7 +5093,8 @@ begin
   //                        SendMessageMain(STAGE_MODE_UNLOAD,0, 2,0, 'OC Flow Process_Finish',nil);
 //                              ControlDio.MovingAll(0,true);   // Probe and Shutter  UP
                               SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, 0 , 0 , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
-
+                              PG[0].SetCyclicTimer(True);
+                              PG[1].SetCyclicTimer(True);
                               CSharpDll.m_bIsProcessDone[DefCommon.CH1] := false;
                               CSharpDll.m_bIsProcessDone[DefCommon.CH2] := false;
                             end;
@@ -5101,7 +5105,8 @@ begin
       //                        SendMessageMain(STAGE_MODE_UNLOAD, 1, 2,0, 'OC Flow Process_Finish',nil);
 //                              ControlDio.MovingAll(1,true);   // Probe and Shutter  UP
                               SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, 1 , 1 , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
-
+                              PG[2].SetCyclicTimer(True);
+                              PG[3].SetCyclicTimer(True);
                               CSharpDll.m_bIsProcessDone[DefCommon.CH3] := false;
                               CSharpDll.m_bIsProcessDone[DefCommon.CH4] := false;
                             end;
@@ -5119,7 +5124,7 @@ begin
                   end;
                   DefScript.SEQ_UNLOAD_ZONE: begin
                     CSharpDll.m_bIsProcessDone[nCh] := True;
-                    Common.MLog(nCh, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) ' + inttostr(nCh));
+                    Common.MLog(nCh, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) ' + inttostr(nCh),True);
                     //Exchange 요청(Unload/Load)
 
                     if (Common.PLCInfo.InlineGIB)  then  begin
@@ -5137,6 +5142,8 @@ begin
                                 Exit;
                               end;
                             end;
+                            PG[0].SetCyclicTimer(True);
+                            PG[1].SetCyclicTimer(True);
 //                            ControlDio.MovingAll(0,true);   // Probe and Shutter  UP
                             if ControlDio.IsDetected(0) then begin
                               SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, DefCommon.CH1 , DefCommon.CH1 , nTemp2, '', nil);
@@ -5156,6 +5163,8 @@ begin
                                 Exit;
                               end;
                             end;
+                            PG[2].SetCyclicTimer(True);
+                            PG[3].SetCyclicTimer(True);
 //                            ControlDio.MovingAll(1,true);   // Probe and Shutter  UP
                             if ControlDio.IsDetected(2) then begin
                               SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, DefCommon.CH3 , DefCommon.CH3 , nTemp2, '', nil);
@@ -5184,6 +5193,8 @@ begin
                               Exit;
                             end;
                           end;
+                          PG[0].SetCyclicTimer(True);
+                          PG[1].SetCyclicTimer(True);
 //                          if CSharpDll.m_bIsProcessDone[DefCommon.CH1] and CSharpDll.m_bIsProcessDone[DefCommon.CH2] then  begin
 //                        SendMessageMain(STAGE_MODE_UNLOAD,0, 2,0, 'OC Flow Process_Finish',nil);
 //                          ControlDio.MovingAll(0,true);   // Probe and Shutter  UP
@@ -5208,6 +5219,8 @@ begin
                               Exit;
                             end;
                           end;
+                          PG[2].SetCyclicTimer(True);
+                          PG[3].SetCyclicTimer(True);
 //                          if CSharpDll.m_bIsProcessDone[DefCommon.CH3] and CSharpDll.m_bIsProcessDone[DefCommon.CH4] then begin
     //                        SendMessageMain(STAGE_MODE_UNLOAD, 1, 2,0, 'OC Flow Process_Finish',nil);
 //                          ControlDio.MovingAll(1,true);   // Probe and Shutter  UP

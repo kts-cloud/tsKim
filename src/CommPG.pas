@@ -1299,6 +1299,7 @@ begin
   tmConnCheck.Enabled  := bEnable;
   tmPwrMeasure.Enabled := (bEnable and m_bPwrMeasure);
   //
+
   m_nConnCheckNG := 0;
   if (not bEnable) and (nDisableSec > 0) then begin  // Disable(Duaration!=0)
     TThread.CreateAnonymousThread(procedure var nCnt : Integer;
@@ -2930,9 +2931,7 @@ var
 	sCmdName, sCommand, sDebug : string;
 begin
   if m_bWaitEvent or m_bWaitPwrEvent then Exit; // skip if command ack waiting
-{$IF Defined(INSPECTOR_OC) or Defined(INSPECTOR_PreOC)}
-  if CSharpDll.m_bIsDLLWork[m_nPg] then Exit;
-{$ENDIF}
+
   //
   nCmdId   := DefPG.PG_CMDID_CONNCHECK;
   sCmdName := DefPG.PG_CMDSTR_CONNCHECK;  // 'pg.status'
@@ -5144,6 +5143,7 @@ const
 begin
   Result := WAIT_FAILED;
   try
+//    SetCyclicTimer(false);
     case nMode of
       DefPG.CMD_POWER_OFF : begin
         case PG_TYPE of
@@ -5253,8 +5253,9 @@ begin
         end;
       end;
     end;
-  finally
 
+  finally
+//    SetCyclicTimer(True);
   end;
 end;
 
@@ -5332,6 +5333,8 @@ var
 {$ENDIF}
 begin
   Result := WAIT_FAILED;
+  try
+//    SetCyclicTimer(false);
 	//
 	if (nR < 0) then nR := 0; if (nR > 255) then nR := 255;
 	if (nG < 0) then nG := 0; if (nG > 255) then nG := 255;
@@ -5350,6 +5353,9 @@ begin
 		end;
 		{$ENDIF}
 	end;
+  finally
+//    SetCyclicTimer(True);
+  end;
 end;
 
 function TCommPG.SendDisplayPatBistRGB_9Bit(nR,nG,nB: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //#SendSetColorRGB
@@ -5828,98 +5834,101 @@ var
 	arDataW, arDataR : TIdBytes;
 begin
   Result := WAIT_FAILED;
-
+  try
+//    SetCyclicTimer(false);
 {$IFDEF PG_AF9}
-	sFunc  := Format('SET DIMMNG(%d%%): ',[nDimming]);
-  // [REF] AF9_TEST_EXE (v1.11) - DBV
-  //    - Write DBV value and press DBV button
-  //    - DBV range is 0 to 2047.
-  //    < source >
-  //    writeData = (inputData << 5) | 31;
-	//    Tmp2.Format(_T("DBV Set : Data[%d]:[%x]\n"), inputData, writeData);
-  //  	LGDSetReg(751, (writeData & 0xFF00) >> 8);
-  //  	LGDSetReg(752, (writeData & 0xFF));
-  //
-  // nDimming(0~100) --> DBV(0~2047)
-  if nDimming = 0        then nDBV := 0
-  else if nDimming = 100 then nDBV := DefCommon.DIMMING_DBV_MAX_DEF
-  else                        nDBV := (nDimming * (DefCommon.DIMMING_DBV_MAX_DEF + 1)) div 100;
-  //
-  nWriteValue := (nDBV shl 5) or $1F;
-  btValue1 := (nWriteValue shr 8) and $FF; //high
-  btValue2 := nWriteValue and $FF;         //low
-  //
-  sDebug := sFunc + Format('DBV(0x%x=%d), Value(0x%0.4x), Reg(%d:0x%0.2x, %d:0x%0.2x)',[nDBV,nDBV, nWriteValue,DBV_REG_ADDR1,btValue1,DBV_REG_ADDR2,btValue2]);
-  ShowTestWindow(DefCommon.MSG_MODE_WORKING,DefCommon.LOG_TYPE_INFO, sDebug);
+    sFunc  := Format('SET DIMMNG(%d%%): ',[nDimming]);
+    // [REF] AF9_TEST_EXE (v1.11) - DBV
+    //    - Write DBV value and press DBV button
+    //    - DBV range is 0 to 2047.
+    //    < source >
+    //    writeData = (inputData << 5) | 31;
+    //    Tmp2.Format(_T("DBV Set : Data[%d]:[%x]\n"), inputData, writeData);
+    //  	LGDSetReg(751, (writeData & 0xFF00) >> 8);
+    //  	LGDSetReg(752, (writeData & 0xFF));
+    //
+    // nDimming(0~100) --> DBV(0~2047)
+    if nDimming = 0        then nDBV := 0
+    else if nDimming = 100 then nDBV := DefCommon.DIMMING_DBV_MAX_DEF
+    else                        nDBV := (nDimming * (DefCommon.DIMMING_DBV_MAX_DEF + 1)) div 100;
+    //
+    nWriteValue := (nDBV shl 5) or $1F;
+    btValue1 := (nWriteValue shr 8) and $FF; //high
+    btValue2 := nWriteValue and $FF;         //low
+    //
+    sDebug := sFunc + Format('DBV(0x%x=%d), Value(0x%0.4x), Reg(%d:0x%0.2x, %d:0x%0.2x)',[nDBV,nDBV, nWriteValue,DBV_REG_ADDR1,btValue1,DBV_REG_ADDR2,btValue2]);
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING,DefCommon.LOG_TYPE_INFO, sDebug);
 
-	SetLength(arDataW,1);
-	SetLength(arDataR,1);
+    SetLength(arDataW,1);
+    SetLength(arDataR,1);
 
-  for nTry := 0 to nRetry do begin
-    // DBV_REG_ADDR1 - Wrire
-    arDataW[0] := btValue1;
-		Result := SendI2CWrite(DefPG.TCON_I2C_DEVICE_ADDR_TEMPORARY, DBV_REG_ADDR1,1,arDataW);
-    if Result <> WAIT_OBJECT_0 then break
+    for nTry := 0 to nRetry do begin
+      // DBV_REG_ADDR1 - Wrire
+      arDataW[0] := btValue1;
+      Result := SendI2CWrite(DefPG.TCON_I2C_DEVICE_ADDR_TEMPORARY, DBV_REG_ADDR1,1,arDataW);
+      if Result <> WAIT_OBJECT_0 then break
 
-    // DBV_REG_ADDR1 - Verify
-		Result := SendI2CRead(DefPG.TCON_I2C_DEVICE_ADDR_TEMPORARY, DBV_REG_ADDR1,1,arDataR);
-    if Result <> WAIT_OBJECT_0 then break;
+      // DBV_REG_ADDR1 - Verify
+      Result := SendI2CRead(DefPG.TCON_I2C_DEVICE_ADDR_TEMPORARY, DBV_REG_ADDR1,1,arDataR);
+      if Result <> WAIT_OBJECT_0 then break;
 
-		btRead := arDataR[0];
-    if btRead <> btValue1 then begin
-      sDebug := sFunc + Format('(Addr=%d): Value(0x%0.2x) <> Write(0x%0.2x)',[DBV_REG_ADDR1,btRead,btValue1]);
-      ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG, sDebug);
-      break;
+      btRead := arDataR[0];
+      if btRead <> btValue1 then begin
+        sDebug := sFunc + Format('(Addr=%d): Value(0x%0.2x) <> Write(0x%0.2x)',[DBV_REG_ADDR1,btRead,btValue1]);
+        ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG, sDebug);
+        break;
+      end;
+      sDebug := sFunc + Format('(Addr=%d): Value(0x%0.2x) = Write(0x%0.2x)',[DBV_REG_ADDR1,btRead,btValue1]);
+      ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_INFO, sDebug);
+
+      // DBV_REG_ADDR2 - Write
+      arDataW[0] := btValue2;
+      Result := SendI2CWrite(DefPG.TCON_I2C_DEVICE_ADDR_TEMPORARY, DBV_REG_ADDR2,1,arDataW);
+      if Result <> WAIT_OBJECT_0 then break;
+
+      // DBV_REG_ADDR2 - Verify
+      Result := SendI2CRead(DefPG.TCON_I2C_DEVICE_ADDR_TEMPORARY, DBV_REG_ADDR2,1,arDataR);
+      if Result <> WAIT_OBJECT_0 then break;
+
+      btRead := arDataR[0];
+      if btRead <> btValue2 then begin
+        sDebug := sFunc + Format('(Addr=%d): Value(0x%0.2x) <> Write(0x%0.2x)',[DBV_REG_ADDR2,btRead,btValue2]);
+        ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG, sDebug);
+        break;
+      end;
+      sDebug := sFunc + Format('(Addr=%d): Value(0x%0.2x) = Write(0x%0.2x)',[DBV_REG_ADDR2,btRead,btValue2]);
+      ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_INFO, sDebug);
+
+      Result := WAIT_OBJECT_0;
+      Break;
     end;
-    sDebug := sFunc + Format('(Addr=%d): Value(0x%0.2x) = Write(0x%0.2x)',[DBV_REG_ADDR1,btRead,btValue1]);
-    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_INFO, sDebug);
+  {$ELSE}
 
-    // DBV_REG_ADDR2 - Write
-    arDataW[0] := btValue2;
-		Result := SendI2CWrite(DefPG.TCON_I2C_DEVICE_ADDR_TEMPORARY, DBV_REG_ADDR2,1,arDataW);
-    if Result <> WAIT_OBJECT_0 then break;
+    sDebug := Format('SET DBV#(0x%0x=%d)',[nDimming,nDimming]);
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING,DefCommon.LOG_TYPE_INFO, sDebug);
 
-    // DBV_REG_ADDR2 - Verify
-		Result := SendI2CRead(DefPG.TCON_I2C_DEVICE_ADDR_TEMPORARY, DBV_REG_ADDR2,1,arDataR);
-    if Result <> WAIT_OBJECT_0 then break;
+    Result := DP860_SendBistDBV(nDimming, nWaitMS,nRetry);
 
-		btRead := arDataR[0];
-    if btRead <> btValue2 then begin
-      sDebug := sFunc + Format('(Addr=%d): Value(0x%0.2x) <> Write(0x%0.2x)',[DBV_REG_ADDR2,btRead,btValue2]);
-      ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG, sDebug);
-      break;
-    end;
-    sDebug := sFunc + Format('(Addr=%d): Value(0x%0.2x) = Write(0x%0.2x)',[DBV_REG_ADDR2,btRead,btValue2]);
-    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_INFO, sDebug);
-
-  	Result := WAIT_OBJECT_0;
-    Break;
-  end;
-{$ELSE}
-
-	sDebug := Format('SET DBV#(0x%0x=%d)',[nDimming,nDimming]);
-  ShowTestWindow(DefCommon.MSG_MODE_WORKING,DefCommon.LOG_TYPE_INFO, sDebug);
-
-
-  Result := DP860_SendBistDBV(nDimming, nWaitMS,nRetry);
-
-{$ENDIF}
-  //
-  if (Result <> WAIT_OBJECT_0) then begin
-    sDebug := sFunc + '...NG';
-    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG, sDebug);
-  end;
-  //
-  {$IFDEF FEATURE_DIMMING_STEP}
-  if (Result = WAIT_OBJECT_0) then begin
-    nDimmingStep := 0;
-    if      nDimming = Common.TestModelInfoFLOW.DimmingStep1 then nDimmingStep := 1
-    else if nDimming = Common.TestModelInfoFLOW.DimmingStep2 then nDimmingStep := 2
-    else if nDimming = Common.TestModelInfoFLOW.DimmingStep3 then nDimmingStep := 3
-    else if nDimming = Common.TestModelInfoFLOW.DimmingStep4 then nDimmingStep := 4;
-    m_CurPatDispInfo.nCurDimmingStep := nDimmingStep;
-  end;
   {$ENDIF}
+    //
+    if (Result <> WAIT_OBJECT_0) then begin
+      sDebug := sFunc + '...NG';
+      ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG, sDebug);
+    end;
+    //
+    {$IFDEF FEATURE_DIMMING_STEP}
+    if (Result = WAIT_OBJECT_0) then begin
+      nDimmingStep := 0;
+      if      nDimming = Common.TestModelInfoFLOW.DimmingStep1 then nDimmingStep := 1
+      else if nDimming = Common.TestModelInfoFLOW.DimmingStep2 then nDimmingStep := 2
+      else if nDimming = Common.TestModelInfoFLOW.DimmingStep3 then nDimmingStep := 3
+      else if nDimming = Common.TestModelInfoFLOW.DimmingStep4 then nDimmingStep := 4;
+      m_CurPatDispInfo.nCurDimmingStep := nDimmingStep;
+    end;
+  {$ENDIF}
+  finally
+//    SetCyclicTimer(True);
+  end;
 end;
 
 function TCommPG.SendPocbOnOff(bOn: Boolean; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //FEATURE_POCB_ONOFF

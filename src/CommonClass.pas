@@ -4678,15 +4678,19 @@ begin
     //MLog 저장 확인
       for nCh := DefCommon.CH1 to DefCommon.MAX_SYSTEM_LOG do begin
         m_csLog[nCh].Enter;
-        if (m_slLog[nCh].Count > 0) then begin
-          if  DayOf(m_dtSaveLog[nCh]) <> DayOf(dtNow) then begin
-            SaveMLog(nCh, m_dtSaveLog[nCh]); //날짜가 변경된 경우 이전날짜 File로 저장
-          end
-          else if (m_slLog[nCh].Count > LogAccumulateCount) or (SecondsBetween(dtNow, m_dtSaveLog[nCh]) > LogAccumulateSecond) then begin
-            SaveMLog(nCh, dtNow);
+
+        try
+          if (m_slLog[nCh].Count > 0) then begin
+            if  DayOf(m_dtSaveLog[nCh]) <> DayOf(dtNow) then begin
+              SaveMLog(nCh, m_dtSaveLog[nCh]); //날짜가 변경된 경우 이전날짜 File로 저장
+            end
+            else if (m_slLog[nCh].Count > LogAccumulateCount) or (SecondsBetween(dtNow, m_dtSaveLog[nCh]) > LogAccumulateSecond) then begin
+              SaveMLog(nCh, dtNow);
+            end;
           end;
+        finally
+          m_csLog[nCh].Leave;
         end;
-        m_csLog[nCh].Leave;
       end;
       Sleep(1000);
     finally

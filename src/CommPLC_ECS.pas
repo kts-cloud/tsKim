@@ -3909,60 +3909,16 @@ begin
           end;
         end;
 
-
         case nIndex of
-
-
-
-          $01: ; //Take-Out Report ACK
-
-          $0F: begin  //AAB Mode
-//            SendMessageMain(COMMPLC_MODE_EVENT_ECS, nIndex, COMMPLC_PARAM_AAB_MODE, nValue, 'AAB Mode Changed', nil);
-          end;
-
-          $10: begin  //APD Report_ACK
-
-          end;
-          $11: begin  //User ID Check Request
-            //
-          end;
-          $20: begin  //Inspection Data Report Confirm #1
-            //
-          end;
-          $21: begin  //Inspection Data  Confirm #1
-            //
-          end;
-//          $30: begin  //BCR #1 Read Report Confirm
-//            if nValue = 1 then WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$06+$8, 3), 0); ////Inspection Data Confirm ACK Off
-//          end;
-
           $30: begin  //공통 데이터 - ECS Restart(2 sec)
             TThread.CreateAnonymousThread(
               procedure begin
                 g_CommPLC.ECS_ECSRestart_Test;
-
               end
               ).Start;
           end;
-
-
           $31: begin  //공통 데이터 - Time Data Send
-//            if not UseSimulator then begin
-//              if nValue = 1 then ReadTimeData;
-//            end;
             if nValue = 1 then ReadTimeData;
-          end;
-//          $31: begin  //공통 데이터 - ECS Start
-//          end;
-
-          $3D: begin  //AAB Mode
-            //SendMessageMain(COMMPLC_MODE_EVENT_ECS, nIndex, COMMPLC_PARAM_AAB_MODE, nValue, 'AAB Mode Changed', nil);
-          end;
-
-          else begin
-            //SendMessageMain(COMMPLC_MODE_CHANGE_ECS, 0, nIndex, 0, 'ECS Chnage Data', nil);
-
-            PostMessage(MessageHandle, WM_USER + 1, COMMPLC_MODE_CHANGE_ECS, nIndex + nValue*65536);
           end;
         end; //case nIndex of
       end; //if nValue <> Get_Bit(PollingDataPre[i], k) then begin
@@ -4304,7 +4260,7 @@ end;
 
 procedure TCommPLCThread.Process_ROBOT_UnloadComplete(nCh: Integer);
 begin
-  AddLog('Process_ROBOT_UnloadComplete ' + IntToStr(nCh));
+  AddLog('Process_ROBOT_UnloadComplete ' + IntToStr(nCh),True);
   Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_5] := 1;
 //  if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
 //    Sleep(300);
@@ -4344,7 +4300,7 @@ end;
 
 procedure TCommPLCThread.Process_ROBOT_UnloadComplete_Off(nCh: Integer);
 begin
-  AddLog('Process_ROBOT_UnloadComplete_Off ' + IntToStr(nCh));
+  AddLog('Process_ROBOT_UnloadComplete_Off ' + IntToStr(nCh),True);
   if (Common.PLCInfo.InlineGIB)  then  begin
     if (Common.SystemInfo.OCType = DefCommon.OCType)  then
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$09+$6 + (nCh*$20), 3), 0) //Unload Complete Confrim Off
@@ -4381,7 +4337,7 @@ begin
     Exit;
   end;
   Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_4] := 1;
-  AddLog('Process_ROBOT_UnloadBusy_On ' + IntToStr(nCh));
+  AddLog('Process_ROBOT_UnloadBusy_On ' + IntToStr(nCh),true);
   SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, nCh, COMMPLC_PARAM_UNLOADBUSY, 1, 'Process_ROBOT_UnloadBusy_On ' + IntToStr(nCh), nil);
 end;
 

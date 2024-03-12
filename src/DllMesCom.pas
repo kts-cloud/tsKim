@@ -231,8 +231,6 @@ begin
       bRet := m_Send_Data(nCH,StringToPAnsiChar(sMsg));
     Result := bRet;
   end;
-
-
 end;
 
 procedure TCommTibRv64.SetFunction;

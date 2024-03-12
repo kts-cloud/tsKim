@@ -2823,12 +2823,12 @@ end;
 
 procedure TfrmMain_OC.ProcessMsg_COMM_ECS(pGUIMsg: PGUIMessage);
 var
-  i, nStage, nAnother: Integer;
+  i, nStage: Integer;
   sMsg: String;
 begin
 
   nStage:= GetStageNo_LoadZone;
-  nAnother:= (nStage + 1) mod 2; //반대편 Stage
+
 
   case pGUIMsg.Mode of
     COMMPLC_MODE_CONNECT: begin
@@ -3166,26 +3166,26 @@ begin
       //sDebug := 'MSG_TYPE_HOST, MES_SGEN, PG'+IntToStr(nCh+1); Common.MLog(DefCommon.MAX_SYSTEM_LOG,sDebug); //IMSI
       DongaGmes.SendHostSGEN(PasScr[nCh].TestInfo.SerialNo, nCh);
     end;
+
     DefGmes.EAS_APDR : begin
       sPID := DongaGmes.MesData[nCh].PchkRtnPID;
 
       try
         PasScr[nCh].TestInfo.ApdrData := '';
         if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
-
-          PasScr[nCh].TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog_New(sPID,PasScr[nCh].TestInfo.SerialNo,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
+          DongaGmes.MesData[nCh].ApdrData := Common.ReadLGDDLLSummaryLog_New(sPID,PasScr[nCh].TestInfo.SerialNo,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
   //        ShowSysLog('ReadLGDDLLSummaryLog_New : ' + PasScr[nCh].TestInfo.ApdrData);
           if Length(PasScr[nCh].TestInfo.ApdrData) > 0 then
             sGD_DEFECT := ',GD:GD_DEFECT:' + DongaGmes.MesData[nCh].GDDefectCode
           else sGD_DEFECT := 'GD:GD_DEFECT:' + DongaGmes.MesData[nCh].GDDefectCode;
-          PasScr[nCh].TestInfo.ApdrData := PasScr[nCh].TestInfo.ApdrData + sGD_DEFECT;
+          DongaGmes.MesData[nCh].ApdrData := DongaGmes.MesData[nCh].ApdrData + sGD_DEFECT;
         end
         else begin
           sIRTempData := ',' + frmTest4ChOC[0].GetIRTempData(nCh);
-          PasScr[nCh].TestInfo.ApdrData := Common.ReadLGDDLLSummaryLog_New(sPID,PasScr[nCh].TestInfo.SerialNo,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
-          PasScr[nCh].TestInfo.ApdrData := PasScr[nCh].TestInfo.ApdrData + sIRTempData
+          DongaGmes.MesData[nCh].ApdrData := Common.ReadLGDDLLSummaryLog_New(sPID,PasScr[nCh].TestInfo.SerialNo,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
+          DongaGmes.MesData[nCh].ApdrData := PasScr[nCh].TestInfo.ApdrData + sIRTempData
         end;
-        DongaGmes.MesData[nCh].ApdrData := PasScr[nCh].TestInfo.ApdrData;
+//        DongaGmes.MesData[nCh].ApdrData := PasScr[nCh].TestInfo.ApdrData;
         DongaGmes.SendEasApdr(PasScr[nCh].TestInfo.SerialNo, nCh);
       except
         on E: Exception do  ShowSysLog('EAS_APDR : ' + E.Message,1);
@@ -6501,9 +6501,7 @@ begin
       sMsg  := PGuiPg2Main(PCopyDataStruct(CopyMsg.LParam)^.lpData)^.sMsg;
       case nTemp of
         DefCommon.PG_CONN_DISCONNECTED : begin
-          if g_CommPLC <> nil then
-            Set_AlarmData(111, 1, 1);
-
+          Set_AlarmData(111, 1, 1);
         end;
         DefCommon.PG_CONN_CONNECTED : begin
 

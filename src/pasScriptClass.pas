@@ -4881,7 +4881,7 @@ begin
         Exit;
       end;
       nNgCode := GetInputArgAsInteger(0);
-//      Common.MLog(self.FPgNo, 'ECS_SetGlassData NgCode=' + IntToStr(nNgCode));
+//      Common.MLog(self.FPgNo, 'ECS_SetGlassData NgCode=' + IntToStr(nNgCode),True);
       SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'ECS_SetGlassData NgCode=' + IntToStr(nNgCode));
       if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType) then begin
         SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'SetGlassData_CheckRLogistics NgCode=' + IntToStr(nNgCode));
@@ -4956,7 +4956,8 @@ begin
           g_CommPLC.SetGlassData_Previous_Unit_Processing(g_CommPLC.GlassData[FPgNo], g_CommPLC.EQP_ID-13);
       end;
       wdRet := 0;
-      SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,format('SetGlassData : 3 %d',[FPgNo]),'',10);
+      Common.MLog(self.FPgNo,format('SetGlassData : Finish %d',[FPgNo]),True);
+//      SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,format('SetGlassData : 3 %d',[FPgNo]),'',10);
 //      g_CommPLC.SaveGlassData_CH(FPgNo,Common.Path.Ini + format('GlassData_CH%d.dat',[FPgNo +1]));
 //      SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,format('SetGlassData : 4 %d',[FPgNo]),'',10);
       ReturnOutputArg(wdRet);

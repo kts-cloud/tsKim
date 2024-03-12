@@ -1594,6 +1594,7 @@ begin
     SeperateR2RData(StrToIntdef(FR2RUnit,1)-1,FR2RDatainfo);
     ReturnDataToTestForm(DefGmes.R2R_EODS, StrToIntdef(FR2RUnit,1)-1, False, 'R2R_DATA');
     m_bDoneEODS[StrToIntdef(FR2RUnit,1)-1] := True;
+    Common.Mlog(StrToIntdef(FR2RUnit,1)-1,'Send EODS_R Start');
     parse_EODS(StrToIntdef(FR2RUnit,1)-1);
     Common.Mlog(StrToIntdef(FR2RUnit,1)-1,'Send EODS_R Done');
     ReturnDataToTestForm(DefGmes.R2R_EODA, StrToIntdef(FR2RUnit,1)-1, False, 'R2R_DATA');
@@ -1713,7 +1714,7 @@ begin
   item.SerialNo:=   sConvertSerial;
   item.Tact:=   MesData[nPg].Tact;
   item.MESCode:=    MesData[nPg].Rwk;
-  item.ApdrData:=     MesData[nPg].ApdrData;
+//  item.ApdrData:=     MesData[nPg].ApdrData;
   item.State := MES_UNKNOWN;
   m_Queue.Enqueue(item);
   tmGmesChMsg.Enabled:= True;
@@ -2039,16 +2040,16 @@ procedure TGmes.SendR2REods(nPG : Integer);
 var
   item: TQueItemValue;
 begin
-  item.Channel:=      nPg;
-  item.State := 0;
-  item.Kind:=         R2R_EODS_R;
-  item.Timeout:=      3000;
-  item.ApdrData:=     '';
-  item.SerialNo:=     '';
-  item.CarrierID:=    '';
-  m_Queue.Enqueue(item);
-  tmGmesChMsg.Enabled:= True;
-//  SEND_MESG2HOST(DefGmes.R2R_EODS_R,'','',nPG,true);
+//  item.Channel:=      nPg;
+//  item.State := 0;
+//  item.Kind:=         R2R_EODS_R;
+//  item.Timeout:=      3000;
+//  item.ApdrData:=     '';
+//  item.SerialNo:=     '';
+//  item.CarrierID:=    '';
+//  m_Queue.Enqueue(item);
+//  tmGmesChMsg.Enabled:= True;
+  SEND_MESG2HOST(DefGmes.R2R_EODS_R,'','',nPG);
 end;
 
 
@@ -2650,6 +2651,7 @@ begin
       sSendMsg := sSendMsg  + ' AACK=' + R2RAACK[nPg];
       sSendMsg := sSendMsg  + ' MMC_TXN_ID=' + FR2RMmcTxnID;
 
+      bIsChMsg := True;
 //      SendTestGuiDisplay(R2R_LOG,nPg,sSendMsg);
       Common.R2RLog(nPg,sSendMsg);
 
@@ -2662,7 +2664,7 @@ begin
       sSendMsg := sSendMsg  + ' DATAINFO=['+ R2RMachine+'::0]';
 //      sSendMsg := sSendMsg  + ' UNIT=' + IntToStr(nPg +1);
       sSendMsg := sSendMsg  + ' MMC_TXN_ID=' + FR2RMmcTxnID;
-//      bIsChMsg := True;
+      bIsChMsg := True;
     end;
   end;
   if FCanUseHost then begin
@@ -2758,14 +2760,15 @@ begin
 
     if bIsChMsg then begin
       sDebug := sSendMsg;
-      if Length(sSendMsg) > 500 then begin
-        sDebug := Copy(sSendMsg,1,500);
+      if Length(sSendMsg) > 300 then begin
+        sDebug := Copy(sSendMsg,1,300);
       end;
       case nMsgType of
-        DefGmes.EAS_APDR : sDebug := 'EAS SEND :  ' + sDebug
-        else               sDebug := 'MES SEND :  ' + sDebug;           
+        DefGmes.EAS_APDR : sDebug := 'EAS SEND :  ' + sDebug;
+        DefGmes.R2R_EODS_R .. DefGmes.R2R_EODA : sDebug := 'R2R SEND :  ' + sDebug;
+        else               sDebug := 'MES SEND :  ' + sDebug;
       end;
-      Common.MLog(nPg,sDebug);
+      Common.MLog(nPg,sDebug,True);
 //      (DefCommon.MSG_MODE_WORKING,nPg,sDebug);
     end;
 {$ENDIF}
@@ -3102,7 +3105,7 @@ begin
 
   if m_Queue.Count > 0 then begin
     m_MESItem:= m_Queue.Dequeue;
-    if (m_MESItem.Kind = EAS_APDR) or (m_MESItem.Kind = R2R_EODS_R) or (m_MESItem.Kind = R2R_EODA) then   //EAS_APDR 제외
+    if (m_MESItem.Kind = EAS_APDR) or (m_MESItem.Kind = R2R_EODS_R) or (m_MESItem.Kind = R2R_EODA) then  //EAS_APDR 제외
     else
       m_MESItem.State:= m_MESItem.Kind;
     m_MESItem.Tick:= GetTickCount;
@@ -3113,13 +3116,15 @@ begin
         MesData[m_MESItem.Channel].Tact:= m_MESItem.Tact;
       if Length(m_MESItem.MESCode) > 0 then
         MesData[m_MESItem.Channel].Rwk:= m_MESItem.MESCode;
-      if Length(m_MESItem.ApdrData) > 0 then
-        MesData[m_MESItem.Channel].ApdrData:= m_MESItem.ApdrData;
       if Length(m_MESItem.ErrCode) > 0 then
         MesData[m_MESItem.Channel].ErrCode:= m_MESItem.ErrCode;
 //      MesData[m_MESItem.Channel].LpirProcessCode:= m_MESItem.LpirProcessCode;
     end;
     SEND_MESG2HOST(m_MESItem.Kind, m_MESItem.SerialNo, m_MESItem.CarrierID, m_MESItem.Channel);
+
+    if (m_MESItem.Kind = EAS_APDR) then
+      MesData[m_MESItem.Channel].ApdrData := '';
+
   end
   else begin
     tmGmesChMsg.Enabled := False;
@@ -3127,90 +3132,90 @@ begin
 
   Exit;
 
-  // Check MES Timer Tick for each PG
-  bWaitResponse := False;
-  for nPg := DefCommon.CH1 to DefCommon.MAX_CH do begin
-    //
-    if MesData[nPg].MesSentMsg <> MES_UNKNOWN then begin
-      Inc(MesData[nPg].MesSendRcvWaitTick);
-    //
-      if MesData[nPg].MesSendRcvWaitTick > 5*10 then begin  //TBD: 5sec
-        if (MesData[nPg].MesSentMsg = MES_PCHK) or (MesData[nPg].MesPendingMsg = MES_PCHK) then begin
-          MesData[nPg].PchkSendNg:= True;
-          MesData[nPg].bPCHK     := False;
-          ReturnDataToTestForm(DefGmes.MES_PCHK, nPg, False, 'PCHK_NG');
-        end
-        else if (MesData[nPg].MesSentMsg = MES_EICR) or (MesData[nPg].MesPendingMsg = MES_EICR) then begin
-          MesData[nPg].EicrSendNg  := True;
-          ReturnDataToTestForm(DefGmes.MES_EICR, nPg, False, 'EICR_NG');
-        end
-        else if (MesData[nPg].MesSentMsg = MES_LPIR) or (MesData[nPg].MesPendingMsg = MES_LPIR) then begin
-          MesData[nPg].LpirSendNg  := True;
-          MesData[nPg].bLPIR := false;
-          ReturnDataToTestForm(DefGmes.MES_LPIR, nPg, False, 'LPIR_NG');
-        end;
-        MesData[nPg].MesSendRcvWaitTick:= 0;
-        MesData[nPg].MesPendingMsg := MES_UNKNOWN;  //here!!!
-        MesData[nPg].MesSentMsg    := MES_UNKNOWN;  //here!!!
-        //sDebug := Format('TGmes.OnGmesChMsgTimer: PG(%d) timeout ...TBD',[nPG]); Common.MLog(DefCommon.MAX_SYSTEM_LOG,sDebug);
-        Continue;
-      end;
-    end;
-    //
-    if MesData[nPg].MesSentMsg <> MES_UNKNOWN then
-      bWaitResponse := True;
-  end;
-  if bWaitResponse then begin
-    //Common.MLog(DefCommon.MAX_SYSTEM_LOG,'TGmes.OnGmesChMsgTimer: WaitResponse ...Exit');
-    Exit;
-  end;
-
-  // Send MES Message if exist
-  for nPg := DefCommon.CH1 to DefCommon.MAX_CH do begin
-    if MesData[nPg].MesPendingMsg <> MES_UNKNOWN then begin
-      case MesData[nPg].MesPendingMsg of
-        DefGmes.MES_PCHK : begin
-          SendHostPChk(MesData[nPg].SerialNo, nPg,MesData[nPg].CarrierId, True);
-          Break;
-        end;
-        DefGmes.MES_EICR : begin
-          SendHostEicr(MesData[nPg].SerialNo, nPg, MesData[nPg].CarrierId, True);
-          Break;
-        end;
-        DefGmes.MES_INS_PCHK : begin
-          SendHostIns_Pchk(MesData[nPg].SerialNo, nPg,MesData[nPg].CarrierId,True);
-          Break;
-        end;
-        DefGmes.MES_RPR_EIJR : begin
-          SendHostRPr_Eijr(MesData[nPg].SerialNo, nPg,MesData[nPg].CarrierId,True);
-          Break;
-        end;
-        DefGmes.MES_APDR : begin
-          SendHostApdr(MesData[nPg].SerialNo, nPg,True);
-          Break;
-        end;
-        DefGmes.EAS_APDR : begin
-          SendEasApdr(MesData[nPg].SerialNo, nPg,True);
-          Break; 
-        end;
-      end;
-    end;
-  end;
-
-  // STOP if no more MES message send/receive
-  bStopTimer := True;
-  for nPg := DefCommon.CH1 to DefCommon.MAX_CH do begin
-    if (MesData[nPg].MesPendingMsg = MES_UNKNOWN) and (MesData[nPg].MesSentMsg = MES_UNKNOWN) then
-      MesData[nPg].MesSendRcvWaitTick := 0
-    else begin
-      bStopTimer := False;
-      Break;
-    end;
-  end;
-  if bStopTimer then begin
-    tmGmesChMsg.Enabled := False;
-    //Common.MLog(DefCommon.MAX_SYSTEM_LOG,'TGmes.OnGmesChMsgTimer: STOP TImer');
-  end;
+//  // Check MES Timer Tick for each PG
+//  bWaitResponse := False;
+//  for nPg := DefCommon.CH1 to DefCommon.MAX_CH do begin
+//    //
+//    if MesData[nPg].MesSentMsg <> MES_UNKNOWN then begin
+//      Inc(MesData[nPg].MesSendRcvWaitTick);
+//    //
+//      if MesData[nPg].MesSendRcvWaitTick > 5*10 then begin  //TBD: 5sec
+//        if (MesData[nPg].MesSentMsg = MES_PCHK) or (MesData[nPg].MesPendingMsg = MES_PCHK) then begin
+//          MesData[nPg].PchkSendNg:= True;
+//          MesData[nPg].bPCHK     := False;
+//          ReturnDataToTestForm(DefGmes.MES_PCHK, nPg, False, 'PCHK_NG');
+//        end
+//        else if (MesData[nPg].MesSentMsg = MES_EICR) or (MesData[nPg].MesPendingMsg = MES_EICR) then begin
+//          MesData[nPg].EicrSendNg  := True;
+//          ReturnDataToTestForm(DefGmes.MES_EICR, nPg, False, 'EICR_NG');
+//        end
+//        else if (MesData[nPg].MesSentMsg = MES_LPIR) or (MesData[nPg].MesPendingMsg = MES_LPIR) then begin
+//          MesData[nPg].LpirSendNg  := True;
+//          MesData[nPg].bLPIR := false;
+//          ReturnDataToTestForm(DefGmes.MES_LPIR, nPg, False, 'LPIR_NG');
+//        end;
+//        MesData[nPg].MesSendRcvWaitTick:= 0;
+//        MesData[nPg].MesPendingMsg := MES_UNKNOWN;  //here!!!
+//        MesData[nPg].MesSentMsg    := MES_UNKNOWN;  //here!!!
+//        //sDebug := Format('TGmes.OnGmesChMsgTimer: PG(%d) timeout ...TBD',[nPG]); Common.MLog(DefCommon.MAX_SYSTEM_LOG,sDebug);
+//        Continue;
+//      end;
+//    end;
+//    //
+//    if MesData[nPg].MesSentMsg <> MES_UNKNOWN then
+//      bWaitResponse := True;
+//  end;
+//  if bWaitResponse then begin
+//    //Common.MLog(DefCommon.MAX_SYSTEM_LOG,'TGmes.OnGmesChMsgTimer: WaitResponse ...Exit');
+//    Exit;
+//  end;
+//
+//  // Send MES Message if exist
+//  for nPg := DefCommon.CH1 to DefCommon.MAX_CH do begin
+//    if MesData[nPg].MesPendingMsg <> MES_UNKNOWN then begin
+//      case MesData[nPg].MesPendingMsg of
+//        DefGmes.MES_PCHK : begin
+//          SendHostPChk(MesData[nPg].SerialNo, nPg,MesData[nPg].CarrierId, True);
+//          Break;
+//        end;
+//        DefGmes.MES_EICR : begin
+//          SendHostEicr(MesData[nPg].SerialNo, nPg, MesData[nPg].CarrierId, True);
+//          Break;
+//        end;
+//        DefGmes.MES_INS_PCHK : begin
+//          SendHostIns_Pchk(MesData[nPg].SerialNo, nPg,MesData[nPg].CarrierId,True);
+//          Break;
+//        end;
+//        DefGmes.MES_RPR_EIJR : begin
+//          SendHostRPr_Eijr(MesData[nPg].SerialNo, nPg,MesData[nPg].CarrierId,True);
+//          Break;
+//        end;
+//        DefGmes.MES_APDR : begin
+//          SendHostApdr(MesData[nPg].SerialNo, nPg,True);
+//          Break;
+//        end;
+//        DefGmes.EAS_APDR : begin
+//          SendEasApdr(MesData[nPg].SerialNo, nPg,True);
+//          Break;
+//        end;
+//      end;
+//    end;
+//  end;
+//
+//  // STOP if no more MES message send/receive
+//  bStopTimer := True;
+//  for nPg := DefCommon.CH1 to DefCommon.MAX_CH do begin
+//    if (MesData[nPg].MesPendingMsg = MES_UNKNOWN) and (MesData[nPg].MesSentMsg = MES_UNKNOWN) then
+//      MesData[nPg].MesSendRcvWaitTick := 0
+//    else begin
+//      bStopTimer := False;
+//      Break;
+//    end;
+//  end;
+//  if bStopTimer then begin
+//    tmGmesChMsg.Enabled := False;
+//    //Common.MLog(DefCommon.MAX_SYSTEM_LOG,'TGmes.OnGmesChMsgTimer: STOP TImer');
+//  end;
 end;
 
 function TGmes.IsMesWaiting(bIsChMsg : Boolean; nThisPgNo : Integer): Boolean;    //JHHWANG-GMES: 2018-06-20
