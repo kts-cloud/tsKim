@@ -2056,16 +2056,16 @@ procedure TGmes.SendR2REods(nPG : Integer);
 var
   item: TQueItemValue;
 begin
-//  item.Channel:=      nPg;
-//  item.State := 0;
-//  item.Kind:=         R2R_EODS_R;
-//  item.Timeout:=      3000;
-//  item.ApdrData:=     '';
-//  item.SerialNo:=     '';
-//  item.CarrierID:=    '';
-//  m_Queue.Enqueue(item);
-//  tmGmesChMsg.Enabled:= True;
-  SEND_MESG2HOST(DefGmes.R2R_EODS_R,'','',nPG);
+  item.Channel:=      nPg;
+  item.State := 0;
+  item.Kind:=         R2R_EODS_R;
+  item.Timeout:=      3000;
+  item.ApdrData:=     '';
+  item.SerialNo:=     '';
+  item.CarrierID:=    '';
+  m_Queue.Enqueue(item);
+  tmGmesChMsg.Enabled:= True;
+//  SEND_MESG2HOST(DefGmes.R2R_EODS_R,'','',nPG);
 end;
 
 

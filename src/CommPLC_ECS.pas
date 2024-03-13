@@ -273,7 +273,7 @@ type
     procedure AddLog(sLog: String; bSave: Boolean=false);
     procedure SaveLog(dtSave: TDateTime);
     procedure SendMessageMain(nMsgMode, nCh, nParam, nParam2: Integer; sMsg: String; pData:Pointer=nil);
-    procedure SendMessageTest(nMsgMode, nCh, nParam, nParam2: Integer; sMsg: String; pData: Pointer=nil);
+//    procedure SendMessageTest(nMsgMode, nCh, nParam, nParam2: Integer; sMsg: String; pData: Pointer=nil);
     procedure OpenPLC;
     procedure ClosePLC;
     function WriteData: Integer;
@@ -885,31 +885,31 @@ begin
   SendMessage(MessageHandle, WM_COPYDATA, 0, LongInt(@cds));
 end;
 
-procedure TCommPLCThread.SendMessageTest(nMsgMode, nCh, nParam, nParam2: Integer; sMsg: String; pData:Pointer);
-var
-  cds         : TCopyDataStruct;
-  GUIMessage : TGUIMessage;
-begin
-  GUIMessage.MsgType := MessageType; //MSGTYPE_COMMPLC;
-  GUIMessage.Channel := nCh;
-  GUIMessage.Mode    := nMsgMode;
-  GUIMessage.Param   := nParam;
-  GUIMessage.Param2  := nParam2;
-  GUIMessage.Msg     := sMsg;
-  GUIMessage.pData   := pData;
-
-  cds.dwData      := 0;
-  cds.cbData      := SizeOf(GUIMessage);
-  cds.lpData      := @GUIMessage;
-
-  if nCh < 4 then begin
-    SendMessage(MessageHandleTest1, WM_COPYDATA, 0, LongInt(@cds));
-  end
-  else begin
-    GUIMessage.Channel := nCh-4;
-    SendMessage(MessageHandleTest2, WM_COPYDATA, 0, LongInt(@cds));
-  end;
-end;
+//procedure TCommPLCThread.SendMessageTest(nMsgMode, nCh, nParam, nParam2: Integer; sMsg: String; pData:Pointer);
+//var
+//  cds         : TCopyDataStruct;
+//  GUIMessage : TGUIMessage;
+//begin
+//  GUIMessage.MsgType := MessageType; //MSGTYPE_COMMPLC;
+//  GUIMessage.Channel := nCh;
+//  GUIMessage.Mode    := nMsgMode;
+//  GUIMessage.Param   := nParam;
+//  GUIMessage.Param2  := nParam2;
+//  GUIMessage.Msg     := sMsg;
+//  GUIMessage.pData   := pData;
+//
+//  cds.dwData      := 0;
+//  cds.cbData      := SizeOf(GUIMessage);
+//  cds.lpData      := @GUIMessage;
+//
+//  if nCh < 4 then begin
+//    SendMessage(MessageHandleTest1, WM_COPYDATA, 0, LongInt(@cds));
+//  end
+//  else begin
+//    GUIMessage.Channel := nCh-4;
+//    SendMessage(MessageHandleTest2, WM_COPYDATA, 0, LongInt(@cds));
+//  end;
+//end;
 
 
 procedure TCommPLCThread.ShowModalSimulator;
@@ -1690,15 +1690,15 @@ begin
   //참조 MELSEC 사양11.1 BCR Reading Data Report
   sLog:= format('ECS_PCHK: Ch=%d, Serial=%s', [nCh, sSerial]);
   AddLog(sLog);
-  SendMessageTest(COMMPLC_MODE_LOG_ECS, nCh, 0, 0, sLog);
-  SendMessageTest(COMMPLC_MODE_SHOW_MES, nCh, 0, 0, 'Send ECS_PCHK');
+//  SendMessageTest(COMMPLC_MODE_LOG_ECS, nCh, 0, 0, sLog);
+//  SendMessageTest(COMMPLC_MODE_SHOW_MES, nCh, 0, 0, 'Send ECS_PCHK');
 
   //시리얼 쓰기 -> 요청 Bit살리기-> 응답 Bit On 확인 -> 응답 데이터 읽기 -> 요청 Bit 지우기
   WriteString('W' + IntToHex(StartAddr_EQP_W+$10*$10+$0, 3), format('%-174s', [sSerial])); //EQP Report Data
 
   sLog:= 'BCR Read Report';
   AddLog(sLog);
-  SendMessageTest(COMMPLC_MODE_LOG_ECS, nCh, 0, 0, sLog);
+//  SendMessageTest(COMMPLC_MODE_LOG_ECS, nCh, 0, 0, sLog);
 
   WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$06+$0, 3), 1);  //BCR Data Report On
   //nRet:= WaitSignal('B' + IntToHex(StartAddr_ECS+$10*$44+EQP_ID-1, 3), 1, COMMPLC_ECS_TIMEOUT); //BCR RD Data Report Confirm
@@ -1728,7 +1728,7 @@ begin
 
   sLog:= 'BCR Read Report Off';
   AddLog(sLog);
-  SendMessageTest(COMMPLC_MODE_LOG_ECS, nCh, 0, 0, sLog);
+//  SendMessageTest(COMMPLC_MODE_LOG_ECS, nCh, 0, 0, sLog);
 
   WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$06+$0, 3), 0);  //BCR Data Report Off
 
@@ -1736,14 +1736,14 @@ begin
     //오류- Light Alarm
     sLog:= 'ECS_PCHK NG Response Timeout';
     AddLog(sLog);
-    SendMessageTest(COMMPLC_MODE_LOG_ECS, nCh, 0, 0, sLog);
-    SendMessageTest(COMMPLC_MODE_SHOW_MES, nCh, 0, 0, sLog);
+//    SendMessageTest(COMMPLC_MODE_LOG_ECS, nCh, 0, 0, sLog);
+//    SendMessageTest(COMMPLC_MODE_SHOW_MES, nCh, 0, 0, sLog);
     Exit(258);
   end;
 
   sLog:= GetGlassDataString(ECS_GlassData[nCh]);
   AddLog(sLog);
-  SendMessageTest(COMMPLC_MODE_LOG_ECS, nCh, 0, 0, sLog);
+//  SendMessageTest(COMMPLC_MODE_LOG_ECS, nCh, 0, 0, sLog);
   //sLog:= 'LCM_ID=' + ECS_LCM_ID[nCh];
   //AddLog(sLog);
   //SendMessageTest(COMMPLC_MODE_LOG_ECS, nCh, 0, 0, sLog);
@@ -1753,14 +1753,14 @@ begin
       sLog:= 'GIB ECS_PCHK NG';
       AddLog(sLog);
       //SendMessageTest(COMMPLC_MODE_LOG_ECS, nCh, 0, 0, sLog);
-      SendMessageTest(COMMPLC_MODE_SHOW_MES, nCh, 1, 0, sLog);
+//      SendMessageTest(COMMPLC_MODE_SHOW_MES, nCh, 1, 0, sLog);
     end
     else begin
       sLog:= 'GIB ECS_PCHK OK';
       Result:= 0;
       AddLog(sLog);
       //SendMessageTest(COMMPLC_MODE_LOG_ECS, nCh, 0, 0, sLog);
-      SendMessageTest(COMMPLC_MODE_SHOW_MES, nCh, 0, 0, sLog);
+//      SendMessageTest(COMMPLC_MODE_SHOW_MES, nCh, 0, 0, sLog);
     end;
 
   end
@@ -1771,13 +1771,13 @@ begin
       sLog:= 'ECS_PCHK NG ' + IntToSTr(nValue);
       AddLog(sLog);
       //SendMessageTest(COMMPLC_MODE_LOG_ECS, nCh, 0, 0, sLog);
-      SendMessageTest(COMMPLC_MODE_SHOW_MES, nCh, 1, 0, sLog);
+//      SendMessageTest(COMMPLC_MODE_SHOW_MES, nCh, 1, 0, sLog);
     end
     else begin
       sLog:= 'ECS_PCHK OK';
       AddLog(sLog);
       //SendMessageTest(COMMPLC_MODE_LOG_ECS, nCh, 0, 0, sLog);
-      SendMessageTest(COMMPLC_MODE_SHOW_MES, nCh, 0, 0, sLog);
+//      SendMessageTest(COMMPLC_MODE_SHOW_MES, nCh, 0, 0, sLog);
     end;
   end;
 end;
@@ -1821,8 +1821,8 @@ begin
   //Result:= 0;
   sLog:= format('ECS_EICR Ch=%d, LCM_ID=%s, Result:%s, ErrorCode=%s ', [nCh, sLCM_ID, sInpResult, sErrorCode]);
   AddLog(sLog);
-  SendMessageTest(COMMPLC_MODE_LOG_ECS, nCh, 0, 0, sLog);
-  SendMessageTest(COMMPLC_MODE_SHOW_MES, nCh, 0, 0, 'Send ECS_EICR');
+//  SendMessageTest(COMMPLC_MODE_LOG_ECS, nCh, 0, 0, sLog);
+//  SendMessageTest(COMMPLC_MODE_SHOW_MES, nCh, 0, 0, 'Send ECS_EICR');
 
   WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$06+$8, 3), 0); //Inspection Data Confirm ACK Off - 미리 끄고 시작
   WriteString('W' + IntToHex(StartAddr_EQP_W+$10*$16+$0, 3), format('%-24s', [sLCM_ID])); //sLCM_ID
@@ -1832,7 +1832,7 @@ begin
   WriteDevice('W' + IntToHex(StartAddr_EQP_W+$10*$19+$F, 3), StrToInt(sInpResult)); //Inspection Result
   sLog:= 'Inspection Data Report';
   AddLog(sLog);
-  SendMessageTest(COMMPLC_MODE_LOG_ECS, nCh, 0, 0, sLog);
+//  SendMessageTest(COMMPLC_MODE_LOG_ECS, nCh, 0, 0, sLog);
   WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$06+$4, 3), 1); //Inspection Data Report
 
 (*
@@ -1863,8 +1863,8 @@ begin
     //오류
     sLog:= 'ECS_EICR NG - Inspection Data Confirm Timeout';
     AddLog(sLog);
-    SendMessageTest(COMMPLC_MODE_LOG_ECS, nCh, 0, 0, sLog);
-    SendMessageTest(COMMPLC_MODE_SHOW_MES, nCh, 1, 0, sLog);
+//    SendMessageTest(COMMPLC_MODE_LOG_ECS, nCh, 0, 0, sLog);
+//    SendMessageTest(COMMPLC_MODE_SHOW_MES, nCh, 1, 0, sLog);
     Exit(258);
   end;
 
@@ -1875,7 +1875,7 @@ begin
   ReadDevice('W' + IntToHex(StartAddr_ECS_W+$10*$5+$F, 3), lpData);
   sLog:= 'Inspection Data Confirm ACK';
   AddLog(sLog);
-  SendMessageTest(COMMPLC_MODE_LOG_ECS, nCh, 0, 0, sLog);
+//  SendMessageTest(COMMPLC_MODE_LOG_ECS, nCh, 0, 0, sLog);
   //PulseDevice('B' + IntToHex(StartAddr_EQP+$10*$06+$8, 3), COMMPLC_ECS_TIMEOUT); //Inspection Data Confirm ACK
   WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$06+$4, 3), 0); //Inspection Data Report Off
   //WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$06+$8, 3), 1); //Inspection Data Confirm ACK
@@ -1885,7 +1885,7 @@ begin
     sLog:= 'ECS_EICR NG - Inspection Data Confirm Timeout';
     AddLog(sLog);
     //SendMessageTest(COMMPLC_MODE_LOG_ECS, nCh, 0, 0, sLog);
-    SendMessageTest(COMMPLC_MODE_SHOW_MES, nCh, 0, 0, sLog);
+//    SendMessageTest(COMMPLC_MODE_SHOW_MES, nCh, 0, 0, sLog);
     Exit(258);
   end;
 
@@ -1894,7 +1894,7 @@ begin
     sLog:= 'ECS_EICR NG ' + IntToSTr(lpData);
     AddLog(sLog);
     //SendMessageTest(COMMPLC_MODE_LOG_ECS, nCh, 0, 0, sLog);
-    SendMessageTest(COMMPLC_MODE_SHOW_MES, nCh, 1, 0, sLog);
+//    SendMessageTest(COMMPLC_MODE_SHOW_MES, nCh, 1, 0, sLog);
     Result:= lpData;
   end
   else begin
@@ -1902,7 +1902,7 @@ begin
     sLog:= 'ECS_EICR OK';
     AddLog(sLog);
     //SendMessageTest(COMMPLC_MODE_LOG_ECS, nCh, 0, 0, sLog);
-    SendMessageTest(COMMPLC_MODE_SHOW_MES, nCh, 0, 0, sLog);
+//    SendMessageTest(COMMPLC_MODE_SHOW_MES, nCh, 0, 0, sLog);
     Result:= 0;
   end;
 
@@ -1922,7 +1922,7 @@ begin
   sLog:= format('ECS_APDR Ch=%d, Result:%s', [nCh, sInspectionResult]);
   AddLog(sLog);
 
-  SendMessageTest(COMMPLC_MODE_SHOW_MES, nCh, 0, 0, 'Send ECS_APDR');
+//  SendMessageTest(COMMPLC_MODE_SHOW_MES, nCh, 0, 0, 'Send ECS_APDR');
 
   //참조 - MELSEC 사양 6.11 Glass APD Report
   //Scrap Glass Data Report - OFF 확인 //StartAddr_EQP+'20' + 2
@@ -1955,10 +1955,10 @@ begin
     sLog:= 'ECS_APDR NG - Inspection Data Confirm Timeout';
     AddLog(sLog);
     //SendMessageTest(COMMPLC_MODE_LOG_ECS, nCh, 0, 0, sLog);
-    SendMessageTest(COMMPLC_MODE_SHOW_MES, nCh, 1, 0, 'ECS_APDR NG');
+//    SendMessageTest(COMMPLC_MODE_SHOW_MES, nCh, 1, 0, 'ECS_APDR NG');
     Exit(258);
   end;
-  SendMessageTest(COMMPLC_MODE_SHOW_MES, nCh, 0, 0, 'ECS_APDR OK');
+//  SendMessageTest(COMMPLC_MODE_SHOW_MES, nCh, 0, 0, 'ECS_APDR OK');
 end;
 
 function TCommPLCThread.ECS_ZSET(nCh: Integer; nBondingType: Integer; sZigID, sPID, sPcbID: String; out lplData: Integer): Integer;
@@ -2221,7 +2221,7 @@ begin
   Result:= 0;
   sMsg := format('EQP_UNLOAD_CH : Jig=%d Ch=%d OnOff=%d',[nJig,nCh +1,nOnOff]);
   AddLog(sMsg);
-  SendMessageTest(COMMPLC_MODE_LOG_ECS, nCh, 0, 0, sMsg);
+//  SendMessageTest(COMMPLC_MODE_LOG_ECS, nCh, 0, 0, sMsg);
   nTempCh := nCh mod 2;
 
   if Common.SystemInfo.OCType = Defcommon.PreOCType then begin
@@ -2894,9 +2894,10 @@ begin
     end
     else begin
       AddLog('ROBOT_Unload_Request: 1 : ' + InttoStr(nCh));
-      WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$4 + (nCh*$20), 3), 1); //Unload Normal Status
+      Process_ROBOT_Vacuum(nCh,1);
+      WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$11+$4 + (nCh*$20), 3), 1); //Unload Normal Status
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_11] := 1;
-      WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$12+$4 + (nCh*$20), 3), 1); //Load Normal Status - 상태 설정에서....
+      WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$10+$4 + (nCh*$20), 3), 1); //Load Normal Status - 상태 설정에서....
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_11] := 1;
       Sleep(50);
       AddLog('ROBOT_Unload_Request: 2 : ' + InttoStr(nCh));
@@ -2918,11 +2919,11 @@ begin
       end;
       AddLog('ROBOT_Unload_Request: 3 : ' + InttoStr(nCh));
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_1] := 1;
-      WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$1 + (nCh*$20), 3), 1); //Unload Glass Data Report
+      WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$11+$1 + (nCh*$20), 3), 1); //Unload Glass Data Report
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_2] := 1;
-      WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$5 + (nCh*$20), 3), 1); //Unload Request
+      WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$11+$5 + (nCh*$20), 3), 1); //Unload Request
       AddLog('ROBOT_Unload_Request: 4 : ' + InttoStr(nCh));
-      WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$13+$0 + (nCh*$20), 3), 1); //Unload Enable
+      WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$11+$0 + (nCh*$20), 3), 1); //Unload Enable
       RequestState_Unload[nCh]:= 1;
       AddLog('ROBOT_Unload_Request: 5 : ' + InttoStr(nCh));
     end;
@@ -4266,7 +4267,7 @@ begin
 //    Sleep(300);
 //  end;
   if (Common.PLCInfo.InlineGIB) then begin
-    if (CSharpDll.MainOC_GetOCFlowIsAlive(2*nCh) = 1)  then Exit;
+//    if (CSharpDll.MainOC_GetOCFlowIsAlive(2*nCh) = 1)  then Exit;
     if (Common.SystemInfo.OCType = DefCommon.OCType) then begin
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_6] := 1;
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$09+$6 + (nCh*$20), 3), 1); //Unload Complete Confrim

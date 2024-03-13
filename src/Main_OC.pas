@@ -3259,7 +3259,13 @@ begin
 
       if Common.StatusInfo.AutoMode then begin
         if (Common.PLCInfo.InlineGIB) then begin
-          Robot_Request_Exchange_UnLoad(pGUIMsg.Channel);
+          if Common.SystemInfo.OCType = DefCommon.OCType  then begin
+            Robot_Request_UnLoad(pGUIMsg.Channel);
+          end
+          else if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
+            Robot_Request_Exchange_UnLoad(pGUIMsg.Channel);
+          end;
+
         end
         else begin
           if Common.SystemInfo.OCType = DefCommon.OCType  then begin
@@ -5895,10 +5901,10 @@ begin
 //          Common.StatusInfo.StageStep[JIG_A]:= STAGE_STEP_LOADING;
           if ControlDio.IsDetected(CH1) or  ControlDio.IsDetected(CH2) then begin
             if ControlDio.IsDetected(CH1)then
-              Robot_Request_Exchange_UnLoad(CH1);
+              Robot_Request_UnLoad(CH1);
 //            Common.Delay(100);
             if ControlDio.IsDetected(CH2)then
-              Robot_Request_Exchange_UnLoad(CH2);
+              Robot_Request_UnLoad(CH2);
           end
           else begin
             Robot_Request_Exchange_Load(CH1);
@@ -5928,10 +5934,10 @@ begin
 //          Common.StatusInfo.StageStep[JIG_A]:= STAGE_STEP_LOADING;
           if ControlDio.IsDetected(CH3) or  ControlDio.IsDetected(CH4) then begin
             if ControlDio.IsDetected(CH3)then
-              Robot_Request_Exchange_UnLoad(CH3);
+              Robot_Request_UnLoad(CH3);
 //            Sleep(100);
             if ControlDio.IsDetected(CH4)then
-              Robot_Request_Exchange_UnLoad(CH4);
+              Robot_Request_UnLoad(CH4);
           end
           else begin
             Robot_Request_Exchange_Load(CH3);
