@@ -5349,14 +5349,13 @@ begin
     if not FileExists(sFileName) then
       Exit;
 
-    sCopyFileName := Common.Path.LGDDLL + format('Oclog\SummaryLog\%s_Summary_Log_%s_%d.csv', [Common.SystemInfo.EQPId, sDate, nCh]);
-    CopyFile(PChar(sFileName), Pchar(sCopyFileName), False);
-
-    if not FileExists(sCopyFileName) then
-      Exit;
-
-
     try
+      sCopyFileName := Common.Path.LGDDLL + format('Oclog\SummaryLog\%s_Summary_Log_%s_%d.csv', [Common.SystemInfo.EQPId, sDate, nCh]);
+      CopyFile(PChar(sFileName), Pchar(sCopyFileName), False);
+
+      if not FileExists(sCopyFileName) then
+        Exit;
+
       AssignFile(txtFile, sCopyFileName);
       sw := TStopwatch.StartNew;
       Reset(txtFile);
@@ -5378,62 +5377,59 @@ begin
         else if (sPid = asSummaryData[4]) or (sSn = asSummaryData[5]) then
           asSummaryAPDRData := sLine.Split([',']);
       end;
-
-
-      if Length(asSummaryAPDRData) = 0 then
-        Exit;
-
-      // StringBuilder 사용
-      with TStringBuilder.Create do
-      begin
-        try
-          for i := 0 to System.Length(asSummaryAPDRData) -1 do
-          begin
-            if Common.SystemInfo.OCType = DefCommon.PreOCType then
-            begin
-              if System.Length(asSummaryGroupHeader[i]) = 0 then
-                asSummaryGroupHeader[i] := 'OC';
-
-              Append(asSummaryGroupHeader[i])
-                .Append(':')
-                .Append(asSummaryHeader[i])
-                .Append(':')
-                .Append(asSummaryAPDRData[i]);
-
-            end
-            else
-            begin
-              asSummaryGroupHeader[i] := 'OC';
-
-              if asSummaryAPDRData = nil then
-                Exit;
-
-              Append(asSummaryGroupHeader[i])
-                .Append(':')
-                .Append(asSummaryHeader[i])
-                .Append(':')
-                .Append(asSummaryAPDRData[i]);
-            end;
-
-            if i < System.Length(asSummaryAPDRData) - 1 then
-              Append(',');
-          end;
-
-          sResult := ToString;
-        finally
-          Free;
-        end;
-      end;
-
     finally
-      sw.Stop;
-      MLog(nCh, 'ReadLGDDLLSummaryLog msec : ' + sw.ElapsedMilliseconds.ToString);
       CloseFile(txtFile);
-      // 파일 삭제
       if FileExists(sCopyFileName) then
         DeleteFile(sCopyFileName);
+      sw.Stop;
+      MLog(nCh, 'ReadLGDDLLSummaryLog msec : ' + sw.ElapsedMilliseconds.ToString,True);
     end;
 
+
+    if Length(asSummaryAPDRData) = 0 then
+      Exit;
+
+    // StringBuilder 사용
+    with TStringBuilder.Create do
+    begin
+      try
+        for i := 0 to System.Length(asSummaryAPDRData) -1 do
+        begin
+          if Common.SystemInfo.OCType = DefCommon.PreOCType then
+          begin
+            if System.Length(asSummaryGroupHeader[i]) = 0 then
+              asSummaryGroupHeader[i] := 'OC';
+
+            Append(asSummaryGroupHeader[i])
+              .Append(':')
+              .Append(asSummaryHeader[i])
+              .Append(':')
+              .Append(asSummaryAPDRData[i]);
+
+          end
+          else
+          begin
+            asSummaryGroupHeader[i] := 'OC';
+
+            if asSummaryAPDRData = nil then
+              Exit;
+
+            Append(asSummaryGroupHeader[i])
+              .Append(':')
+              .Append(asSummaryHeader[i])
+              .Append(':')
+              .Append(asSummaryAPDRData[i]);
+          end;
+
+          if i < System.Length(asSummaryAPDRData) - 1 then
+            Append(',');
+        end;
+
+        sResult := ToString;
+      finally
+        Free;
+      end;
+    end;
   finally
     Result := sResult;
   end;

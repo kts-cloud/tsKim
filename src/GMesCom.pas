@@ -503,7 +503,7 @@ begin
   MesData[nPgNo].MesPendingMsg := MES_UNKNOWN;   //JHHWANG-GMES: 2018-06-20
   MesData[nPgNo].EicrRtnCode := FMesRtnCd;   // EICR_R.RTN_CD
   if nPgNo in [DefCommon.CH1 .. DefCommon.MAX_CH] then begin
-    Common.MLog(nPgNo,'MES REV : ' + sMsg);
+    Common.MLog(nPgNo,'MES REV : ' + sMsg,True);
 //    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPgNo,'MES REV : ' + sMsg);
   end;
 

@@ -1462,6 +1462,7 @@ object frmMain_OC: TfrmMain_OC
     Height = 156
     Caption = 'pnlSubTitle'
     TabOrder = 3
+    Visible = False
     object mmoSysLog: TRichEdit
       Left = 945
       Top = 1

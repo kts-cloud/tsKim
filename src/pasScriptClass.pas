@@ -3095,12 +3095,12 @@ begin
   With AMachine do begin
     try
       dwRtn := 1;
-      if Common.TestModelInfoFLOW.UseCkNVMWriteSequence = 0 then begin
-//        Common.MLog(self.FPgNo, 'NVM Write Sequence - SKIP');
-        SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING, 'NVM Write Sequence - SKIP');
-        dwRtn := 0;
-        Exit;
-      end;
+//      if Common.TestModelInfoFLOW.UseCkNVMWriteSequence = 0 then begin
+////        Common.MLog(self.FPgNo, 'NVM Write Sequence - SKIP');
+//        SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING, 'NVM Write Sequence - SKIP');
+//        dwRtn := 0;
+//        Exit;
+//      end;
 
       sDirectory := Common.Path.LGDPara + Common.TestModelInfoFLOW.ModelTypeName + '\Default.bin';
       if not FileExists(sDirectory) then begin
@@ -4564,6 +4564,7 @@ begin
                 if nValue and $7 = 0 then begin
 //                  Common.MLog(self.FPgNo, 'AABMode - A Mode- EIJR SKIP');
                   SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'AABMode - A Mode- EIJR SKIP');
+                  wdRet := 0;
                   Exit;
                 end;
 //                if nValue and $38 = 0 then  begin
@@ -4577,6 +4578,7 @@ begin
                 if nValue and $1C00 = 0 then begin
 //                  Common.MLog(self.FPgNo, 'AABMode - A Mode- EIJR SKIP');
                   SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'AABMode - A Mode- EIJR SKIP');
+                  wdRet := 0;
                   Exit;
                 end;
 //                if nValue and $E000 = 0 then  begin

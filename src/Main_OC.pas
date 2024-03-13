@@ -3178,6 +3178,7 @@ begin
 
       try
         PasScr[nCh].TestInfo.ApdrData := '';
+        Common.MLog(nCh,'ApdrData : Create!!',True);
         if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
           DongaGmes.MesData[nCh].ApdrData := Common.ReadLGDDLLSummaryLog_New(sPID,PasScr[nCh].TestInfo.SerialNo,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
   //        ShowSysLog('ReadLGDDLLSummaryLog_New : ' + PasScr[nCh].TestInfo.ApdrData);
@@ -3189,12 +3190,14 @@ begin
         else begin
           sIRTempData := ',' + frmTest4ChOC[0].GetIRTempData(nCh);
           DongaGmes.MesData[nCh].ApdrData := Common.ReadLGDDLLSummaryLog_New(sPID,PasScr[nCh].TestInfo.SerialNo,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
-          DongaGmes.MesData[nCh].ApdrData := PasScr[nCh].TestInfo.ApdrData + sIRTempData
+          DongaGmes.MesData[nCh].ApdrData := DongaGmes.MesData[nCh].ApdrData + sIRTempData
         end;
+        Common.MLog(nCh,'ApdrData : Create Done!!',True);
 //        DongaGmes.MesData[nCh].ApdrData := PasScr[nCh].TestInfo.ApdrData;
         DongaGmes.SendEasApdr(PasScr[nCh].TestInfo.SerialNo, nCh);
+        Common.MLog(nCh,'SendEasApdr Done!!',True);
       except
-        on E: Exception do  ShowSysLog('EAS_APDR : ' + E.Message,1);
+        on E: Exception do  Common.MLog(nCh,'EAS_APDR : ' + E.Message,True);
       end;
 
     end;
