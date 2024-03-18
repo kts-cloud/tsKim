@@ -4511,12 +4511,6 @@ begin
       AddLog('Receive the same MmcTxnID!!',nCh);
       Exit;
     end;
-    for I := 0 to 23 do begin
-      if PasScr[nCH].FR2R_Old_OC_Data[i] = PasScr[nCH].FR2ROC_Data[i] then begin
-        AddLog('EODS SAME DATA RECEIVED!!',nCh);
-        Exit;
-      end;
-    end;
 
     AddLog('CA410 CAL START',nCh);
     Common.R2RLog(nCh,'CA410 CAL START');
@@ -4556,6 +4550,9 @@ begin
       if saReturn[5] = 'OK00' then
         Result := 0;
     end;
+    {$IFDEF SIMULATOR}
+    Result := 0;
+    {$ENDIF}
     if Result = 0 then begin
       sEods_data := '';
       for i := Low(PasScr[nCH].FR2ROC_Data) to High(PasScr[nCH].FR2ROC_Data) do
@@ -4568,7 +4565,7 @@ begin
       PasScr[nCH].FR2R_Old_MmcTxnID_Data := PasScr[nCH].FR2R_MmcTxnID_Data;
       AddLog(format('R2R - Save User Cal Data : CH %d',[nCh]),nCh);
       Common.SystemInfo.R2REODS_Data[nCH] := sEods_data;
-      Common.SystemInfo.R2RMmcTxnID_Data[nCh] := DongaGmes.R2RMmcTxnID[nCH];
+      Common.SystemInfo.R2RMmcTxnID_Data[nCh] := PasScr[nCH].FR2R_MmcTxnID_Data;
       Common.SaveSystemInfo;
       AddLog(format('SaveSystemInfo - Save Done User Cal Data : CH %d',[nCh]),nCh);
     end;
@@ -4592,7 +4589,7 @@ end;
 
 procedure TfrmTest4ChOC.WMCopyData(var Msg: TMessage);
 var
-  nType, nMode, nCh, i, nTemp, nTemp2, nPgNo, nLines, nPair : Integer;
+  nType, nMode, nCh, i, nTemp, nTemp2, nPgNo, nLines, nPair,nEQP_ID,nSeq : Integer;
   bTemp : Boolean;
   sMsg, sDebug, sTemp,sVer,sSerialNumber,sEquipment,sPID : string;
   aTask : TThread;
@@ -5162,7 +5159,17 @@ begin
                     if (Common.PLCInfo.InlineGIB)  then  begin
                       if (Common.SystemInfo.OCType = DefCommon.OCType) then begin
                         if PasScr[nCh].m_bIsScriptWork then Exit;
-                        SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, nCh , nCh , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
+                        if g_CommPLC.PollingAABMode = 1 then begin
+                          if (Common.PLCInfo.EQP_ID - 6) = 1 then
+                              nEQP_ID := 1
+                            else nEQP_ID := 2;
+                          g_CommPLC.GetGlassData_Processing_Status(g_CommPLC.GlassData[nCh],nEQP_ID, nSeq, 16);
+                          if nSeq = 1 then
+                            AutoLogicStart(nCh)
+                          else SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, nCh , nCh , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
+                        end
+                        else
+                          SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, nCh , nCh , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
                       end
                       else begin
                         case nCH of

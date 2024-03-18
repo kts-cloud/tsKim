@@ -3,7 +3,7 @@ unit DllMesCom;
 interface
 
 uses Winapi.Windows, System.Classes, System.SysUtils,  IdGlobal,Vcl.ExtCtrls,
-   Messages, Vcl.Dialogs,DefCommon,CommonClass;
+   Messages, Vcl.Dialogs,DefCommon,CommonClass,AnsiStrings;
 
 
 
@@ -184,8 +184,14 @@ begin
 end;
 
 function TCommTibRv64.StringToPAnsiChar(AString: string): PAnsiChar;
+var
+MyPAnsiChar: PAnsiChar;
 begin
-  Result := PAnsiChar(AnsiString(AString));
+  MyPAnsiChar := PAnsiChar(StringOfChar(#0, Length(AString) + 1));
+  StrPCopy(MyPAnsiChar, WideChar(AString));
+  Result := MyPAnsiChar;
+
+//  Result := PAnsiChar(AnsiString(AString));
 end;
 
 procedure TCommTibRv64.Terminate;

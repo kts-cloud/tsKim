@@ -845,7 +845,7 @@ sGrayRGB : string;
 begin
   Inc(PG[nChannel].TconRWCnt.TconWriteDllCall); //2023-03-28 jhhwang (for T/T Test)
   CSharpDll.m_nFlagCount[nChannel] := 0;
-  nWaitMS := 200; //2023-04-08 (3000->100->200)
+  nWaitMS := 1000; //2023-04-08 (3000->100->200->1000)
   nRetry  := 2;   //2023-04-08 (0->3->0)
 
   {$IFDEF PG_AF9}
@@ -896,7 +896,7 @@ nResult,i,nRet,nDebugLog: integer;
 begin
   Inc(PG[nChannel].TconRWCnt.TconWriteDllCall); //2023-03-28 jhhwang (for T/T Test)
   CSharpDll.m_nFlagCount[nChannel] := 0;
-  nWaitMS := 200; //2023-04-08 (3000->100->200)
+  nWaitMS := 1000; //2023-04-08 (3000->100->200->1000)
   nRetry  := 2;   //2023-04-08 (0->3->0)
 
   {$IFDEF PG_AF9}
@@ -944,7 +944,7 @@ nResult,i,nRet,nDebugLog : integer;
 begin
   Inc(PG[nChannel].TconRWCnt.TconWriteDllCall); //2023-03-28 jhhwang (for T/T Test)
   CSharpDll.m_nFlagCount[nChannel] := 0;
-  nWaitMS := 200; //2023-04-08 (3000->100->200)
+  nWaitMS := 1000; //2023-04-08 (3000->100->200->1000)
   nRetry  := 2;   //2023-04-08 (0->3->0)
 
   {$IFDEF PG_AF9}
@@ -992,7 +992,7 @@ nResult,i,nRet,nDebugLog: integer;
 begin
   Inc(PG[nChannel].TconRWCnt.TconWriteDllCall); //2023-03-28 jhhwang (for T/T Test)
   CSharpDll.m_nFlagCount[nChannel] := 0;
-  nWaitMS := 200; //2023-04-08 (3000->100->200)
+  nWaitMS := 1000; //2023-04-08 (3000->100->200->1000)
   nRetry  := 2;   //2023-04-08 (0->3->0)
 
   {$IFDEF PG_AF9}
@@ -1301,7 +1301,9 @@ begin
   Move(data^, arRData[0],nLength);
 
   for I := 0 to nRetry do begin
-    nResult := Pg[nChannel].DP860_SendTconSeqWrite(nMode,nSeqIdx,nLength,arRAddr, arRData, nWaitMS,0,1);
+    if i <> 2 then  nDebugLog := 0
+    else nDebugLog := 1;
+    nResult := Pg[nChannel].DP860_SendTconSeqWrite(nMode,nSeqIdx,nLength,arRAddr, arRData, nWaitMS,0,nDebugLog);
     if nResult <> WAIT_OBJECT_0 then begin
       Inc(PG[nChannel].TconRWCnt.TconRetryWriteCall);
 //      sDebug := Format('TCONSetRegSeqWrite NG CH : %d Retry : %d',[nChannel,i + 1]);
@@ -1341,7 +1343,9 @@ begin
   Move(data^, arRData[0],nLength);
 
   for I := 0 to nRetry do begin
-    nResult := Pg[nChannel].DP860_SendTconSeqWrite(nMode,nSeqIdx,nLength,arRAddr, arRData, nWaitMS,0,1);
+    if i <> 2 then  nDebugLog := 0
+    else nDebugLog := 1;
+    nResult := Pg[nChannel].DP860_SendTconSeqWrite(nMode,nSeqIdx,nLength,arRAddr, arRData, nWaitMS,0,nDebugLog);
     if nResult <> WAIT_OBJECT_0 then begin
       Inc(PG[nChannel].TconRWCnt.TconRetryWriteCall);
 //      sDebug := Format('TCONSetRegSeqWrite NG CH : %d Retry : %d',[nChannel,i + 1]);
@@ -1380,7 +1384,9 @@ begin
   Move(data^, arRData[0],nLength);
 
   for I := 0 to nRetry do begin
-    nResult := Pg[nChannel].DP860_SendTconSeqWrite(nMode,nSeqIdx,nLength,arRAddr, arRData, nWaitMS,0,1);
+    if i <> 2 then  nDebugLog := 0
+    else nDebugLog := 1;
+    nResult := Pg[nChannel].DP860_SendTconSeqWrite(nMode,nSeqIdx,nLength,arRAddr, arRData, nWaitMS,0,nDebugLog);
     if nResult <> WAIT_OBJECT_0 then begin
       Inc(PG[nChannel].TconRWCnt.TconRetryWriteCall);
 //      sDebug := Format('TCONSetRegSeqWrite NG CH : %d Retry : %d',[nChannel,i + 1]);
@@ -1419,7 +1425,9 @@ begin
   Move(data^, arRData[0],nLength);
 
   for I := 0 to nRetry do begin
-    nResult := Pg[nChannel].DP860_SendTconSeqWrite(nMode,nSeqIdx,nLength,arRAddr, arRData, nWaitMS,0,1);
+    if i <> 2 then  nDebugLog := 0
+    else nDebugLog := 1;
+    nResult := Pg[nChannel].DP860_SendTconSeqWrite(nMode,nSeqIdx,nLength,arRAddr, arRData, nWaitMS,0,nDebugLog);
     if nResult <> WAIT_OBJECT_0 then begin
       Inc(PG[nChannel].TconRWCnt.TconRetryWriteCall);
 //      sDebug := Format('TCONSetRegSeqWrite NG CH : %d Retry : %d',[nChannel,i + 1]);
@@ -2603,9 +2611,10 @@ nReturn : Integer;
 begin
   try
     nReturn := 0;
+    Result := '';
     if @m_GetSummaryLogData_New <> nil then begin
       Result := PAnsiChar(m_GetSummaryLogData_New(nCH,nReturn,Common.StringToPAnsiChar(sParameter)));
-      if nReturn <> 0 then
+      if (nReturn <> 0) or (Length(Result) = 0) then
         Result := PAnsiChar(m_GetSummaryLogData_New(nCH,nReturn,Common.StringToPAnsiChar(sParameter)));
     end
     else begin

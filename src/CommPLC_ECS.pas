@@ -5497,8 +5497,7 @@ begin
   //2.1.7. Glass Processing Status
   Result:= 0;
   nStation := nCH + 1;
-  if (not RobotLoadingStatus[nCH]) and (nABBCount <> 0)  then
-    nABBCount := nABBCount - 1;
+
   if nEQP_ID = 1 then begin
     Set_Bit(GlassData.GlassProcessingStatus[0], 0 + 3 * nABBCount, Get_Bit(nStation, 0));
     Set_Bit(GlassData.GlassProcessingStatus[0], 1 + 3 * nABBCount, Get_Bit(nStation, 1));

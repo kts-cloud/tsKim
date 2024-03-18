@@ -3132,7 +3132,7 @@ end;
 procedure TfrmMain_OC.ProcessMsg_SCRIPT(pGUIMsg: PGUIMessage);
 var
   nCh : Integer;
-  sDebug,sSN,sPID,sGD_DEFECT,sIRTempData : string;
+  sDebug,sSN,sPID,sGD_DEFECT,sIRTempData,sEASR2RData : string;
 begin
   nCh:= pGUIMsg.Channel;
   case pGUIMsg.Mode of
@@ -3178,7 +3178,7 @@ begin
 
       try
         PasScr[nCh].TestInfo.ApdrData := '';
-        Common.MLog(nCh,'ApdrData : Create!!',True);
+        Common.MLog(nCh,format('ApdrData : Create : PID : %s!!',[sPID]));
         if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
           DongaGmes.MesData[nCh].ApdrData := Common.ReadLGDDLLSummaryLog_New(sPID,PasScr[nCh].TestInfo.SerialNo,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
   //        ShowSysLog('ReadLGDDLLSummaryLog_New : ' + PasScr[nCh].TestInfo.ApdrData);
@@ -3189,13 +3189,14 @@ begin
         end
         else begin
           sIRTempData := ',' + frmTest4ChOC[0].GetIRTempData(nCh);
+          sEASR2RData := ',' + DongaGmes.GetEASR2RData(nCH);
           DongaGmes.MesData[nCh].ApdrData := Common.ReadLGDDLLSummaryLog_New(sPID,PasScr[nCh].TestInfo.SerialNo,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
-          DongaGmes.MesData[nCh].ApdrData := DongaGmes.MesData[nCh].ApdrData + sIRTempData
+          DongaGmes.MesData[nCh].ApdrData := DongaGmes.MesData[nCh].ApdrData + sIRTempData + sEASR2RData;
         end;
-        Common.MLog(nCh,'ApdrData : Create Done!!',True);
+        Common.MLog(nCh,format('ApdrData : Done : PID : %s!!',[sPID]));
 //        DongaGmes.MesData[nCh].ApdrData := PasScr[nCh].TestInfo.ApdrData;
         DongaGmes.SendEasApdr(PasScr[nCh].TestInfo.SerialNo, nCh);
-        Common.MLog(nCh,'SendEasApdr Done!!',True);
+        Common.MLog(nCh,'SendEasApdr Done!!');
       except
         on E: Exception do  Common.MLog(nCh,'EAS_APDR : ' + E.Message,True);
       end;
@@ -3257,13 +3258,17 @@ begin
       //Unloadzone 종료
       ShowSysLog(format('Stage Script UnloadZone Done Stage=%d, Ch=%d, Step=%d', [pGUIMsg.Channel, pGUIMsg.Param, pGUIMsg.Param2]));
 
+      if Common.Timer1Timer  then  begin    // 12시 부터 10분 사이LGD DLL SummaryLog 백업
+        Common.BackupLGDDLLSummaryLog(FormatDateTime('yymmdd',now));
+      end;
+
       if Common.StatusInfo.AutoMode then begin
         if (Common.PLCInfo.InlineGIB) then begin
           if Common.SystemInfo.OCType = DefCommon.OCType  then begin
             Robot_Request_UnLoad(pGUIMsg.Channel);
           end
           else if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
-            Robot_Request_Exchange_UnLoad(pGUIMsg.Channel);
+            Robot_Request_UnLoad(pGUIMsg.Channel);
           end;
 
         end
@@ -3336,7 +3341,7 @@ begin
         else begin
           //Last Product 갑자기 변경하는 현상에 대한 방어 - Start 여부 확인
           if CheckStage_Started(nCh) then begin
-            SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'Do not Request - Script is Running');
+            SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'Do not Request - Script is Running ' + Format('CH : %d',[nCh +1]));
             Exit;
           end;
           if not CheckProbe(nCh) then begin
@@ -3399,7 +3404,7 @@ begin
           else begin
             //Last Product 갑자기 변경하는 현상에 대한 방어 - Start 여부 확인
             if CheckStage_Started(COMMPLC_CH_12) then begin
-              SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'Do not Request - Script is Running');
+              SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'Do not Request - Script is Running'+ Format('CH : %d',[COMMPLC_CH_12 +1]));
               Exit;
             end;
             if not CheckProbe(COMMPLC_CH_12) then begin
@@ -3518,7 +3523,7 @@ begin
           else begin
             //Last Product 갑자기 변경하는 현상에 대한 방어 - Start 여부 확인
             if CheckStage_Started(COMMPLC_CH_34) then begin
-              SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'Do not Request - Script is Running');
+              SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'Do not Request - Script is Running'+ Format('CH : %d',[COMMPLC_CH_34 +1]));
               Exit;
             end;
 
@@ -3670,7 +3675,7 @@ begin
         else begin
           //Last Product 갑자기 변경하는 현상에 대한 방어 - Start 여부 확인
           if CheckStage_Started(nCH) then begin
-            SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'Do not Request - Script is Running');
+            SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'Do not Request - Script is Running'+ Format('CH : %d',[nCH +1]));
             Exit;
           end;
 
@@ -3735,7 +3740,7 @@ begin
           end
           else begin
             if CheckStage_Started(COMMPLC_CH_12) then begin
-              SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'Do not Request - Script is Running');
+              SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'Do not Request - Script is Running'+ Format('CH : %d',[COMMPLC_CH_12 +1]));
               Exit;
             end;
 
@@ -3862,7 +3867,7 @@ begin
           else begin
             //Last Product 갑자기 변경하는 현상에 대한 방어 - Start 여부 확인
             if CheckStage_Started(COMMPLC_CH_34) then begin
-              SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'Do not Request - Script is Running');
+              SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'Do not Request - Script is Running'+ Format('CH : %d',[COMMPLC_CH_34 +1]));
               Exit;
             end;
 
@@ -4046,7 +4051,7 @@ begin
             end;
 
             if CheckStage_Started(COMMPLC_CH_12) then begin
-              SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'Do not Request - Script is Running');
+              SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'Do not Request - Script is Running'+ Format('CH : %d',[COMMPLC_CH_12 +1]));
               Exit;
             end;
 
@@ -4072,7 +4077,7 @@ begin
           else begin
             //Last Product 갑자기 변경하는 현상에 대한 방어 - Start 여부 확인
             if CheckStage_Started(COMMPLC_CH_34) then begin
-              SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'Do not Request - Script is Running');
+              SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'Do not Request - Script is Running'+ Format('CH : %d',[COMMPLC_CH_12 +1]));
               Exit;
             end;
             if not CheckProbe(COMMPLC_CH_34) then begin
@@ -4136,7 +4141,7 @@ begin
           end;
 
           if CheckStage_Started(nCH) then begin
-            SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'Do not Request - Script is Running');
+            SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'Do not Request - Script is Running'+ Format('CH : %d',[nCH +1]));
             Exit;
           end;
 
@@ -4656,7 +4661,7 @@ try
         else begin
           //Last Product 갑자기 변경하는 현상에 대한 방어 - Start 여부 확인
           if CheckStage_Started(COMMPLC_CH_12) then begin
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Do not Request - Script is Running');
+            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Do not Request - Script is Running'+ Format('CH : %d',[COMMPLC_CH_12 +1]));
             Exit;
           end;
 //
@@ -4784,7 +4789,7 @@ try
           //Last Product 갑자기 변경하는 현상에 대한 방어 - Start 여부 확인
           if CheckStage_Started(COMMPLC_CH_34) then begin
 //            ShowSysLog('Do not Request - Script is Running',1);
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Do not Request - Script is Running');
+            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Do not Request - Script is Running'+ Format('CH : %d',[COMMPLC_CH_34 +1]));
             Exit;
           end;
             if not CheckProbe(COMMPLC_CH_34) then begin
@@ -4910,7 +4915,7 @@ try
         //Last Product 갑자기 변경하는 현상에 대한 방어 - Start 여부 확인
         if CheckStage_Started(nCH) then begin
 //          ShowSysLog('Do not Request - Script is Running',1);
-          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Do not Request - Script is Running');
+          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, 'Do not Request - Script is Running'+ Format('CH : %d',[nCH +1]));
           Exit;
         end;
         if not CheckProbe(nCH) then begin

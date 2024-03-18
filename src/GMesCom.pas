@@ -237,7 +237,6 @@ type
     procedure ReturnDataToTestForm(nMode,nPg : Integer; bError : Boolean; sMsg : string);
     procedure OnGmesChMsgTimer(Sender : TObject);   // JHHWANG-GMES 2018-06-27
     procedure OnGemsResponseTimer(Sender : TObject);
-    function GetR2RMmcTxnID(Index: Integer): string;
 //    procedure SendTestGuiDisplay(nGuiMode,nCH: Integer; sMsg : string = ''; sMsg2 : string = ''; nParam: Integer = 0; nParam2: Integer = 0);
 
     { Private declarations }
@@ -302,6 +301,7 @@ type
     function IsMesWaiting(bIsChMsg : Boolean; nThisPgNo : Integer): Boolean;  //JHHWANG-GMES: 2018-06-20
     procedure SendHostStart;
     procedure SendR2RStart;
+    function GetEASR2RData(nCH : Integer): string;
     //DEL!!! procedure SendDelayedMesMsg;  //JHHWANG-GMES: 2018-06-20
 
 //    function  ConnectFTP: Boolean;
@@ -945,10 +945,6 @@ begin
   Result := FCanUseR2R;
 end;
 
-function TGmes.GetR2RMmcTxnID(Index: Integer): string;
-begin
-  Result := FR2RMmcTxnID[Index];
-end;
 
 
 procedure TGmes.ReadMsgEas(ASender: TObject; const sMessage: WideString);
@@ -1641,6 +1637,39 @@ begin
   m_MESItem.State:= MES_UNKNOWN; //아이템 작업 완료
 end;
 
+function TGmes.GetEASR2RData(nCH: Integer): string;
+var
+  I: Integer;
+  sResult : string;
+begin
+  Result := '';
+  with TStringBuilder.Create do
+  begin
+    try
+      for i := 0 to 23 do
+      begin
+        Append('R2R_OFF_SET')
+          .Append(':')
+          .Append(R2REODSNAME[i])
+          .Append(':')
+          .Append(PasScr[nCH].FR2R_Old_OC_Data[i]);
+          Append(',');
+      end;
+      Append('R2R_OFF_SET')
+      .Append(':')
+      .Append('MMC_TXN_ID')
+      .Append(':')
+      .Append(PasScr[nCH].FR2R_Old_MmcTxnID_Data);
+
+
+      sResult := ToString;
+    finally
+      Free;
+    end;
+  end;
+  Result := sResult
+end;
+
 procedure TGmes.GetHostData(sMsg: string);
 var
   sMode   : string;
@@ -1657,7 +1686,7 @@ begin
   sDebug := StringReplace(sMsg,#$0a, #$24, [rfReplaceAll]);
   sDebug := StringReplace(sDebug,#$0d, #$25, [rfReplaceAll]);
 
-  Common.Mlog(nCh,Format('[HOST] Recv Msg: %s PG : %d', [sDebug, nCh]));
+  Common.Mlog(nCh,Format('[HOST] Recv Msg: %s CH : %d', [sDebug, nCh]));
 
   if      CompareStr(sMode,'EAYT_R') = 0 then	parse_EAYT
   else if CompareStr(sMode,'UCHK_R') = 0 then	parse_UCHK
@@ -1713,13 +1742,13 @@ begin
 end;
 
 
-
 procedure TGmes.SendEasApdr(sSerialNo: string; nPg: Integer; bIsDelayed : Boolean = False);
 var
   sConvertSerial : string;
   item: TQueItemValue;
 begin
   FMesApdrPg  := nPg;
+  Common.MLog(nPg,Format('procedure SendEasApdr Start!! PID: %s',[sSerialNo]));
   sConvertSerial := StringReplace(sSerialNo,#$24, #$0a, [rfReplaceAll]);
   sConvertSerial := StringReplace(sConvertSerial,#$25,#$0d , [rfReplaceAll]);
 
@@ -1734,6 +1763,7 @@ begin
   item.State := MES_UNKNOWN;
   m_Queue.Enqueue(item);
   tmGmesChMsg.Enabled:= True;
+  Common.MLog(nPg,'procedure SendEasApdr Done!!');
 end;
 
 procedure TGmes.SendHostApdr(sSerialNo : string; nPg : Integer; bIsDelayed : Boolean = False);
@@ -2598,7 +2628,7 @@ begin
 //      Common.MLog(nPg,'SEND_MESG2HOST2 : Send Msg :  ' + sSendMsg);
     end;
     DefGmes.EAS_APDR : begin
-      //Common.Mlog(nPg, Format('[HOST] EAS_APDR MsgType: %d, PG : %d, Serial: %s', [nMsgType, nPg, sSerialNo]));
+      Common.Mlog(nPg, Format('[HOST] EAS_APDR Start MsgType: %d, PG : %d, Serial: %s', [nMsgType, nPg, sSerialNo]));
       sSendMsg := 'APDR';
       sSendMsg := sSendMsg  + ' ADDR=' + m_sEasLocal + ',' + m_sEasLocal;
       if Common.PLCInfo.InlineGIB then begin
@@ -2628,6 +2658,7 @@ begin
       sSendMsg := sSendMsg  + ' END_TIME='+FormatDateTime('yyyymmddhhnnss', PasScr[nPg].TestInfo.EndTime);
       sSendMsg := sSendMsg  + ' APD_INFO=['+ MesData[nPg].ApdrData+']';
       bIsChMsg := True;
+      Common.Mlog(nPg, Format('[HOST] EAS_APDR Finish!! MsgType: %d, PG : %d, Serial: %s', [nMsgType, nPg, sSerialNo]));
 //      Common.MLog(nPg,'SEND_MESG2HOST2 : Send Msg :  ' + sSendMsg);
     end;
     DefGmes.R2R_EAYT : begin
@@ -2647,7 +2678,7 @@ begin
       sSendMsg := sSendMsg  + ' UNIT=' + IntToStr(nPg +1);
       sSendMsg := sSendMsg  + ' LOT=';
 
-      sSendMsg := sSendMsg  +format(' DATAINFO=[::::[[OC_W600_X#5f^OC_W600_Y#599.1388^OC_W600_Z#653.0140^OC_R600_X#345.0315^OC_R600_Y#155.0830^OC_R600_Z',[569.4916+nPg])
+      sSendMsg := sSendMsg  +format(' DATAINFO=[::::[[OC_W600_X#%f^OC_W600_Y#599.1388^OC_W600_Z#653.0140^OC_R600_X#345.0315^OC_R600_Y#155.0830^OC_R600_Z',[569.4916+nPg])
       +'#1.9375^OC_G600_X#141.1762^OC_G600_Y#435.7469^OC_G600_Z#28.4507^OC_B600_X#110.7873^OC_B600_Y#36.3658^OC_B600_Z#639.3447^MPO_W600_L#606.6714'
       +'^MPO_W600_X#0.3162^MPO_W600_Y#0.3328^MPO_R600_L#157.8681^MPO_R600_X#0.6899^MPO_R600_Y#0.3098^MPO_G600_L#440.9931^MPO_G600_X#0.2383^MPO_G600_Y'
       +format('#0.7188^MPO_B600_L#36.8475^MPO_B600_X#0.1382^MPO_B600_Y#0.0476]] MMC_TXN_ID=20240224175048941H9AMAL535%d',[nPG+1]);
@@ -2769,7 +2800,9 @@ begin
     end
     else begin
       {$IFDEF EAS_USE}
+      Common.MLog(nPg,'CommTibRv.Send_Data Start!!');
       bRtn := CommTibRv.Send_Data(TIBServer_EAS,sSendMsg);
+      Common.MLog(nPg,'CommTibRv.Send_Data Finish!!');
       {$ENDIF}
     end;
 
@@ -3141,6 +3174,9 @@ begin
   else begin
     if m_Queue.Count > 0 then begin
       m_MESItem:= m_Queue.Dequeue;
+      if (m_MESItem.Kind = EAS_APDR) then begin
+        Common.MLog(m_MESItem.Channel, Format('OnGmesChMsgTimer Start!! CH %d SerialNo : %s ',[m_MESItem.Channel,m_MESItem.SerialNo]));
+      end;
       if (m_MESItem.Kind = EAS_APDR) or (m_MESItem.Kind = R2R_EODS_R) or (m_MESItem.Kind = R2R_EODA) then  //EAS_APDR 제외
       else
         m_MESItem.State:= m_MESItem.Kind;
@@ -3158,8 +3194,10 @@ begin
       end;
       SEND_MESG2HOST(m_MESItem.Kind, m_MESItem.SerialNo, m_MESItem.CarrierID, m_MESItem.Channel);
 
-      if (m_MESItem.Kind = EAS_APDR) then
+      if (m_MESItem.Kind = EAS_APDR) then begin
+        Common.MLog(m_MESItem.Channel, Format('OnGmesChMsgTimer END CH %d SerialNo : %s ',[m_MESItem.Channel,m_MESItem.SerialNo]));
         MesData[m_MESItem.Channel].ApdrData := '';
+      end;
 
     end
     else begin

@@ -4437,7 +4437,7 @@ begin
             ReturnOutputArg(0);
             Exit;
           end;
-
+          Common.MLog(FPgNo,'SendApdr_EAS_Proc : Start!!');
           if DongaGmes <> nil then begin
             //EAS ADPR은 응답을 기다리지 않는다.
             SendMainGuiDisplay(DefGmes.EAS_APDR);
@@ -4447,6 +4447,7 @@ begin
           else begin
             wdRet := WAIT_OBJECT_0;
           end;
+          Common.MLog(FPgNo,'SendApdr_EAS_Proc : Finish!!');
         end;
       End;
       ReturnOutputArg(wdRet);
@@ -4504,6 +4505,7 @@ begin
         end;
 
 //        SendTestGuiDisplay(DefCommon.MSG_MODE_SHOW_SERIAL_NUMBER,TestInfo.CarrierId +' / '+TestInfo.SerialNo);
+        Common.MLog(FPgNo,'SendEICR_Proc : Start!!');
         if DongaGmes is TGmes then begin
           DongaGmes.MesData[Self.FPgNo].Rwk := Common.GmesInfo[nResult].MES_Code;
           DongaGmes.MesData[Self.FPgNo].ErrCode := Common.GmesInfo[nResult].sErrCode;
@@ -4525,6 +4527,7 @@ begin
         else begin
           wdRet := WAIT_OBJECT_0;
         end;
+        Common.MLog(FPgNo,'SendEICR_Proc : Done!!');
       end;
     End;
     ReturnOutputArg( wdRet);

@@ -1,6 +1,7 @@
 object frmMain_OC: TfrmMain_OC
   Left = 0
   Top = 0
+  BorderIcons = [biMinimize, biMaximize]
   Caption = 'IITOLED_OC'
   ClientHeight = 844
   ClientWidth = 1540

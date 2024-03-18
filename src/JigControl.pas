@@ -399,6 +399,7 @@ begin
       g_CommPLC.EQP_Clear_ROBOT_Request(0);
     end;
   end;
+  sLog := '';
   for i := DefCommon.CH1 to DefCommon.CH2 do begin
 //    if ControlDio <> nil then begin
 //      if ( ControlDio.ReadInSig(DefDio.IN_CH_1_CARRIER_SENSOR+16*i)) and ControlDio.Connected then Continue;
@@ -408,6 +409,7 @@ begin
     if COmmon.SystemInfo.OCType = DefCommon.PreOCType then begin
       if Common.StatusInfo.AutoMode then begin
         if PasScr[i].m_nConfirmHostRet  = 1 then begin  // Added by KTS 2023-06-13 오후 10:41:01 EICR 이후 재시작 안되게
+          sLog := sLog + Format(' CH : %d This is a panel that was inspected',[i +1])+ #13#10;
           Continue;
         end;
       end;
@@ -416,6 +418,10 @@ begin
     PasScr[i].RunSeq(nSeq);
     PasScr[i].m_bIsProbeBackSig := False;
   end;
+  if Length(sLog) <> 0 then begin
+    SendMainGuiDisplay(DefCommon.MSG_TYPE_CTL_DIO, 0, 2, 0, sLog);    // 검사 종료 후 재시작 하는 경우 NG Message 전송
+  end;
+
 
   Result := True;
 end;
@@ -489,7 +495,8 @@ begin
     //if not Pg[nCh].CheckFWVersion then Continue;
     if COmmon.SystemInfo.OCType = DefCommon.PreOCType then begin
       if Common.StatusInfo.AutoMode then begin
-         if PasScr[i].m_nConfirmHostRet  = 1 then begin  // Added by KTS 2023-06-13 오후 10:41:01 EICR 이후 재시작 안되게
+        if PasScr[i].m_nConfirmHostRet  = 1 then begin  // Added by KTS 2023-06-13 오후 10:41:01 EICR 이후 재시작 안되게
+          sLog := sLog + Format(' CH : %d This is a panel that was inspected',[i +1])+ #13#10;
           Continue;
         end;
       end;
@@ -497,6 +504,9 @@ begin
     PasScr[i].TestInfo.NgCode := 0;
     PasScr[i].RunSeq(nSeq);
     PasScr[i].m_bIsProbeBackSig := False;
+  end;
+  if Length(sLog) <> 0 then begin
+    SendMainGuiDisplay(DefCommon.MSG_TYPE_CTL_DIO, 0, 2, 0, sLog);    // 검사 종료 후 재시작 하는 경우 NG Message 전송
   end;
 
   Result := True;

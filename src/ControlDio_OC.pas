@@ -359,7 +359,7 @@ begin
     end;
 
     nAlarmNo := DefDio.IN_GIB_CH_34_LIGHTCURTAIN;
-    if not CheckDi(DefDio.IN_GIB_CH_34_LIGHTCURTAIN) and (not CheckDi(DefDio.IN_GIB_CH_34_MUTING_LAMP)) then begin
+    if (not CheckDi(DefDio.IN_GIB_CH_34_LIGHTCURTAIN)) and (not CheckDi(DefDio.IN_GIB_CH_34_MUTING_LAMP)) then begin
       nRet := nAlarmNo;
       SendAlarm(MSG_MODE_DISPLAY_ALARAM, nAlarmNo, 1);
     end;
@@ -830,7 +830,7 @@ begin
   // Return ==> 0 : OK. 1 ==> NG.
 
 
-  SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'lock PinBlock  Start - CH = '+ IntToStr(nCh));
+  SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'lock PinBlock  Start - CH = '+ IntToStr(nCh+1));
 
   bRet := True;
 
@@ -838,7 +838,7 @@ begin
    bRet := False;
 
   if bRet then begin
-    SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'lock PinBlock Finish CH = '+ IntToStr(nCh)+ ' - Already');
+    SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'lock PinBlock Finish CH = '+ IntToStr(nCh+1)+ ' - Already');
     Exit(0);
   end;
 
@@ -855,7 +855,7 @@ begin
     Exit(1);
   end;
 
-  SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'lock PinBlock Finish CH = '+ IntToStr(nCh));
+  SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'lock PinBlock Finish CH = '+ IntToStr(nCh+1));
 
   Result := 0;
 end;
@@ -870,7 +870,7 @@ begin
   nWaitingCount:= 50; //100ms * nWaitingCount
   // Return ==> 0 : OK. 1 ==> NG.
 
-  SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'PIN BLOCK CLOSE Prevention Down Start - CH = '+ IntToStr(nCh));
+  SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'PIN BLOCK CLOSE Prevention Down Start - CH = '+ IntToStr(nCh+1));
 
   bRet := True;
 
@@ -878,7 +878,7 @@ begin
    bRet := False;
 
   if bRet then begin
-    SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'PIN BLOCK CLOSE Prevention Down Finish CH = '+ IntToStr(nCh)+ ' - Already');
+    SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'PIN BLOCK CLOSE Prevention Down Finish CH = '+ IntToStr(nCh+1)+ ' - Already');
     Exit(0);
   end;
 
@@ -895,7 +895,7 @@ begin
     Exit(1);
   end;
 
-  SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'PIN BLOCK CLOSE Prevention Down Finish CH = '+ IntToStr(nCh));
+  SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'PIN BLOCK CLOSE Prevention Down Finish CH = '+ IntToStr(nCh+1));
 
   Result := 0;
 end;
@@ -908,7 +908,7 @@ begin
   if Common.SystemInfo.OCType <> DefCommon.PreOCType  then Exit(2);
   nWaitingCount:= 50; //100ms * nWaitingCount
   // Return ==> 0 : OK. 1 ==> NG.
-  SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'PIN BLOCK CLOSE Prevention Up Start - CH = '+ IntToStr(nCh));
+  SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'PIN BLOCK CLOSE Prevention Up Start - CH = '+ IntToStr(nCh+1));
 
   bRet := True;
 
@@ -916,7 +916,7 @@ begin
    bRet := False;
 
   if bRet then begin
-    SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'PIN BLOCK CLOSE Prevention Up Finish CH = '+ IntToStr(nCh)+ ' - Already');
+    SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'PIN BLOCK CLOSE Prevention Up Finish CH = '+ IntToStr(nCh+1)+ ' - Already');
     Exit(0);
   end;
 
@@ -933,7 +933,7 @@ begin
     Exit(1);
   end;
 
-  SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'PIN BLOCK CLOSE Prevention UP Finish CH = '+ IntToStr(nCh));
+  SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'PIN BLOCK CLOSE Prevention UP Finish CH = '+ IntToStr(nCh+1));
 
   Result := 0;
 end;
@@ -2145,14 +2145,14 @@ var
 begin
   if Common.SystemInfo.OCType <> DefCommon.PreOCType  then Exit(2);
   if Common.AutoReStart then begin         // 자동 재시작 모드UnlockPinBlock skip
-    SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Unlock PinBlock  AutoReStart - Skip CH = '+ IntToStr(nCh));
+    SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Unlock PinBlock  AutoReStart - Skip CH = '+ IntToStr(nCh+1));
     Exit(0);
   end;
 
   nWaitingCount:= 80; //100ms * nWaitingCount
   // Return ==> 0 : OK. 1 ==> NG.
 
-  SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Unlock PinBlock  Start - CH = '+ IntToStr(nCh));
+  SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Unlock PinBlock  Start - CH = '+ IntToStr(nCh+1));
   ClearOutDioSig(DefDio.OUT_GIB_CH_1_VACCUM_SOL + nCh*8);
 
   bRet := True;
@@ -2162,7 +2162,7 @@ begin
 
 
   if bRet then begin
-    SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Unlock PinBlock Finish CH = '+ IntToStr(nCh)+ ' - Already');
+    SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Unlock PinBlock Finish CH = '+ IntToStr(nCh+1)+ ' - Already');
     Exit(0);
   end;
   bRet := True;
@@ -2177,7 +2177,7 @@ begin
     SendAlarm(MSG_MODE_SYSTEM_ALARAM, IN_GIB_CH_1_PINBLOCK_UNLOCK_ON_SENSOR + nCh*8, 1, '');
     Exit(1);
   end;
-  SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Unlock PinBlock Finish CH = '+ IntToStr(nCh));
+  SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Unlock PinBlock Finish CH = '+ IntToStr(nCh+1));
 
   Result := 0;
 end;
@@ -2600,6 +2600,7 @@ begin
       Exit(3);
     end;
 
+
     SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Probe and Shutter DN Start ' + sCH);
     ClearOutDioSig(DefDio.OUT_GIB_CH_12_PROBE_UP_SOL + nGroup *4);
     ClearOutDioSig(DefDio.OUT_GIB_CH_12_SHUTTER_UP_SOL + nGroup *4);
@@ -2768,7 +2769,6 @@ begin
         end;
         WriteDioSig(DefDio.OUT_GIB_CH_12_SHUTTER_UP_SOL,False);
 
-        // Turn 돌기전 Work Lamp Off.
         for i := 0 to nWaitingCount do begin
           Sleep(100);
           if not ReadInSig(DefDio.IN_GIB_CH_12_SHUTTER_UP_SENSOR) then begin
@@ -2785,7 +2785,25 @@ begin
         SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Shutter UP Finish ' + sCH);
       end
       else begin
+        for i := 0 to 30 do begin           // 3000ms 동안 센서 조건 확인
+          Sleep(100);
+          if ReadInSig(DefDio.IN_GIB_CH_12_ROBOT_SENSOR + nGroup) then begin
+            Continue;
+          end;
+
+          if (not g_CommPLC.IsBitOn_Robot($0f + nGroup *$20))  then begin
+            if (not Common.PLCInfo.InlineGIB) then  begin
+              Continue;
+            end;
+          end;
+
+          if g_CommPLC.IsBusy_Robot(nGroup) then begin
+            Continue;
+          end;
+          Break;
+        end;
         if ReadInSig(DefDio.IN_GIB_CH_12_ROBOT_SENSOR + nGroup) then begin
+//          SendAlarm(MSG_MODE_DISPLAY_ALARAM, IN_GIB_CH_12_ROBOT_SENSOR +nGroup , 1, '');
           SendMsgMain(COMMDIO_MSG_LOG, 0, 1, 'Do not MovingShutter - Sensing ROBOT_SENSOR ' + sCH);
           Exit(3);
         end;
@@ -2801,6 +2819,7 @@ begin
           SendMsgMain(COMMDIO_MSG_LOG, 0, 1, 'Do not MovingShutter - Robot Busy ' + sCH);
           Exit(3);
         end;
+
         SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Shutter DN Start ' + SCH);
         ClearOutDioSig(DefDio.OUT_GIB_CH_12_SHUTTER_UP_SOL);
         if not ReadInSig(DefDio.IN_GIB_CH_12_SHUTTER_DN_SENSOR) then begin
@@ -2856,7 +2875,28 @@ begin
         SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Shutter UP Finish ' + sCH);
       end
       else begin
+        for i := 0 to 30 do begin    // 3000ms 동안 센서 조건 확인
+          Sleep(100);
+          if ReadInSig(DefDio.IN_GIB_CH_12_ROBOT_SENSOR + nGroup) then begin
+            Continue;
+            //            Exit(3);
+          end;
+
+          if (not g_CommPLC.IsBitOn_Robot($0f + nGroup *$20))  then begin
+            if (not Common.PLCInfo.InlineGIB) then  begin
+              Continue;
+              //              Exit(3);
+            end;
+          end;
+
+          if g_CommPLC.IsBusy_Robot(nGroup) then begin
+            Continue;
+            //            Exit(3);
+          end;
+          Break;
+        end;
         if ReadInSig(DefDio.IN_GIB_CH_34_ROBOT_SENSOR + nGroup) then begin
+//          SendAlarm(MSG_MODE_DISPLAY_ALARAM, IN_GIB_CH_34_ROBOT_SENSOR +nGroup , 1, '');
           SendMsgMain(COMMDIO_MSG_LOG, 0, 1, 'Do not MovingShutter - Sensing ROBOT_SENSOR ' + sCH);
           Exit(3);
         end;

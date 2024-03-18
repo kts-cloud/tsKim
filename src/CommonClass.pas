@@ -525,6 +525,7 @@ type
     LGDPara      : string;
     LGDReProgramming : string;
     LGD_LOG_BK      : string;
+    LGD_LOG_SL_BK : string;
     Gamma        : string;
     CEL          : string;
     GMES     		 : string; //Host
@@ -739,6 +740,7 @@ type
     m_nCsvFileCnt : Integer;
     m_nCsvLineCnt : Integer;
     m_bModelInfoNg : Boolean;
+    m_bBackupLGDDLLSummaryLog : Boolean;
 
     m_sFileName : array [DefCommon.CH1..MAX_PG_CNT] of string;
     m_slLog : array [DefCommon.CH1..MAX_PG_CNT] of TStringList;
@@ -818,7 +820,9 @@ type
 
     function ReadLGDDLLSummaryLog(sPid,sSn,sDate : string; nCh : Integer) : string;
     function ReadLGDDLLSummaryLog_New(sPid,sSn,sDate : string; nCh : Integer) : string;
-//    function ReadLGDDLLSummaryLog_New_1(sPid,sSn,sDate : string; nCh : Integer) : string;
+    function BackupLGDDLLSummaryLog(sDate : string) : Boolean;
+    function Timer1Timer: Boolean;
+    //    function ReadLGDDLLSummaryLog_New_1(sPid,sSn,sDate : string; nCh : Integer) : string;
 
     function CheckFileAccess(const Path: string; Mode: Word): Boolean;
     function CanOpenFile(const FilePath: string; FileMode: Word = fmOpenRead): Boolean;
@@ -1828,6 +1832,7 @@ begin
   end;
 end;
 
+
 function TCommon.StringToPAnsiChar(AString: string): PAnsiChar;
 begin
   Result := PAnsiChar(AnsiString(AString));
@@ -2494,6 +2499,7 @@ begin
   Path.LGDReProgramming := Path.LGDDLL + 'ReProgramming\';
   Path.LGDPara        := Path.LGDDLL + 'Setting\Parameters\';
   Path.LGD_LOG_BK     := Path.LGDDLL + '_bk\';
+  Path.LGD_LOG_SL_BK  := Path.LGDDLL +  'OCLog\SummaryLog\_BK\';
 
 {$IFDEF CA410_USE}
   Path.UserCal := Path.RootSW + 'USER_CAL\';
@@ -2537,6 +2543,7 @@ begin
   CheckDir(Path.RePGMLog);
   CheckDir(Path.HWCIDLog);
   CheckDir(Path.LGD_LOG_BK);
+  CheckDir(Path.LGD_LOG_SL_BK);
 
 {$IFDEF ISPD_POCB}
   Path.CB_DATA  := Path.LOG + 'CB_DATA\';
@@ -4763,26 +4770,57 @@ begin
 
   dtNow:= Now;
   m_csLog[nCh].Enter;
-  if (m_slLog[nCh].Count > 0) and (DayOf(m_dtSaveLog[nCh]) <> DayOf(dtNow)) then begin
-    SaveMLog(nCh, m_dtSaveLog[nCh]); //날짜가 변경된 경우 이전 File로 저장
+  try
+    if (m_slLog[nCh].Count > 0) and (DayOf(m_dtSaveLog[nCh]) <> DayOf(dtNow)) then begin
+      SaveMLog(nCh, m_dtSaveLog[nCh]); //날짜가 변경된 경우 이전 File로 저장
+    end;
+
+    if bSave and (sLog = '') then begin
+      //단순 저장 요청 - 프로그램 종료 시나 즉시 저장이 필요할 경우
+      //SaveMLog(nCh, dtNow);
+    end
+    else begin
+      //저장 요청이 아닌 경우Log 추가
+      m_slLog[nCh].Add(FormatDateTime('HH:NN:SS.ZZZ => ', dtNow) + sLog);
+    end;
+
+    //로그 라인수가 누적 라인수 초과이거나누적시간(초) 초과인 경우File로 저장
+    if (m_slLog[nCh].Count > LogAccumulateCount) or (SecondsBetween(dtNow, m_dtSaveLog[nCh]) > LogAccumulateSecond) or bSave then begin
+      SaveMLog(nCh, dtNow);
+    end;
+  finally
+    m_csLog[nCh].Leave;
   end;
- 
-  if bSave and (sLog = '') then begin
-    //단순 저장 요청 - 프로그램 종료 시나 즉시 저장이 필요할 경우
-    SaveMLog(nCh, dtNow);
-  end
-  else begin
-    //저장 요청이 아닌 경우Log 추가
-    m_slLog[nCh].Add(FormatDateTime('HH:NN:SS.ZZZ => ', dtNow) + sLog);
-  end;
- 
-  //로그 라인수가 누적 라인수 초과이거나누적시간(초) 초과인 경우File로 저장
-  if (m_slLog[nCh].Count > LogAccumulateCount) or (SecondsBetween(dtNow, m_dtSaveLog[nCh]) > LogAccumulateSecond) or bSave then begin
-    SaveMLog(nCh, dtNow);
-  end;
-  m_csLog[nCh].Leave;
- 
 end;
+
+//procedure TCommon.MLog(nCh : Integer; const sLog: String; bSave: Boolean);
+//var
+//  dtNow: TDateTime;
+//begin
+//  if (nCh < DefCommon.CH1) or (nCh > DefCommon.MAX_PG_CNT) then nCh := DefCommon.MAX_SYSTEM_LOG;
+//
+//  dtNow:= Now;
+//  m_csLog[nCh].Enter;
+//  if (m_slLog[nCh].Count > 0) and (DayOf(m_dtSaveLog[nCh]) <> DayOf(dtNow)) then begin
+//    SaveMLog(nCh, m_dtSaveLog[nCh]); //날짜가 변경된 경우 이전 File로 저장
+//  end;
+//
+//  if bSave and (sLog = '') then begin
+//    //단순 저장 요청 - 프로그램 종료 시나 즉시 저장이 필요할 경우
+//    SaveMLog(nCh, dtNow);
+//  end
+//  else begin
+//    //저장 요청이 아닌 경우Log 추가
+//    m_slLog[nCh].Add(FormatDateTime('HH:NN:SS.ZZZ => ', dtNow) + sLog);
+//  end;
+//
+//  //로그 라인수가 누적 라인수 초과이거나누적시간(초) 초과인 경우File로 저장
+//  if (m_slLog[nCh].Count > LogAccumulateCount) or (SecondsBetween(dtNow, m_dtSaveLog[nCh]) > LogAccumulateSecond) or bSave then begin
+//    SaveMLog(nCh, dtNow);
+//  end;
+//  m_csLog[nCh].Leave;
+//
+//end;
 
 //procedure TCommon.MLog(nCh: Integer; const Msg: String);
 //var
@@ -5331,6 +5369,56 @@ end;
 //end;
 
 
+function TCommon.Timer1Timer: Boolean;
+var
+  CurrentTime: TDateTime;
+  TargetTime: TDateTime;
+  LowerBound,ResetLowerBound: TDateTime;
+  UpperBound,ResetUpperBound: TDateTime;
+begin
+  // 현재 시간 가져오기
+  Result := False;
+  CurrentTime := Now;
+    // 특정 시간 설정 (12:00부터 12:10 사이)
+  ResetLowerBound := EncodeTime(0, 0, 0, 0);
+  ResetUpperBound := EncodeTime(0, 10, 0, 0);
+
+  if (CompareTime(CurrentTime, ResetLowerBound) >= 0) and (CompareTime(CurrentTime, ResetUpperBound) <= 0) then
+  begin
+    m_bBackupLGDDLLSummaryLog := False;
+  end;
+
+  // 특정 시간 설정 (12:00부터 12:10 사이)
+  LowerBound := EncodeTime(12, 0, 0, 0);
+  UpperBound := EncodeTime(12, 10, 0, 0);
+
+  // 현재 시간이 특정 시간 범위 내에 있는지 확인
+  if (CompareTime(CurrentTime, LowerBound) >= 0) and (CompareTime(CurrentTime, UpperBound) <= 0) then
+  begin
+    Result := True;
+  end;
+end;
+
+function TCommon.BackupLGDDLLSummaryLog(sDate : string) : Boolean;
+var
+sFileName : string;
+sBKsFileName : string;
+begin
+  if m_bBackupLGDDLLSummaryLog then Exit;
+
+  sFileName := Common.Path.LGDDLL + format('Oclog\SummaryLog\%s_Summary_Log_', [Common.SystemInfo.EQPId]) + sDate + '.csv';
+
+  if not FileExists(sFileName) then
+    Exit;
+
+  sBKsFileName := Common.Path.LGD_LOG_SL_BK + format('%s_Summary_Log_', [Common.SystemInfo.EQPId]) + sDate + '_BK.csv';
+  CopyFile(PChar(sFileName), Pchar(sBKsFileName), False);
+
+  if FileExists(sFileName) then
+    DeleteFile(sFileName);
+  m_bBackupLGDDLLSummaryLog := True;
+end;
+
 
 function TCommon.ReadLGDDLLSummaryLog_New(sPid, sSn, sDate: string; nCh: Integer): string;
 var
@@ -5340,53 +5428,75 @@ var
   txtFile: TEXTFILE;
   i, nlineCount: Integer;
   sw : TStopwatch;
+  slData : TStringList;
+  bFound : Boolean;
 begin
   try
     Result := '';
     sResult := '';
+    bFound := false;
     sFileName := Common.Path.LGDDLL + format('Oclog\SummaryLog\%s_Summary_Log_', [Common.SystemInfo.EQPId]) + sDate + '.csv';
 
     if not FileExists(sFileName) then
       Exit;
 
+    Common.MLog(nCh,'ReadLGDDLLSummaryLog_New : Start!!');
+    // 해당 Data 찾기
+    sw := TStopwatch.StartNew;
+    slData := TStringList.Create;
     try
-      sCopyFileName := Common.Path.LGDDLL + format('Oclog\SummaryLog\%s_Summary_Log_%s_%d.csv', [Common.SystemInfo.EQPId, sDate, nCh]);
-      CopyFile(PChar(sFileName), Pchar(sCopyFileName), False);
-
-      if not FileExists(sCopyFileName) then
-        Exit;
-
-      AssignFile(txtFile, sCopyFileName);
-      sw := TStopwatch.StartNew;
-      Reset(txtFile);
-      nlineCount := 0;
-
-      // 초기화를 한번만 수행하도록 수정
-      asSummaryAPDRData := nil;
-
-      while not Eof(txtFile) do
-      begin
-        ReadLn(txtFile, sLine);
-        asSummaryData := sLine.Split([',']);
-        Inc(nlineCount);
-
-        if asSummaryData[0] = 'BIN_VER' then
-          asSummaryHeader := sLine.Split([','])
-        else if asSummaryData[0] = 'BIN' then
-          asSummaryGroupHeader := sLine.Split([','])
-        else if (sPid = asSummaryData[4]) or (sSn = asSummaryData[5]) then
-          asSummaryAPDRData := sLine.Split([',']);
+      slData.LoadFromFile(sFileName);
+      asSummaryGroupHeader := slData.Strings[0].Split([',']);
+      asSummaryHeader := slData.Strings[1].Split([',']);
+//      for i:= 2 to Pred(slData.Count) do begin
+      for i:= Pred(slData.Count) downto 2 do begin
+        asSummaryAPDRData := slData.Strings[i].Split([',']);
+        if (sPid = asSummaryAPDRData[4]) or (sSn = asSummaryAPDRData[5]) then begin
+          bFound := True;
+          Break;
+        end;
       end;
     finally
-      CloseFile(txtFile);
-      if FileExists(sCopyFileName) then
-        DeleteFile(sCopyFileName);
       sw.Stop;
-      MLog(nCh, 'ReadLGDDLLSummaryLog msec : ' + sw.ElapsedMilliseconds.ToString,True);
+      MLog(nCh, 'ReadLGDDLLSummaryLog msec : ' + sw.ElapsedMilliseconds.ToString);
+      slData.Free;
     end;
 
 
-    if Length(asSummaryAPDRData) = 0 then
+//    try
+//      Common.MLog(nCh,'ReadLGDDLLSummaryLog_New : Start!!');
+//      AssignFile(txtFile, sFileName);
+//      sw := TStopwatch.StartNew;
+//      Reset(txtFile);
+//      nlineCount := 0;
+//
+//      // 초기화를 한번만 수행하도록 수정
+//      asSummaryHeader := nil;
+//      asSummaryGroupHeader := nil;
+//      asSummaryAPDRData := nil;
+//
+//      while not Eof(txtFile) do
+//      begin
+//        ReadLn(txtFile, sLine);
+//        asSummaryData := sLine.Split([',']);
+//        if Length(asSummaryData) < 6 then Continue;
+//        Inc(nlineCount);
+//
+//        if asSummaryData[0] = 'BIN_VER' then
+//          asSummaryHeader := sLine.Split([','])
+//        else if asSummaryData[0] = 'BIN' then
+//          asSummaryGroupHeader := sLine.Split([','])
+//        else if (sPid = asSummaryData[4]) or (sSn = asSummaryData[5]) then
+//          asSummaryAPDRData := sLine.Split([',']);
+//      end;
+//    finally
+//      CloseFile(txtFile);
+//      sw.Stop;
+//      MLog(nCh, 'ReadLGDDLLSummaryLog msec : ' + sw.ElapsedMilliseconds.ToString);
+//    end;
+
+
+    if not bFound then    // 못 찾은 경우 종료
       Exit;
 
     // StringBuilder 사용
@@ -5411,9 +5521,6 @@ begin
           begin
             asSummaryGroupHeader[i] := 'OC';
 
-            if asSummaryAPDRData = nil then
-              Exit;
-
             Append(asSummaryGroupHeader[i])
               .Append(':')
               .Append(asSummaryHeader[i])
@@ -5430,10 +5537,116 @@ begin
         Free;
       end;
     end;
+    Common.MLog(nCh,'ReadLGDDLLSummaryLog_New : Finish!!');
   finally
     Result := sResult;
   end;
 end;
+
+
+
+//function TCommon.ReadLGDDLLSummaryLog_New(sPid, sSn, sDate: string; nCh: Integer): string;
+//var
+//  asSummaryHeader, asSummaryGroupHeader, asSummaryAPDRData, asSummaryData: TArray<String>;
+//  sFileName, sCopyFileName: String;
+//  sLine, sResult: String;
+//  txtFile: TEXTFILE;
+//  i, nlineCount: Integer;
+//  sw : TStopwatch;
+//begin
+//  try
+//    Result := '';
+//    sResult := '';
+//    sFileName := Common.Path.LGDDLL + format('Oclog\SummaryLog\%s_Summary_Log_', [Common.SystemInfo.EQPId]) + sDate + '.csv';
+//
+//    if not FileExists(sFileName) then
+//      Exit;
+//
+//    try
+//      sCopyFileName := Common.Path.LGDDLL + format('Oclog\SummaryLog\%s_Summary_Log_%s_%d.csv', [Common.SystemInfo.EQPId, sDate, nCh]);
+//      CopyFile(PChar(sFileName), Pchar(sCopyFileName), False);
+//
+//      if not FileExists(sCopyFileName) then
+//        Exit;
+//
+//      AssignFile(txtFile, sCopyFileName);
+//      sw := TStopwatch.StartNew;
+//      Reset(txtFile);
+//      nlineCount := 0;
+//
+//      // 초기화를 한번만 수행하도록 수정
+//      asSummaryAPDRData := nil;
+//
+//      while not Eof(txtFile) do
+//      begin
+//        ReadLn(txtFile, sLine);
+//        asSummaryData := sLine.Split([',']);
+//        Inc(nlineCount);
+//
+//        if asSummaryData[0] = 'BIN_VER' then
+//          asSummaryHeader := sLine.Split([','])
+//        else if asSummaryData[0] = 'BIN' then
+//          asSummaryGroupHeader := sLine.Split([','])
+//        else if (sPid = asSummaryData[4]) or (sSn = asSummaryData[5]) then
+//          asSummaryAPDRData := sLine.Split([',']);
+//      end;
+//    finally
+//      CloseFile(txtFile);
+//      if FileExists(sCopyFileName) then
+//        DeleteFile(sCopyFileName);
+//      sw.Stop;
+//      MLog(nCh, 'ReadLGDDLLSummaryLog msec : ' + sw.ElapsedMilliseconds.ToString,True);
+//    end;
+//
+//
+//    if Length(asSummaryAPDRData) = 0 then
+//      Exit;
+//
+//    // StringBuilder 사용
+//    with TStringBuilder.Create do
+//    begin
+//      try
+//        for i := 0 to System.Length(asSummaryAPDRData) -1 do
+//        begin
+//          if Common.SystemInfo.OCType = DefCommon.PreOCType then
+//          begin
+//            if System.Length(asSummaryGroupHeader[i]) = 0 then
+//              asSummaryGroupHeader[i] := 'OC';
+//
+//            Append(asSummaryGroupHeader[i])
+//              .Append(':')
+//              .Append(asSummaryHeader[i])
+//              .Append(':')
+//              .Append(asSummaryAPDRData[i]);
+//
+//          end
+//          else
+//          begin
+//            asSummaryGroupHeader[i] := 'OC';
+//
+//            if asSummaryAPDRData = nil then
+//              Exit;
+//
+//            Append(asSummaryGroupHeader[i])
+//              .Append(':')
+//              .Append(asSummaryHeader[i])
+//              .Append(':')
+//              .Append(asSummaryAPDRData[i]);
+//          end;
+//
+//          if i < System.Length(asSummaryAPDRData) - 1 then
+//            Append(',');
+//        end;
+//
+//        sResult := ToString;
+//      finally
+//        Free;
+//      end;
+//    end;
+//  finally
+//    Result := sResult;
+//  end;
+//end;
 
 
 
