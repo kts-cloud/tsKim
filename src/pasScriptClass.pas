@@ -181,6 +181,7 @@ type
     Final_x      : Double;
     Final_y      : Double;
     Final_Lv      : Double;
+    GIB_Test : Integer;
     nPwrVCC : Integer;
     nPwrVIN : Integer;
     function Get_MeasureTime: Integer;
@@ -2121,6 +2122,8 @@ procedure TScrCls.InitialData;
 var
   i : Integer;
   sPgVer, sSwVer, sDebug : string;
+  nStation: Integer;
+  nSeq,nGIBSeq,nEQP_ID: Integer;
 begin
   //FillChar(TestInfo,SizeOf(TestInfo),0); // 초기화.
   FillChar(m_TouchInfo,SizeOf(m_TouchInfo),0); // 초기화.
@@ -2169,7 +2172,7 @@ begin
 //  sPgVer := sPgVer + '/' + Trim(Copy(PG[FPgNo].m_sFwVer,12,4));
 //  sPgVer := sPgVer + '/' + Trim(Copy(PG[FPgNo].m_sFwVer,17,4));
   sPgVer := Trim(PG[FPgNo].m_PgVer.VerAll);
-  sDebug := Format('Version Check : FW(%s), SW(%s)',[sPgVer,Common.GetVersionDate]);
+  sDebug := Format('Version Check : FW(%s), SW(%s %s)',[sPgVer,Common.GetVersionDate,Common.ProductVersion]);
   sDebug := sDebug + Format(', Psu(%s/%s), MES_CODE(%s)',[Common.m_Ver.psu_Date,Common.m_Ver.psu_Crc, Common.m_Ver.MES_CSV]);
   sDebug := sDebug + Format(', OC_ConverterDLL (%s),LGD DLL (%s)',[Common.SystemInfo.OC_Converter_Name,Common.SystemInfo.LGD_DLLVER_Name]);
   //sDebug := sDebug + Format(', Psu(%s/%s), Oc_Param(%s)',[Common.m_Ver.psu_Date,Common.m_Ver.psu_Crc,Common.m_Ver.OcParam]);
@@ -2212,6 +2215,13 @@ begin
   TestInfo.SIM_Use_CAM:= Common.SimulateInfo.Use_CAM;
   TestInfo.OC_Con_Ver := Common.SystemInfo.OC_Converter_Name;
   TestInfo.DLL_Ver := Common.SystemInfo.LGD_DLLVER_Name;
+
+  if (Common.PLCInfo.EQP_ID - 6) = 1 then
+      nEQP_ID := 1
+  else nEQP_ID := 2;
+  nStation:= g_CommPLC.GetGlassData_PreviousUnitProcessing(g_CommPLC.GlassData[FPgNo],nEQP_ID, nSeq, 16);
+  TestInfo.GIB_Test := nSeq;
+
 
   TestInfo.Result := '';
   TestInfo.csvHeader := '';
@@ -4293,7 +4303,7 @@ end;
 
 procedure TScrCls.ScriptThreadIsDone(Sender: TObject);
 begin
-//  Common.MLog(self.FPgNo,'ScriptThreadIsDone');   \
+  Common.MLog(self.FPgNo,'ScriptThreadIsDone',True);
   //실행 함수에 따른 분기 필요
   m_bTheadIsTerminated := False;
   m_bIsScriptWork := False;
@@ -4691,10 +4701,10 @@ begin
         m_bMesPMMode := True;
         if DongaGmes <> nil then begin
           m_bMesPMMode := False;
-          wdRet := CheckSyncCmdAck(procedure begin
+          wdRet := CheckSyncCmdAck(procedure begin         // PCHK 대기 시간 변경 (5000 -> 65000)
             SendMainGuiDisplay(DefGmes.MES_PCHK,1);
             SendTestGuiDisplay(DefGmes.MES_PCHK, '','', 0);
-          end,5000,1);
+          end,65000,1);
           if wdRet = WAIT_OBJECT_0 then begin
             wdRet :=  m_nHostResult;
             //TestInfo.RTN_PID:= m_sMesPchkRtnPID;

@@ -4943,7 +4943,7 @@ try
 
         sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[nCH]);
 
-        SendCHMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 0, sMsg);
+        SendCHMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, nCH, sMsg);
 
 //        Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_UNLOADING;
         g_CommPLC.ROBOT_Unload_Request(nCH);

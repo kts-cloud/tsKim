@@ -161,20 +161,20 @@ end;
 procedure MyCB_MESReturnMsg(sAddedText : PAnsiChar);
 begin
   if DongaGmes <> nil then
-    DongaGmes.ReadMsgHost64(PAnsiChar(sAddedText));
+    DongaGmes.ReadMsgHost64(sAddedText);
 end;
 
 
 procedure MyCB_EasReturnMsg(sAddedText : PAnsiChar);
 begin
   if DongaGmes <> nil then
-    DongaGmes.ReadMsgEas64(PAnsiChar(sAddedText));
+    DongaGmes.ReadMsgEas64(sAddedText);
 end;
 
 procedure MyCB_R2RReturnMsg(sAddedText : PAnsiChar);
 begin
   if DongaGmes <> nil then
-    DongaGmes.ReadMsgR2R64(PAnsiChar(sAddedText));
+    DongaGmes.ReadMsgR2R64(sAddedText);
 end;
 
 
@@ -187,11 +187,8 @@ function TCommTibRv64.StringToPAnsiChar(AString: string): PAnsiChar;
 var
 MyPAnsiChar: PAnsiChar;
 begin
-  MyPAnsiChar := PAnsiChar(StringOfChar(#0, Length(AString) + 1));
-  StrPCopy(MyPAnsiChar, WideChar(AString));
-  Result := MyPAnsiChar;
 
-//  Result := PAnsiChar(AnsiString(AString));
+  Result := PAnsiChar(AnsiString(AString));
 end;
 
 procedure TCommTibRv64.Terminate;
@@ -226,15 +223,15 @@ dCheckSum: dword;
 begin
   if @m_Send_Data_New <> nil then begin
     dCheckSum := Common.crc16(sMsg,Length(sMsg));
-    bRet := m_Send_Data_New(nCH,sMsg.Length,dCheckSum,StringToPAnsiChar(sMsg));
+    bRet := m_Send_Data_New(nCH,sMsg.Length,dCheckSum, StringToPAnsiChar(sMsg));
     if not bRet then
-      bRet := m_Send_Data_New(nCH,sMsg.Length,dCheckSum,StringToPAnsiChar(sMsg));
+      bRet := m_Send_Data_New(nCH,sMsg.Length,dCheckSum, StringToPAnsiChar(sMsg));
     Result := bRet;
   end
   else begin
-    bRet := m_Send_Data(nCH,StringToPAnsiChar(sMsg));
+    bRet := m_Send_Data(nCH, StringToPAnsiChar(sMsg));
     if not bRet then
-      bRet := m_Send_Data(nCH,StringToPAnsiChar(sMsg));
+      bRet := m_Send_Data(nCH, StringToPAnsiChar(sMsg));
     Result := bRet;
   end;
 end;

@@ -1686,7 +1686,6 @@ begin
   sDebug := StringReplace(sMsg,#$0a, #$24, [rfReplaceAll]);
   sDebug := StringReplace(sDebug,#$0d, #$25, [rfReplaceAll]);
 
-  Common.Mlog(nCh,Format('[HOST] Recv Msg: %s CH : %d', [sDebug, nCh]));
 
   if      CompareStr(sMode,'EAYT_R') = 0 then	parse_EAYT
   else if CompareStr(sMode,'UCHK_R') = 0 then	parse_UCHK
@@ -1902,7 +1901,7 @@ begin
 
   item.Channel:=      nPg;
   item.Kind:=         MES_PCHK;
-  item.Timeout:=      3000;
+  item.Timeout:=      60000;
   item.SerialNo:=     sConvertSerial;
   item.CarrierID:=    sConvertJig;
   m_Queue.Enqueue(item);
@@ -2730,6 +2729,7 @@ begin
       end;
       Exit;
     end;
+{$REGION 'WIN32'}
 {$IFDEF WIN32}
     if bIsChMsg then begin  //JHHWANG-GMES 2018-06-20
       if nMsgType <> DefGmes.EAS_APDR then begin
@@ -2772,7 +2772,8 @@ begin
 
     end;
 {$ENDIF}
-
+{$ENDREGION 'WIN32}
+{$REGION 'WIN64'}
 {$IFDEF WIN64}
     if bIsChMsg then begin  //JHHWANG-GMES 2018-06-20
 
@@ -2793,6 +2794,8 @@ begin
       end;
       //sDebug := Format('TGmes.OnGmesChMsgTimer:PG(%d): ...sent',[nPg]); Common.MLog(DefCommon.MAX_SYSTEM_LOG,sDebug); //IMSI
     end;
+
+    sSendMsg:= sSendMsg + #00;  //문자열 종료 명시
     if (nMsgType = DefGmes.R2R_EODS) or (nMsgType = DefGmes.R2R_EODS_R) or(nMsgType = DefGmes.R2R_EODA) or (nMsgType = DefGmes.R2R_EAYT) then
       bRtn := CommTibRv.Send_Data(TIBServer_R2R,sSendMsg)
     else if nMsgType <> DefGmes.EAS_APDR then begin
@@ -2810,7 +2813,7 @@ begin
       if Length(sSendMsg) > 300 then begin
         //sDebug:= format('(300/%d) ', [Length(sSendMsg)]);
         sDebug := sDebug +  Copy(sSendMsg,1,300);
-        sDebug:= sDebug + format('▶(Cut 300/%d) ', [Length(sSendMsg)]);
+        sDebug:= sDebug + format('->(Cut 300/%d) ', [Length(sSendMsg)]);
       end
       else begin
         sDebug := sSendMsg;
@@ -2823,21 +2826,9 @@ begin
       end;
       Common.MLog(nPg,sDebug,True);
     end;
-
-//    if bIsChMsg then begin
-//      sDebug := sSendMsg;
-//      if Length(sSendMsg) > 300 then begin
-//        sDebug := Copy(sSendMsg,1,300);
-//      end;
-//      case nMsgType of
-//        DefGmes.EAS_APDR : sDebug := 'EAS SEND :  ' + sDebug;
-//        DefGmes.R2R_EODS_R .. DefGmes.R2R_EODA : sDebug := 'R2R SEND :  ' + sDebug;
-//        else               sDebug := 'MES SEND :  ' + sDebug;
-//      end;
-//      Common.MLog(nPg,sDebug,True);
-////      (DefCommon.MSG_MODE_WORKING,nPg,sDebug);
-//    end;
 {$ENDIF}
+{$ENDREGION 'WIN64'}
+(*
     sSendMsg := '';
     if bIsChMsg then begin  //JHHWANG-GMES 2018-06-20
       if (nMsgType <> DefGmes.EAS_APDR) and (nMsgType <> DefGmes.R2R_EODS_R) and (nMsgType <> DefGmes.R2R_EODA) then begin
@@ -2857,6 +2848,7 @@ begin
         tmGmesChMsg.Enabled := True;
       end;
     end;
+*)
 //    else begin
 //      m_MesPendingMsg := nMsgType;
 //    end;
@@ -2875,13 +2867,16 @@ begin
 
 //  Common.Mlog(Format('[HOST] Send Msg: %s PG : %d', [sDebug, FMesPg]));
 //
+(*
   if not bRtn then begin
     //TBD
     if not tmGmesChMsg.Enabled then begin
       tmGmesChMsg.Enabled := True;
     end;
+
 //    Common.Mlog('<HOST> CommTibRv.MessageSend MSG... ERROR!');
   end;
+*)
 end;
 
 

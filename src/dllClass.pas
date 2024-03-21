@@ -497,14 +497,13 @@ begin
   nPGCH := 2;
   if (m_OCFlowStart[nPGCH]) and Pg[nPGCH].bIsReProgramming then begin
     Pg[nPGCH].bIsReProgramming := False;
-//    common.MLog(nPGCH,'<SEQUENCE> ReProgramming - NG');
     common.MLog(nPGCH,'<SEQUENCE> ReProgramming - NG');
 //    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,'<SEQUENCE> ReProgramming - NG');
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',0);
     CSharpDll.MainOC_Stop_CH3(nPGCH);
   end;
   if (m_OCFlowStart[nPGCH]) and Pg[nPGCH].m_bChkShutdown_Fault  then begin
-    common.MLog(nPGCH,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sSerialNo[nPGCH])]));
+    common.MLog(nPGCH,'<SEQUENCE> Shutdown_Fault - NG');
 //    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,'<SEQUENCE> Shutdown_Fault - NG');
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',1);
     CSharpDll.MainOC_Stop_CH3(nPGCH);
@@ -540,7 +539,7 @@ begin
     CSharpDll.MainOC_Stop_CH4(nPGCH);
   end;
   if (m_OCFlowStart[nPGCH]) and Pg[nPGCH].m_bChkShutdown_Fault  then begin
-    common.MLog(nPGCH,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sSerialNo[nPGCH])]));
+    common.MLog(nPGCH,'<SEQUENCE> Shutdown_Fault - NG');
 //    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,'<SEQUENCE> Shutdown_Fault - NG');
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',1);
     CSharpDll.MainOC_Stop_CH4(nPGCH);
@@ -876,7 +875,7 @@ begin
 {$ELSE}
     sDebug := Format('TCONSetReg NG CH : %d',[nChannel]);
     CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-    CSharpDll.MainOC_Stop_CH1(nChannel);
+//    CSharpDll.MainOC_Stop_CH1(nChannel);
 {$ENDIF}
 
   end;
@@ -926,7 +925,7 @@ begin
 {$ELSE}
     sDebug := Format('TCONSetReg NG CH : %d',[nChannel]);
     CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-    CSharpDll.MainOC_Stop_CH2(nChannel);
+//    CSharpDll.MainOC_Stop_CH2(nChannel);
 {$ENDIF}
   end;
   Result := nResult;
@@ -975,7 +974,7 @@ begin
 {$ELSE}
     sDebug := Format('TCONSetReg NG CH : %d',[nChannel]);
     CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-    CSharpDll.MainOC_Stop_CH3(nChannel);
+//    CSharpDll.MainOC_Stop_CH3(nChannel);
 {$ENDIF}
   end;
   Result := nResult;
@@ -1022,7 +1021,7 @@ begin
 {$ELSE}
     sDebug := Format('TCONSetReg NG CH : %d',[nChannel]);
     CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-    CSharpDll.MainOC_Stop_CH4(nChannel);
+//    CSharpDll.MainOC_Stop_CH4(nChannel);
 {$ENDIF}
   end;
 
@@ -1039,7 +1038,7 @@ nResult : integer;
 begin
   Inc(PG[nChannel].TconRWCnt.TconWriteArrayDllCall); //2023-03-28 jhhwang (for T/T Test)
   CSharpDll.m_nFlagCount[nChannel] := 0;
-  nWaitMS := 200; //2023-04-08 (3000->100->200)
+  nWaitMS := 1000; //2023-04-08 (3000->100->200)
   nRetry  := 0;   //2023-04-08 (0->3->0)
 
   nDataCnt := nLength;
@@ -1052,7 +1051,7 @@ begin
     if nResult <> WAIT_OBJECT_0 then begin
       sDebug := Format('TCONSetRegArray NG CH : %d',[nChannel]);
       CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-      CSharpDll.MainOC_Stop_CH1(nChannel);
+//      CSharpDll.MainOC_Stop_CH1(nChannel);
     end;
   end;
   Result := nResult;
@@ -1068,7 +1067,7 @@ nResult : integer;
 begin
   Inc(PG[nChannel].TconRWCnt.TconWriteArrayDllCall); //2023-03-28 jhhwang (for T/T Test)
   CSharpDll.m_nFlagCount[nChannel] := 0;
-  nWaitMS := 200; //2023-04-08 (3000->100->200)
+  nWaitMS := 1000; //2023-04-08 (3000->100->200)
   nRetry  := 0;   //2023-04-08 (0->3->0)
 
   nDataCnt := nLength;
@@ -1081,7 +1080,7 @@ begin
     if nResult <> WAIT_OBJECT_0 then begin
       sDebug := Format('TCONSetRegArray NG CH : %d',[nChannel]);
       CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-      CSharpDll.MainOC_Stop_CH2(nChannel);
+//      CSharpDll.MainOC_Stop_CH2(nChannel);
     end;
   end;
   Result := nResult;
@@ -1096,7 +1095,7 @@ nResult : integer;
 begin
   Inc(PG[nChannel].TconRWCnt.TconWriteArrayDllCall); //2023-03-28 jhhwang (for T/T Test)
   CSharpDll.m_nFlagCount[nChannel] := 0;
-  nWaitMS := 200; //2023-04-08 (3000->100->200)
+  nWaitMS := 1000; //2023-04-08 (3000->100->200)
   nRetry  := 0;   //2023-04-08 (0->3->0)
 
   nDataCnt := nLength;
@@ -1109,7 +1108,7 @@ begin
     if nResult <> WAIT_OBJECT_0 then begin
       sDebug := Format('TCONSetRegArray NG CH : %d',[nChannel]);
       CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-      CSharpDll.MainOC_Stop_CH3(nChannel);
+//      CSharpDll.MainOC_Stop_CH3(nChannel);
     end;
   end;
   Result := nResult;
@@ -1124,7 +1123,7 @@ nResult : integer;
 begin
   Inc(PG[nChannel].TconRWCnt.TconWriteArrayDllCall); //2023-03-28 jhhwang (for T/T Test)
   CSharpDll.m_nFlagCount[nChannel] := 0;
-  nWaitMS := 200; //2023-04-08 (3000->100->200)
+  nWaitMS := 1000; //2023-04-08 (3000->100->200)
   nRetry  := 0;   //2023-04-08 (0->3->0)
 
   nDataCnt := nLength;
@@ -1137,7 +1136,7 @@ begin
     if nResult <> WAIT_OBJECT_0 then begin
       sDebug := Format('TCONSetRegArray NG CH : %d',[nChannel]);
       CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-      CSharpDll.MainOC_Stop_CH4(nChannel);
+//      CSharpDll.MainOC_Stop_CH4(nChannel);
     end;
   end;
   Result := nResult;
@@ -1153,7 +1152,7 @@ nResult : integer;
 begin
   Inc(PG[nChannel].TconRWCnt.TconMultiWriteDllCall); //2023-03-28 jhhwang (for T/T Test)
   CSharpDll.m_nFlagCount[nChannel] := 0;
-  nWaitMS := 200; //2023-04-08 (3000->100->200)
+  nWaitMS := 1000; //2023-04-08 (3000->100->200)
   nRetry  := 0;   //2023-04-08 (0->3->0)
 
   nDataCnt := nLength;
@@ -1169,7 +1168,7 @@ begin
     if nResult <> WAIT_OBJECT_0 then begin
       sDebug := Format('TCONSetRegMultiWrite NG CH : %d',[nChannel]);
       CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-      CSharpDll.MainOC_Stop_CH1(nChannel);
+//      CSharpDll.MainOC_Stop_CH1(nChannel);
     end;
   end;
 //  Sleep(50); //2023-0926
@@ -1187,7 +1186,7 @@ nResult : integer;
 begin
   Inc(PG[nChannel].TconRWCnt.TconMultiWriteDllCall); //2023-03-28 jhhwang (for T/T Test)
   CSharpDll.m_nFlagCount[nChannel] := 0;
-  nWaitMS := 200; //2023-04-08 (3000->100->200)
+  nWaitMS := 1000; //2023-04-08 (3000->100->200)
   nRetry  := 0;   //2023-04-08 (0->3->0)
 
   nDataCnt := nLength;
@@ -1203,7 +1202,7 @@ begin
     if nResult <> WAIT_OBJECT_0 then begin
       sDebug := Format('TCONSetRegMultiWrite NG CH : %d',[nChannel]);
       CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-      CSharpDll.MainOC_Stop_CH2(nChannel);
+//      CSharpDll.MainOC_Stop_CH2(nChannel);
     end;
   end;
 //  Sleep(50); //2023-0926
@@ -1221,7 +1220,7 @@ nResult : integer;
 begin
   Inc(PG[nChannel].TconRWCnt.TconMultiWriteDllCall); //2023-03-28 jhhwang (for T/T Test)
   CSharpDll.m_nFlagCount[nChannel] := 0;
-  nWaitMS := 200; //2023-04-08 (3000->100->200)
+  nWaitMS := 1000; //2023-04-08 (3000->100->200)
   nRetry  := 0;   //2023-04-08 (0->3->0)
 
   nDataCnt := nLength;
@@ -1237,7 +1236,7 @@ begin
     if nResult <> WAIT_OBJECT_0 then begin
       sDebug := Format('TCONSetRegMultiWrite NG CH : %d',[nChannel]);
       CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-      CSharpDll.MainOC_Stop_CH3(nChannel);
+//      CSharpDll.MainOC_Stop_CH3(nChannel);
     end;
   end;
 //  Sleep(50); //2023-0926
@@ -1255,7 +1254,7 @@ nResult : integer;
 begin
   Inc(PG[nChannel].TconRWCnt.TconMultiWriteDllCall); //2023-03-28 jhhwang (for T/T Test)
   CSharpDll.m_nFlagCount[nChannel] := 0;
-  nWaitMS := 200; //2023-04-08 (3000->100->200)
+  nWaitMS := 1000; //2023-04-08 (3000->100->200)
   nRetry  := 0;   //2023-04-08 (0->3->0)
 
   nDataCnt := nLength;
@@ -1271,7 +1270,7 @@ begin
     if nResult <> WAIT_OBJECT_0 then begin
       sDebug := Format('TCONSetRegMultiWrite NG CH : %d',[nChannel]);
       CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-      CSharpDll.MainOC_Stop_CH4(nChannel);
+//      CSharpDll.MainOC_Stop_CH4(nChannel);
     end;
   end;
 //  Sleep(50); //2023-0926
@@ -1316,7 +1315,7 @@ begin
   if nResult <> WAIT_OBJECT_0 then begin
     sDebug := Format('TCONSetRegSeqWrite NG CH : %d',[nChannel]);
     CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-    CSharpDll.MainOC_Stop_CH1(nChannel);
+//    CSharpDll.MainOC_Stop_CH1(nChannel);
   end;
 
   Result := nResult;
@@ -1358,7 +1357,7 @@ begin
   if nResult <> WAIT_OBJECT_0 then begin
     sDebug := Format('TCONSetRegSeqWrite NG CH : %d',[nChannel]);
     CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-    CSharpDll.MainOC_Stop_CH2(nChannel);
+//    CSharpDll.MainOC_Stop_CH2(nChannel);
   end;
   Result := nResult;
 end;
@@ -1399,7 +1398,7 @@ begin
   if nResult <> WAIT_OBJECT_0 then begin
     sDebug := Format('TCONSetRegSeqWrite NG CH : %d',[nChannel]);
     CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-    CSharpDll.MainOC_Stop_CH3(nChannel);
+//    CSharpDll.MainOC_Stop_CH3(nChannel);
   end;
   Result := nResult;
 end;
@@ -1440,7 +1439,7 @@ begin
   if nResult <> WAIT_OBJECT_0 then begin
     sDebug := Format('TCONSetRegSeqWrite NG CH : %d',[nChannel]);
     CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-    CSharpDll.MainOC_Stop_CH4(nChannel);
+//    CSharpDll.MainOC_Stop_CH4(nChannel);
   end;
   Result := nResult;
 end;
@@ -1489,7 +1488,7 @@ begin
 {$ELSE}
       sDebug := Format('TCONGetReg NG CH : %d',[nChannel]);
       CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-      CSharpDll.MainOC_Stop_CH1(nChannel);
+//      CSharpDll.MainOC_Stop_CH1(nChannel);
 {$ENDIF}
     end;
     Result := nResult;
@@ -1541,7 +1540,7 @@ begin
 {$ELSE}
       sDebug := Format('TCONGetReg NG CH : %d',[nChannel]);
       CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-      CSharpDll.MainOC_Stop_CH2(nChannel);
+//      CSharpDll.MainOC_Stop_CH2(nChannel);
 {$ENDIF}
     end;
   {$ENDIF}
@@ -1593,7 +1592,7 @@ begin
 {$ELSE}
       sDebug := Format('TCONGetReg NG CH : %d',[nChannel]);
       CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-      CSharpDll.MainOC_Stop_CH3(nChannel);
+//      CSharpDll.MainOC_Stop_CH3(nChannel);
 {$ENDIF}
     end;
   {$ENDIF}
@@ -1642,7 +1641,7 @@ begin
 {$ELSE}
       sDebug := Format('TCONGetReg NG CH : %d',[nChannel]);
       CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-      CSharpDll.MainOC_Stop_CH4(nChannel);
+//      CSharpDll.MainOC_Stop_CH4(nChannel);
 {$ENDIF}
     end;
   {$ENDIF}
@@ -1683,7 +1682,7 @@ begin
 {$ELSE}
     sDebug := Format('TCONGetRegArray NG CH : %d',[nChannel]);
     CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-    CSharpDll.MainOC_Stop_CH1(nChannel);
+//    CSharpDll.MainOC_Stop_CH1(nChannel);
 {$ENDIF}
 
   end;
@@ -1719,7 +1718,7 @@ begin
 {$ELSE}
     sDebug := Format('TCONGetRegArray NG CH : %d',[nChannel]);
     CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-    CSharpDll.MainOC_Stop_CH2(nChannel);
+//    CSharpDll.MainOC_Stop_CH2(nChannel);
 {$ENDIF}
   end;
   Result := nResult;
@@ -1754,7 +1753,7 @@ begin
 {$ELSE}
     sDebug := Format('TCONGetRegArray NG CH : %d',[nChannel]);
     CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-    CSharpDll.MainOC_Stop_CH3(nChannel);
+//    CSharpDll.MainOC_Stop_CH3(nChannel);
 {$ENDIF}
   end;
   Result := nResult;
@@ -1790,7 +1789,7 @@ begin
 {$ELSE}
     sDebug := Format('TCONGetRegArray NG CH : %d',[nChannel]);
     CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-    CSharpDll.MainOC_Stop_CH4(nChannel);
+//    CSharpDll.MainOC_Stop_CH4(nChannel);
 {$ENDIF}
   end;
   Result := nResult;
@@ -2176,7 +2175,7 @@ begin
 {$ELSE}
     sDebug := Format('CA410 measure NG CH : %d',[nChannel]);
     CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-    CSharpDll.MainOC_Stop_CH1(nChannel);
+//    CSharpDll.MainOC_Stop_CH1(nChannel);
 {$ENDIF}
 
   end;
@@ -2212,7 +2211,7 @@ begin
 {$ELSE}
     sDebug := Format('CA410 measure NG CH : %d',[nChannel]);
     CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-    CSharpDll.MainOC_Stop_CH2(nChannel);
+//    CSharpDll.MainOC_Stop_CH2(nChannel);
 {$ENDIF}
   end;
 
@@ -2247,7 +2246,7 @@ begin
 {$ELSE}
     sDebug := Format('CA410 measure NG CH : %d',[nChannel]);
     CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-    CSharpDll.MainOC_Stop_CH3(nChannel);
+//    CSharpDll.MainOC_Stop_CH3(nChannel);
 {$ENDIF}
   end;
 
@@ -2281,7 +2280,7 @@ begin
 {$ELSE}
     sDebug := Format('CA410 measure NG CH : %d',[nChannel]);
     CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-    CSharpDll.MainOC_Stop_CH4(nChannel);
+//    CSharpDll.MainOC_Stop_CH4(nChannel);
 {$ENDIF}
   end;
 
@@ -2607,15 +2606,18 @@ end;
 
 function TCSharpDll.MainOC_GetSummaryLogData(nCH : Integer; sParameter : string): string;
 var
-nReturn : Integer;
+nReturn,i : Integer;
+sResult : string;
 begin
   try
     nReturn := 0;
     Result := '';
     if @m_GetSummaryLogData_New <> nil then begin
-      Result := PAnsiChar(m_GetSummaryLogData_New(nCH,nReturn,Common.StringToPAnsiChar(sParameter)));
-      if (nReturn <> 0) or (Length(Result) = 0) then
-        Result := PAnsiChar(m_GetSummaryLogData_New(nCH,nReturn,Common.StringToPAnsiChar(sParameter)));
+      for I := 0 to 2 do begin
+        sResult := PAnsiChar(m_GetSummaryLogData_New(nCH,nReturn,Common.StringToPAnsiChar(sParameter)));
+        if (nReturn = 0) and (Length(sResult) <> 0) then  Break;
+      end;
+      Result := sResult;
     end
     else begin
       Result := PAnsiChar(m_GetSummaryLogData(nCH,Common.StringToPAnsiChar(sParameter)));

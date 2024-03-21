@@ -4776,8 +4776,8 @@ begin
   sDebug  := '';
   sErrMsg := '';
 
-  sDebug := sFunc + ': Start';
-  ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
+  //sDebug := sFunc + ': Start';
+  //ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
 
 	// Create Class
   if FFTPClient = nil then begin
@@ -4793,8 +4793,8 @@ begin
       Exit;
     end;
 	end;
-  sDebug := sFunc + ': FTP Connect';
-  ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
+  //sDebug := sFunc + ': FTP Connect';
+  //ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
 
 	// Change Local Dir
 	// Change Remote Dir
@@ -4823,8 +4823,8 @@ begin
 	// Discon
 	if bEndDisc then begin
   	FFTPClient.Disconnect;
-    sDebug := sFunc + ': FTP Disconnect';
-    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
+    //sDebug := sFunc + ': FTP Disconnect';
+    //ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
 	end;
 	//
 	Result := WAIT_OBJECT_0;

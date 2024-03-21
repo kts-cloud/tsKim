@@ -2877,12 +2877,11 @@ begin
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$08+$4 + (nCh*$20), 3), 1); //Load Normal Status - 상태 설정에서....
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_11] := 1;
   //  Unload GlassData
-      ConvertGlassDataToBlock(GlassData[nCh*2], naGlassData[0]);
-      WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$10+$0 + (nCh*$80) , 3), 64, naGlassData[0]); //Unload Glass Data #1
-//      Sleep(100);
-      ConvertGlassDataToBlock(GlassData[nCh*2+1], naGlassData[0]);
-      WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$10+$0 + $40 + (nCh*$80), 3), 64, naGlassData[0]); //Unload Glass Data #2
-//      Sleep(100);
+
+      ConvertGlassDataToBlock(GlassData[nCh], naGlassData[0]);
+      WriteDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$10+$0 + (nCh*$40) , 3), 64, naGlassData[0]); //Unload Glass Data #1
+
+
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_1] := 1;
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$09+$1 + (nCh*$20), 3), 1); //Glass Data Report
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_2] := 1;

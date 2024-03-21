@@ -145,11 +145,11 @@ type
     pnlUnitTact2    :  array [DefCommon.CH1..DefCommon.MAX_CH] of  TRzPanel;
     pnlUnitTactVal2 :  array [DefCommon.CH1..DefCommon.MAX_CH] of  TPanel;    // CH 별 개별 표시
 
-    pnlDelayTimes   :  array [DefCommon.CH1..DefCommon.MAX_CH] of  TRzPanel;
-    pnlNowDelayTimes  :  array [DefCommon.CH1..DefCommon.MAX_CH] of  TPanel;
+//    pnlDelayTimes   :  array [DefCommon.CH1..DefCommon.MAX_CH] of  TRzPanel;
+//    pnlNowDelayTimes  :  array [DefCommon.CH1..DefCommon.MAX_CH] of  TPanel;
 
     pnlTackTimesGroup : array [DefCommon.CH1..DefCommon.MAX_CH] of TPanel;
-    pnlDelayTimesGroup : array [DefCommon.CH1..DefCommon.MAX_CH] of TPanel;
+//    pnlDelayTimesGroup : array [DefCommon.CH1..DefCommon.MAX_CH] of TPanel;
     m_PlcStatus    : plcStatus;
     pnlLogGrp       : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TRzPanel;
 //    mmChannelLog   : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of  TRichEdit;//  TMemo;
@@ -2067,15 +2067,15 @@ begin
 
     pnlTackTimesGroup[i].Align := alTop;
 
-    pnlDelayTimesGroup[i] := TPanel.Create(self);
-    pnlDelayTimesGroup[i].Parent := pnlChGrp[i];
-    pnlDelayTimesGroup[i].Top := pnlChGrp[i].Height;
-    if Common.SystemInfo.OCType = DefCommon.OCType  then
-      pnlDelayTimesGroup[i].Height := 1
-    else pnlDelayTimesGroup[i].Height := 30;
-
-
-    pnlDelayTimesGroup[i].Align := alTop;
+//    pnlDelayTimesGroup[i] := TPanel.Create(self);
+//    pnlDelayTimesGroup[i].Parent := pnlChGrp[i];
+//    pnlDelayTimesGroup[i].Top := pnlChGrp[i].Height;
+//    if Common.SystemInfo.OCType = DefCommon.OCType  then
+//      pnlDelayTimesGroup[i].Height := 1
+//    else pnlDelayTimesGroup[i].Height := 30;
+//
+//
+//    pnlDelayTimesGroup[i].Align := alTop;
 
         // for Jig Information.
     pnlTackTimes[i] := TRzPanel.Create(self);
@@ -2122,64 +2122,66 @@ begin
     pnlUnitTactVal[i].StyleElements := [];
     pnlUnitTactVal[i].Align := alLeft;
 
-    if Common.SystemInfo.OCType = DefCommon.OCType  then begin
-
-      pnlTackTimes[i].Width := (pnlTackTimesGroup[i].Width -240) div 5 ;
-      pnlNowValues[i].Width := (pnlTackTimesGroup[i].Width -240) div 5 ;
-      pnlUnitTact[i].Width := (pnlTackTimesGroup[i].Width -240) div 5 ;
-      pnlUnitTactVal[i].Width := (pnlTackTimesGroup[i].Width -240) div 5 ;
-      pnlDelayTimes[i] := TRzPanel.Create(self);
-      pnlDelayTimes[i].Parent := pnlTackTimesGroup[i];
-      pnlDelayTimes[i].Top := 1;
-      pnlDelayTimes[i].Left := 60;
-      pnlDelayTimes[i].Width := 240;
-      pnlDelayTimes[i].Caption := 'DLL DelayTime(ms)';
-      pnlDelayTimes[i].BorderOuter := TframeStyleEx(fsFlat);
-      pnlDelayTimes[i].Font.Size := 12;
-      pnlDelayTimes[i].Align := alLeft;
-
-      pnlNowDelayTimes[i] := TPanel.Create(self);
-      pnlNowDelayTimes[i].Parent := pnlTackTimesGroup[i];
-      pnlNowDelayTimes[i].Top := 1;
-      pnlNowDelayTimes[i].Left := 70;
-      pnlNowDelayTimes[i].Height := 40;
-      pnlNowDelayTimes[i].Width := (pnlTackTimesGroup[i].Width -240) div 5 ;
-      pnlNowDelayTimes[i].Caption := '0';
-      pnlNowDelayTimes[i].Color := clBlack;
-      pnlNowDelayTimes[i].Font.Color := clWhite;
-      pnlNowDelayTimes[i].Font.Size := 12;
-      pnlNowDelayTimes[i].StyleElements := [];
-      pnlNowDelayTimes[i].Align := alLeft;
-    end
-    else begin
+//    if Common.SystemInfo.OCType = DefCommon.OCType  then begin
+//
+//      pnlTackTimes[i].Width := (pnlTackTimesGroup[i].Width -240) div 5 ;
+//      pnlNowValues[i].Width := (pnlTackTimesGroup[i].Width -240) div 5 ;
+//      pnlUnitTact[i].Width := (pnlTackTimesGroup[i].Width -240) div 5 ;
+//      pnlUnitTactVal[i].Width := (pnlTackTimesGroup[i].Width -240) div 5 ;
+//      pnlDelayTimes[i] := TRzPanel.Create(self);
+//      pnlDelayTimes[i].Parent := pnlTackTimesGroup[i];
+//      pnlDelayTimes[i].Top := 1;
+//      pnlDelayTimes[i].Left := 60;
+//      pnlDelayTimes[i].Width := 240;
+//      pnlDelayTimes[i].Caption := 'DLL DelayTime(ms)';
+//      pnlDelayTimes[i].BorderOuter := TframeStyleEx(fsFlat);
+//      pnlDelayTimes[i].Font.Size := 12;
+//      pnlDelayTimes[i].Align := alLeft;
+//      pnlDelayTimes[i].Enabled := false;
+//
+//      pnlNowDelayTimes[i] := TPanel.Create(self);
+//      pnlNowDelayTimes[i].Parent := pnlTackTimesGroup[i];
+//      pnlNowDelayTimes[i].Top := 1;
+//      pnlNowDelayTimes[i].Left := 70;
+//      pnlNowDelayTimes[i].Height := 40;
+//      pnlNowDelayTimes[i].Width := (pnlTackTimesGroup[i].Width -240) div 5 ;
+//      pnlNowDelayTimes[i].Caption := '0';
+//      pnlNowDelayTimes[i].Color := clBlack;
+//      pnlNowDelayTimes[i].Font.Color := clWhite;
+//      pnlNowDelayTimes[i].Font.Size := 12;
+//      pnlNowDelayTimes[i].StyleElements := [];
+//      pnlNowDelayTimes[i].Align := alLeft;
+//      pnlNowDelayTimes[i].Enabled := false;
+//    end
+//    else begin
       pnlTackTimes[i].Width := (pnlTackTimesGroup[i].Width) div 4 ;
       pnlNowValues[i].Width := (pnlTackTimesGroup[i].Width) div 4 ;
       pnlUnitTact[i].Width := (pnlTackTimesGroup[i].Width) div 4 ;
       pnlUnitTactVal[i].Width := (pnlTackTimesGroup[i].Width) div 4 ;
-      pnlDelayTimes[i] := TRzPanel.Create(self);
-      pnlDelayTimes[i].Parent := pnlDelayTimesGroup[i];
-      pnlDelayTimes[i].Top := 1;
-      pnlDelayTimes[i].Left := 60;
-      pnlDelayTimes[i].Width := 240;
-      pnlDelayTimes[i].Caption := 'DLL DelayTime(ms)';
-      pnlDelayTimes[i].BorderOuter := TframeStyleEx(fsFlat);
-      pnlDelayTimes[i].Font.Size := 12;
-      pnlDelayTimes[i].Align := alLeft;
-
-      pnlNowDelayTimes[i] := TPanel.Create(self);
-      pnlNowDelayTimes[i].Parent := pnlDelayTimesGroup[i];
-      pnlNowDelayTimes[i].Top := 1;
-      pnlNowDelayTimes[i].Left := 70;
-      pnlNowDelayTimes[i].Height := 40;
-      pnlNowDelayTimes[i].Width := (pnlDelayTimesGroup[i].Width -240);
-      pnlNowDelayTimes[i].Caption := '0';
-      pnlNowDelayTimes[i].Color := clBlack;
-      pnlNowDelayTimes[i].Font.Color := clWhite;
-      pnlNowDelayTimes[i].Font.Size := 12;
-      pnlNowDelayTimes[i].StyleElements := [];
-      pnlNowDelayTimes[i].Align := alLeft;
-
-    end;
+//      pnlDelayTimes[i] := TRzPanel.Create(self);
+//      pnlDelayTimes[i].Parent := pnlDelayTimesGroup[i];
+//      pnlDelayTimes[i].Top := 1;
+//      pnlDelayTimes[i].Left := 60;
+//      pnlDelayTimes[i].Width := 240;
+//      pnlDelayTimes[i].Caption := 'DLL DelayTime(ms)';
+//      pnlDelayTimes[i].BorderOuter := TframeStyleEx(fsFlat);
+//      pnlDelayTimes[i].Font.Size := 12;
+//      pnlDelayTimes[i].Align := alLeft;
+//
+//      pnlNowDelayTimes[i] := TPanel.Create(self);
+//      pnlNowDelayTimes[i].Parent := pnlDelayTimesGroup[i];
+//      pnlNowDelayTimes[i].Top := 1;
+//      pnlNowDelayTimes[i].Left := 70;
+//      pnlNowDelayTimes[i].Height := 40;
+//      pnlNowDelayTimes[i].Width := (pnlDelayTimesGroup[i].Width -240);
+//      pnlNowDelayTimes[i].Caption := '0';
+//      pnlNowDelayTimes[i].Color := clBlack;
+//      pnlNowDelayTimes[i].Font.Color := clWhite;
+//      pnlNowDelayTimes[i].Font.Size := 12;
+//      pnlNowDelayTimes[i].StyleElements := [];
+//      pnlNowDelayTimes[i].Align := alLeft;
+//
+//    end;
   end;
 
   for i := DefCommon.CH1 to DefCommon.MAX_JIG_CH do begin
@@ -4658,9 +4660,9 @@ begin
           Common.HWCIDLogLog(nCh,sPID,sSerialNumber,sMsg);
         end;
 
-        DefCommon.MSG_MODE_DELAY_TIME : begin
-          pnlNowDelayTimes[nCh].Caption := Trim(PGuiDLL(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg)
-        end;
+//        DefCommon.MSG_MODE_DELAY_TIME : begin
+//          pnlNowDelayTimes[nCh].Caption := Trim(PGuiDLL(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg)
+//        end;
 
         DefCommon.MSG_MODE_WORK_DONE : begin
           if Pg[nCh].m_bChkShutdown_Fault then begin
@@ -4686,7 +4688,7 @@ begin
             end;
           end;
 
-          pnlNowDelayTimes[nCh].Caption := '0'; // DLL Delay Time 0 표시
+//          pnlNowDelayTimes[nCh].Caption := '0'; // DLL Delay Time 0 표시
           PG[nCH].DP860_SendOcOnOff(0{end},2000,0); //2023-03-28 jhhwang (for T/T Test)
 //          PG[nCH].SetCyclicTimer(True); //2023-03-28 jhhwang (for T/T Test)
           CSharpDll.m_bIsProcessDone[nCH] := true;    // CH 종료 확인
@@ -5163,9 +5165,13 @@ begin
                           if (Common.PLCInfo.EQP_ID - 6) = 1 then
                               nEQP_ID := 1
                             else nEQP_ID := 2;
-                          g_CommPLC.GetGlassData_Processing_Status(g_CommPLC.GlassData[nCh],nEQP_ID, nSeq, 16);
-                          if nSeq = 1 then
-                            AutoLogicStart(nCh)
+                          //g_CommPLC.GetGlassData_Processing_Status(g_CommPLC.GlassData[nCh],nEQP_ID, nSeq, 16);
+                          g_CommPLC.GetGlassData_PreviousUnitProcessing(g_CommPLC.GlassData[nCh],nEQP_ID, nSeq, 16);
+
+                          if nSeq = 1 then begin
+                            Common.MLog(nCh, ' AAB Mode : Restart SEQ : ' + inttostr(nSeq),True);
+                            AutoLogicStart(nCh);
+                          end
                           else SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, nCh , nCh , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
                         end
                         else
