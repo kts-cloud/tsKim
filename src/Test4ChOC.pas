@@ -3801,6 +3801,7 @@ begin
       ControlDio.LampOnOff(nCH div 2,false); // Added by KTS 2023-01-02 오후 5:39:50 시작 전 Lamp 제어
       CSharpDll.m_bIsProcessDone[nCH] := False;
       StartScript(nCH,DefScript.SEQ_KEY_START);
+      PG[nCH].SetCyclicTimer(False);  // PG  ConnCheck 해지
     end
     else begin
       if (nCH div 2) = 0 then begin
@@ -3817,6 +3818,7 @@ begin
         CSharpDll.m_bIsProcessDone[DefCommon.CH1] := False;
         CSharpDll.m_bIsProcessDone[DefCommon.CH2] := False;
         JigLogic[Self.Tag].StartIspd_TOP(DefScript.SEQ_KEY_START);
+
       end
       else begin
         PasScr[DefCommon.CH3].TestInfo.StartTime := now;

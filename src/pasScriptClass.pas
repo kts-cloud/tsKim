@@ -2255,6 +2255,8 @@ begin
     TestInfo.MateriID := g_CommPLC.GlassData[FPgNo].MateriID;
   end;
 
+  PG[Self.FPgNo].SetCyclicTimer(False);  // PG  ConnCheck 해지
+
   // BCR Set.
   if Common.SystemInfo.OcManualType then begin
     SendTestGuiDisplay(DefCommon.MSG_MODE_BARCODE_READY,'','',0);
