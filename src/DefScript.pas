@@ -33,7 +33,9 @@ const
   SEQ_8         = 24;
   SEQ_9         = 25;
   SEQ_Finish    = 26;
-
+  SEQ_RESTART_1   = 27;
+  SEQ_RESTART_2   = 28;
+  SEQ_RESTART_3   = 29;
   SEQ_MAINT_1   = 31;
   SEQ_MAINT_2   = 32;
   SEQ_MAINT_3   = 33;

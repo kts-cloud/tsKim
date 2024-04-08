@@ -5239,12 +5239,12 @@ begin
                 if Common.TestModelInfoFLOW.UseDutDetect then
                 {$ENDIF}
                 begin
-                  Result := DP860_SendDutDetect(1000{nWaitMS},1{Retry});   //WaitMS 변경 (1000 -> 3000)
+                  Result := DP860_SendDutDetect(1000{nWaitMS},1{Retry});
                 end;
                 if Result = WAIT_OBJECT_0 then begin
                   Result := DP860_SendPowerBistOn(nWaitMS,nRetry);
                   if Result = WAIT_OBJECT_0 then begin
-                    Result := DP860_SendTconInfo(1000{nWaitMS},0{Retry}); //WaitMS 변경 (1000 -> 3000)
+                    Result := DP860_SendTconInfo(1000{nWaitMS},0{Retry});
 //                    DP860_SendSendNvmInit(Common.TestModelInfoFLOW.UseNvmInit,nWaitMS,nRetry);
                   end;
                 end

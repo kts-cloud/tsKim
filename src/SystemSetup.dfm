@@ -2379,10 +2379,10 @@ object frmSystemSetup: TfrmSystemSetup
         end
       end
       object RzGrpOptions: TRzGroupBox
-        Left = 421
+        Left = 422
         Top = 519
         Width = 400
-        Height = 49
+        Height = 82
         Caption = 'ITO MODEL Options'
         CaptionFont.Charset = DEFAULT_CHARSET
         CaptionFont.Color = clWindowText
@@ -2393,15 +2393,24 @@ object frmSystemSetup: TfrmSystemSetup
         GradientColorStop = 16763080
         GroupStyle = gsBanner
         TabOrder = 7
-        Visible = False
         object chkITOBmpMode: TRzCheckBox
-          Left = 13
-          Top = 21
+          Left = 21
+          Top = 45
           Width = 135
           Height = 15
           Caption = 'BMP Download and View'
           State = cbUnchecked
           TabOrder = 0
+          Visible = False
+        end
+        object chkInLineAAMode: TRzCheckBox
+          Left = 21
+          Top = 24
+          Width = 97
+          Height = 15
+          Caption = 'InLine AA MODE'
+          State = cbUnchecked
+          TabOrder = 1
         end
       end
       object grpDebugLogLevel: TRzGroupBox
@@ -6462,7 +6471,7 @@ object frmSystemSetup: TfrmSystemSetup
     OnClick = btnCloseClick
   end
   object btnSave: TRzBitBtn
-    Left = 548
+    Left = 552
     Top = 701
     Width = 135
     Height = 35

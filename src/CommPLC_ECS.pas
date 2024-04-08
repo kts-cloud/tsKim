@@ -4328,7 +4328,7 @@ nPairCH : Integer;
 begin
   AddLog('Process_ROBOT_UnloadBusy_Off ' + IntToStr(nCh), True);
   if (Common.PLCInfo.InlineGIB) then begin
-    if IsBusy_Robot_Each(nCH) then begin
+    if not IsBusy_Robot_Each(nCH) then begin
       if (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
         WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$08+$0 + (nCh*$20), 3), 0); //Load Enable off
         WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$09+$0 + (nCh*$20), 3), 0); //Unload Enable Off
@@ -4356,13 +4356,21 @@ begin
   if Common.SystemInfo.OCType = DefCommon.OCType then
     SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, nCh, COMMPLC_PARAM_UNLOADBUSY, 0, 'Process_ROBOT_UnloadBusy_Off ' + IntToStr(nCh), nil)
   else begin
-    SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, nCh, COMMPLC_PARAM_UNLOADBUSY, 0, 'Process_ROBOT_UnloadBusy_Off ' + IntToStr(nCh), nil);
     if (Common.PLCInfo.InlineGIB) then begin
       if nCh mod 2 = 1 then
         nPairCH := nCh - 1
       else  nPairCH := nCh  + 1;
-      if not ControlDio.IsDetected(nPairCH) then
+      if not ControlDio.IsDetected(nPairCH) then begin
+        SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, nCh, COMMPLC_PARAM_UNLOADBUSY, 0, 'Process_ROBOT_UnloadBusy_Off ' + IntToStr(nCh), nil);
+        Sleep(50);
         SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, nPairCH, COMMPLC_PARAM_UNLOADBUSY, 0, 'Process_ROBOT_UnloadBusy_Off ' + IntToStr(nCh), nil);
+      end
+      else begin
+        AddLog('ROBOT_UnloadBusy_Off : Detecting the side CH panel!! :' + IntToStr(nPairCH));
+      end;
+    end
+    else begin
+      SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, nCh, COMMPLC_PARAM_UNLOADBUSY, 0, 'Process_ROBOT_UnloadBusy_Off ' + IntToStr(nCh), nil);
     end;
   end;
   end;
@@ -5101,10 +5109,10 @@ var
 begin
   Result:= False;
 
-  //$02: begin  //Robot Unload Busy 0
-  //$22: begin  //Robot Unload Busy 1
-  //$12: begin //Robot Load Busy 0
-  //$32: begin //Robot Load Busy 1
+  //$02: begin  //Robot Load Busy 0
+  //$22: begin  //Robot Unload Busy 0
+  //$12: begin //Robot Load Busy 1
+  //$32: begin //Robot Unload Busy 1
 
   nIndex:= $02;
   nDiv:= nIndex div 16;

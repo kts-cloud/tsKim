@@ -269,6 +269,8 @@ type
     function PGPowerReset(nCh : Integer): Integer;
     procedure aTaskThreadIsDone(Sender: TObject);
 
+    function InlineOCReStart(nCH : Integer; sNGCode: string): Integer;
+
   public
     { Public declarations }
     /// <summary> Main 폼 Handle - WM_COPYDATA</summary>
@@ -375,9 +377,6 @@ begin
   if Common.StatusInfo.Closing then Exit;
   if (nCh > DefCommon.CH4) or (nCh < DefCommon.CH1) then Exit;
   Common.MLog(nCh, sMsg);
-  if mmChannelLog[nCh].Lines.Count > 1000 then begin
-    mmChannelLog[nCh].Clear;
-  end;
   try
 //    mmChannelLog[nCh].DisableAlign;
     case nType of
@@ -2882,6 +2881,7 @@ begin
   if Common.SystemInfo.NGAlarmCount = 0 then Exit;
 
   try
+    nSum := 0;
     for i := 0 to pred(PasScr[nCh].m_lstPrevRet.Count) do begin
       if i > (Common.SystemInfo.NGAlarmCount -1) then Continue;
       nSum := nSum + PasScr[nCh].m_lstPrevRet.Items[i];
@@ -3531,6 +3531,27 @@ begin
 //  end;
 end;
 
+function TfrmTest4ChOC.InlineOCReStart(nCH : Integer; sNGCode: string): Integer;
+var
+sPID,sSerialNumber,sUSERID,sEquipment,sNgType : string;
+wdRet,i : integer;
+begin
+  Result := 1;
+  if not PasScr[nCH].m_bInLine_AAMode then Exit;
+  if Length(sNGCode) <> 4 then begin
+    StartScript(nCH,DefScript.SEQ_RESTART_1);
+  end
+  else begin
+    sNgType := Copy(sNGCode, 1, 1);
+    if (sNgType = 'Q') or (sNgType = 'L')  then
+      StartScript(nCH,DefScript.SEQ_RESTART_2)
+    else if sNgType = 'B' then
+      StartScript(nCH,DefScript.SEQ_RESTART_3)
+    else StartScript(nCH,DefScript.SEQ_RESTART_1);
+  end;
+  Result := 0;
+end;
+
 procedure TfrmTest4ChOC.MakeOpticPassRgb(nCh: Integer);
 var
   i, j : Integer;
@@ -3801,7 +3822,6 @@ begin
       ControlDio.LampOnOff(nCH div 2,false); // Added by KTS 2023-01-02 오후 5:39:50 시작 전 Lamp 제어
       CSharpDll.m_bIsProcessDone[nCH] := False;
       StartScript(nCH,DefScript.SEQ_KEY_START);
-      PG[nCH].SetCyclicTimer(False);  // PG  ConnCheck 해지
     end
     else begin
       if (nCH div 2) = 0 then begin
@@ -3818,7 +3838,6 @@ begin
         CSharpDll.m_bIsProcessDone[DefCommon.CH1] := False;
         CSharpDll.m_bIsProcessDone[DefCommon.CH2] := False;
         JigLogic[Self.Tag].StartIspd_TOP(DefScript.SEQ_KEY_START);
-
       end
       else begin
         PasScr[DefCommon.CH3].TestInfo.StartTime := now;
@@ -4153,6 +4172,8 @@ begin
 //  CsharpDll := TCSharpDll.Create(hMain,Self.Handle,ExtractFilePath(Application.ExeName),'OC_Converter.dll');
 
   CsharpDll := TCSharpDll.Create(hMain,Self.Handle,Common.Path.LGDDLL,'OC_Converter.dll');
+//  CsharpDll := TCSharpDll.Create(hMain,Self.Handle,Common.Path.RootSW,'OC_Converter.dll');
+
 
   CsharpDll.Create_Test;
   for i := DefCommon.CH1 to DefCommon.MAX_CH do begin
@@ -4679,8 +4700,15 @@ begin
             sTemp := CSharpDll.MainOC_GetSummaryLogData(nCh,'DEFECT_CODE');   // ERROR CODE 불러오기
           end;
 
-          if 'XXXX' <> sTemp then
-            PasScr[nCh].m_nNgCode:= GetNGCode_ByErroCode(sTemp)
+
+          PG[nCH].DP860_SendOcOnOff(0{end},2000,0); //2023-03-28 jhhwang (for T/T Test)
+          if 'XXXX' <> sTemp then begin
+            if Common.SystemInfo.UseInLine_AAMode and (Common.SystemInfo.OCType = DefCommon.OCType) and (not Common.PLCInfo.InlineGIB) then begin        // AA mode 실행
+              AddLog(format('GetSummaryLogData : %s',[sTemp]),nCh);
+              if InlineOCReStart(nCh,sTemp) = 0 then exit;
+            end;
+            PasScr[nCh].m_nNgCode:= GetNGCode_ByErroCode(sTemp);
+          end
           else PasScr[nCh].m_nNgCode:= 0;
           AddLog(format('GetSummaryLogData : %s GetNGCode_ByErroCode: %d',[sTemp,PasScr[nCh].m_nNgCode]),nCh);
 
@@ -4694,7 +4722,6 @@ begin
           end;
 
 //          pnlNowDelayTimes[nCh].Caption := '0'; // DLL Delay Time 0 표시
-          PG[nCH].DP860_SendOcOnOff(0{end},2000,0); //2023-03-28 jhhwang (for T/T Test)
 //          PG[nCH].SetCyclicTimer(True); //2023-03-28 jhhwang (for T/T Test)
           CSharpDll.m_bIsProcessDone[nCH] := true;    // CH 종료 확인
           PasScr[nCH].m_First_Process_DONE := false;  //Pre OC First_Process 진행 여부 확인 초기화
@@ -4705,7 +4732,7 @@ begin
 
           ControlIRTemp(nCh,0); //IRTemp 기록 종료
 
-          DisplayPGStatuses(nCh,PasScr[nCh].m_nNgCode); // 종료 시 바로 결과 Display
+//          DisplayPGStatuses(nCh,PasScr[nCh].m_nNgCode); // 종료 시 바로 결과 Display
 
 //          PGPowerReset(nCH); //종료 후 PG Reset 진행
 
@@ -5095,8 +5122,8 @@ begin
                               if CSharpDll.m_bIsProcessDone[DefCommon.CH1] and CSharpDll.m_bIsProcessDone[DefCommon.CH2] then  begin
     //                        SendMessageMain(STAGE_MODE_UNLOAD,0, 2,0, 'OC Flow Process_Finish',nil);
 //                                ControlDio.MovingAll(0,true);   // Probe and Shutter  UP
-                                PG[0].SetCyclicTimer(True);
-                                PG[1].SetCyclicTimer(True);
+                                PG[DefCommon.CH1].SetCyclicTimer(True);
+                                PG[DefCommon.CH2].SetCyclicTimer(True);
                                 SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, DefCommon.CH1 , DefCommon.CH1 , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
 //                                Sleep(100);
                                 SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, DefCommon.CH2 , DefCommon.CH2 , nTemp2, '', nil);
@@ -5109,8 +5136,8 @@ begin
                               if CSharpDll.m_bIsProcessDone[DefCommon.CH3] and CSharpDll.m_bIsProcessDone[DefCommon.CH4] then begin
         //                        SendMessageMain(STAGE_MODE_UNLOAD, 1, 2,0, 'OC Flow Process_Finish',nil);
 //                                ControlDio.MovingAll(1,true);   // Probe and Shutter  UP
-                                PG[2].SetCyclicTimer(True);
-                                PG[3].SetCyclicTimer(True);
+                                PG[DefCommon.CH3].SetCyclicTimer(True);
+                                PG[DefCommon.CH4].SetCyclicTimer(True);
                                 SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, DefCommon.CH3 , DefCommon.CH3 , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
 //                                Sleep(100);
                                 SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, DefCommon.CH4 , DefCommon.CH4 , nTemp2, '', nil);

@@ -189,6 +189,7 @@ type
     m_nQueChannel: Integer;
     m_MESItem: TQueItemValue;
 
+
     function GetLocalIp : string;
 
     procedure SetDateTime(Year, Month, Day, Hour, Minu, Sec, MSec: Word);
@@ -237,6 +238,8 @@ type
     procedure ReturnDataToTestForm(nMode,nPg : Integer; bError : Boolean; sMsg : string);
     procedure OnGmesChMsgTimer(Sender : TObject);   // JHHWANG-GMES 2018-06-27
     procedure OnGemsResponseTimer(Sender : TObject);
+    function GetMES_Queue_Cnt: integer;
+
 //    procedure SendTestGuiDisplay(nGuiMode,nCH: Integer; sMsg : string = ''; sMsg2 : string = ''; nParam: Integer = 0; nParam2: Integer = 0);
 
     { Private declarations }
@@ -308,6 +311,7 @@ type
 //    procedure DisConnectFTP;
     procedure FindAndMoveFile(nFileType: Integer);
 
+
     property MesPmMode : Boolean read FPmMode write FPmMode default False;
     property MesEayt   : Boolean read FEayt write FEayt default False;
     property CanUseHost : Boolean read FCanUseHost write FCanUseHost default False;
@@ -334,6 +338,8 @@ type
     property  FtpCombiPath  : string read FFtpCombiPath write FFtpCombiPath;
     property R2RMachine : string read FR2RMachine;
     property R2RMmcTxnID : string read FR2RMmcTxnID;
+    property MES_Queue_Cnt : Integer read GetMES_Queue_Cnt;
+
 
 
     property OnGmsEvent   : TGmesEvent read FOnGmsEvent write SetOnGmsEvent;
@@ -1371,7 +1377,11 @@ end;
 //  Result := bRtn;
 //end;
 
+
+
 constructor TGmes.Create(AOwner : TComponent; MainHandle : HWND; nServerCnt : integer );
+var
+  I: Integer;
 begin
 {$IFDEF WIN32}
   mesCommTibRv := TCommTibRv.Create(AOwner);
@@ -1707,7 +1717,6 @@ begin
 
   SeperateData(sMsg,nCh);
 
-
   sDebug := StringReplace(sMsg,#$0a, #$24, [rfReplaceAll]);
   sDebug := StringReplace(sDebug,#$0d, #$25, [rfReplaceAll]);
 
@@ -1846,7 +1855,7 @@ begin
 
   item.Channel:=    nPg;
   item.Kind:=       MES_EICR;
-  item.Timeout:=    3000;
+  item.Timeout:=    60000;
   item.SerialNo:=   sConvertSerial;
   item.CarrierID:=   sConvertJig;
   item.Tact:=       MesData[nPg].Tact;
@@ -1875,7 +1884,7 @@ begin
 
   item.Channel:=      nPg;
   item.Kind:=         MES_EIJR;
-  item.Timeout:=      3000;
+  item.Timeout:=      60000;
   item.SerialNo:=     sConvertSerial;
   m_Queue.Enqueue(item);
   tmGmesChMsg.Enabled:= True;
@@ -1911,6 +1920,7 @@ procedure TGmes.SendHostPchk(sSerialNo : string; nPg : Integer; sJigId: string; 
 var
   sConvertSerial,sConvertJig : string;
   item: TQueItemValue;
+  tick : Cardinal;
 begin
   if Length(sSerialNo) = 0 then
     Exit;
@@ -1970,7 +1980,7 @@ begin
   //SEND_MESG2HOST(DefGmes.MES_INS_PCHK,sConvertSerial,'',nPg,bIsDelayed);  //JHHWANG-GMES: 2018-06-20);
   item.Channel:=      nPg;
   item.Kind:=         MES_INS_PCHK;
-  item.Timeout:=      3000;
+  item.Timeout:=      60000;
   item.SerialNo:=     sConvertSerial;
   item.CarrierID:=    sConvertJig;
   m_Queue.Enqueue(item);
@@ -2062,7 +2072,7 @@ begin
 
   item.Channel:=      nPg;
   item.Kind:=         MES_RPR_EIJR;
-  item.Timeout:=      3000;
+  item.Timeout:=      60000;
   item.SerialNo:=     sConvertSerial;
   item.CarrierID:=    sConvertJig;
   item.MESCode  :=    MesData[nPg].Rwk;
@@ -3158,6 +3168,12 @@ end;
 procedure TGmes.SetOnGmsEvent(const Value: TGmesEvent);
 begin
   FOnGmsEvent := Value;
+end;
+
+
+function TGmes.GetMES_Queue_Cnt: integer;
+begin
+  Result := m_Queue.Count +1;
 end;
 
 procedure TGmes.OnGemsResponseTimer(Sender: TObject);

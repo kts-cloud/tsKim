@@ -268,6 +268,7 @@ type
     RzPanel51: TRzPanel;
     edPGResetTotalConut: TRzEdit;
     chkAutoLGDLogBackup: TRzCheckBox;
+    chkInLineAAMode: TRzCheckBox;
 
     procedure FormCreate(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -893,6 +894,8 @@ begin
 
     AutoLoginID   := edtLoginID.Text;
 
+    UseInLine_AAMode := chkInLineAAMode.Checked;
+
 //    IonizerCnt     := StrToIntDef(edIonizerCnt.Text,0);
 //    if IonizerCnt > DefCommon.MAX_IONIZER_CNT then begin
 //      ShowMessage(Format('Maximum IONIZER Count is %d',[DefCommon.MAX_IONIZER_CNT]));
@@ -1368,6 +1371,8 @@ begin
       cboIonizerModel.ItemIndex := Model_Ionizer[0];
 
       cboIonizer2.ItemIndex := Com_Ionizer[1];
+
+      chkInLineAAMode.Checked := UseInLine_AAMode;
 
   end;
 

@@ -159,6 +159,8 @@ type
     Test_Repeat         : Boolean; //테스트용 자동 회전
     UseNoExchange       : Boolean; //캐리어 감지 시 Exchange 사용 여부
     UseNoPogo           : Boolean; //Contact 시 POGO 사용 안함 여부
+    UseInLine_AAMode    : Boolean;
+
 //    Ca410MemCh          : Integer;
     {$IFDEF CA410_USE}
     Com_Ca310           : array[DefCommon.CH1 .. Defcommon.MAX_CH] of Integer;
@@ -931,6 +933,7 @@ type
     procedure CompressAndDeleteFolders(const sourceFolder, targetFolder: string);
     procedure ScheduledTask;
     function ExtractNumbersFromString(inputString: string): string;
+    procedure FindFoldersWithPartialName(const AFolder, APartialName: string; AList: TStrings);
 //    procedure AddMLog(nCh : Integer; sLog: String; bSave: Boolean);
 
 
@@ -2221,27 +2224,13 @@ var
   PVerInfo: Pointer;
   PVerValue: PVSFixedFileInfo;
 begin
-(* Query
-    - CompanyName
-    - FileDescription
-    - FileVersion
-    - InternalName
-    - LegalCopyright
-    - LegalTrademarks
-    - ProductName
-    - ProductVersion
-*)
+
   Result := '';
   VerInfoSize := GetFileVersionInfoSize(PChar(sFileName), dwHandle);
   GetMem(PVerInfo, VerInfoSize);
   try
     if GetFileVersionInfo(PChar(sFileName), dwHandle, VerInfoSize, PVerInfo) then
     begin
-      // get the locale, this determines the default language
-//      VerQueryValue(Buf, PChar('\VarFileInfo\Translation'), pData, Len);
-//      sLocale := IntToHex(Integer(pData^), 8);
-//      sLocale := Copy(sLocale, 5, 4) + Copy(sLocale, 1, 4);
-//      VerQueryValue(Buf, PChar('\StringFileInfo\' + sLocale + '\ProductVersion'), Pointer(Value), Len)
 
       if VerQueryValue(PVerInfo, '\', Pointer(PVerValue), VerValueSize) then
       begin
@@ -2256,7 +2245,6 @@ begin
   finally
     FreeMem(PVerInfo, VerInfoSize);
   end;
-  //ProductVersion
 
 end;
 
@@ -6086,6 +6074,8 @@ begin
 
       SystemInfo.PopupMsgTime         := fSys.ReadInteger('SYSTEMDATA',     'POPUPMSGTIME',0);
 
+      SystemInfo.UseInLine_AAMode     := fSys.ReadBool('SYSTEMDATA','USE_INLINE_AAMODE',false);
+
       {$IFDEF CA410_USE}
 //      SystemInfo.Ca410MemCh := fsys.ReadInteger('SYSTEMDATA', 'CA410_CH', 3);
       for i := DefCommon.CH1 to DefCommon.MAX_CH do begin
@@ -6461,30 +6451,69 @@ begin
 
 end;
 
+procedure TCommon.FindFoldersWithPartialName(const AFolder, APartialName: string; AList: TStrings);
+var
+  SearchRec: TSearchRec;
+  Result: Integer;
+begin
+  // 지정된 폴더에서 파일 및 폴더를 찾음
+  Result := FindFirst(AFolder + '*.*', faDirectory, SearchRec);
+  try
+    while Result = 0 do
+    begin
+      // 현재 항목이 폴더이고 '.' 나 '..'가 아닌 경우
+      if (SearchRec.Attr and faDirectory) = faDirectory then
+      begin
+        if (SearchRec.Name <> '.') and (SearchRec.Name <> '..') then
+        begin
+          // 폴더명에 특정 문자열이 포함되어 있는지 확인
+          if Pos(APartialName, SearchRec.Name) > 0 then
+            AList.Add(AFolder + SearchRec.Name); // 해당 폴더를 리스트에 추가
+
+          // 하위 폴더를 검색하기 위해 재귀적으로 호출
+          FindFoldersWithPartialName(AFolder + SearchRec.Name + PathDelim, APartialName, AList);
+        end;
+      end;
+      Result := FindNext(SearchRec); // 다음 파일 또는 폴더 검색
+    end;
+  finally
+    FindClose(SearchRec); // 검색 종료
+  end;
+end;
 procedure TCommon.SaveModelInfoDLL(fName: String);
 var
   fn,sSection : String;
 //  fi : TFileStream;
   modelF : TIniFile;
   i : Integer;
+  FoldersList: TStringList;
 begin
-//  CheckDir( Path.MODEL + fName + '\Setting\OCSet\');
-  CheckDir( Path.LGDDLL +'Setting\OCSet\');
-  fn := Path.LGDDLL + '\Setting\OCSet\ModelSelection.ini';
-
-  modelF := TIniFile.Create(fn);
+  FoldersList := TStringList.Create;
   try
+    FindFoldersWithPartialName(Common.Path.LGDDLL, 'Setting', FoldersList);
+    // 찾은 폴더 목록을 사용할 수 있음
+    for I := 0 to Pred(FoldersList.Count) do begin
+      CheckDir(FoldersList.Strings[i]+'\OCSet\');
+      fn := FoldersList.Strings[i]+'\OCSet\ModelSelection.ini';
 
-    with modelF do begin
+      modelF := TIniFile.Create(fn);
       try
-        sSection := 'SelectedModel';
-        WriteString (sSection, 'Model',EdModelInfoFLOW.ModelTypeName);
-      except
-        ShowMessage(fn + ' store was failed!!');
+
+        with modelF do begin
+          try
+            sSection := 'SelectedModel';
+            WriteString (sSection, 'Model',EdModelInfoFLOW.ModelTypeName);
+          except
+            ShowMessage(fn + ' store was failed!!');
+          end;
+        end;
+      finally
+        modelF.Free;
       end;
     end;
+
   finally
-    modelF.Free;
+    FoldersList.Free;
   end;
 
 end;
@@ -6692,6 +6721,8 @@ begin
       WriteInteger('SYSTEMDATA',  'POPUPMSGTIME', SystemInfo.PopupMsgTime);
 
       WriteInteger('DEBUG', 'DEBUG_LOG_LEVEL_PG', SystemInfo.DebugLogLevelConfig);
+
+      WriteBool('SYSTEMDATA','USE_INLINE_AAMODE',SystemInfo.UseInLine_AAMode);
 {$IFDEF DFS_HEX}
       WriteBool  ('DFSDATA', 'USE_DFS',                  DfsConfInfo.bUseDfs);
       WriteBool  ('DFSDATA', 'USE_HEX_COMPRESS',         DfsConfInfo.bDfsHexCompress);

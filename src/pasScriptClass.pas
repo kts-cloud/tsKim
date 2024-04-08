@@ -536,6 +536,8 @@ type
 
     m_bIsReProgramming : Boolean; //ReProgramming OKNG 여부
 
+    m_bInLine_AAMode : Boolean;
+
     m_bMaintWindowOn  : Boolean;  //2018-07-31 JHHWANG
     m_nGibOpticNo     : Integer;  //2018-08-06 JHHWANG
     m_lstPrevRet      : TList<Integer>;
@@ -732,7 +734,7 @@ begin
   //SetPaScript.DefineRecordByRTTI(TypeInfo(TTestRetInfo)); //해당 구조체 타입을 스크립트 내부에서 사용하려면 정의해야 한다.
 
   // DLL OC DLOW 관련
-  SetPaScript.DefineMethod('f_OcFlowStart',      2,tkInteger, nil,OCFlowStart_Proc,False,0);
+  SetPaScript.DefineMethod('f_OcFlowStart',      3,tkInteger, nil,OCFlowStart_Proc,False,2);
   SetPaScript.DefineMethod('f_OcFlowStop',      0,tkInteger, nil,OCFlowStop_Proc,False,0);
   SetPaScript.DefineMethod('f_OC_VerifyStart',      0,tkInteger, nil,OCVerifyStart_Proc,False,0);
   SetPaScript.DefineMethod('f_ThreadStateCheck',      0,tkInteger, nil,OCThreadStateCheck_Proc,False,0);
@@ -924,6 +926,8 @@ begin
   SetPaScript.AddVariable('c_sNgMsg',m_sNgMsg);
 
   SetPaScript.AddVariable('c_bIsReProgramming',PG[Self.FPgNo].bIsReProgramming);
+
+  SetPaScript.AddVariable('c_bInLine_AAMode',m_bInLine_AAMode);
 
   SetPaScript.AddVariable('c_bIsRetryContact',m_bIsRetryContact);
   SetPaScript.AddVariable('c_bIsSyncSeq',m_bIsSyncSeq);
@@ -2255,8 +2259,6 @@ begin
     TestInfo.MateriID := g_CommPLC.GlassData[FPgNo].MateriID;
   end;
 
-  PG[Self.FPgNo].SetCyclicTimer(False);  // PG  ConnCheck 해지
-
   // BCR Set.
   if Common.SystemInfo.OcManualType then begin
     SendTestGuiDisplay(DefCommon.MSG_MODE_BARCODE_READY,'','',0);
@@ -3213,7 +3215,7 @@ end;
 
 procedure TScrCls.OCFlowStart_Proc(AMachine: TatVirtualMachine);
 var
-  wdRet,i : integer;
+  wdRet,i ,nDLLtype: integer;
   sPID,sSerialNumber,sEquipment,sUSERID,sDiff : string;
 begin
   With AMachine do begin
@@ -3225,19 +3227,17 @@ begin
 
 
     case InputArgCount of
-      2 : begin
+      2..3 : begin
         sPID := GetInputArgAsstring(0);
         sSerialNumber := Trim(GetInputArgAsstring(1));
+        nDLLtype := 0;
+        if InputArgCount = 3 then nDLLtype := GetInputArgAsInteger(2);
 
         if Common.SystemInfo.OCType = DefCommon.OCType then begin
           if DongaGmes <> nil then  begin
             sPID :=  DongaGmes.MesData[FPgNo].PchkRtnPID; // Added by KTS 2023-05-19 오후 5:32:48 PCHK 받은 RYN_PID
             if (Pos('TEST_CH',sSerialNumber) = 0) and (Pos('Contact_NG',sSerialNumber) = 0)  then begin     // Contact_NG 가 아닌 경우만
               if (sSerialNumber <> DongaGmes.MesData[FPgNo].PchkRtnSerialNo) or (Length(sSerialNumber) <> Common.TestModelInfoFLOW.SerialNoFlashInfo.nLength) then begin //
-                if sSerialNumber <> DongaGmes.MesData[FPgNo].PchkRtnSerialNo then begin
-                  sDiff := ExtractDifference(sSerialNumber,DongaGmes.MesData[FPgNo].PchkRtnSerialNo);
-                  SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,format('ExtractDifference : %s',[sDiff]),'',1);
-                end;
                 CSharpDll.m_OCCkSerialNB[FPgNo] := True;
               end
               else begin
@@ -3268,7 +3268,7 @@ begin
 
         TestInfo.PreOcReStart := False; // Added by KTS 2023-06-09 오후 4:20:10 ReStart 초기화
 
-        wdRet := CSharpDll.MainOC_Start(Self.FPgNo,sPID,sSerialNumber,sUSERID,sEquipment);
+        wdRet := CSharpDll.MainOC_Start(nDLLtype,Self.FPgNo,sPID,sSerialNumber,sUSERID,sEquipment);
       end;
     end;
     ReturnOutputArg( Integer(wdRet));
@@ -4195,6 +4195,9 @@ begin
       DefScript.SEQ_KEY_7     : sSeqName := 'Seq_Key_7';
       DefScript.SEQ_KEY_8     : sSeqName := 'Seq_Key_8';
       DefScript.SEQ_KEY_9     : sSeqName := 'Seq_Key_9';
+      DefScript.SEQ_RESTART_1   : sSeqName := 'Seq_ReStart_1';
+      DefScript.SEQ_RESTART_2   : sSeqName := 'Seq_ReStart_2';
+      DefScript.SEQ_RESTART_3   : sSeqName := 'Seq_ReStart_3';
       DefScript.SEQ_Finish    : sSeqName := 'Process_Finish';
       DefScript.SEQ_KEY_SCAN  : sSeqName := 'Seq_Key_Scan';
       DefScript.SEQ_CAM_ZONE  : sSeqName := 'Seq_Cam_Zone';
@@ -4530,7 +4533,7 @@ begin
           wdRet := CheckSyncCmdAck(procedure begin
             SendMainGuiDisplay(DefGmes.MES_EICR,1);
             SendTestGuiDisplay(DefGmes.MES_EICR, '','', 0);
-          end,5000,1);
+          end,(DongaGmes.MES_Queue_Cnt * 60000),1);
           if wdRet = WAIT_OBJECT_0 then begin
             wdRet :=  m_nHostResult;
             if m_nHostResult = 0 then  TestInfo.CanSendApdr := True;
@@ -4623,7 +4626,7 @@ begin
           wdRet := CheckSyncCmdAck(procedure begin
             SendMainGuiDisplay(DefGmes.MES_RPR_EIJR,1);
             SendTestGuiDisplay(DefGmes.MES_RPR_EIJR, '','', 0);
-          end,5000,1);
+          end,(DongaGmes.MES_Queue_Cnt * 60000),1);
           if wdRet = WAIT_OBJECT_0 then begin
             wdRet :=  m_nHostResult;
             if m_nHostResult = 0 then  TestInfo.CanSendApdr := True;
@@ -4676,6 +4679,7 @@ procedure TScrCls.SendPCHK_Proc(AMachine: TatVirtualMachine);
 var
   wdRet : Integer;
   sTemp : string;
+  I: Integer;
 begin
   With AMachine do begin
     wdRet := 1;
@@ -4692,9 +4696,6 @@ begin
 //          sTemp := Trim(TestInfo.CarrierId) + ' / ';
 //        end;
 //        sTemp := sTemp + Trim(TestInfo.CarrierId);
-
-        SendTestGuiDisplay(DefCommon.MSG_MODE_SHOW_SERIAL_NUMBER,TestInfo.SerialNo);
-
         if not Common.StatusInfo.LogIn then begin
 //          Common.MLog(self.FPgNo, 'PCHK SKIP - OFF');
           SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'PCHK SKIP - OFF');
@@ -4706,10 +4707,12 @@ begin
         if DongaGmes <> nil then begin
           Common.MLog(FPgNo,'SendPCHK_Proc : Start!!');
           m_bMesPMMode := False;
-          wdRet := CheckSyncCmdAck(procedure begin         // PCHK 대기 시간 변경 (5000 -> 65000)
+          wdRet := CheckSyncCmdAck(procedure begin         // PCHK 대기 시간 변경 (65000 -> MES 전송 대기 사항 갯수따라 가변)
             SendMainGuiDisplay(DefGmes.MES_PCHK,1);
             SendTestGuiDisplay(DefGmes.MES_PCHK, '','', 0);
-          end,65000,1);
+          end,(DongaGmes.MES_Queue_Cnt * 60000),1);
+
+
           if wdRet = WAIT_OBJECT_0 then begin
             wdRet :=  m_nHostResult;
             //TestInfo.RTN_PID:= m_sMesPchkRtnPID;
@@ -4759,7 +4762,7 @@ begin
       wdRet := CheckSyncCmdAck(procedure begin
         SendMainGuiDisplay(DefGmes.MES_INS_PCHK, 1);
         SendTestGuiDisplay(DefGmes.MES_INS_PCHK, '','', 0);
-      end,5000,1);
+      end,(DongaGmes.MES_Queue_Cnt * 60000),1);
       if wdRet = WAIT_OBJECT_0 then begin
         wdRet :=  m_nHostResult;
         //TestInfo.RTN_PID:= m_sMesPchkRtnPID;

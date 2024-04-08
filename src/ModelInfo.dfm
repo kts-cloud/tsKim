@@ -550,7 +550,7 @@ object frmModelInfo: TfrmModelInfo
       end
       object btnSaveModelInfo: TRzBitBtn
         Left = 900
-        Top = 657
+        Top = 655
         Width = 182
         Height = 42
         FrameColor = clGradientActiveCaption

@@ -137,26 +137,27 @@ type
     m_hDll  : HWND;
     m_hMain : HWND;
     FNgMsg: string;
+    m_nDLLType : array [DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of Integer;
     m_CountInspections : array [DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of Integer;
     FDataArray: array of TArray<Integer>;
-    m_GetSummaryLogData : function (nCH : Integer; sParameter : PAnsiChar): PAnsiChar; cdecl;
-    m_GetSummaryLogData_New : function (nCH: Integer; var nReturn : Integer; sParameter : PAnsiChar): PAnsiChar; cdecl;
+    m_GetSummaryLogData : function (nDLLType, nCH : Integer; sParameter : PAnsiChar): PAnsiChar; cdecl;
+    m_GetSummaryLogData_New : function (nDLLType, nCH: Integer; var nReturn : Integer; sParameter : PAnsiChar): PAnsiChar; cdecl;
 
     m_GetOCConverterVersion : function : PAnsiChar; cdecl;
     m_GetDBVdata : function(nBand : Integer): Integer; cdecl;
-    m_MainOC_START_CH1 : function(nCH : Integer; sParameter : PAnsiChar; nLength,nCheckSum : Integer): Integer; cdecl;
-    m_MainOC_START_CH2 : function(nCH : Integer; sParameter : PAnsiChar; nLength,nCheckSum : Integer): Integer; cdecl;
-    m_MainOC_START_CH3 : function(nCH : Integer; sParameter : PAnsiChar; nLength,nCheckSum : Integer): Integer; cdecl;
-    m_MainOC_START_CH4 : function(nCH : Integer; sParameter : PAnsiChar; nLength,nCheckSum : Integer): Integer; cdecl;
+    m_MainOC_START_CH1 : function(nDLLType, nCH : Integer; sParameter : PAnsiChar; nLength,nCheckSum : Integer): Integer; cdecl;
+    m_MainOC_START_CH2 : function(nDLLType, nCH : Integer; sParameter : PAnsiChar; nLength,nCheckSum : Integer): Integer; cdecl;
+    m_MainOC_START_CH3 : function(nDLLType, nCH : Integer; sParameter : PAnsiChar; nLength,nCheckSum : Integer): Integer; cdecl;
+    m_MainOC_START_CH4 : function(nDLLType, nCH : Integer; sParameter : PAnsiChar; nLength,nCheckSum : Integer): Integer; cdecl;
 
-    m_MainOC_STOP_CH1 : procedure(nCH : Integer); cdecl;
-    m_MainOC_STOP_CH2 : procedure(nCH : Integer); cdecl;
-    m_MainOC_STOP_CH3 : procedure(nCH : Integer); cdecl;
-    m_MainOC_STOP_CH4 : procedure(nCH : Integer); cdecl;
+    m_MainOC_STOP_CH1 : procedure(nDLLType, nCH : Integer); cdecl;
+    m_MainOC_STOP_CH2 : procedure(nDLLType, nCH : Integer); cdecl;
+    m_MainOC_STOP_CH3 : procedure(nDLLType, nCH : Integer); cdecl;
+    m_MainOC_STOP_CH4 : procedure(nDLLType, nCH : Integer); cdecl;
 
     m_MainOC_Flash_Read : procedure (nCH : Integer); cdecl;
 
-    m_MainOC_IsAlive : function (nCH : Integer) : Integer; cdecl;
+    m_MainOC_IsAlive : function (nDLLType, nCH : Integer) : Integer; cdecl;
 
     m_MainOC_ChangeDLL : function(sDLLName : PAnsiChar): Integer;  cdecl;
 
@@ -198,7 +199,7 @@ type
     procedure ThreadTask(Task: TProc);
     procedure SetOnRevSwData(nCH : Integer; const Value: TCallBackTextChanged);
     procedure SendTestGuiDisplay(nCh,nGuiMode: Integer; sMsg: string = ''; nParam: Integer = 0);
-    procedure SendMainGuiDisplay(nCh,nGuiMode: Integer; sMsg: string; nParam: Integer);
+    procedure SendMainGuiDisplay(nCh,nGuiMode: Integer; sMsg: string; nParam: Integer; nParam2: Integer = 0);
     procedure OntmGetOCFlowIsAlive1(Sender : TObject);
     procedure OntmGetOCFlowIsAlive2(Sender : TObject);
     procedure OntmGetOCFlowIsAlive3(Sender : TObject);
@@ -207,17 +208,17 @@ type
     procedure TconWriteAnalysis(nChannel,nAddr,nData : Integer);
     procedure GraySearch(nChannel,nAddr,nData : Integer);
     procedure SendHWCID(nCH : integer);
-    function MainOC_Start_CH1(nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
-    function MainOC_Start_CH2(nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
-    function MainOC_Start_CH3(nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
-    function MainOC_Start_CH4(nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
+    function MainOC_Start_CH1(nDLLType, nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
+    function MainOC_Start_CH2(nDLLType, nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
+    function MainOC_Start_CH3(nDLLType, nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
+    function MainOC_Start_CH4(nDLLType, nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
 
   public
 
     m_bIsDLLWork :array of Boolean; // Added by KTS 2022-12-27 오전 9:00:40 현재 DLL 작업중 확ㅇ인
     m_bIsProcessDone : array of Boolean;
     m_bIsProcessUnloadDone : array of Boolean;
-    m_GetOCversion : function : PAnsiChar; cdecl;
+    m_GetOCversion : function(nDLLType : Integer) : PAnsiChar; cdecl;
     m_OCFlowStart : array [DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of Boolean;
     m_OCCkSerialNB : array [DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of Boolean;
     m_CurrentBand : array [DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of integer;
@@ -229,7 +230,7 @@ type
     procedure Initialize(sModelName : string);
     procedure FormDestroy;
 
-    function MainOC_Start(nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
+    function MainOC_Start(nDLLType,nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
     function MainOC_Stop_CH1(nCH : Integer): integer;
     function MainOC_Stop_CH2(nCH : Integer): integer;
     function MainOC_Stop_CH3(nCH : Integer): integer;
@@ -2351,7 +2352,7 @@ begin
   SendMessage(m_TestHandle,WM_COPYDATA,0, LongInt(@ccd));
 end;
 
-procedure TCSharpDll.SendMainGuiDisplay(nCh,nGuiMode: Integer; sMsg: string; nParam: Integer);
+procedure TCSharpDll.SendMainGuiDisplay(nCh,nGuiMode: Integer; sMsg: string; nParam,nParam2: Integer);
 var
   ccd         : TCopyDataStruct;
   GuiData    : RGuiDLL;
@@ -2360,6 +2361,7 @@ begin
   GuiData.Channel := nCh;
   GuiData.Mode    := nGuiMode;
   GuiData.Param := nParam;
+  GuiData.Param2 := nParam2;
   GuiData.Msg     := sMsg;
   ccd.dwData      := 0;
   ccd.cbData      := SizeOf(GuiData);
@@ -2573,8 +2575,10 @@ hWnd : THandle;
 begin
   try
     nT1 := m_Initialize(DefCommon.MAX_CH + 1,PAnsiChar(AnsiString(sModelName)));
-    sVer := PAnsiChar(m_GetOCversion); // DLL Ver 정보 API 함수 호출
-    SendMainGuiDisplay(0,MSG_TYPE_DLL,sVer,1); // DLL Ver 정보 MAIN 전달
+    for I := 0 to 2 do  begin
+      sVer := PAnsiChar(m_GetOCversion(i)); // DLL Ver 정보 API 함수 호출
+      SendMainGuiDisplay(0,MSG_TYPE_DLL,sVer,1,i); // DLL Ver 정보 MAIN 전달
+    end;
     if @m_GetOCConverterVersion <> nil then
       sVer := PAnsiChar(m_GetOCConverterVersion)
     else sVer := '';
@@ -2617,7 +2621,7 @@ begin
   if nCH > DefCommon.MAX_CH then
     Result := 0
   else
-    Result := m_MainOC_IsAlive(nCH);
+    Result := m_MainOC_IsAlive(m_nDLLType[nCH],nCH);
 end;
 
 function TCSharpDll.MainOC_GetSummaryLogData(nCH : Integer; sParameter : string): string;
@@ -2630,17 +2634,17 @@ begin
     Result := '';
     if @m_GetSummaryLogData_New <> nil then begin
       for I := 0 to 2 do begin
-        sResult := PAnsiChar(m_GetSummaryLogData_New(nCH,nReturn,Common.StringToPAnsiChar(sParameter)));
+        sResult := PAnsiChar(m_GetSummaryLogData_New(m_nDLLType[nCH],nCH,nReturn,Common.StringToPAnsiChar(sParameter)));
         if (nReturn = 0) and (Length(sResult) <> 0) then  Break;
       end;
       Result := sResult;
     end
     else begin
-      Result := PAnsiChar(m_GetSummaryLogData(nCH,Common.StringToPAnsiChar(sParameter)));
+      Result := PAnsiChar(m_GetSummaryLogData(m_nDLLType[nCH],nCH,Common.StringToPAnsiChar(sParameter)));
     end;
   except
     Common.MLog(nCH,'GetSummaryLogData Error Occurrence!!');
-    Result := PAnsiChar(m_GetSummaryLogData(nCH,Common.StringToPAnsiChar(sParameter)));
+    Result := PAnsiChar(m_GetSummaryLogData(m_nDLLType[nCH],nCH,Common.StringToPAnsiChar(sParameter)));
   end;
 end;
 
@@ -2659,7 +2663,7 @@ end;
 
 
 
-function TCSharpDll.MainOC_Start_CH1(nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
+function TCSharpDll.MainOC_Start_CH1(nDLLType, nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
 var
 sParameter : string;
 sHWCID,sDebug : string;
@@ -2667,6 +2671,7 @@ sCrcData   : AnsiString;
 dCheckSum: dword;
 begin
   try
+    m_nDLLType[nCH] := nDLLType;
     sParameter := sPID + ',' + sSerialNumber + ',' + sUser_ID +',' + sEquipment;
     sDebug := sParameter + #13#10 +'Memory usage : ' + Format('%0.2f%%', [Common.GetMemoryUsagePercentage]);
     SendTestGuiDisplay(nCH,defCommon.MSG_MODE_WORKING,sDebug,0);
@@ -2677,7 +2682,7 @@ begin
     m_CurrentTap[nCH] := 0;
     m_CountInspections[nCH] := 0; //검사 횟수 초기화
     dCheckSum := Common.crc16(sParameter,Length(sParameter));
-    if m_MainOC_START_CH1(nCH,Common.StringToPAnsiChar(sParameter),Length(sParameter),dCheckSum) <> 0 then
+    if m_MainOC_START_CH1(nDLLType,nCH,Common.StringToPAnsiChar(sParameter),Length(sParameter),dCheckSum) <> 0 then
       Exit(2);
     m_OCFlowStart[nCH] := true;
     tmCheckOCAlive[nCH].Enabled := True;
@@ -2688,13 +2693,14 @@ begin
 
 end;
 
-function TCSharpDll.MainOC_Start_CH2(nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
+function TCSharpDll.MainOC_Start_CH2(nDLLType,nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
 var
 sParameter,sHWCID,sDebug : string;
 sCrcData   : AnsiString;
 dCheckSum: dword;
 begin
   try
+    m_nDLLType[nCH] := nDLLType;
     sParameter := sPID + ',' + sSerialNumber + ',' + sUser_ID +',' + sEquipment;
     sDebug := sParameter + #13#10 +'Memory usage : ' + Format('%0.2f%%', [Common.GetMemoryUsagePercentage]);
     SendTestGuiDisplay(nCH,defCommon.MSG_MODE_WORKING,sDebug,0);
@@ -2705,7 +2711,7 @@ begin
     m_CurrentTap[nCH] := 0;
     m_CountInspections[nCH] := 0; //검사 횟수 초기화
     dCheckSum := Common.crc16(sParameter,Length(sParameter));
-    if m_MainOC_START_CH2(nCH,Common.StringToPAnsiChar(sParameter),Length(sParameter),dCheckSum) <> 0 then
+    if m_MainOC_START_CH2(nDLLType,nCH,Common.StringToPAnsiChar(sParameter),Length(sParameter),dCheckSum) <> 0 then
       Exit(2);
     m_OCFlowStart[nCH] := true;
     tmCheckOCAlive[nCH].Enabled := True;
@@ -2715,13 +2721,14 @@ begin
   end;
 end;
 
-function TCSharpDll.MainOC_Start_CH3(nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
+function TCSharpDll.MainOC_Start_CH3(nDLLType, nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
 var
 sParameter,sHWCID,sDebug : string;
 sCrcData   : AnsiString;
 dCheckSum: dword;
 begin
   try
+    m_nDLLType[nCH] := nDLLType;
     sParameter := sPID + ',' + sSerialNumber + ',' + sUser_ID +',' + sEquipment;
     sDebug := sParameter + #13#10 +'Memory usage : ' + Format('%0.2f%%', [Common.GetMemoryUsagePercentage]);
     SendTestGuiDisplay(nCH,defCommon.MSG_MODE_WORKING,sDebug,0);
@@ -2732,7 +2739,7 @@ begin
     m_CurrentTap[nCH] := 0;
     m_CountInspections[nCH] := 0; //검사 횟수 초기화
     dCheckSum := Common.crc16(sParameter,Length(sParameter));
-    if m_MainOC_START_CH3(nCH,Common.StringToPAnsiChar(sParameter),Length(sParameter),dCheckSum) <> 0 then
+    if m_MainOC_START_CH3(nDLLType,nCH,Common.StringToPAnsiChar(sParameter),Length(sParameter),dCheckSum) <> 0 then
       Exit(2);
     m_OCFlowStart[nCH] := true;
     tmCheckOCAlive[nCH].Enabled := True;
@@ -2742,13 +2749,14 @@ begin
   end;
 end;
 
-function TCSharpDll.MainOC_Start_CH4(nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
+function TCSharpDll.MainOC_Start_CH4(nDLLType, nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
 var
 sParameter,sHWCID,sDebug : string;
 sCrcData   : AnsiString;
 dCheckSum: dword;
 begin
   try
+    m_nDLLType[nCH] := nDLLType;
     sParameter := sPID + ',' + sSerialNumber + ',' + sUser_ID +',' + sEquipment;
     sDebug := sParameter + #13#10 +'Memory usage : ' + Format('%0.2f%%', [Common.GetMemoryUsagePercentage]);
     SendTestGuiDisplay(nCH,defCommon.MSG_MODE_WORKING,sDebug,0);
@@ -2759,7 +2767,7 @@ begin
     m_CurrentTap[nCH] := 0;
     m_CountInspections[nCH] := 0; //검사 횟수 초기화
     dCheckSum := Common.crc16(sParameter,Length(sParameter));
-    if m_MainOC_START_CH4(nCH,Common.StringToPAnsiChar(sParameter),Length(sParameter),dCheckSum) <> 0 then
+    if m_MainOC_START_CH4(nDLLType,nCH,Common.StringToPAnsiChar(sParameter),Length(sParameter),dCheckSum) <> 0 then
       Exit(2);
     m_OCFlowStart[nCH] := true;
     tmCheckOCAlive[nCH].Enabled := True;
@@ -2769,20 +2777,20 @@ begin
   end;
 end;
 
-function TCSharpDll.MainOC_Start(nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
+function TCSharpDll.MainOC_Start(nDLLType,nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
 begin
   Result := 2;
   case nCH of
-    0:         Result := MainOC_Start_CH1(nCH,sPID,sSerialNumber,sUser_ID,sEquipment);
-    1:         Result := MainOC_Start_CH2(nCH,sPID,sSerialNumber,sUser_ID,sEquipment);
-    2:         Result := MainOC_Start_CH3(nCH,sPID,sSerialNumber,sUser_ID,sEquipment);
-    3:         Result := MainOC_Start_CH4(nCH,sPID,sSerialNumber,sUser_ID,sEquipment);
+    0:         Result := MainOC_Start_CH1(nDLLType,nCH,sPID,sSerialNumber,sUser_ID,sEquipment);
+    1:         Result := MainOC_Start_CH2(nDLLType,nCH,sPID,sSerialNumber,sUser_ID,sEquipment);
+    2:         Result := MainOC_Start_CH3(nDLLType,nCH,sPID,sSerialNumber,sUser_ID,sEquipment);
+    3:         Result := MainOC_Start_CH4(nDLLType,nCH,sPID,sSerialNumber,sUser_ID,sEquipment);
   end;
 end;
 
 function TCSharpDll.MainOC_Stop_CH1(nCH : Integer): integer;
 begin
-   m_MainOC_STOP_CH1(nCH);
+   m_MainOC_STOP_CH1(m_nDLLType[nCH],nCH);
    Result := 0;
 end;
 
@@ -2794,19 +2802,19 @@ end;
 
 function TCSharpDll.MainOC_Stop_CH2(nCH : Integer): integer;
 begin
-  m_MainOC_STOP_CH2(nCH);
+  m_MainOC_STOP_CH2(m_nDLLType[nCH],nCH);
   Result := 0;
 end;
 
 function TCSharpDll.MainOC_Stop_CH3(nCH : Integer): integer;
 begin
-  m_MainOC_STOP_CH3(nCH);
+  m_MainOC_STOP_CH3(m_nDLLType[nCH],nCH);
   Result := 0;
 end;
 
 function TCSharpDll.MainOC_Stop_CH4(nCH : Integer): integer;
 begin
-  m_MainOC_STOP_CH4(nCH);
+  m_MainOC_STOP_CH4(m_nDLLType[nCH],nCH);
   Result := 0;
 end;
 

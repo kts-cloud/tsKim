@@ -422,7 +422,7 @@ object frmMain_OC: TfrmMain_OC
         Height = 22
         BorderOuter = fsFlat
         Caption = 'COM1'
-        TabOrder = 7
+        TabOrder = 8
       end
       object RzPanel3: TRzPanel
         Left = 1
@@ -431,7 +431,7 @@ object frmMain_OC: TfrmMain_OC
         Height = 22
         BorderOuter = fsFlat
         Caption = 'Switch'
-        TabOrder = 8
+        TabOrder = 7
       end
       object RzPanel10: TRzPanel
         Left = 1
@@ -440,7 +440,7 @@ object frmMain_OC: TfrmMain_OC
         Height = 22
         BorderOuter = fsFlat
         Caption = 'Ionizer'
-        TabOrder = 9
+        TabOrder = 10
       end
       object pnlIonizer: TRzPanel
         Left = 101
@@ -449,7 +449,7 @@ object frmMain_OC: TfrmMain_OC
         Height = 22
         BorderOuter = fsFlat
         Caption = 'Disconnected'
-        TabOrder = 10
+        TabOrder = 11
       end
       object pnlDioTop: TRzPanel
         Left = 1
@@ -458,7 +458,7 @@ object frmMain_OC: TfrmMain_OC
         Height = 21
         BorderOuter = fsFlat
         Caption = 'DIO Status'
-        TabOrder = 11
+        TabOrder = 12
       end
       object pnlDioStatus: TRzPanel
         Left = 101
@@ -468,7 +468,7 @@ object frmMain_OC: TfrmMain_OC
         BorderOuter = fsFlat
         Caption = 'Disconneted'
         Color = clWhite
-        TabOrder = 12
+        TabOrder = 13
       end
       object RzPanel5: TRzPanel
         Left = 1
@@ -477,7 +477,7 @@ object frmMain_OC: TfrmMain_OC
         Height = 21
         BorderOuter = fsFlat
         Caption = 'ECS Status'
-        TabOrder = 13
+        TabOrder = 14
       end
       object pnlPlcStatus: TRzPanel
         Left = 101
@@ -487,7 +487,7 @@ object frmMain_OC: TfrmMain_OC
         BorderOuter = fsFlat
         Caption = 'Disconneted'
         Color = clWhite
-        TabOrder = 14
+        TabOrder = 15
       end
       object pnlSwB: TRzPanel
         Left = 186
@@ -496,7 +496,7 @@ object frmMain_OC: TfrmMain_OC
         Height = 22
         BorderOuter = fsFlat
         Caption = 'COM1'
-        TabOrder = 15
+        TabOrder = 9
       end
       object RzPanel17: TRzPanel
         Left = 1
@@ -560,7 +560,7 @@ object frmMain_OC: TfrmMain_OC
         Height = 22
         BorderOuter = fsFlat
         Caption = 'M-GIB EQP ID'
-        TabOrder = 0
+        TabOrder = 2
       end
       object pnlStationNo: TRzPanel
         Left = 78
@@ -570,7 +570,7 @@ object frmMain_OC: TfrmMain_OC
         BorderOuter = fsFlat
         Caption = 'STID123456'
         Color = clWhite
-        TabOrder = 1
+        TabOrder = 3
       end
       object RzPanel6: TRzPanel
         Left = 1
@@ -579,7 +579,7 @@ object frmMain_OC: TfrmMain_OC
         Height = 20
         BorderOuter = fsFlat
         Caption = 'GMES'
-        TabOrder = 2
+        TabOrder = 0
         OnDblClick = RzPanel6DblClick
       end
       object pnlHost: TRzPanel
@@ -589,7 +589,7 @@ object frmMain_OC: TfrmMain_OC
         Height = 20
         BorderOuter = fsFlat
         Caption = 'Disconnected'
-        TabOrder = 3
+        TabOrder = 1
       end
       object RzPanel15: TRzPanel
         Left = 1
@@ -634,7 +634,7 @@ object frmMain_OC: TfrmMain_OC
         Height = 20
         BorderOuter = fsFlat
         Caption = 'USER_ID'
-        TabOrder = 8
+        TabOrder = 9
       end
       object RzPanel20: TRzPanel
         Left = 1
@@ -643,7 +643,7 @@ object frmMain_OC: TfrmMain_OC
         Height = 20
         BorderOuter = fsFlat
         Caption = 'USER_NAME'
-        TabOrder = 9
+        TabOrder = 11
       end
       object pnlUserId: TRzPanel
         Left = 78
@@ -653,7 +653,7 @@ object frmMain_OC: TfrmMain_OC
         BorderOuter = fsFlat
         Caption = 'PM'
         Color = clWhite
-        TabOrder = 10
+        TabOrder = 8
       end
       object pnlUserName: TRzPanel
         Left = 78
@@ -662,7 +662,7 @@ object frmMain_OC: TfrmMain_OC
         Height = 22
         BorderOuter = fsFlat
         Color = clWhite
-        TabOrder = 11
+        TabOrder = 10
       end
     end
     object RzGroupBox3: TRzGroupBox
@@ -673,7 +673,7 @@ object frmMain_OC: TfrmMain_OC
       Align = alTop
       Caption = ' Script Information.'
       GroupStyle = gsUnderline
-      TabOrder = 2
+      TabOrder = 3
       object pnlPsuVer: TRzPanel
         Left = 78
         Top = 81
@@ -681,7 +681,7 @@ object frmMain_OC: TfrmMain_OC
         Height = 22
         BorderOuter = fsFlat
         Color = clWhite
-        TabOrder = 0
+        TabOrder = 9
       end
       object RzPanel18: TRzPanel
         Left = 1
@@ -690,7 +690,7 @@ object frmMain_OC: TfrmMain_OC
         Height = 22
         BorderOuter = fsFlat
         Caption = 'PSU VER'
-        TabOrder = 1
+        TabOrder = 8
       end
       object RzPanel12: TRzPanel
         Left = 1
@@ -699,7 +699,7 @@ object frmMain_OC: TfrmMain_OC
         Height = 22
         BorderOuter = fsFlat
         Caption = 'Pat Group'
-        TabOrder = 2
+        TabOrder = 1
         Visible = False
       end
       object pnlPatternGroup: TRzPanel
@@ -756,7 +756,7 @@ object frmMain_OC: TfrmMain_OC
         BorderOuter = fsFlat
         Caption = 'LGD_OC_X2146.DLL'
         Color = clWhite
-        TabOrder = 8
+        TabOrder = 0
       end
       object RzPanel11: TRzPanel
         Left = 1
@@ -765,7 +765,7 @@ object frmMain_OC: TfrmMain_OC
         Height = 22
         BorderOuter = fsFlat
         Caption = 'LGD DLL Name'
-        TabOrder = 9
+        TabOrder = 2
       end
       object RzPanel16: TRzPanel
         Left = 1
@@ -802,7 +802,7 @@ object frmMain_OC: TfrmMain_OC
       Font.Style = []
       GroupStyle = gsUnderline
       ParentFont = False
-      TabOrder = 3
+      TabOrder = 5
       OnDblClick = grpDIODblClick
     end
     object grpPwrInfo: TRzGroupBox
@@ -813,7 +813,7 @@ object frmMain_OC: TfrmMain_OC
       Align = alClient
       Caption = 'Power Information'
       GroupStyle = gsUnderline
-      TabOrder = 4
+      TabOrder = 10
       object lvPower: TAdvListView
         Left = 0
         Top = 17
@@ -893,7 +893,7 @@ object frmMain_OC: TfrmMain_OC
       Align = alTop
       Caption = 'DFS Info'
       GroupStyle = gsUnderline
-      TabOrder = 5
+      TabOrder = 2
       Visible = False
       object ledDfs: ThhALed
         Left = 78
@@ -911,7 +911,7 @@ object frmMain_OC: TfrmMain_OC
         Height = 14
         BorderOuter = fsFlat
         Caption = 'RCF'
-        TabOrder = 0
+        TabOrder = 2
       end
       object pnlCombiModelRCP: TRzPanel
         Left = 1
@@ -920,7 +920,7 @@ object frmMain_OC: TfrmMain_OC
         Height = 16
         BorderOuter = fsFlat
         Color = clWhite
-        TabOrder = 1
+        TabOrder = 5
       end
       object pnlCombiProcessNo: TRzPanel
         Left = 124
@@ -929,7 +929,7 @@ object frmMain_OC: TfrmMain_OC
         Height = 16
         BorderOuter = fsFlat
         Color = clWhite
-        TabOrder = 2
+        TabOrder = 6
       end
       object pnlCombiRouterNo: TRzPanel
         Left = 202
@@ -938,7 +938,7 @@ object frmMain_OC: TfrmMain_OC
         Height = 16
         BorderOuter = fsFlat
         Color = clWhite
-        TabOrder = 3
+        TabOrder = 7
       end
       object RzPanel4: TRzPanel
         Left = 124
@@ -947,7 +947,7 @@ object frmMain_OC: TfrmMain_OC
         Height = 14
         BorderOuter = fsFlat
         Caption = 'Process No'
-        TabOrder = 4
+        TabOrder = 3
       end
       object RzPanel7: TRzPanel
         Left = 202
@@ -959,7 +959,7 @@ object frmMain_OC: TfrmMain_OC
         Caption = 'RNO'
         ParentShowHint = False
         ShowHint = True
-        TabOrder = 5
+        TabOrder = 4
       end
       object RzPanel9: TRzPanel
         Left = 1
@@ -968,7 +968,7 @@ object frmMain_OC: TfrmMain_OC
         Height = 21
         BorderOuter = fsFlat
         Caption = 'DFS'
-        TabOrder = 6
+        TabOrder = 0
       end
       object pnlSysinfoDfs: TRzPanel
         Left = 101
@@ -977,7 +977,7 @@ object frmMain_OC: TfrmMain_OC
         Height = 21
         BorderOuter = fsFlat
         Caption = 'Disconnected'
-        TabOrder = 7
+        TabOrder = 1
       end
     end
     object btnShowNGRatio: TRzBitBtn
@@ -988,7 +988,7 @@ object frmMain_OC: TfrmMain_OC
       Cursor = crHandPoint
       Align = alBottom
       Caption = 'NG Ratio by Channel.'
-      TabOrder = 6
+      TabOrder = 9
       OnClick = btnShowNGRatioClick
       Glyph.Data = {
         36060000424D3606000000000000360400002800000020000000100000000100
@@ -1051,7 +1051,7 @@ object frmMain_OC: TfrmMain_OC
       Cursor = crHandPoint
       Align = alBottom
       Caption = 'ECS && Robot Map'
-      TabOrder = 7
+      TabOrder = 8
       OnClick = btnShowECSStatusClick
       Glyph.Data = {
         36060000424D3606000000000000360400002800000020000000100000000100
@@ -1114,7 +1114,7 @@ object frmMain_OC: TfrmMain_OC
       Cursor = crHandPoint
       Align = alBottom
       Caption = 'Show Alarm'
-      TabOrder = 8
+      TabOrder = 7
       OnClick = btnShowAlarmClick
       Glyph.Data = {
         36060000424D3606000000000000360400002800000020000000100000000100
@@ -1184,7 +1184,7 @@ object frmMain_OC: TfrmMain_OC
       Font.Style = []
       GroupStyle = gsUnderline
       ParentFont = False
-      TabOrder = 9
+      TabOrder = 6
       Visible = False
       object btnStartAutoTest: TRzBitBtn
         Left = 4
@@ -1320,7 +1320,7 @@ object frmMain_OC: TfrmMain_OC
       Width = 97
       Height = 17
       Caption = 'AUTO Restart'
-      TabOrder = 10
+      TabOrder = 4
       Visible = False
       OnClick = chkAutoReStartClick
     end
@@ -1334,7 +1334,7 @@ object frmMain_OC: TfrmMain_OC
     BorderOuter = fsNone
     BorderSides = [sdLeft, sdTop, sdRight, sdBottom]
     BorderWidth = 0
-    TabOrder = 2
+    TabOrder = 8
     VisualStyle = vsGradient
     object RzClockStatus1: TRzClockStatus
       Left = 0
@@ -1462,7 +1462,7 @@ object frmMain_OC: TfrmMain_OC
     Width = 1470
     Height = 156
     Caption = 'pnlSubTitle'
-    TabOrder = 3
+    TabOrder = 9
     Visible = False
     object mmoSysLog: TRichEdit
       Left = 945
@@ -1476,7 +1476,7 @@ object frmMain_OC: TfrmMain_OC
       Font.Name = 'Tahoma'
       Font.Style = []
       ParentFont = False
-      TabOrder = 0
+      TabOrder = 2
       Zoom = 100
     end
     object pnlMesReady: TPanel
@@ -1556,7 +1556,7 @@ object frmMain_OC: TfrmMain_OC
       Font.Style = []
       ParentBackground = False
       ParentFont = False
-      TabOrder = 2
+      TabOrder = 0
       StyleElements = []
       object btnAutoReady: TRzToolButton
         AlignWithMargins = True
@@ -1614,7 +1614,7 @@ object frmMain_OC: TfrmMain_OC
     Height = 22
     BorderOuter = fsFlat
     Caption = 'Disconnected'
-    TabOrder = 4
+    TabOrder = 2
   end
   object Button1: TButton
     Left = 33
@@ -1622,7 +1622,7 @@ object frmMain_OC: TfrmMain_OC
     Width = 75
     Height = 25
     Caption = 'Button1'
-    TabOrder = 5
+    TabOrder = 3
     Visible = False
     OnClick = Button1Click
   end
@@ -1631,7 +1631,7 @@ object frmMain_OC: TfrmMain_OC
     Top = 590
     Width = 121
     Height = 21
-    TabOrder = 6
+    TabOrder = 5
     Text = 'Edit1'
     Visible = False
   end
@@ -1641,7 +1641,7 @@ object frmMain_OC: TfrmMain_OC
     Width = 75
     Height = 25
     Caption = 'Button2'
-    TabOrder = 7
+    TabOrder = 4
     Visible = False
     OnClick = Button2Click
   end
@@ -1651,7 +1651,7 @@ object frmMain_OC: TfrmMain_OC
     Width = 75
     Height = 25
     Caption = 'Button3'
-    TabOrder = 8
+    TabOrder = 6
     Visible = False
     OnClick = Button3Click
   end
@@ -1661,7 +1661,7 @@ object frmMain_OC: TfrmMain_OC
     Width = 75
     Height = 25
     Caption = 'Button4'
-    TabOrder = 9
+    TabOrder = 7
     Visible = False
     OnClick = Button4Click
   end
