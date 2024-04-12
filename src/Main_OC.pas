@@ -3165,7 +3165,7 @@ begin
         if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
           DongaGmes.MesData[nCh].ApdrData := Common.ReadLGDDLLSummaryLog_New(sPID,PasScr[nCh].TestInfo.SerialNo,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
   //        ShowSysLog('ReadLGDDLLSummaryLog_New : ' + PasScr[nCh].TestInfo.ApdrData);
-          if Length(PasScr[nCh].TestInfo.ApdrData) > 0 then
+          if Length(DongaGmes.MesData[nCh].ApdrData) > 0 then
             sGD_DEFECT := ',GD:GD_DEFECT:' + DongaGmes.MesData[nCh].GDDefectCode
           else sGD_DEFECT := 'GD:GD_DEFECT:' + DongaGmes.MesData[nCh].GDDefectCode;
           DongaGmes.MesData[nCh].ApdrData := DongaGmes.MesData[nCh].ApdrData + sGD_DEFECT;
@@ -5307,20 +5307,16 @@ begin
 
           if ControlDio.IsDetected(CH1)then Robot_Request_Exchange_UnLoad(CH1)
           else Robot_Request_Exchange_Load(CH1);
+          Common.Delay(100);
           if ControlDio.IsDetected(CH2)then Robot_Request_Exchange_UnLoad(CH2)
           else Robot_Request_Exchange_Load(CH2);
+          Common.Delay(100);
           if ControlDio.IsDetected(CH3)then Robot_Request_Exchange_UnLoad(CH3)
           else Robot_Request_Exchange_Load(CH3);
+          Common.Delay(100);
           if ControlDio.IsDetected(CH4)then Robot_Request_Exchange_UnLoad(CH4)
           else Robot_Request_Exchange_Load(CH4);
 
-  //        Robot_Request_Exchange_UnLoad(CH1);
-  //        Common.Delay(100);
-  //        Robot_Request_Exchange_UnLoad(CH2);
-  //        Common.Delay(100);
-  //        Robot_Request_Exchange_UnLoad(CH3);
-  //        Common.Delay(100);
-  //        Robot_Request_Exchange_UnLoad(CH4);
         end
         else begin
           ShowSysLog('StartAutoProcess Carrier Detected. User Cancel');
@@ -5333,11 +5329,11 @@ begin
         ShowSysLog('StartAutoProcess Request Load A');
 
         Robot_Request_Exchange_Load(CH1);
-//        Common.Delay(100);
+        Common.Delay(100);
         Robot_Request_Exchange_Load(CH2);
-//        Common.Delay(100);
+        Common.Delay(100);
         Robot_Request_Exchange_Load(CH3);
-//        Common.Delay(100);
+        Common.Delay(100);
         Robot_Request_Exchange_Load(CH4);
 
       end;
@@ -5381,7 +5377,7 @@ begin
           end
           else begin
             Robot_Request_Exchange_Load(CH1);
-//            Common.Delay(100);
+            Common.Delay(100);
             Robot_Request_Exchange_Load(CH2);
           end;
         end
@@ -5392,13 +5388,13 @@ begin
           if ControlDio.IsDetected(CH1) or  ControlDio.IsDetected(CH2) then begin
             if ControlDio.IsDetected(CH1)then
               Robot_Request_UnLoad(CH1);
-//            Common.Delay(100);
+            Common.Delay(100);
             if ControlDio.IsDetected(CH2)then
               Robot_Request_UnLoad(CH2);
           end
           else begin
             Robot_Request_Exchange_Load(CH1);
-//            Common.Delay(100);
+            Common.Delay(100);
             Robot_Request_Exchange_Load(CH2);
           end;
         end;
@@ -5414,7 +5410,7 @@ begin
           end
           else begin
             Robot_Request_Exchange_Load(CH3);
-//            Sleep(100);
+            Common.Delay(100);
             Robot_Request_Exchange_Load(CH4);
           end;
         end
@@ -5425,13 +5421,13 @@ begin
           if ControlDio.IsDetected(CH3) or  ControlDio.IsDetected(CH4) then begin
             if ControlDio.IsDetected(CH3)then
               Robot_Request_UnLoad(CH3);
-//            Sleep(100);
+            Common.Delay(100);
             if ControlDio.IsDetected(CH4)then
               Robot_Request_UnLoad(CH4);
           end
           else begin
             Robot_Request_Exchange_Load(CH3);
-//            Sleep(100);
+            Common.Delay(100);
             Robot_Request_Exchange_Load(CH4);
           end;
         end;
@@ -5442,11 +5438,11 @@ begin
         ShowSysLog('StartAutoProcess Request Load A');
 
         Robot_Request_Exchange_Load(CH1);
-//        Sleep(100);
+        Common.Delay(100);
         Robot_Request_Exchange_Load(CH2);
-//        Sleep(100);
+        Common.Delay(100);
         Robot_Request_Exchange_Load(CH3);
-//        Sleep(100);
+        Common.Delay(100);
         Robot_Request_Exchange_Load(CH4);
 
       end;
