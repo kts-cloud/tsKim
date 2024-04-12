@@ -5,7 +5,7 @@ interface
 uses
 
   Winapi.Windows, Winapi.ShellAPI, System.Classes, System.UITypes, System.SysUtils,
-  Vcl.Forms,Vcl.Dialogs, Winapi.WinSock, Vcl.StdCtrls, psAPI,System.IOUtils,IdGlobal,
+  Vcl.Forms,Vcl.Dialogs, Winapi.WinSock, Vcl.StdCtrls, psAPI,System.IOUtils,IdGlobal, System.Types,
   System.IniFiles,  CodeSiteLogging, StrUtils,  DefCommon, system.zip,DefPG, TLHelp32, ComObj, Variants,PdhExample,
 
   System.Threading, {FlexCel.Core, FlexCel.XlsAdapter,}System.Diagnostics,System.TimeSpan,RegularExpressions,
@@ -5428,17 +5428,22 @@ begin
     if not FileExists(sFileName) then
       Exit;
 
-    Common.MLog(nCh,'ReadLGDDLLSummaryLog_New : Start!!');
+    Common.MLog(nCh,format('ReadLGDDLLSummaryLog_New : Start!!look for File Name : %s PID : %s S/N : %s',[sFileName,sPid,Copy(sSn,1,50)]));
     // 해당 Data 찾기
     sw := TStopwatch.StartNew;
     slData := TStringList.Create;
+
     try
       slData.LoadFromFile(sFileName);
+
+      Common.MLog(nCh,Format('Number of data : %d',[slData.Count]));
       asSummaryGroupHeader := slData.Strings[0].Split([',']);
       asSummaryHeader := slData.Strings[1].Split([',']);
-//      for i:= 2 to Pred(slData.Count) do begin
       for i:= Pred(slData.Count) downto 2 do begin
         asSummaryAPDRData := slData.Strings[i].Split([',']);
+        if Length(asSummaryAPDRData) < 10  then Continue;
+        if (IntToStr(nCh + 1) <> asSummaryAPDRData[9]) then Continue;
+
         if (sPid = asSummaryAPDRData[4]) or (sSn = asSummaryAPDRData[5]) then begin
           bFound := True;
           Break;
@@ -5451,41 +5456,11 @@ begin
     end;
 
 
-//    try
-//      Common.MLog(nCh,'ReadLGDDLLSummaryLog_New : Start!!');
-//      AssignFile(txtFile, sFileName);
-//      sw := TStopwatch.StartNew;
-//      Reset(txtFile);
-//      nlineCount := 0;
-//
-//      // 초기화를 한번만 수행하도록 수정
-//      asSummaryHeader := nil;
-//      asSummaryGroupHeader := nil;
-//      asSummaryAPDRData := nil;
-//
-//      while not Eof(txtFile) do
-//      begin
-//        ReadLn(txtFile, sLine);
-//        asSummaryData := sLine.Split([',']);
-//        if Length(asSummaryData) < 6 then Continue;
-//        Inc(nlineCount);
-//
-//        if asSummaryData[0] = 'BIN_VER' then
-//          asSummaryHeader := sLine.Split([','])
-//        else if asSummaryData[0] = 'BIN' then
-//          asSummaryGroupHeader := sLine.Split([','])
-//        else if (sPid = asSummaryData[4]) or (sSn = asSummaryData[5]) then
-//          asSummaryAPDRData := sLine.Split([',']);
-//      end;
-//    finally
-//      CloseFile(txtFile);
-//      sw.Stop;
-//      MLog(nCh, 'ReadLGDDLLSummaryLog msec : ' + sw.ElapsedMilliseconds.ToString);
-//    end;
-
-
-    if not bFound then    // 못 찾은 경우 종료
+    if not bFound then begin    // 못 찾은 경우 종료
+      MLog(nCh,format('APDR data not found : PID : %s S/N : %s',[sPid,Copy(sSn,1,50)]));
+      Result := 'DEFECT_DESCRIPTION:DEFECT_DESCRIPTION:APDR data not found';
       Exit;
+    end;
 
     // StringBuilder 사용
     with TStringBuilder.Create do

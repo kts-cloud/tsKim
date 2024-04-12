@@ -1373,7 +1373,7 @@ begin
       sTempBcr := TestInfo.CarrierId;
     end
     else if nTemp = 2 then begin // MateriID
-     sTempBcr := TestInfo.MateriID;
+      sTempBcr := TestInfo.MateriID;
     end;
 
     if sTempBcr <> '' then

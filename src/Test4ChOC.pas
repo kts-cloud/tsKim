@@ -3340,21 +3340,23 @@ begin
           PasScr[nJigCh].g_bIsBcrReady := True;
 
           if (g_CommPLC <> nil) and (Common.StatusInfo.AutoMode) then begin   // ECC MateriID 와 BCR data 비교 하여 다르면 NG
-            if Common.SystemInfo.OCType = DefCommon.PreOCType then  begin
+            if (Common.SystemInfo.OCType = DefCommon.PreOCType) then  begin
               sRemoveCr := Copy(sRemoveCr,1,18);
-              sPCB_ID := Copy(g_CommPLC.GlassData[nJigCh].MateriID,1,18);
+              sPCB_ID := Copy(g_CommPLC.GlassData[nJigCh].MateriID,1,18)
             end;
 
-            sDebug := Format('<HAND-BCR> MateriID Matching sRemoveCr : %s Length : %d sPCB_ID : %s Length : %d ',[sRemoveCr,Length(sRemoveCr),sPCB_ID,Length(sPCB_ID)]);
-            AddLog(sDebug,nJigCh,0);
-            if Pos(sRemoveCr,sPCB_ID) = 0 then begin
-              pnlSerials[nJigCh].Caption := sRemoveCr;
-              pnlSerials[nJigCh].Color := clRed;
-              pnlSerials[nJigCh].Font.Color := clBlack;
-              sDebug := Format('<HAND-BCR> MateriID and ECRDATA DIFFERENT!! MateriID : %s BCR_Data : %s ',[sPCB_ID,sRemoveCr]);
+            if not Common.PLCInfo.InlineGIB then begin
+              sDebug := Format('<HAND-BCR> MateriID Matching sRemoveCr : %s Length : %d sPCB_ID : %s Length : %d ',[sRemoveCr,Length(sRemoveCr),sPCB_ID,Length(sPCB_ID)]);
               AddLog(sDebug,nJigCh,0);
-              ShowNgMessage(Format('CH : %d MateriID(%s) and BCRData(%s) DIFFERENT!!',[nJigCh + 1,sPCB_ID,sRemoveCr]));
-              Exit;
+              if Pos(sRemoveCr,sPCB_ID) = 0 then begin
+                pnlSerials[nJigCh].Caption := sRemoveCr;
+                pnlSerials[nJigCh].Color := clRed;
+                pnlSerials[nJigCh].Font.Color := clBlack;
+                sDebug := Format('<HAND-BCR> MateriID and ECRDATA DIFFERENT!! MateriID : %s BCR_Data : %s ',[sPCB_ID,sRemoveCr]);
+                AddLog(sDebug,nJigCh,0);
+                ShowNgMessage(Format('CH : %d MateriID(%s) and BCRData(%s) DIFFERENT!!',[nJigCh + 1,sPCB_ID,sRemoveCr]));
+                Exit;
+              end;
             end;
           end;
 

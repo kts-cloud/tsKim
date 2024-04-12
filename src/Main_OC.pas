@@ -2906,7 +2906,9 @@ begin
               sMsg:= '[LOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[pGUIMsg.Channel]);
               SendCHMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, 0, pGUIMsg.Channel,sMsg);
 //              frmTest4ChOC[nStage].AddLog(sMsg, pGUIMsg.Channel);
+
               PasScr[pGUIMsg.Channel].TestInfo.MateriID := g_CommPLC.GlassData[pGUIMsg.Channel].MateriID;
+              PasScr[pGUIMsg.Channel].TestInfo.GlassID := g_CommPLC.GlassData[pGUIMsg.Channel].GlassID;
               PasScr[pGUIMsg.Channel].m_nConfirmHostRet := 0;
               g_CommPLC.RobotLoadingStatus[pGUIMsg.Channel] := True;
             end
@@ -3363,7 +3365,6 @@ begin
               end;
             end;
           end;
-          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, format('Request Load %s 0', [chr(ord('A') + nStage)]));
 //          frmTest4ChOC[nStage].ClearChData(nCH);
 //          frmTest4ChOC[nStage].DisplayResult(nCH, -3, 0, 'Request Load');
           SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, nCH, 'Request Load');
@@ -6232,13 +6233,15 @@ begin
                 Common.SystemInfo.LGD_DLLVER_Name := sMsg;
                 ShowSysLog(Format('LGDDLLNam : %s',[sMsg]), 0);
               end;
-              if pGUIMsg.Param2 = 1 then begin
-                pnlLGDDLLName.Caption := pnlLGDDLLName.Caption +','+ sMsg;
-                ShowSysLog(Format('LGDDLLNam 1 : %s',[sMsg]), 0);
-              end;
-              if pGUIMsg.Param2 = 2 then begin
-                pnlLGDDLLName.Caption :=  pnlLGDDLLName.Caption +','+ sMsg;
-                ShowSysLog(Format('LGDDLLNam 2 : %s',[sMsg]), 0);
+              if Common.SystemInfo.OCType = DefCommon.OCType then begin
+                if pGUIMsg.Param2 = 1 then begin
+                  pnlLGDDLLName.Caption := pnlLGDDLLName.Caption +','+ sMsg;
+                  ShowSysLog(Format('LGDDLLNam 1 : %s',[sMsg]), 0);
+                end;
+                if pGUIMsg.Param2 = 2 then begin
+                  pnlLGDDLLName.Caption :=  pnlLGDDLLName.Caption +','+ sMsg;
+                  ShowSysLog(Format('LGDDLLNam 2 : %s',[sMsg]), 0);
+                end;
               end;
 
             end;
@@ -6630,77 +6633,77 @@ begin
     Common.StatusInfo.AlarmMsg[30]:= 'N/A 30';
     Common.StatusInfo.AlarmMsg[31]:= 'N/A 31';
 
-    Common.StatusInfo.AlarmMsg[32]:= 'CARRIER_SENSOR NG CH #1 (DI11)';
-    Common.StatusInfo.AlarmMsg[33]:= 'PROBE_FORWARD_SENSOR NG  CH #1 (DI12)';
-    Common.StatusInfo.AlarmMsg[34]:= 'PROBE_BACKWARD_SENSOR NG  CH #1 (DI13)';
-    Common.StatusInfo.AlarmMsg[35]:= 'PROBE_UP_SENSOR NG CH #1 (DI14)';
-    Common.StatusInfo.AlarmMsg[36]:= 'PROBE_DOWN_SENSOR NG CH #1 (DI15)';
+    Common.StatusInfo.AlarmMsg[32]:= 'CARRIER_SENSOR NG CH 1 (DI11)';
+    Common.StatusInfo.AlarmMsg[33]:= 'PROBE_FORWARD_SENSOR NG  CH 1 (DI12)';
+    Common.StatusInfo.AlarmMsg[34]:= 'PROBE_BACKWARD_SENSOR NG  CH 1 (DI13)';
+    Common.StatusInfo.AlarmMsg[35]:= 'PROBE_UP_SENSOR NG CH 1 (DI14)';
+    Common.StatusInfo.AlarmMsg[36]:= 'PROBE_DOWN_SENSOR NG CH 1 (DI15)';
     Common.StatusInfo.AlarmMsg[37]:= 'N/A 37';
     Common.StatusInfo.AlarmMsg[38]:= 'N/A 38';
     Common.StatusInfo.AlarmMsg[39]:= 'N/A 39';
 
-    Common.StatusInfo.AlarmMsg[40]:= 'CH 1 CARRIER Clamp UP SENSOR #1 (DI16)';
-    Common.StatusInfo.AlarmMsg[41]:= 'CH 1 CARRIER Clamp DN SENSOR #1 (DI17)';
-    Common.StatusInfo.AlarmMsg[42]:= 'CH 1 CARRIER Clamp UP SENSOR #2 (DI18)';
-    Common.StatusInfo.AlarmMsg[43]:= 'CH 1 CARRIER Clamp DN SENSOR #2 (DI19)';
-    Common.StatusInfo.AlarmMsg[44]:= 'CH 1 CARRIER Clamp UP SENSOR #3 (DI20)';
-    Common.StatusInfo.AlarmMsg[45]:= 'CH 1 CARRIER Clamp DN SENSOR #3 (DI21)';
-    Common.StatusInfo.AlarmMsg[46]:= 'CH 1 CARRIER Clamp UP SENSOR #4 (DI22)';
-    Common.StatusInfo.AlarmMsg[47]:= 'CH 1 CARRIER Clamp DN SENSOR #4 (DI23)';
+    Common.StatusInfo.AlarmMsg[40]:= 'CH 1 CARRIER Clamp UP SENSOR 1 (DI16)';
+    Common.StatusInfo.AlarmMsg[41]:= 'CH 1 CARRIER Clamp DN SENSOR 1 (DI17)';
+    Common.StatusInfo.AlarmMsg[42]:= 'CH 1 CARRIER Clamp UP SENSOR 2 (DI18)';
+    Common.StatusInfo.AlarmMsg[43]:= 'CH 1 CARRIER Clamp DN SENSOR 2 (DI19)';
+    Common.StatusInfo.AlarmMsg[44]:= 'CH 1 CARRIER Clamp UP SENSOR 3 (DI20)';
+    Common.StatusInfo.AlarmMsg[45]:= 'CH 1 CARRIER Clamp DN SENSOR 3 (DI21)';
+    Common.StatusInfo.AlarmMsg[46]:= 'CH 1 CARRIER Clamp UP SENSOR 4 (DI22)';
+    Common.StatusInfo.AlarmMsg[47]:= 'CH 1 CARRIER Clamp DN SENSOR 4 (DI23)';
 
-    Common.StatusInfo.AlarmMsg[48]:= 'CARRIER_SENSOR NG CH #2 (DI24)';
-    Common.StatusInfo.AlarmMsg[49]:= 'PROBE_FORWARD_SENSOR NG  CH #2 (DI25)';
-    Common.StatusInfo.AlarmMsg[50]:= 'PROBE_BACKWARD_SENSOR NG  CH #2 (DI26)';
-    Common.StatusInfo.AlarmMsg[51]:= 'PROBE_UP_SENSOR NG CH #2 (DI27)';
-    Common.StatusInfo.AlarmMsg[52]:= 'PROBE_DOWN_SENSOR NG CH #2 (DI28)';
+    Common.StatusInfo.AlarmMsg[48]:= 'CARRIER_SENSOR NG CH 2 (DI24)';
+    Common.StatusInfo.AlarmMsg[49]:= 'PROBE_FORWARD_SENSOR NG  CH 2 (DI25)';
+    Common.StatusInfo.AlarmMsg[50]:= 'PROBE_BACKWARD_SENSOR NG  CH 2 (DI26)';
+    Common.StatusInfo.AlarmMsg[51]:= 'PROBE_UP_SENSOR NG CH 2 (DI27)';
+    Common.StatusInfo.AlarmMsg[52]:= 'PROBE_DOWN_SENSOR NG CH 2 (DI28)';
     Common.StatusInfo.AlarmMsg[53]:= 'N/A 61';
     Common.StatusInfo.AlarmMsg[54]:= 'N/A 62';
     Common.StatusInfo.AlarmMsg[55]:= 'N/A 63';
 
-    Common.StatusInfo.AlarmMsg[56]:= 'CH 2 CARRIER Clamp UP SENSOR #1(DI29)';
-    Common.StatusInfo.AlarmMsg[57]:= 'CH 2 CARRIER Clamp DN SENSOR #1(DI30)';
-    Common.StatusInfo.AlarmMsg[58]:= 'CH 2 CARRIER Clamp UP SENSOR #2(DI31)';
-    Common.StatusInfo.AlarmMsg[59]:= 'CH 2 CARRIER Clamp DN SENSOR #2(DI32)';
-    Common.StatusInfo.AlarmMsg[60]:= 'CH 2 CARRIER Clamp UP SENSOR #3(DI33)';
-    Common.StatusInfo.AlarmMsg[61]:= 'CH 2 CARRIER Clamp DN SENSOR #3(DI34)';
-    Common.StatusInfo.AlarmMsg[62]:= 'CH 2 CARRIER Clamp UP SENSOR #4(DI35)';
-    Common.StatusInfo.AlarmMsg[63]:= 'CH 2 CARRIER Clamp DN SENSOR #4(DI36)';
+    Common.StatusInfo.AlarmMsg[56]:= 'CH 2 CARRIER Clamp UP SENSOR 1(DI29)';
+    Common.StatusInfo.AlarmMsg[57]:= 'CH 2 CARRIER Clamp DN SENSOR 1(DI30)';
+    Common.StatusInfo.AlarmMsg[58]:= 'CH 2 CARRIER Clamp UP SENSOR 2(DI31)';
+    Common.StatusInfo.AlarmMsg[59]:= 'CH 2 CARRIER Clamp DN SENSOR 2(DI32)';
+    Common.StatusInfo.AlarmMsg[60]:= 'CH 2 CARRIER Clamp UP SENSOR 3(DI33)';
+    Common.StatusInfo.AlarmMsg[61]:= 'CH 2 CARRIER Clamp DN SENSOR 3(DI34)';
+    Common.StatusInfo.AlarmMsg[62]:= 'CH 2 CARRIER Clamp UP SENSOR 4(DI35)';
+    Common.StatusInfo.AlarmMsg[63]:= 'CH 2 CARRIER Clamp DN SENSOR 4(DI36)';
 
-    Common.StatusInfo.AlarmMsg[64]:=  'CARRIER_SENSOR NG CH #3 (DI37)';
-    Common.StatusInfo.AlarmMsg[65]:=  'PROBE_FORWARD_SENSOR NG  CH #3 (DI38)';
-    Common.StatusInfo.AlarmMsg[66]:=  'PROBE_BACKWARD_SENSOR NG  CH #3 (DI39)';
-    Common.StatusInfo.AlarmMsg[67]:=  'PROBE_UP_SENSOR NG CH #3 (DI40)';
-    Common.StatusInfo.AlarmMsg[68]:=  'PROBE_DOWN_SENSOR NG CH #3 (DI41)';
+    Common.StatusInfo.AlarmMsg[64]:=  'CARRIER_SENSOR NG CH 3 (DI37)';
+    Common.StatusInfo.AlarmMsg[65]:=  'PROBE_FORWARD_SENSOR NG  CH 3 (DI38)';
+    Common.StatusInfo.AlarmMsg[66]:=  'PROBE_BACKWARD_SENSOR NG  CH 3 (DI39)';
+    Common.StatusInfo.AlarmMsg[67]:=  'PROBE_UP_SENSOR NG CH 3 (DI40)';
+    Common.StatusInfo.AlarmMsg[68]:=  'PROBE_DOWN_SENSOR NG CH 3 (DI41)';
     Common.StatusInfo.AlarmMsg[69]:=  'N/A 85';
     Common.StatusInfo.AlarmMsg[70]:=  'N/A 86';
     Common.StatusInfo.AlarmMsg[71]:=  'N/A 87';
 
-    Common.StatusInfo.AlarmMsg[72]:= 'CH 3 CARRIER Clamp UP SENSOR #1(DI42)';
-    Common.StatusInfo.AlarmMsg[73]:= 'CH 3 CARRIER Clamp DN SENSOR #1(DI43)';
-    Common.StatusInfo.AlarmMsg[74]:= 'CH 3 CARRIER Clamp UP SENSOR #2(DI44)';
-    Common.StatusInfo.AlarmMsg[75]:= 'CH 3 CARRIER Clamp DN SENSOR #2(DI45)';
-    Common.StatusInfo.AlarmMsg[76]:= 'CH 3 CARRIER Clamp UP SENSOR #3(DI46)';
-    Common.StatusInfo.AlarmMsg[77]:= 'CH 3 CARRIER Clamp DN SENSOR #3(DI47)';
-    Common.StatusInfo.AlarmMsg[78]:= 'CH 3 CARRIER Clamp UP SENSOR #4(DI48)';
-    Common.StatusInfo.AlarmMsg[79]:= 'CH 3 CARRIER Clamp DN SENSOR #4(DI49)';
+    Common.StatusInfo.AlarmMsg[72]:= 'CH 3 CARRIER Clamp UP SENSOR 1(DI42)';
+    Common.StatusInfo.AlarmMsg[73]:= 'CH 3 CARRIER Clamp DN SENSOR 1(DI43)';
+    Common.StatusInfo.AlarmMsg[74]:= 'CH 3 CARRIER Clamp UP SENSOR 2(DI44)';
+    Common.StatusInfo.AlarmMsg[75]:= 'CH 3 CARRIER Clamp DN SENSOR 2(DI45)';
+    Common.StatusInfo.AlarmMsg[76]:= 'CH 3 CARRIER Clamp UP SENSOR 3(DI46)';
+    Common.StatusInfo.AlarmMsg[77]:= 'CH 3 CARRIER Clamp DN SENSOR 3(DI47)';
+    Common.StatusInfo.AlarmMsg[78]:= 'CH 3 CARRIER Clamp UP SENSOR 4(DI48)';
+    Common.StatusInfo.AlarmMsg[79]:= 'CH 3 CARRIER Clamp DN SENSOR 4(DI49)';
 
-    Common.StatusInfo.AlarmMsg[80]:= 'CARRIER_SENSOR NG CH #4 (DI50)';
-    Common.StatusInfo.AlarmMsg[81]:= 'PROBE_FORWARD_SENSOR NG  CH #4 (DI51)';
-    Common.StatusInfo.AlarmMsg[82]:= 'PROBE_BACKWARD_SENSOR NG  CH #4 (DI52)';
-    Common.StatusInfo.AlarmMsg[83]:= 'PROBE_UP_SENSOR NG CH #4 (DI53)';
-    Common.StatusInfo.AlarmMsg[84]:= 'PROBE_DOWN_SENSOR NG CH #4 (DI54)';
+    Common.StatusInfo.AlarmMsg[80]:= 'CARRIER_SENSOR NG CH 4 (DI50)';
+    Common.StatusInfo.AlarmMsg[81]:= 'PROBE_FORWARD_SENSOR NG  CH 4 (DI51)';
+    Common.StatusInfo.AlarmMsg[82]:= 'PROBE_BACKWARD_SENSOR NG  CH 4 (DI52)';
+    Common.StatusInfo.AlarmMsg[83]:= 'PROBE_UP_SENSOR NG CH 4 (DI53)';
+    Common.StatusInfo.AlarmMsg[84]:= 'PROBE_DOWN_SENSOR NG CH 4 (DI54)';
     Common.StatusInfo.AlarmMsg[85]:= 'N/A 109';
     Common.StatusInfo.AlarmMsg[86]:= 'N/A 110';
     Common.StatusInfo.AlarmMsg[87]:= 'N/A 111';
 
-    Common.StatusInfo.AlarmMsg[88]:=   'CH 4 CARRIER Clamp UP SENSOR #1(DI55)';
-    Common.StatusInfo.AlarmMsg[89]:=   'CH 4 CARRIER Clamp DN SENSOR #1(DI56)';
-    Common.StatusInfo.AlarmMsg[90]:=   'CH 4 CARRIER Clamp UP SENSOR #2(DI57)';
-    Common.StatusInfo.AlarmMsg[91]:=   'CH 4 CARRIER Clamp DN SENSOR #2(DI58)';
-    Common.StatusInfo.AlarmMsg[92]:=   'CH 4 CARRIER Clamp UP SENSOR #3(DI59)';
-    Common.StatusInfo.AlarmMsg[93]:=   'CH 4 CARRIER Clamp DN SENSOR #3(DI60)';
-    Common.StatusInfo.AlarmMsg[94]:=   'CH 4 CARRIER Clamp UP SENSOR #4(DI61)';
-    Common.StatusInfo.AlarmMsg[95]:=   'CH 4 CARRIER Clamp DN SENSOR #4(DI62)';
+    Common.StatusInfo.AlarmMsg[88]:=   'CH 4 CARRIER Clamp UP SENSOR 1(DI55)';
+    Common.StatusInfo.AlarmMsg[89]:=   'CH 4 CARRIER Clamp DN SENSOR 1(DI56)';
+    Common.StatusInfo.AlarmMsg[90]:=   'CH 4 CARRIER Clamp UP SENSOR 2(DI57)';
+    Common.StatusInfo.AlarmMsg[91]:=   'CH 4 CARRIER Clamp DN SENSOR 2(DI58)';
+    Common.StatusInfo.AlarmMsg[92]:=   'CH 4 CARRIER Clamp UP SENSOR 3(DI59)';
+    Common.StatusInfo.AlarmMsg[93]:=   'CH 4 CARRIER Clamp DN SENSOR 3(DI60)';
+    Common.StatusInfo.AlarmMsg[94]:=   'CH 4 CARRIER Clamp UP SENSOR 4(DI61)';
+    Common.StatusInfo.AlarmMsg[95]:=   'CH 4 CARRIER Clamp DN SENSOR 4(DI62)';
 //
 //  Common.StatusInfo.AlarmMsg[96]:=  'N/A 96';
 //  Common.StatusInfo.AlarmMsg[97]:=  'N/A 97';
@@ -6767,41 +6770,41 @@ begin
     Common.StatusInfo.AlarmMsg[22]:= 'N/A 22';
     Common.StatusInfo.AlarmMsg[23]:= 'N/A 23';
 
-    Common.StatusInfo.AlarmMsg[24]:= 'Pattern_Detection NG CH #1 (DI14)';
-    Common.StatusInfo.AlarmMsg[25]:= 'TILTING_SENSOR NG CH #1 (DI15)';
-    Common.StatusInfo.AlarmMsg[26]:= 'PINBLOCK OPEN CH #1 (DI16)';
-    Common.StatusInfo.AlarmMsg[27]:= 'PRESSURE GUAGE NG CH #1 (DI34)';
-    Common.StatusInfo.AlarmMsg[28]:= 'PINBLOCK UNLOCK OFF SENSOR NG CH #1 (DI35)';
-    Common.StatusInfo.AlarmMsg[29]:= 'PINBLOCK UNLOCK ON SENSOR NG CH #1 (DI36)';
-    Common.StatusInfo.AlarmMsg[30]:= 'PINBLOCK CLOSE UP SENSOR NG CH #1 (DI46)';
-    Common.StatusInfo.AlarmMsg[31]:= 'PINBLOCK CLOSE DOWN SENSOR NG CH #1 (DI47)';
+    Common.StatusInfo.AlarmMsg[24]:= 'Pattern_Detection NG CH 1 (DI14)';
+    Common.StatusInfo.AlarmMsg[25]:= 'TILTING_SENSOR NG CH 1 (DI15)';
+    Common.StatusInfo.AlarmMsg[26]:= 'PINBLOCK OPEN CH 1 (DI16)';
+    Common.StatusInfo.AlarmMsg[27]:= 'PRESSURE GUAGE NG CH 1 (DI34)';
+    Common.StatusInfo.AlarmMsg[28]:= 'PINBLOCK UNLOCK OFF SENSOR NG CH 1 (DI35)';
+    Common.StatusInfo.AlarmMsg[29]:= 'PINBLOCK UNLOCK ON SENSOR NG CH 1 (DI36)';
+    Common.StatusInfo.AlarmMsg[30]:= 'PINBLOCK CLOSE UP SENSOR NG CH 1 (DI46)';
+    Common.StatusInfo.AlarmMsg[31]:= 'PINBLOCK CLOSE DOWN SENSOR NG CH 1 (DI47)';
 
-    Common.StatusInfo.AlarmMsg[32]:= 'Pattern_Detection NG CH #2 (DI17)';
-    Common.StatusInfo.AlarmMsg[33]:= 'TILTING_SENSOR NG CH #2 (DI18)';
-    Common.StatusInfo.AlarmMsg[34]:= 'PINBLOCK OPEN CH #2 (DI19)';
-    Common.StatusInfo.AlarmMsg[35]:= 'PRESSURE GUAGE NG CH #2 (DI37)';
-    Common.StatusInfo.AlarmMsg[36]:= 'PINBLOCK UNLOCK OFF SENSOR NG  CH #2 (DI38)';
-    Common.StatusInfo.AlarmMsg[37]:= 'PINBLOCK UNLOCK ON SENSOR NG  CH #2 (DI39)';
-    Common.StatusInfo.AlarmMsg[38]:= 'PINBLOCK CLOSE UP SENSOR NG CH #2 (DI48)';
-    Common.StatusInfo.AlarmMsg[39]:= 'PINBLOCK CLOSE DOWN SENSOR NG CH #2 (DI49)';
+    Common.StatusInfo.AlarmMsg[32]:= 'Pattern_Detection NG CH 2 (DI17)';
+    Common.StatusInfo.AlarmMsg[33]:= 'TILTING_SENSOR NG CH 2 (DI18)';
+    Common.StatusInfo.AlarmMsg[34]:= 'PINBLOCK OPEN CH 2 (DI19)';
+    Common.StatusInfo.AlarmMsg[35]:= 'PRESSURE GUAGE NG CH 2 (DI37)';
+    Common.StatusInfo.AlarmMsg[36]:= 'PINBLOCK UNLOCK OFF SENSOR NG  CH 2 (DI38)';
+    Common.StatusInfo.AlarmMsg[37]:= 'PINBLOCK UNLOCK ON SENSOR NG  CH 2 (DI39)';
+    Common.StatusInfo.AlarmMsg[38]:= 'PINBLOCK CLOSE UP SENSOR NG CH 2 (DI48)';
+    Common.StatusInfo.AlarmMsg[39]:= 'PINBLOCK CLOSE DOWN SENSOR NG CH 2 (DI49)';
 
-    Common.StatusInfo.AlarmMsg[40]:= 'Pattern_Detection NG CH #3 (DI20)';
-    Common.StatusInfo.AlarmMsg[41]:= 'TILTING_SENSOR NG CH #3 (DI21)';
-    Common.StatusInfo.AlarmMsg[42]:= 'PINBLOCK OPEN NG CH #3 (DI22)';
-    Common.StatusInfo.AlarmMsg[43]:= 'PRESSURE GUAGE NG CH #3 (DI40)';
-    Common.StatusInfo.AlarmMsg[44]:= 'PINBLOCK UNLOCK OFF SENSOR NG CH #3 (DI41)';
-    Common.StatusInfo.AlarmMsg[45]:= 'PINBLOCK UNLOCK ON SENSOR NG CH #3 (DI42)';
-    Common.StatusInfo.AlarmMsg[46]:= 'PINBLOCK CLOSE UP SENSOR NG CH #3 (DI50)';
-    Common.StatusInfo.AlarmMsg[47]:= 'PINBLOCK CLOSE DOWN SENSOR NG CH #3 (DI51)';
+    Common.StatusInfo.AlarmMsg[40]:= 'Pattern_Detection NG CH 3 (DI20)';
+    Common.StatusInfo.AlarmMsg[41]:= 'TILTING_SENSOR NG CH 3 (DI21)';
+    Common.StatusInfo.AlarmMsg[42]:= 'PINBLOCK OPEN NG CH 3 (DI22)';
+    Common.StatusInfo.AlarmMsg[43]:= 'PRESSURE GUAGE NG CH 3 (DI40)';
+    Common.StatusInfo.AlarmMsg[44]:= 'PINBLOCK UNLOCK OFF SENSOR NG CH 3 (DI41)';
+    Common.StatusInfo.AlarmMsg[45]:= 'PINBLOCK UNLOCK ON SENSOR NG CH 3 (DI42)';
+    Common.StatusInfo.AlarmMsg[46]:= 'PINBLOCK CLOSE UP SENSOR NG CH 3 (DI50)';
+    Common.StatusInfo.AlarmMsg[47]:= 'PINBLOCK CLOSE DOWN SENSOR NG CH 3 (DI51)';
 
-    Common.StatusInfo.AlarmMsg[48]:= 'Pattern_Detection NG CH #4 (DI23)';
-    Common.StatusInfo.AlarmMsg[49]:= 'TILTING_SENSOR NG CH #4 (DI24)';
-    Common.StatusInfo.AlarmMsg[50]:= 'PINBLOCK OPEN NG CH #4 (DI25)';
-    Common.StatusInfo.AlarmMsg[51]:= 'PRESSURE GUAGE NG CH #4 (DI43)';
-    Common.StatusInfo.AlarmMsg[52]:= 'PINBLOCK UNLOCK OFF SENSOR NG CH #4 (DI44)';
-    Common.StatusInfo.AlarmMsg[53]:= 'PINBLOCK UNLOCK ON SENSOR NG CH #4 (DI45)';
-    Common.StatusInfo.AlarmMsg[54]:= 'PINBLOCK CLOSE UP SENSOR NG CH #4 (DI52)';
-    Common.StatusInfo.AlarmMsg[55]:= 'PINBLOCK CLOSE DOWN SENSOR NG CH #4 (DI53)';
+    Common.StatusInfo.AlarmMsg[48]:= 'Pattern_Detection NG CH 4 (DI23)';
+    Common.StatusInfo.AlarmMsg[49]:= 'TILTING_SENSOR NG CH 4 (DI24)';
+    Common.StatusInfo.AlarmMsg[50]:= 'PINBLOCK OPEN NG CH 4 (DI25)';
+    Common.StatusInfo.AlarmMsg[51]:= 'PRESSURE GUAGE NG CH 4 (DI43)';
+    Common.StatusInfo.AlarmMsg[52]:= 'PINBLOCK UNLOCK OFF SENSOR NG CH 4 (DI44)';
+    Common.StatusInfo.AlarmMsg[53]:= 'PINBLOCK UNLOCK ON SENSOR NG CH 4 (DI45)';
+    Common.StatusInfo.AlarmMsg[54]:= 'PINBLOCK CLOSE UP SENSOR NG CH 4 (DI52)';
+    Common.StatusInfo.AlarmMsg[55]:= 'PINBLOCK CLOSE DOWN SENSOR NG CH 4 (DI53)';
 
     Common.StatusInfo.AlarmMsg[56]:= 'PROBE_UP_SENSOR NG CH 1,2 (DI26)';
     Common.StatusInfo.AlarmMsg[57]:= 'PROBE_DN_SENSOR NG CH 1,2 (DI27)';
@@ -6812,41 +6815,41 @@ begin
     Common.StatusInfo.AlarmMsg[62]:= 'SHUTTER UP SENSOR NG CH 3,4 DI32)';
     Common.StatusInfo.AlarmMsg[63]:= 'SHUTTER DN SENSOR NG CH 3,4 DI33)';
 
-    Common.StatusInfo.AlarmMsg[64]:=  'CARRIER_SENSOR NG CH #3';
-    Common.StatusInfo.AlarmMsg[65]:=  'PROBE_FORWARD_SENSOR NG  CH #3';
-    Common.StatusInfo.AlarmMsg[66]:=  'PROBE_BACKWARD_SENSOR NG  CH #3';
-    Common.StatusInfo.AlarmMsg[67]:=  'PROBE_UP_SENSOR NG CH #3';
-    Common.StatusInfo.AlarmMsg[68]:=  'PROBE_DOWN_SENSOR NG CH #3';
+    Common.StatusInfo.AlarmMsg[64]:=  'CARRIER_SENSOR NG CH 3';
+    Common.StatusInfo.AlarmMsg[65]:=  'PROBE_FORWARD_SENSOR NG  CH 3';
+    Common.StatusInfo.AlarmMsg[66]:=  'PROBE_BACKWARD_SENSOR NG  CH 3';
+    Common.StatusInfo.AlarmMsg[67]:=  'PROBE_UP_SENSOR NG CH 3';
+    Common.StatusInfo.AlarmMsg[68]:=  'PROBE_DOWN_SENSOR NG CH 3';
     Common.StatusInfo.AlarmMsg[69]:=  'N/A 85';
     Common.StatusInfo.AlarmMsg[70]:=  'N/A 86';
     Common.StatusInfo.AlarmMsg[71]:=  'N/A 87';
 
-    Common.StatusInfo.AlarmMsg[72]:= 'CARRIER_UNLOCK_SENSOR_1 NG CH #3';
-    Common.StatusInfo.AlarmMsg[73]:= 'CARRIER_UNLOCK_SENSOR_2 NG CH #3';
-    Common.StatusInfo.AlarmMsg[74]:= 'CARRIER_UNLOCK_SENSOR_3 NG CH #3';
-    Common.StatusInfo.AlarmMsg[75]:= 'CARRIER_UNLOCK_SENSOR_4 NG CH #3';
-    Common.StatusInfo.AlarmMsg[76]:= 'CARRIER_LOCK_1 NG CH #3';
-    Common.StatusInfo.AlarmMsg[77]:= 'CARRIER_LOCK_2 NG CH #3';
-    Common.StatusInfo.AlarmMsg[78]:= 'CARRIER_LOCK_3 NG CH #3';
-    Common.StatusInfo.AlarmMsg[79]:= 'CARRIER_LOCK_4 NG CH #3';
+    Common.StatusInfo.AlarmMsg[72]:= 'CARRIER_UNLOCK_SENSOR_1 NG CH 3';
+    Common.StatusInfo.AlarmMsg[73]:= 'CARRIER_UNLOCK_SENSOR_2 NG CH 3';
+    Common.StatusInfo.AlarmMsg[74]:= 'CARRIER_UNLOCK_SENSOR_3 NG CH 3';
+    Common.StatusInfo.AlarmMsg[75]:= 'CARRIER_UNLOCK_SENSOR_4 NG CH 3';
+    Common.StatusInfo.AlarmMsg[76]:= 'CARRIER_LOCK_1 NG CH 3';
+    Common.StatusInfo.AlarmMsg[77]:= 'CARRIER_LOCK_2 NG CH 3';
+    Common.StatusInfo.AlarmMsg[78]:= 'CARRIER_LOCK_3 NG CH 3';
+    Common.StatusInfo.AlarmMsg[79]:= 'CARRIER_LOCK_4 NG CH 3';
 
-    Common.StatusInfo.AlarmMsg[80]:= 'CARRIER_SENSOR NG CH #4';
-    Common.StatusInfo.AlarmMsg[81]:= 'PROBE_FORWARD_SENSOR NG  CH #4';
-    Common.StatusInfo.AlarmMsg[82]:= 'PROBE_BACKWARD_SENSOR NG  CH #4';
-    Common.StatusInfo.AlarmMsg[83]:= 'PROBE_UP_SENSOR NG CH #4';
-    Common.StatusInfo.AlarmMsg[84]:= 'PROBE_DOWN_SENSOR NG CH #4';
+    Common.StatusInfo.AlarmMsg[80]:= 'CARRIER_SENSOR NG CH 4';
+    Common.StatusInfo.AlarmMsg[81]:= 'PROBE_FORWARD_SENSOR NG  CH 4';
+    Common.StatusInfo.AlarmMsg[82]:= 'PROBE_BACKWARD_SENSOR NG  CH 4';
+    Common.StatusInfo.AlarmMsg[83]:= 'PROBE_UP_SENSOR NG CH 4';
+    Common.StatusInfo.AlarmMsg[84]:= 'PROBE_DOWN_SENSOR NG CH 4';
     Common.StatusInfo.AlarmMsg[85]:= 'N/A 109';
     Common.StatusInfo.AlarmMsg[86]:= 'N/A 110';
     Common.StatusInfo.AlarmMsg[87]:= 'N/A 111';
 
-    Common.StatusInfo.AlarmMsg[88]:=   'CARRIER_UNLOCK_SENSOR_1 NG CH #4';
-    Common.StatusInfo.AlarmMsg[89]:=   'CARRIER_UNLOCK_SENSOR_2 NG CH #4';
-    Common.StatusInfo.AlarmMsg[90]:=   'CARRIER_UNLOCK_SENSOR_3 NG CH #4';
-    Common.StatusInfo.AlarmMsg[91]:=   'CARRIER_UNLOCK_SENSOR_4 NG CH #4';
-    Common.StatusInfo.AlarmMsg[92]:=   'CARRIER_LOCK_1 NG CH #4';
-    Common.StatusInfo.AlarmMsg[93]:=   'CARRIER_LOCK_2 NG CH #4';
-    Common.StatusInfo.AlarmMsg[94]:=   'CARRIER_LOCK_3 NG CH #4';
-    Common.StatusInfo.AlarmMsg[95]:=   'CARRIER_LOCK_4 NG CH #4';
+    Common.StatusInfo.AlarmMsg[88]:=   'CARRIER_UNLOCK_SENSOR_1 NG CH 4';
+    Common.StatusInfo.AlarmMsg[89]:=   'CARRIER_UNLOCK_SENSOR_2 NG CH 4';
+    Common.StatusInfo.AlarmMsg[90]:=   'CARRIER_UNLOCK_SENSOR_3 NG CH 4';
+    Common.StatusInfo.AlarmMsg[91]:=   'CARRIER_UNLOCK_SENSOR_4 NG CH 4';
+    Common.StatusInfo.AlarmMsg[92]:=   'CARRIER_LOCK_1 NG CH 4';
+    Common.StatusInfo.AlarmMsg[93]:=   'CARRIER_LOCK_2 NG CH 4';
+    Common.StatusInfo.AlarmMsg[94]:=   'CARRIER_LOCK_3 NG CH 4';
+    Common.StatusInfo.AlarmMsg[95]:=   'CARRIER_LOCK_4 NG CH 4';
 
 
 
