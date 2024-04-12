@@ -4362,7 +4362,7 @@ begin
       else  nPairCH := nCh  + 1;
       if not ControlDio.IsDetected(nPairCH) then begin
         SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, nCh, COMMPLC_PARAM_UNLOADBUSY, 0, 'Process_ROBOT_UnloadBusy_Off ' + IntToStr(nCh), nil);
-        Sleep(50);
+        Sleep(200);    // CH 별 Load 신호 순차적으로 출력 하기 위해 sleep 추가
         SendMessageMain(COMMPLC_MODE_EVENT_ROBOT, nPairCH, COMMPLC_PARAM_UNLOADBUSY, 0, 'Process_ROBOT_UnloadBusy_Off ' + IntToStr(nCh), nil);
       end
       else begin
