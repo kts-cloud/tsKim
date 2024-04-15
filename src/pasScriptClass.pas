@@ -528,6 +528,7 @@ type
     m_nNgCode    : Integer; // Script내에서 사용.
     m_nConfirmHostRet: Integer; // Added by KTS 2023-06-21 오전 8:15:30 검사 후 완공보고 여부 재검사 Flow 사용
     m_sNgMsg              : string;
+    m_CurrentEQPID        : string;
     m_nCamNgCode          : Integer;
     m_InsStatus           : TInsStatus;
     m_bIsScriptWork       : Boolean;
@@ -906,6 +907,7 @@ begin
   SetPaScript.AddVariable('c_sApdrCsv',m_sApdrCsv);  // for Apdr csv.
 
   SetPaScript.AddVariable('c_bCallTerminate',m_bCallTerminate);
+
   SetPaScript.AddVariable('c_sEmNo',m_sEmNo);
   SetPaScript.AddVariable('c_nPatNum',m_nCurPat);
   SetPaScript.AddVariable('c_nCurCh',Self.FPgNo);
@@ -5519,6 +5521,17 @@ begin
             wdRet :=  m_nHostResult;
             //TestInfo.RTN_PID:= m_sMesPchkRtnPID;
             TestInfo.Process_Code:= DongaGMes.MesData[Self.FPgNo].LpirProcessCode;
+            SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,format('LpirProcessCode : %s EQPId_MGIB : %s EQPId_PGIB : %s  ',[TestInfo.Process_Code,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_PGIB]));
+            if TestInfo.Process_Code = Common.SystemInfo.EQPId_MGIB_Process_Code then begin
+              PasScr[FPgNo].TestInfo.EQPId := Common.SystemInfo.EQPId_MGIB;
+            end
+            else if TestInfo.Process_Code = Common.SystemInfo.EQPId_PGIB_Process_Code then begin
+              PasScr[FPgNo].TestInfo.EQPId := Common.SystemInfo.EQPId_PGIB;
+            end
+            else begin
+              PasScr[FPgNo].TestInfo.EQPId := Common.SystemInfo.EQPId;
+            end;
+            m_sEmNo :=  PasScr[FPgNo].TestInfo.EQPId;
             SetInputArg(1,TestInfo.Process_Code);
           end;
 
