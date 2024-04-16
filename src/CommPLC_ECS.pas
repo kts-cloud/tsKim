@@ -2724,52 +2724,53 @@ begin
     end;
   end;
   RequestState_Load[nCh]:= 1;
+  AddLog(format('ROBOT_Load_Request: %d Finish!!!',[nCh]),True);
 Exit;
 
-  //Glass Data Report를 보고 대기
-  nRet:= WaitSignal('B' + IntToHex(StartAddr_ROBOT+$10*$01+$1 + (nCh*$20) + (EQP_ID * $40), 3), 1, 30000); //Glass Data Report를 보고 대기
-  if nRet <> 0 then begin
-    //오류
-    AddLog('ROBOT_Load_Request Timeout Glass Data Report');
-    Exit(258);
-  end;
-
-  ReadDeviceBlock('W' + IntToHex(StartAddr_ROBOT_W+$10*$0+$0 +(nCH*$40), 3), 64, naGlassData[0],nReturnCode); //Load #1 Glass Data
-  ConvertBlockToGlassData(naGlassData[0], GlassData[(StageNo*4)+nCh*2]);
-
-  ReadDeviceBlock('W' + IntToHex(StartAddr_ROBOT_W+$10*$0+$40+(nCH*$40), 3), 64, naGlassData[0],nReturnCode); //Load #1 Glass Data
-  ConvertBlockToGlassData(naGlassData[0], GlassData[(StageNo*4)+nCh*2+1]);
-
-  Exit;
-
-//  ROBOT_Copy_GlassData; //Robot 데이터를 EQP 데이터 영역으로 복사
-
-  ReadDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$10+$0, 3), 64, naGlassData[0],nReturnCode); //Load #1 Glass Data
-//  ConvertBlockToGlassData(naGlassData[0],AGlassData);
-  //투임 가능 데이터 판단 필요
-  if naGlassData[0] = $3231 then begin
-    //
-  end;
-
-  ReadDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$10+$0 + $40, 3), 64, naGlassData[0],nReturnCode); //Load #1 Glass Data
-  //ConvertBlockToGlassData(naGlassData[0],AGlassData);
-  //투임 가능 데이터 판단 필요
-  if naGlassData[0] = $3231 then begin
-    //
-  end;
-
-
-  WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$5, 3), 1); //Load Request
-  WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$0, 3), 1); //Load Enable
-  //일정 시간안에 Robot Busy가 설정되지 않으면 Alarm
-  nRet:= WaitSignal('B' + IntToHex(StartAddr_ROBOT+$10*$01+$2 + (nCh*$20) + (EQP_ID * $20), 3), 1, 30000); //Robot Busy
-  if nRet <> 0 then begin
-    //오류- Alarm
-    AddLog('ROBOT_Load_Request Timeout Robot Busy');
-    Exit(258);
-  end;
-  //********************************************************************
-  Exit;
+//  //Glass Data Report를 보고 대기
+//  nRet:= WaitSignal('B' + IntToHex(StartAddr_ROBOT+$10*$01+$1 + (nCh*$20) + (EQP_ID * $40), 3), 1, 30000); //Glass Data Report를 보고 대기
+//  if nRet <> 0 then begin
+//    //오류
+//    AddLog('ROBOT_Load_Request Timeout Glass Data Report');
+//    Exit(258);
+//  end;
+//
+//  ReadDeviceBlock('W' + IntToHex(StartAddr_ROBOT_W+$10*$0+$0 +(nCH*$40), 3), 64, naGlassData[0],nReturnCode); //Load #1 Glass Data
+//  ConvertBlockToGlassData(naGlassData[0], GlassData[(StageNo*4)+nCh*2]);
+//
+//  ReadDeviceBlock('W' + IntToHex(StartAddr_ROBOT_W+$10*$0+$40+(nCH*$40), 3), 64, naGlassData[0],nReturnCode); //Load #1 Glass Data
+//  ConvertBlockToGlassData(naGlassData[0], GlassData[(StageNo*4)+nCh*2+1]);
+//
+//  Exit;
+//
+////  ROBOT_Copy_GlassData; //Robot 데이터를 EQP 데이터 영역으로 복사
+//
+//  ReadDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$10+$0, 3), 64, naGlassData[0],nReturnCode); //Load #1 Glass Data
+////  ConvertBlockToGlassData(naGlassData[0],AGlassData);
+//  //투임 가능 데이터 판단 필요
+//  if naGlassData[0] = $3231 then begin
+//    //
+//  end;
+//
+//  ReadDeviceBlock('W' + IntToHex(StartAddr_EQP_W+$10*$10+$0 + $40, 3), 64, naGlassData[0],nReturnCode); //Load #1 Glass Data
+//  //ConvertBlockToGlassData(naGlassData[0],AGlassData);
+//  //투임 가능 데이터 판단 필요
+//  if naGlassData[0] = $3231 then begin
+//    //
+//  end;
+//
+//
+//  WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$5, 3), 1); //Load Request
+//  WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$0, 3), 1); //Load Enable
+//  //일정 시간안에 Robot Busy가 설정되지 않으면 Alarm
+//  nRet:= WaitSignal('B' + IntToHex(StartAddr_ROBOT+$10*$01+$2 + (nCh*$20) + (EQP_ID * $20), 3), 1, 30000); //Robot Busy
+//  if nRet <> 0 then begin
+//    //오류- Alarm
+//    AddLog('ROBOT_Load_Request Timeout Robot Busy');
+//    Exit(258);
+//  end;
+//  //********************************************************************
+//  Exit;
 (*
   {TODO -okg.jo -cGeneral : 로드 완료(Load Complete, B[nD]3)  대기 후 - Polling에서 대기 후 처리할 내용?. 어차피 대기이므로 여기서 처리?}
 
