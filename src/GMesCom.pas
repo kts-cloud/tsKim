@@ -695,7 +695,15 @@ begin
 //    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPgNo,'MES REV : ' + sMsg);
   end;
   MesData[nPgNo].MesPendingMsg := MES_UNKNOWN;   //
-  MesData[nPgNo].LpirProcessCode     := FMesProsessCode;     // LPIR_R.PROCESS_CODE
+
+
+  MesData[nPgNo].LpirProcessCode  := FMesProsessCode;     // LPIR_R.PROCESS_CODE
+
+{$IFDEF SIMULATOR}
+  if  Random(100) mod 2 = 0 then MesData[nPgNo].LpirProcessCode := Common.SystemInfo.EQPId_MGIB_Process_Code
+  else MesData[nPgNo].LpirProcessCode := Common.SystemInfo.EQPId_PGIB_Process_Code;
+
+{$ENDIF}
 
 
   MesData[nPgNo].MesSentMsg := MES_UNKNOWN; // JHHWANG-GMES 2018-06-27
@@ -2271,16 +2279,19 @@ begin
 //          SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPg,format('LpirProcessCode : %s EQPId_MGIB : %s MGIB_Process_Code : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_MGIB_Process_Code]));
           Common.MLog(nPg,format('LpirProcessCode : %s EQPId_MGIB : %s MGIB_Process_Code : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_MGIB_Process_Code]));
           sSendMsg := sSendMsg  + ' EQP=' + Common.SystemInfo.EQPId_MGIB;
+          PasScr[nPg].TestInfo.EQPId := Common.SystemInfo.EQPId_MGIB;
         end
         else if MesData[nPg].LpirProcessCode = Common.SystemInfo.EQPId_PGIB_Process_Code then begin
 //          SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPg,format('LpirProcessCode : %s EQPId_PGIB : %s PGIB_Process_Code : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_PGIB,Common.SystemInfo.EQPId_PGIB_Process_Code]));
           Common.MLog(nPg,format('LpirProcessCode : %s EQPId_PGIB : %s PGIB_Process_Code : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_PGIB,Common.SystemInfo.EQPId_PGIB_Process_Code]));
           sSendMsg := sSendMsg  + ' EQP=' + Common.SystemInfo.EQPId_PGIB;
+          PasScr[nPg].TestInfo.EQPId := Common.SystemInfo.EQPId_PGIB;
         end
         else begin
 //          SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPg,format('Mismatch !! - LpirProcessCode : %s MGIB_Process_Code : %s PGIB_Process_Code : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB_Process_Code,Common.SystemInfo.EQPId_PGIB_Process_Code]));
           Common.MLog(nPg,format('Mismatch !! - LpirProcessCode : %s MGIB_Process_Code : %s PGIB_Process_Code : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB_Process_Code,Common.SystemInfo.EQPId_PGIB_Process_Code]));
           sSendMsg := sSendMsg  + ' EQP=' + FSystemNo;
+          PasScr[nPg].TestInfo.EQPId := FSystemNo;
         end;
 
       end
@@ -2570,11 +2581,18 @@ begin
         Common.MLog(nPg,format('LpirProcessCode : %s EQPId_MGIB : %s EQPId_PGIB : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_PGIB]));
 //        SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPg,format('LpirProcessCode : %s EQPId_MGIB : %s EQPId_PGIB : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_PGIB]));
 
-        if MesData[nPg].LpirProcessCode = Common.SystemInfo.EQPId_MGIB_Process_Code then
-          sSendMsg := sSendMsg  + ' EQP=' + Common.SystemInfo.EQPId_MGIB
-        else if MesData[nPg].LpirProcessCode = Common.SystemInfo.EQPId_PGIB_Process_Code then
-          sSendMsg := sSendMsg  + ' EQP=' + Common.SystemInfo.EQPId_PGIB
-        else  sSendMsg := sSendMsg  + ' EQP=' + FSystemNo;
+        if MesData[nPg].LpirProcessCode = Common.SystemInfo.EQPId_MGIB_Process_Code then begin
+          sSendMsg := sSendMsg  + ' EQP=' + Common.SystemInfo.EQPId_MGIB;
+          PasScr[nPg].TestInfo.EQPId := Common.SystemInfo.EQPId_MGIB;
+        end
+        else if MesData[nPg].LpirProcessCode = Common.SystemInfo.EQPId_PGIB_Process_Code then begin
+          sSendMsg := sSendMsg  + ' EQP=' + Common.SystemInfo.EQPId_PGIB;
+          PasScr[nPg].TestInfo.EQPId := Common.SystemInfo.EQPId_PGIB;
+        end
+        else begin
+          sSendMsg := sSendMsg  + ' EQP=' + FSystemNo;
+          PasScr[nPg].TestInfo.EQPId := FSystemNo;
+        end;
       end
       else begin
   			sSendMsg := sSendMsg  + ' EQP=' + FSystemNo;
