@@ -2886,13 +2886,16 @@ begin
         COMMPLC_PARAM_GALSSDATA_REPORT: begin
           ShowSysLog(format('GlassData Report: Pair=%d, %s', [pGUIMsg.Channel, pGUIMsg.Msg]));
           if (Common.PLCInfo.InlineGIB)  then begin
-            frmTest4ChOC[nStage].DisplayResult(pGUIMsg.Channel, -3, 0, 'GlassData Report');
+            SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, pGUIMsg.Channel, 'GlassData Report');
+//            frmTest4ChOC[nStage].DisplayResult(pGUIMsg.Channel, -3, 0, 'GlassData Report');
             PasScr[pGUIMsg.Channel].TestInfo.GlassID:=  g_CommPLC.GlassData[pGUIMsg.Channel].GlassID;
           end
           else begin
-            frmTest4ChOC[nStage].DisplayResult(pGUIMsg.Channel*2 + 0, -3, 0, 'GlassData Report');
+            SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, pGUIMsg.Channel * 2, 'GlassData Report');
+//            frmTest4ChOC[nStage].DisplayResult(pGUIMsg.Channel*2 + 0, -3, 0, 'GlassData Report');
 //            Sleep(50);
-            frmTest4ChOC[nStage].DisplayResult(pGUIMsg.Channel*2 + 1, -3, 0, 'GlassData Report');
+            SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, pGUIMsg.Channel * 2 + 1, 'GlassData Report');
+//            frmTest4ChOC[nStage].DisplayResult(pGUIMsg.Channel*2 + 1, -3, 0, 'GlassData Report');
             PasScr[nStage*4 + pGUIMsg.Channel*2].TestInfo.GlassID:=  g_CommPLC.GlassData[nStage*4 + pGUIMsg.Channel*2].GlassID;
             PasScr[nStage*4 + pGUIMsg.Channel*2 + 1].TestInfo.GlassID:=  g_CommPLC.GlassData[nStage*4 + pGUIMsg.Channel*2 + 1].GlassID;
           end;
@@ -2902,7 +2905,8 @@ begin
           if pGUIMsg.Param2 <> 0 then begin
             ShowSysLog(format('Load Complete On: Pair=%d, %s', [pGUIMsg.Channel, pGUIMsg.Msg]));
             if (Common.PLCInfo.InlineGIB) then begin
-              frmTest4ChOC[nStage].DisplayResult(pGUIMsg.Channel, -3, 0, 'Load Complete');
+              SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, pGUIMsg.Channel, 'Load Complete');
+//              frmTest4ChOC[nStage].DisplayResult(pGUIMsg.Channel, -3, 0, 'Load Complete');
               sMsg:= '[LOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[pGUIMsg.Channel]);
               SendCHMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, 0, pGUIMsg.Channel,sMsg);
 //              frmTest4ChOC[nStage].AddLog(sMsg, pGUIMsg.Channel);
@@ -2913,9 +2917,11 @@ begin
               g_CommPLC.RobotLoadingStatus[pGUIMsg.Channel] := True;
             end
             else begin
-              frmTest4ChOC[nStage].DisplayResult(pGUIMsg.Channel*2 + 0, -3, 0, 'Load Complete');
+              SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, pGUIMsg.Channel * 2, 'Load Complete');
+//              frmTest4ChOC[nStage].DisplayResult(pGUIMsg.Channel*2 + 0, -3, 0, 'Load Complete');
 //              Sleep(50);
-              frmTest4ChOC[nStage].DisplayResult(pGUIMsg.Channel*2 + 1, -3, 0, 'Load Complete');
+              SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, pGUIMsg.Channel * 2 + 1, 'Load Complete');
+//              frmTest4ChOC[nStage].DisplayResult(pGUIMsg.Channel*2 + 1, -3, 0, 'Load Complete');
               //Common.MLog(pGUIMsg.Channel*2 + 0 + nStage*4, 'Load Complete');
   //            g_CommPLC.ECS_Glass_Processing(True);
               sMsg:= '[LOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[pGUIMsg.Channel*2 + 0 + nStage*4]);
@@ -3008,11 +3014,14 @@ begin
           if pGUIMsg.Param2 <> 0 then begin
             ShowSysLog(format('Unload Complete On: Pair=%d, %s', [pGUIMsg.Channel, pGUIMsg.Msg]));
             if (Common.PLCInfo.InlineGIB) then
-              frmTest4ChOC[nStage].DisplayResult(pGUIMsg.Channel, -3, 0, 'Unload Complete')
+              SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, pGUIMsg.Channel, 'Unload Complete')
+//              frmTest4ChOC[nStage].DisplayResult(pGUIMsg.Channel, -3, 0, 'Unload Complete')
             else begin
-              frmTest4ChOC[nStage].DisplayResult(pGUIMsg.Channel*2 + 0, -3, 0, 'Unload Complete');
+              SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, pGUIMsg.Channel * 2, 'Unload Complete');
+//              frmTest4ChOC[nStage].DisplayResult(pGUIMsg.Channel*2 + 0, -3, 0, 'Unload Complete');
 //              Sleep(50);
-              frmTest4ChOC[nStage].DisplayResult(pGUIMsg.Channel*2 + 1, -3, 0, 'Unload Complete');
+              SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, pGUIMsg.Channel * 2 + 1, 'Unload Complete');
+//              frmTest4ChOC[nStage].DisplayResult(pGUIMsg.Channel*2 + 1, -3, 0, 'Unload Complete');
             end;
             {$IFDEF SIMULATOR_DIO}
             ControlDio.WriteDioSig(DefDio.OUT_UNDEFINED_37 + pGUIMsg.Channel*32,true);
@@ -3115,7 +3124,7 @@ end;
 procedure TfrmMain_OC.ProcessMsg_SCRIPT(pGUIMsg: PGUIMessage);
 var
   nCh : Integer;
-  sDebug,sSN,sPID,sGD_DEFECT,sIRTempData,sEASR2RData : string;
+  sDebug,sSN,sPID,sGD_DEFECT,sIRTempData,sEASR2RData,sFileName : string;
 begin
   nCh:= pGUIMsg.Channel;
   case pGUIMsg.Mode of
@@ -3162,8 +3171,13 @@ begin
       try
         PasScr[nCh].TestInfo.ApdrData := '';
 //        Common.MLog(nCh,format('ApdrData : Create : PID : %s!!',[sPID]));
+        if Common.PLCInfo.InlineGIB then
+          sFileName := Common.Path.LGDDLL + format('Oclog\SummaryLog\%s_Summary_Log_', [pasScr[nCh].TestInfo.EQPId]) + FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime) + '.csv'
+        else
+          sFileName := Common.Path.LGDDLL + format('Oclog\SummaryLog\%s_Summary_Log_', [Common.SystemInfo.EQPId]) + FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime) + '.csv';
+
         if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
-          DongaGmes.MesData[nCh].ApdrData := Common.ReadLGDDLLSummaryLog_New(sPID,PasScr[nCh].TestInfo.SerialNo,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
+          DongaGmes.MesData[nCh].ApdrData := Common.ReadLGDDLLSummaryLog_New(sFileName,sPID,PasScr[nCh].TestInfo.SerialNo,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
   //        ShowSysLog('ReadLGDDLLSummaryLog_New : ' + PasScr[nCh].TestInfo.ApdrData);
           if Length(DongaGmes.MesData[nCh].ApdrData) > 0 then
             sGD_DEFECT := ',GD:GD_DEFECT:' + DongaGmes.MesData[nCh].GDDefectCode
@@ -3173,7 +3187,7 @@ begin
         else begin
           sIRTempData := ',' + frmTest4ChOC[0].GetIRTempData(nCh);
           sEASR2RData := ',' + DongaGmes.GetEASR2RData(nCH);
-          DongaGmes.MesData[nCh].ApdrData := Common.ReadLGDDLLSummaryLog_New(sPID,PasScr[nCh].TestInfo.SerialNo,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
+          DongaGmes.MesData[nCh].ApdrData := Common.ReadLGDDLLSummaryLog_New(sFileName,sPID,PasScr[nCh].TestInfo.SerialNo,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
           DongaGmes.MesData[nCh].ApdrData := DongaGmes.MesData[nCh].ApdrData + sIRTempData + sEASR2RData;
         end;
 //        Common.MLog(nCh,format('ApdrData : Done : PID : %s!!',[sPID]));
@@ -3615,6 +3629,8 @@ begin
         end;
       end;
 
+      SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, format('Robot_Request_Exchange_Load %d : Finish', [nCh]));
+
     //둘다 사용하지 않을 경우
     //Common.StatusInfo.Loading:= Falses;
     except
@@ -3967,6 +3983,8 @@ begin
 
       end;
 
+      SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, format('Robot_Request_Exchange_UnLoad %d : Finish', [nCh]));
+
     //둘다 사용하지 않을 경우
     //Common.StatusInfo.Loading:= Falses;
     except
@@ -4134,6 +4152,8 @@ begin
           g_CommPLC.ROBOT_Load_Request(nCH);
         end;
       end;
+
+      SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, format('Robot_Request_Load %d : Finish', [nCh]));
 
     //둘다 사용하지 않을 경우
     //Common.StatusInfo.Loading:= Falses;
@@ -4489,6 +4509,8 @@ try
         g_CommPLC.ROBOT_Unload_Request(nCH);
       end;
     end;
+
+    SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, format('Robot_Request_Unload %d : Finish', [nCh]));
 
     //둘다 사용하지 않을 경우
     //Common.StatusInfo.Loading:= Falses;
@@ -5293,10 +5315,13 @@ begin
 
           if ControlDio.IsDetected(CH1)then Execute_AutoStart(CH1)
           else Robot_Request_Load(CH1);
+          Common.Delay(100);
           if ControlDio.IsDetected(CH2)then Execute_AutoStart(CH2)
           else Robot_Request_Load(CH2);
+          Common.Delay(100);
           if ControlDio.IsDetected(CH3)then Execute_AutoStart(CH3)
           else Robot_Request_Load(CH3);
+          Common.Delay(100);
           if ControlDio.IsDetected(CH4)then Execute_AutoStart(CH4)
           else Robot_Request_Load(CH4);
         end

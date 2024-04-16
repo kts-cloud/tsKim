@@ -821,7 +821,7 @@ type
     function CheckPGWriteReadPassAddr(nAddr : Integer): Integer;
 
     function ReadLGDDLLSummaryLog(sPid,sSn,sDate : string; nCh : Integer) : string;
-    function ReadLGDDLLSummaryLog_New(sPid,sSn,sDate : string; nCh : Integer) : string;
+    function ReadLGDDLLSummaryLog_New(sFileName, sPid,sSn,sDate : string; nCh : Integer) : string;
     function BackupLGDDLLSummaryLog(sDate : string) : Boolean;
     function Timer1Timer: Boolean;
     //    function ReadLGDDLLSummaryLog_New_1(sPid,sSn,sDate : string; nCh : Integer) : string;
@@ -5408,10 +5408,10 @@ begin
 end;
 
 
-function TCommon.ReadLGDDLLSummaryLog_New(sPid, sSn, sDate: string; nCh: Integer): string;
+function TCommon.ReadLGDDLLSummaryLog_New(sFileName, sPid, sSn, sDate: string; nCh: Integer): string;
 var
   asSummaryHeader, asSummaryGroupHeader, asSummaryAPDRData, asSummaryData: TArray<String>;
-  sFileName, sCopyFileName: String;
+  sCopyFileName: String;
   sLine, sResult: String;
   txtFile: TEXTFILE;
   i, nlineCount: Integer;
@@ -5423,7 +5423,6 @@ begin
     Result := '';
     sResult := '';
     bFound := false;
-    sFileName := Common.Path.LGDDLL + format('Oclog\SummaryLog\%s_Summary_Log_', [Common.SystemInfo.EQPId]) + sDate + '.csv';
 
     if not FileExists(sFileName) then
       Exit;
@@ -5885,7 +5884,8 @@ begin
     fSys := TIniFile.Create(sDirectory);
     try
       Common.TestModelInfoFLOW.GetDLLBin    := fSys.ReadString('OC', 	'BIN_File_version','');
-      Common.TestModelInfoFLOW.Is_3200NitDOE    := SameText('TRUE',fSys.ReadString('OC', 	'Is_3200NitDOE',''));
+//      Common.TestModelInfoFLOW.Is_3200NitDOE    := SameText('TRUE',fSys.ReadString('OC', 	'Is_3200NitDOE',''));
+      Common.TestModelInfoFLOW.Is_3200NitDOE    := True;
     finally
       fSys.Free;
     end;
