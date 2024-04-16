@@ -2465,6 +2465,7 @@ end;
 function TControlDio.IsPreOCInterlockPROBE(nCH : Integer): Integer;
 begin
   try
+    if not m_bConnected then Exit(0);
     Result:= 0;
     if Common.SystemInfo.OCType <> DefCommon.OCType  then begin
       if not ControlDio.ReadInSig(IN_GIB_CH_12_PROBE_UP_SENSOR + nCH * 4) and
@@ -2473,7 +2474,7 @@ begin
       begin
         Result:= 1;
       end;
-  end;
+    end;
   except
     Result := 0;
   end;
@@ -2482,6 +2483,7 @@ end;
 function TControlDio.IsPreOCInterlockSHUTTER(nCH : Integer): Integer;
 begin
   try
+    if not m_bConnected then Exit(0);
     Result:= 0;
     if Common.SystemInfo.OCType <> DefCommon.OCType  then begin
       if not ControlDio.ReadInSig(IN_GIB_CH_12_SHUTTER_UP_SENSOR + nCH * 4) and
@@ -2500,14 +2502,21 @@ end;
 
 function TControlDio.IsPreOCInterlockPROBE_CH(nCH : Integer): Integer;
 begin
-  Result:= 0;
-  if Common.SystemInfo.OCType <> DefCommon.OCType  then begin
-    if not ControlDio.ReadInSig(IN_GIB_CH_12_PROBE_UP_SENSOR + (nCH div 2) * 4) and
-     not ControlDio.ReadInSig(IN_GIB_CH_1_TILTING_SENSOR + nCH *8) then
-    begin
-      Result:= 1;
+  try
+    if not m_bConnected then Exit(0);
+    Result:= 0;
+    if Common.SystemInfo.OCType <> DefCommon.OCType  then begin
+      if not ControlDio.ReadInSig(IN_GIB_CH_12_PROBE_UP_SENSOR + (nCH div 2) * 4) and
+       not ControlDio.ReadInSig(IN_GIB_CH_1_TILTING_SENSOR + nCH *8) then
+      begin
+        Result:= 1;
+      end;
     end;
+
+  except
+    Result:= 0;
   end;
+
 end;
 
 
