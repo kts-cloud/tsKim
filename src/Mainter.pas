@@ -429,7 +429,7 @@ type
     procedure Ca310CalControlPnl(bEnable : Boolean);
 
     procedure ThreadTask(task : TProc; btnObj : TRzBitBtn);
-    procedure ThreadTaskTracking(task: TProc; btnObj : TRzBitBtn);
+    procedure ThreadTaskTracking(task: TProc; btnObj1,btnObj2 : TRzBitBtn);
 
     procedure SaveCsvMeasureLog(nCh: Integer; sSerialNo,sDataHeader,sData : string);
     procedure PowerOffSeq(nCh : Integer);
@@ -3649,7 +3649,7 @@ begin
       wdRet := Pg[cboMeasureCH.ItemIndex].SendPowerBistOn(1{On},False,3000,0);
       if rbGrayScale.Checked then begin
         Sleep(500);
-        if cboBandCount.Text = 'ALLBamd' then begin
+        if cboBandCount.ItemIndex = 0 then begin
           for I := 1 to 32 do begin
             if bIs_Stop then Break;
             advstrngrdDataView[cboMeasureCH.ItemIndex].ClearAll;
@@ -3687,7 +3687,7 @@ begin
       ControlDio.ProbeBackward(cboMeasureCH.ItemIndex);
       ControlDio.UnlockCarrier(cboMeasureCH.ItemIndex,true);
 
-    end,btnMeasure);
+    end,btnMeasure,btnClose);
 
   end
   else begin
@@ -3707,7 +3707,7 @@ begin
           wdRet := Pg[0].SendPowerBistOn(1{On},False,3000,0);
           if rbGrayScale.Checked then begin
             Sleep(500);
-            if cboBandCount.Text = 'ALLBamd' then begin
+            if cboBandCount.ItemIndex = 0 then begin
               for I := 1 to 32 do begin
                 if bIs_Stop then Break;
                 advstrngrdDataView[0].ClearAll;
@@ -3763,7 +3763,7 @@ begin
             Mutex.Release; // 뮤텍스 반환
           end;
 
-        end,btnMeasure);
+        end,btnMeasure,btnClose);
 
       end
       else if j = DefCommon.CH2 then begin
@@ -3780,7 +3780,7 @@ begin
           wdRet := Pg[1].SendPowerBistOn(1{On},False,3000,0);
           if rbGrayScale.Checked then begin
             Sleep(500);
-            if cboBandCount.Text = 'ALLBamd' then begin
+            if cboBandCount.ItemIndex = 0 then begin
               for I := 1 to 32 do begin
                 if bIs_Stop then Break;
                 advstrngrdDataView[1].ClearAll;
@@ -3836,7 +3836,7 @@ begin
             Mutex.Release; // 뮤텍스 반환
           end;
 
-        end,btnMeasure);
+        end,btnMeasure,btnClose);
 
       end
       else if j = DefCommon.CH3 then begin
@@ -3853,7 +3853,7 @@ begin
           wdRet := Pg[2].SendPowerBistOn(1{On},False,3000,0);
           if rbGrayScale.Checked then begin
             Sleep(500);
-            if cboBandCount.Text = 'ALLBamd' then begin
+            if cboBandCount.ItemIndex = 0 then begin
               for I := 1 to 32 do begin
                 if bIs_Stop then Break;
                 advstrngrdDataView[2].ClearAll;
@@ -3909,7 +3909,7 @@ begin
             Mutex.Release; // 뮤텍스 반환
           end;
 
-        end,btnMeasure);
+        end,btnMeasure,btnClose);
 
       end
       else if j = DefCommon.CH4 then begin
@@ -3926,7 +3926,7 @@ begin
           wdRet := Pg[3].SendPowerBistOn(1{On},False,3000,0);
           if rbGrayScale.Checked then begin
             Sleep(500);
-            if cboBandCount.Text = 'ALLBamd' then begin
+            if cboBandCount.ItemIndex = 0 then begin
               for I := 1 to 32 do begin
                 if bIs_Stop then Break;
                 advstrngrdDataView[3].ClearAll;
@@ -3982,7 +3982,7 @@ begin
             Mutex.Release; // 뮤텍스 반환
           end;
 
-        end,btnMeasure);
+        end,btnMeasure,btnClose);
 
       end
     end;
@@ -5617,15 +5617,17 @@ begin
   th.Start;
 end;
 
-procedure TfrmMainter.ThreadTaskTracking(task: TProc; btnObj : TRzBitBtn);
+procedure TfrmMainter.ThreadTaskTracking(task: TProc; btnObj1,btnObj2 : TRzBitBtn);
 var
   th : TThread;
 begin
-  btnObj.Enabled := False;
+  btnObj1.Enabled := False;
+  btnObj2.Enabled := False;
   th := TThread.CreateAnonymousThread(procedure begin
     task;
     th.Synchronize(nil,procedure begin
-      btnObj.Enabled := True;
+      btnObj1.Enabled := True;
+      btnObj2.Enabled := True;
       ShowNgMessage('GrayScale or DBVtracking Done');
     end);
   end);
