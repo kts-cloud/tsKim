@@ -42,7 +42,10 @@ begin
   end
   else if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
     btnNo.Caption := 'UnLoad';
-    pnlCaption.Caption := 'Panel Detected'
+    pnlCaption.Caption := 'Panel Detected';
+    if Common.SystemInfo.OnlyRestartMode then
+      btnNo.Enabled := False
+    else btnNo.Enabled := True;
   end;
 
   pnlCaption.StyleElements:= [];

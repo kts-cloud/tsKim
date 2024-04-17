@@ -269,6 +269,7 @@ type
     edPGResetTotalConut: TRzEdit;
     chkAutoLGDLogBackup: TRzCheckBox;
     chkInLineAAMode: TRzCheckBox;
+    chkOnlyRestartMode: TRzCheckBox;
 
     procedure FormCreate(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -819,6 +820,8 @@ begin
     PopupMsgTime := StrToIntDef(edPopupMsgTime.Text,0);
     PGResetDelayTime := StrToIntDef(edPGResetDelayTime.Text,0);
     PGResetTotalConut := StrToIntDef(edPGResetTotalConut.Text,0);
+
+    OnlyRestartMode := chkOnlyRestartMode.Checked;
 
 
     case EQPId_Type of
@@ -1373,6 +1376,7 @@ begin
       cboIonizer2.ItemIndex := Com_Ionizer[1];
 
       chkInLineAAMode.Checked := UseInLine_AAMode;
+      chkOnlyRestartMode.Checked := OnlyRestartMode;
 
   end;
 
