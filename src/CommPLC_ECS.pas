@@ -3966,7 +3966,6 @@ begin
   Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_2] := 1;
   AddLog('Process_ROBOT_GlassData_Report ' + IntToStr(nCh));
   if (Common.PLCInfo.InlineGIB) then begin
-    if CSharpDll.MainOC_GetOCFlowIsAlive(nCh) = 1 then Exit;
     if (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
       ReadDeviceBlock('W' + IntToHex(StartAddr_ROBOT_W+$10*$0+$0+(nCh *$40), 3), 64, naGlassData[0],nReturnCode); //Load #1 Glass Data
       ConvertBlockToGlassData(naGlassData[0], GlassData[nCh]);
@@ -4005,7 +4004,7 @@ begin
 
   end
   else begin
-    if (CSharpDll.MainOC_GetOCFlowIsAlive(2*nCh) = 1) or (CSharpDll.MainOC_GetOCFlowIsAlive(2*nCh +1) = 1) then Exit;
+//    if (CSharpDll.MainOC_GetOCFlowIsAlive(2*nCh) = 1) or (CSharpDll.MainOC_GetOCFlowIsAlive(2*nCh +1) = 1) then Exit;
     if (nCh =1) and (StartAddr2_ROBOT_W <> 0) then
       ReadDeviceBlock('W' + IntToHex(StartAddr2_ROBOT_W+$10*$0+$0, 3), 64, naGlassData[0],nReturnCode) //Load #1 Glass Data
     else
@@ -4092,7 +4091,7 @@ begin
   Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_LOAD_6] := 1;
   Read_ROBOT_GlassData(nCh);   // Added by KTS 2023-03-23 ¿ÀÈÄ 8:21:15
   if (Common.PLCInfo.InlineGIB) then begin
-    if (CSharpDll.MainOC_GetOCFlowIsAlive(nCh) = 1) then Exit;
+//    if (CSharpDll.MainOC_GetOCFlowIsAlive(nCh) = 1) then Exit;
     if Common.SystemInfo.OCType = DefCommon.OCType then begin
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$08+$1 + (nCh*$20), 3), 0); //Glass Data Request off
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$08+$5 + (nCh*$20), 3), 0); //Load Request off
@@ -4110,7 +4109,7 @@ begin
 
   end
   else begin
-    if (CSharpDll.MainOC_GetOCFlowIsAlive(2*nCh) = 1) or (CSharpDll.MainOC_GetOCFlowIsAlive(2*nCh +1) = 1) then Exit;
+//    if (CSharpDll.MainOC_GetOCFlowIsAlive(2*nCh) = 1) or (CSharpDll.MainOC_GetOCFlowIsAlive(2*nCh +1) = 1) then Exit;
     if Common.SystemInfo.OCType = DefCommon.OCType then begin
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$1 + (nCh*$20), 3), 0); //Glass Data Request off
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$5 + (nCh*$20), 3), 0); //Load Request off
@@ -4134,13 +4133,13 @@ procedure TCommPLCThread.Process_ROBOT_LoadComplete_Off(nCh: Integer);
 begin
   AddLog('Process_ROBOT_LoadComplete_Off ' + IntToStr(nCh));
   if (Common.PLCInfo.InlineGIB) then begin
-    if (CSharpDll.MainOC_GetOCFlowIsAlive(nCh) = 1) then Exit;
+//    if (CSharpDll.MainOC_GetOCFlowIsAlive(nCh) = 1) then Exit;
     if Common.SystemInfo.OCType = DefCommon.OCType then
           WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$08+$6 + (nCh*$20), 3), 0) //Load Complete Confrim off
     else  WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$10+$6 + (nCh*$20), 3), 0); //Load Complete Confrim off
   end
   else begin
-    if (CSharpDll.MainOC_GetOCFlowIsAlive(2*nCh) = 1) or (CSharpDll.MainOC_GetOCFlowIsAlive(2*nCh +1) = 1) then Exit;
+//    if (CSharpDll.MainOC_GetOCFlowIsAlive(2*nCh) = 1) or (CSharpDll.MainOC_GetOCFlowIsAlive(2*nCh +1) = 1) then Exit;
     if Common.SystemInfo.OCType = DefCommon.OCType then
           WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0C+$6 + (nCh*$20), 3), 0) //Load Complete Confrim off
     else  WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$12+$6 + (nCh*$20), 3), 0); //Load Complete Confrim off
@@ -4263,7 +4262,6 @@ begin
     end;
   end
   else begin
-    if (CSharpDll.MainOC_GetOCFlowIsAlive(2*nCh) = 1) or (CSharpDll.MainOC_GetOCFlowIsAlive(2*nCh +1) = 1) then Exit;
     if Common.SystemInfo.OCType = DefCommon.OCType then begin
       Common.StatusInfo.LoadUnloadFlowData[nCh][COMMPLC_MODE_UNLOAD_6] := 1;
       WriteDevice('B' + IntToHex(StartAddr_EQP+$10*$0D+$6 + (nCh*$20), 3), 1); //Unload Complete Confrim
