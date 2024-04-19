@@ -2625,8 +2625,13 @@ begin
     if bStateShutter and bStateProbe then
       Exit(0);
 
-    g_CommPLC.EQP_Clear_ROBOT_Request(nGroup * 2);
-    g_CommPLC.EQP_Clear_ROBOT_Request(nGroup * 2 + 1);
+    if Common.PLCInfo.InlineGIB then begin
+      g_CommPLC.EQP_Clear_ROBOT_Request(nGroup * 2);
+      g_CommPLC.EQP_Clear_ROBOT_Request(nGroup * 2 + 1);
+    end
+    else begin
+      g_CommPLC.EQP_Clear_ROBOT_Request(nGroup);
+    end;
 
     WriteDioSig(DefDio.OUT_GIB_CH_12_PROBE_DN_SOL + nGroup *4);
     WriteDioSig(DefDio.IN_GIB_CH_12_SHUTTER_DN_SENSOR + nGroup *4);
@@ -2722,8 +2727,13 @@ begin
       SendMsgMain(COMMDIO_MSG_LOG, 0, 0, format('Probe DN Finish %s - Already', [sCH]));
       Exit(0);
     end;
-    g_CommPLC.EQP_Clear_ROBOT_Request(nGroup * 2);
-    g_CommPLC.EQP_Clear_ROBOT_Request(nGroup * 2 + 1);
+    if Common.PLCInfo.InlineGIB then begin
+      g_CommPLC.EQP_Clear_ROBOT_Request(nGroup * 2);
+      g_CommPLC.EQP_Clear_ROBOT_Request(nGroup * 2 + 1);
+    end
+    else begin
+      g_CommPLC.EQP_Clear_ROBOT_Request(nGroup);
+    end;
     WriteDioSig(DefDio.OUT_GIB_CH_12_PROBE_DN_SOL + nGroup *4);
 
     for i := 0 to nWaitingCount do begin
@@ -2840,8 +2850,13 @@ begin
           SendMsgMain(COMMDIO_MSG_LOG, 0, 0,Format('Shutter DN Finish %s - Already',[sCH]));
           Exit(0);
         end;
-        g_CommPLC.EQP_Clear_ROBOT_Request(nGroup * 2);
-        g_CommPLC.EQP_Clear_ROBOT_Request(nGroup * 2 + 1);
+        if Common.PLCInfo.InlineGIB then begin
+          g_CommPLC.EQP_Clear_ROBOT_Request(nGroup * 2);
+          g_CommPLC.EQP_Clear_ROBOT_Request(nGroup * 2 + 1);
+        end
+        else begin
+          g_CommPLC.EQP_Clear_ROBOT_Request(nGroup);
+        end;
         WriteDioSig(DefDio.IN_GIB_CH_12_SHUTTER_DN_SENSOR,false);
 
         for i := 0 to nWaitingCount do begin
@@ -2891,8 +2906,13 @@ begin
         SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'Shutter UP Finish ' + sCH);
       end
       else begin
-        g_CommPLC.EQP_Clear_ROBOT_Request(nGroup * 2);
-        g_CommPLC.EQP_Clear_ROBOT_Request(nGroup * 2 + 1);
+        if Common.PLCInfo.InlineGIB then begin
+          g_CommPLC.EQP_Clear_ROBOT_Request(nGroup * 2);
+          g_CommPLC.EQP_Clear_ROBOT_Request(nGroup * 2 + 1);
+        end
+        else begin
+          g_CommPLC.EQP_Clear_ROBOT_Request(nGroup);
+        end;
         for i := 0 to 30 do begin    // 3000ms 동안 센서 조건 확인
           Sleep(100);
           if ReadInSig(DefDio.IN_GIB_CH_12_ROBOT_SENSOR + nGroup) then begin
