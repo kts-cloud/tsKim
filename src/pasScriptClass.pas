@@ -528,7 +528,6 @@ type
     m_nNgCode    : Integer; // Script내에서 사용.
     m_nConfirmHostRet: Integer; // Added by KTS 2023-06-21 오전 8:15:30 검사 후 완공보고 여부 재검사 Flow 사용
     m_sNgMsg              : string;
-    m_CurrentEQPID        : string;
     m_nCamNgCode          : Integer;
     m_InsStatus           : TInsStatus;
     m_bIsScriptWork       : Boolean;
@@ -3265,7 +3264,7 @@ begin
           SendTestGuiDisplay(DefCommon.MSG_MODE_IRTEMP,'IRTEM : Start','',1);   //Start
         end;
         if Length(sSerialNumber) = 0 then sSerialNumber := 'TEST123456789012345678901';
-        sEquipment := Common.SystemInfo.EQPId;
+        sEquipment := PasScr[FPgNo].TestInfo.EQPId;
         sUSERID := Common.SystemInfo.AutoLoginID;
 
         TestInfo.PreOcReStart := False; // Added by KTS 2023-06-09 오후 4:20:10 ReStart 초기화
@@ -5531,7 +5530,7 @@ begin
             else begin
               PasScr[FPgNo].TestInfo.EQPId := Common.SystemInfo.EQPId;
             end;
-            m_sEmNo :=  PasScr[FPgNo].TestInfo.EQPId;
+            m_sEmNo :=  TestInfo.EQPId;
             SetInputArg(1,TestInfo.Process_Code);
           end;
 

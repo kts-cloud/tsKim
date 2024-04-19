@@ -3355,7 +3355,6 @@ begin
                 sDebug := Format('<HAND-BCR> MateriID and ECRDATA DIFFERENT!! MateriID : %s BCR_Data : %s ',[sPCB_ID,sRemoveCr]);
                 AddLog(sDebug,nJigCh,0);
                 ShowNgMessage(Format('CH : %d MateriID(%s) and BCRData(%s) DIFFERENT!!',[nJigCh + 1,sPCB_ID,sRemoveCr]));
-                Exit;
               end;
             end;
           end;
@@ -4175,6 +4174,8 @@ begin
 
   CsharpDll := TCSharpDll.Create(hMain,Self.Handle,Common.Path.LGDDLL,'OC_Converter.dll');
 //  CsharpDll := TCSharpDll.Create(hMain,Self.Handle,Common.Path.RootSW,'OC_Converter.dll');
+
+  Common.ReadDLLSet;
 
 
   CsharpDll.Create_Test;
@@ -5102,13 +5103,10 @@ begin
 
                   DefScript.SEQ_KEY_START: begin
                     Common.MLog(nCh, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_KEY_START) ' + inttostr(nCh));
-                    //모든 스크립트가 종료 시 Turn 처리
-                    //모든 채널이 종료 검사
-//                    for i := (nCh div 2) *2 to (nCh div 2) *2 + 1 do begin
+
                     if PasScr[nCh].m_bIsScriptWork then begin
                       Exit;
                     end;
-//                  end;
                     if  PasScr[nCh].TestInfo.NgCode <> 0 then begin
                       CSharpDll.m_bIsProcessDone[nCh] := True;
                       if (Common.PLCInfo.InlineGIB) then begin
@@ -5223,7 +5221,6 @@ begin
                             end;
                             PG[0].SetCyclicTimer(True);
                             PG[1].SetCyclicTimer(True);
-//                            ControlDio.MovingAll(0,true);   // Probe and Shutter  UP
                             if ControlDio.IsDetected(0) then begin
                               SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, DefCommon.CH1 , DefCommon.CH1 , nTemp2, '', nil);
                               CSharpDll.m_bIsProcessDone[DefCommon.CH1] := false;
@@ -5244,7 +5241,6 @@ begin
                             end;
                             PG[2].SetCyclicTimer(True);
                             PG[3].SetCyclicTimer(True);
-//                            ControlDio.MovingAll(1,true);   // Probe and Shutter  UP
                             if ControlDio.IsDetected(2) then begin
                               SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, DefCommon.CH3 , DefCommon.CH3 , nTemp2, '', nil);
                               CSharpDll.m_bIsProcessDone[DefCommon.CH3] := false;

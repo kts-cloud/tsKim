@@ -194,6 +194,7 @@ type
     R2RCa410MemCh : Integer;
     R2REODS_Data :   array[DefCommon.CH1 .. Defcommon.MAX_CH] of string;
     R2RMmcTxnID_Data :   array[DefCommon.CH1 .. Defcommon.MAX_CH] of string;
+    OnlyRestartMode : Boolean;
   end;
 
 
@@ -5967,6 +5968,8 @@ begin
       SystemInfo.PGResetDelayTime     := fSys.ReadInteger('SYSTEMDATA','PG_RESET_DELAY_TIME',0);
       SystemInfo.PGResetTotalConut    := fSys.ReadInteger('SYSTEMDATA','PG_RESET_TOTAL_COUNT',0);
 
+      SystemInfo.OnlyRestartMode      := fSys.ReadBool('SYSTEMDATA','USE_ONLYRESTART', False);
+
       //임시 - 기존 소스 호환용
       if SystemInfo.EQPId_INLINE = '' then begin
         SystemInfo.EQPId_INLINE:= SystemInfo.EQPId;
@@ -6565,6 +6568,7 @@ begin
       end;
       WriteBool   ('SYSTEMDATA','CHReversal',             SystemInfo.CHReversal);
       WriteBool   ('SYSTEMDATA', 'USE_ITOMODE', 		 	 	  SystemInfo.UseITOMode);  // Added by KTS 2022-03-25 오후 1:08:29
+      WriteBool   ('SYSTEMDATA', 'USE_ONLYRESTART',       SystemInfo.OnlyRestartMode);
       WriteInteger('SYSTEMDATA', 'COM_IR_TEMP_SENSOR',   	SystemInfo.Com_IrTempSensor);
       WriteInteger('SYSTEMDATA', 'Set_IR_TEMP',   	      SystemInfo.SetTemperature);
       WriteInteger('SYSTEMDATA', 'EQPID_TYPE',  					SystemInfo.EQPId_Type);

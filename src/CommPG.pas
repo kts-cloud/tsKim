@@ -4725,7 +4725,7 @@ begin
 	// Connect
 	if not FFTPClient.FFTP.Connected then begin
     sDebug :=  'FTP Connect';
-    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG, sDebug);
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
   	sErrMsg := FFTPClient.Connect;
   	if sErrMsg <> '' then begin
     	sDebug := sFunc + ': FTP Connect NG(' + sErrMsg + ')';

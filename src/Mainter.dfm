@@ -48,7 +48,7 @@ object frmMainter: TfrmMainter
     Width = 1470
     Height = 920
     Hint = ''
-    ActivePage = TabSheet4
+    ActivePage = tbCA410Measurement
     ActivePageDefault = TabSheet1
     Align = alClient
     Font.Charset = DEFAULT_CHARSET
@@ -58,7 +58,7 @@ object frmMainter: TfrmMainter
     Font.Style = []
     ParentFont = False
     SoftCorners = True
-    TabIndex = 6
+    TabIndex = 7
     TabOrder = 1
     FixedDimension = 25
     object TabSheet1: TRzTabSheet

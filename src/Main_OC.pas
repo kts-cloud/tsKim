@@ -3495,7 +3495,7 @@ begin
               g_CommPLC.EQP_UnloadBeforeCh(DefCommon.CH_BOTTOM,DefCommon.CH2,nRet);
             end;
 
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, format('Request Load %s 0', [chr(ord('A') + nStage)]));
+//            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, format('Request Load %s 0', [chr(ord('A') + nStage)]));
 //            frmTest4ChOC[nStage].DisplayResult(0, -3, 0, 'Request Load');
             SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, 0, 'Request Load');
 //            sleep(50);
@@ -3616,7 +3616,7 @@ begin
               g_CommPLC.EQP_UnloadBeforeCh(DefCommon.CH_BOTTOM,DefCommon.CH4,nRet);
             end;
 //            ShowSysLog(format('Request Load %s 1', [chr(ord('A') + nStage)]),0);
-            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, format('Request Load %s 1', [chr(ord('A') + nStage)]));
+//            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, format('Request Load %s 1', [chr(ord('A') + nStage)]));
 //            frmTest4ChOC[nStage].DisplayResult(2, -3, 0, 'Request Load');
             SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, 2, 'Request Load');
 //            sleep(50);
@@ -4295,7 +4295,7 @@ try
           end;
 
 //          ShowSysLog(format('Request UnLoad %s 0', [chr(ord('A') + nStage)]),0);
-          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,format('Request UnLoad %s 0', [chr(ord('A') + nStage)]));
+//          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,format('Request UnLoad %s 0', [chr(ord('A') + nStage)]));
 //          frmTest4ChOC[nStage].DisplayResult(0, -3, 0, 'Request UnLoad');
 //          frmTest4ChOC[nStage].DisplayResult(1, -3, 0, 'Request UnLoad');
           SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, 0, 'Request UnLoad');
@@ -4421,7 +4421,7 @@ try
               g_CommPLC.EQP_UnloadBeforeCh(DefCommon.CH_BOTTOM,DefCommon.CH4,nRet);
             end;
 
-          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, format('Request UnLoad %s 1', [chr(ord('A') + nStage)]));
+//          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, format('Request UnLoad %s 1', [chr(ord('A') + nStage)]));
 
           SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, 2, 'Request UnLoad');
           SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, 3, 'Request UnLoad');

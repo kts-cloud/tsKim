@@ -2394,8 +2394,8 @@ object frmSystemSetup: TfrmSystemSetup
         GroupStyle = gsBanner
         TabOrder = 7
         object chkITOBmpMode: TRzCheckBox
-          Left = 21
-          Top = 45
+          Left = 229
+          Top = 24
           Width = 135
           Height = 15
           Caption = 'BMP Download and View'
@@ -2411,6 +2411,15 @@ object frmSystemSetup: TfrmSystemSetup
           Caption = 'InLine AA MODE'
           State = cbUnchecked
           TabOrder = 1
+        end
+        object chkOnlyRestartMode: TRzCheckBox
+          Left = 20
+          Top = 45
+          Width = 80
+          Height = 15
+          Caption = 'Only Restart'
+          State = cbUnchecked
+          TabOrder = 2
         end
       end
       object grpDebugLogLevel: TRzGroupBox
