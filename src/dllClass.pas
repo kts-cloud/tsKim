@@ -2728,6 +2728,7 @@ begin
   try
     nReturn := 0;
     Result := '';
+    sParameter := sParameter + #0;
     if @m_GetSummaryLogData_New <> nil then begin
       for I := 0 to 2 do begin
         sResult := PAnsiChar(m_GetSummaryLogData_New(m_nDLLType[nCH],nCH,nReturn,Common.StringToPAnsiChar(sParameter)));
@@ -2768,7 +2769,7 @@ dCheckSum: dword;
 begin
   try
     m_nDLLType[nCH] := nDLLType;
-    sParameter := sPID + ',' + sSerialNumber + ',' + sUser_ID +',' + sEquipment;
+    sParameter := sPID + ',' + sSerialNumber + ',' + sUser_ID +',' + sEquipment + #0;
     sDebug := sParameter + #13#10 +'Memory usage : ' + Format('%0.2f%%', [Common.GetMemoryUsagePercentage]);
     SendTestGuiDisplay(nCH,defCommon.MSG_MODE_WORKING,sDebug,0);
     SendHWCID(nCH);
@@ -2777,8 +2778,8 @@ begin
     m_CurrentBand[nCH] := 0;
     m_CurrentTap[nCH] := 0;
     m_CountInspections[nCH] := 0; //검사 횟수 초기화
-    dCheckSum := Common.crc16(sParameter,Length(sParameter));
-    if m_MainOC_START_CH1(nDLLType,nCH,Common.StringToPAnsiChar(sParameter),Length(sParameter),dCheckSum) <> 0 then
+    dCheckSum := Common.crc16(sParameter,Length(sParameter)-1);
+    if m_MainOC_START_CH1(nDLLType,nCH,Common.StringToPAnsiChar(sParameter),Length(sParameter)-1,dCheckSum) <> 0 then
       Exit(2);
     m_OCFlowStart[nCH] := true;
     tmCheckOCAlive[nCH].Enabled := True;
@@ -2797,7 +2798,7 @@ dCheckSum: dword;
 begin
   try
     m_nDLLType[nCH] := nDLLType;
-    sParameter := sPID + ',' + sSerialNumber + ',' + sUser_ID +',' + sEquipment;
+    sParameter := sPID + ',' + sSerialNumber + ',' + sUser_ID +',' + sEquipment + #0;
     sDebug := sParameter + #13#10 +'Memory usage : ' + Format('%0.2f%%', [Common.GetMemoryUsagePercentage]);
     SendTestGuiDisplay(nCH,defCommon.MSG_MODE_WORKING,sDebug,0);
     SendHWCID(nCH);
@@ -2806,8 +2807,8 @@ begin
     m_CurrentBand[nCH] := 0;
     m_CurrentTap[nCH] := 0;
     m_CountInspections[nCH] := 0; //검사 횟수 초기화
-    dCheckSum := Common.crc16(sParameter,Length(sParameter));
-    if m_MainOC_START_CH2(nDLLType,nCH,Common.StringToPAnsiChar(sParameter),Length(sParameter),dCheckSum) <> 0 then
+    dCheckSum := Common.crc16(sParameter,Length(sParameter)-1);
+    if m_MainOC_START_CH2(nDLLType,nCH,Common.StringToPAnsiChar(sParameter),Length(sParameter)-1,dCheckSum) <> 0 then
       Exit(2);
     m_OCFlowStart[nCH] := true;
     tmCheckOCAlive[nCH].Enabled := True;
@@ -2825,7 +2826,7 @@ dCheckSum: dword;
 begin
   try
     m_nDLLType[nCH] := nDLLType;
-    sParameter := sPID + ',' + sSerialNumber + ',' + sUser_ID +',' + sEquipment;
+    sParameter := sPID + ',' + sSerialNumber + ',' + sUser_ID +',' + sEquipment + #0;
     sDebug := sParameter + #13#10 +'Memory usage : ' + Format('%0.2f%%', [Common.GetMemoryUsagePercentage]);
     SendTestGuiDisplay(nCH,defCommon.MSG_MODE_WORKING,sDebug,0);
     SendHWCID(nCH);
@@ -2834,8 +2835,8 @@ begin
     m_CurrentBand[nCH] := 0;
     m_CurrentTap[nCH] := 0;
     m_CountInspections[nCH] := 0; //검사 횟수 초기화
-    dCheckSum := Common.crc16(sParameter,Length(sParameter));
-    if m_MainOC_START_CH3(nDLLType,nCH,Common.StringToPAnsiChar(sParameter),Length(sParameter),dCheckSum) <> 0 then
+    dCheckSum := Common.crc16(sParameter,Length(sParameter)-1);
+    if m_MainOC_START_CH3(nDLLType,nCH,Common.StringToPAnsiChar(sParameter),Length(sParameter)-1,dCheckSum) <> 0 then
       Exit(2);
     m_OCFlowStart[nCH] := true;
     tmCheckOCAlive[nCH].Enabled := True;
@@ -2853,7 +2854,7 @@ dCheckSum: dword;
 begin
   try
     m_nDLLType[nCH] := nDLLType;
-    sParameter := sPID + ',' + sSerialNumber + ',' + sUser_ID +',' + sEquipment;
+    sParameter := sPID + ',' + sSerialNumber + ',' + sUser_ID +',' + sEquipment + #0;
     sDebug := sParameter + #13#10 +'Memory usage : ' + Format('%0.2f%%', [Common.GetMemoryUsagePercentage]);
     SendTestGuiDisplay(nCH,defCommon.MSG_MODE_WORKING,sDebug,0);
     SendHWCID(nCH);
@@ -2862,8 +2863,8 @@ begin
     m_CurrentBand[nCH] := 0;
     m_CurrentTap[nCH] := 0;
     m_CountInspections[nCH] := 0; //검사 횟수 초기화
-    dCheckSum := Common.crc16(sParameter,Length(sParameter));
-    if m_MainOC_START_CH4(nDLLType,nCH,Common.StringToPAnsiChar(sParameter),Length(sParameter),dCheckSum) <> 0 then
+    dCheckSum := Common.crc16(sParameter,Length(sParameter)-1);
+    if m_MainOC_START_CH4(nDLLType,nCH,Common.StringToPAnsiChar(sParameter),Length(sParameter)-1,dCheckSum) <> 0 then
       Exit(2);
     m_OCFlowStart[nCH] := true;
     tmCheckOCAlive[nCH].Enabled := True;
