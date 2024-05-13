@@ -3109,7 +3109,10 @@ begin
 
   if (InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType) then begin
     nRet := ReadDevice('B030', nValue , False);
-    PollingAABMode := nValue;
+    if PollingAABMode <> nValue then begin
+      PollingAABMode := nValue;
+      SendMessageMain(COMMPLC_MODE_EVENT_ECS,0, COMMPLC_PARAM_AAB_MODE, nValue, 'PLC AA MODE', nil);
+    end;
   end;
 
   if Common.SystemInfo.OCType = DefCommon.OCType then begin
