@@ -411,6 +411,8 @@ type
     function DP860_SendProgrammingWrite(nDevaddr,nRegAddr,nDataCnt: Integer; arDataW: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
     function DP860_SendChkEnable(nEnable: Integer; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
     function DP860_SendTconWriteRead(nRegAddr,nDataCnt,nVerify: Integer; var arDataW: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0; nDebugLog : integer= 0): DWORD;
+    //------------------------------------------------------ PG_DP860 Command (I2C)
+    function DP860_SendI2CRead(nDevAddr,nRegAddr,nDataCnt: Integer; var arDataR: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0;  nDebugLog : integer= 0): DWORD;
     //------------------------------------------------------ PG_DP860 Command (Flash)
   {$IFDEF FEATURE_FLASH_ACCESS}
 		function DP860_SendNvmErase(nAddr,nSize:DWORD; nWaitMS: Integer=FLASH_ERASE_WAITMS_MINIMUM; nRetry: Integer=0): DWORD;
@@ -4138,6 +4140,54 @@ begin
   end;
 end;
 
+
+function TCommPG.DP860_SendI2CRead(nDevAddr,nRegAddr,nDataCnt: Integer; var arDataR: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0; nDebugLog : integer= 0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+  //
+  arCmdAck : TArray<string>;
+  arTemp   : TArray<string>;
+  i        : Integer;
+begin
+
+	nCmdId   := DefPG.PG_CMDID_I2C_READ;
+	sCmdName := DefPG.PG_CMDSTR_I2C_READ;
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName + ' ' + Format('4 0x%0.4x 0x%0.4x %d',[nDevAddr,nRegAddr,nDataCnt]); // 'tcon.read <reg_addr16> <length>'
+	Result   := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+
+  Inc(TconRWCnt.TconReadTX); //2023-03-28 jhhwang (for T/T Test)
+  TconRWCnt.ContTConOcWrite := 0; //2023-03-28 jhhwang (for T/T Test)
+  //
+  sEtcMsg  := '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr) +  '-' + FTxRxPG.RxPrevStr + ']';
+  if Result = WAIT_OBJECT_0 then begin
+    try
+      arCmdAck := FTxRxPG.RxAckStr.Split([#$0D]);
+      arTemp   := arCmdAck[0].Split([' ']);
+      //
+      if Length(arTemp) >= nDataCnt then begin
+        for i := 0 to (nDataCnt-1) do begin
+          arDataR[i] := StrToInt('$'+ arTemp[i]);
+        end;
+      end
+      else begin
+        sEtcMsg := sEtcMsg + Format('(ReadSize=%d<>RxDataCnt=%d)',[nDataCnt,Length(arTemp)]);
+        Result  := WAIT_FAILED; // RX.DATA.Cnt < nDataCnt
+      end;
+    except
+      sEtcMsg :=  sEtcMsg + '(RxDataParsingError)';
+      Result  := WAIT_FAILED;
+    end;
+  end;
+  //
+  if ((nDebugLog = 1) and (Result <> 0)) or ((Common.SystemInfo.DebugLogLevelConfig > 0) and (Common.SystemInfo.PG_TconWriteLogDisplay)) then begin
+	  sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+  end;
+end;
+
 function ExtractAlphabets(const inputString: string): string;
 var
   i: Integer;
@@ -6019,12 +6069,17 @@ if Length(arDataR) < nDataCnt then begin
       {$IF Defined(INSPECTOR_OC) or Defined(INSPECTOR_PreOC)} //2023-03-28 jhhwang (for OC T/T)
       if Common.SystemInfo.PG_TconWriteCmdType = 0 then Sleep(Common.SystemInfo.PG_TconReadBeforeDelayMsec); //2023-04-24 jhhwang (for T/T Test) (if oc.write)
   		{$ENDIF}
-      case Common.SystemInfo.PG_TconReadCmdType of
-        0 : begin
-          Result := DP860_SendTConRead(nRegAddr,nDataCnt,btaData, nWaitMS,nRetry,nDebugLog);
-        end;
-        1 : begin
-          Result := DP860_SendTconByteRead(nRegAddr,nDataCnt,btaData, nWaitMS,nRetry,nDebugLog);
+      if nDevAddr <> $A0 then begin
+        Result := DP860_SendI2CRead(nDevAddr,nRegAddr,nDataCnt,btaData, nWaitMS,nRetry,nDebugLog);
+      end
+      else begin
+        case Common.SystemInfo.PG_TconReadCmdType of
+          0 : begin
+            Result := DP860_SendTConRead(nRegAddr,nDataCnt,btaData, nWaitMS,nRetry,nDebugLog);
+          end;
+          1 : begin
+            Result := DP860_SendTconByteRead(nRegAddr,nDataCnt,btaData, nWaitMS,nRetry,nDebugLog);
+          end;
         end;
       end;
 		end;
