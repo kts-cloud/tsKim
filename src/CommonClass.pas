@@ -104,6 +104,7 @@ type
     PopupMsgTime : Integer;
     PGResetDelayTime : Integer;
     PGResetTotalConut : Integer;
+    DisplayDLLCnt : Integer;
 
     MesModelInfo        : string; //PCHK에서 Model_Info 값에  사용할 모델 이름. 혼입 방지용  - LH606WF2
 //    Language						: Integer;
@@ -286,6 +287,7 @@ type
     OtpTable : string;
     OcOffSet : string;
     MES_CSV  : string;
+    AA_MODE_CSV : string;
     CRC_miau : Word;
     CRC_mioff : Word;
     CRC_mion  : Word;
@@ -395,6 +397,13 @@ type
     sErrCode : string;    // OD01
     sErrMsg  : string;    // EEPROM Read Fail.
     MES_Code : string;    // A06-B01-G78
+  end;
+
+  TAAMode = packed record
+    nIdx : Integer;       // 1
+    sErrCode : string;    // OD01
+    nInspectionType  : Integer;    // DLL 버전 1,2,3
+    nInspectionCnt : Integer;    // DLL 검사 횟수
   end;
 
   TModelInfo = packed record
@@ -728,6 +737,8 @@ type
     Conn_Chk_Cnt  : array[0.. DefCommon.MAX_CH] of Integer;
     m_nGmesInfoCnt : Integer;
     GmesInfo      : array of TGmesCode;
+    m_nGAAmodeInfoCnt : Integer;
+    GAAModeInfo   : array of TAAMode;
     DGMA_Para     : array of array of TLGD_DGMA_Parameter;
     Path : TPath;
   //	g_DisplayPG      : Integer; //Display Current PG Index
@@ -758,6 +769,7 @@ type
     procedure SetResolution(nH, nV : Word);
     procedure LoadOcTables(nIdxOcTables : Integer);
     function LoadMesCode : Integer;
+    function LoadAAMode : Integer;
     function IsExcelProcess(const ProcessID: DWORD): Boolean;
     procedure SaveMLog(nCh : Integer; dtSave: TDateTime);
 //    procedure SaveLog(nCH : Integer; dtSave: TDateTime);
@@ -1714,6 +1726,9 @@ begin
   SetLength(SystemInfo.ConfigVer,0);
   SetLength(PGWriteReadPassAddr,0);
   SetLength(DGMA_Para,0);
+
+  SetLength(GmesInfo,0);
+  SetLength(GAAModeInfo,0);
 
   FLogThread.Terminate;
   FLogThread.WaitFor;
@@ -2738,6 +2753,8 @@ begin
   LoadPsuFile;
   // Load OC Param.
   LoadOcData;
+
+  LoadAAMode;
   if LoadMesCode < SystemInfo.MES_CODE_Cnt then  // MES CODE 갯수 로
     ShowMessage('<SYSTEM> Please check MES_CODE.CSV');
   //LoadPLCInfo; //임시 주석
@@ -3206,6 +3223,83 @@ begin
             sErrCode := sErrCode + lstErrCode.Strings[2] + '---------------------------';
           end;
           GmesInfo[nRow].MES_Code := sErrCode;
+
+          Inc(nRow);
+        end;
+      finally
+        lstTemp.Free;
+        lstErrCode.Free;
+      end;
+    finally
+      // Close the file
+      Result := nRow;
+      CloseFile(txtF);
+    end;
+  end;
+end;
+
+function TCommon.LoadAAMode : Integer;
+var
+  sErrMsg, sErrCode, sFileName, sReadData, sCrcData : string;
+  txtF    : Textfile;
+  lstTemp, lstCrc, lstErrCode : TStringList;
+  nRow , nDataCount: Integer;
+  i: Integer;
+begin
+//{$IFDEF ISPD_L_OPTIC}
+  Result := 0;
+  m_Ver.AA_MODE_CSV := '';
+  sCrcData := '';
+  m_nGAAmodeInfoCnt := 0;
+  sFileName := Path.Ini + 'AA_MODE.csv';
+  if (not FileExists(sFileName)) or (sFileName = '') then begin
+    sErrMsg := #13#10 + 'Input Error! AA Mode File [' + sFileName + '] cannot be loaded!';
+    MessageDlg(sErrMsg, mtError, [mbOk], 0);
+    m_bModelInfoNg := True;
+    Exit;
+  end;
+  if IOResult = 0 then begin
+    AssignFile(txtF, sFileName);
+    try
+      // ÀüÃ¼ Data ¼³Á¤.
+      Reset(txtF);
+      nRow := 0;
+      lstCrc := TStringList.Create;
+      try
+        while not Eof(txtF) do begin
+          Readln(txtF, sReadData);
+          sCrcData := sCrcData + sReadData;
+          if Trim(sReadData) = '' then Continue;
+          lstCrc.Add(sReadData);
+          Inc(nRow);
+        end;
+
+      finally
+        lstCrc.Free;
+      end;
+      m_Ver.AA_MODE_CSV := GetFileVerDate(sFileName,1) + ' ' + GetStringCrc(sCrcData);
+      SetLength(GAAModeInfo, nRow);
+      nRow := 0;
+      Reset(txtF);
+
+      lstTemp := TStringList.Create;
+      lstErrCode := TStringList.Create;
+      try
+        while not Eof(txtF) do begin
+          Readln(txtF, sReadData);
+          if Trim(sReadData) = '' then Continue;
+
+          lstTemp.Clear;
+          ExtractStrings([','], [], PWideChar(Trim(sReadData)), lstTemp);
+          nDataCount := lstTemp.Count;
+          if nDataCount < 5  then Continue;
+
+          GAAModeInfo[nRow].nIdx     := StrToIntDef(lstTemp[0], -1);
+          if GAAModeInfo[nRow].nIdx < 0 then Continue; //유효하지 않을 경우
+
+          GAAModeInfo[nRow].sErrCode := Trim(lstTemp[3]);
+          GAAModeInfo[nRow].nInspectionType  := StrToIntDef(Trim(lstTemp[4]),0);
+          GAAModeInfo[nRow].nInspectionCnt  := StrToIntDef(Trim(lstTemp[5]),0);
 
           Inc(nRow);
         end;
@@ -5970,6 +6064,9 @@ begin
 
       SystemInfo.OnlyRestartMode      := fSys.ReadBool('SYSTEMDATA','USE_ONLYRESTART', False);
 
+
+      SystemInfo.DisplayDLLCnt := fSys.ReadInteger('SYSTEMDATA','DISPLAY_DLL_CNT',0);
+
       //임시 - 기존 소스 호환용
       if SystemInfo.EQPId_INLINE = '' then begin
         SystemInfo.EQPId_INLINE:= SystemInfo.EQPId;
@@ -6698,6 +6795,8 @@ begin
       WriteInteger('SYSTEMDATA',  'MES_CODE_Cnt',  		SystemInfo.MES_CODE_Cnt);
 
       WriteInteger('SYSTEMDATA',  'POPUPMSGTIME', SystemInfo.PopupMsgTime);
+
+      WriteInteger('SYSTEMDATA','DISPLAY_DLL_CNT',SystemInfo.DisplayDLLCnt);
 
       WriteInteger('DEBUG', 'DEBUG_LOG_LEVEL_PG', SystemInfo.DebugLogLevelConfig);
 
