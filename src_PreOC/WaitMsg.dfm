@@ -1,0 +1,46 @@
+object frmWaitCa210: TfrmWaitCa210
+  Left = 924
+  Top = 232
+  BorderStyle = bsSingle
+  Caption = 'Wait...'
+  ClientHeight = 122
+  ClientWidth = 848
+  Color = clBtnFace
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clWindowText
+  Font.Height = -11
+  Font.Name = 'Tahoma'
+  Font.Style = []
+  OldCreateOrder = False
+  Position = poScreenCenter
+  OnCreate = FormCreate
+  OnShow = FormShow
+  PixelsPerInch = 96
+  TextHeight = 13
+  object pnlShow: TRzPanel
+    Left = 0
+    Top = 0
+    Width = 848
+    Height = 122
+    Align = alClient
+    BorderInner = fsStatus
+    BorderOuter = fsPopup
+    Font.Charset = ANSI_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -27
+    Font.Name = 'Tahoma'
+    Font.Style = [fsBold]
+    GradientColorStyle = gcsCustom
+    GradientColorStart = 16730698
+    GradientColorStop = 16776176
+    ParentFont = False
+    TabOrder = 0
+    VisualStyle = vsGradient
+  end
+  object tmShowMsg: TTimer
+    Enabled = False
+    OnTimer = tmShowMsgTimer
+    Left = 14
+    Top = 14
+  end
+end

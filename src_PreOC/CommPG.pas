@@ -1,0 +1,6620 @@
+﻿unit CommPG;
+
+interface
+{$I Common.inc}
+
+uses
+  System.Classes, System.SysUtils, System.Threading,
+  Winapi.Windows, Winapi.Messages, Winapi.WinSock,
+  IdGlobal,
+	{$IFDEF PG_DP860}
+  IdSocketHandle, IdUDPClient, IdUDPServer, FTPClient,
+	{$ENDIF}	
+  Vcl.Dialogs, Vcl.ExtCtrls,
+	//
+  DefCommon, DefPG,
+	{$IF Defined(INSEPECTOR_FI) or Defined(INSEPECTOR_OQA) or Defined(PAS_SCRIPT)}
+  DefScript,
+	{$ENDIF}
+	{$IFDEF PG_AF9}
+  AF9_API,
+	{$ENDIF}
+  CommonClass, DongaPattern,
+{$IFDEF DEBUG}
+  CodeSiteLogging,
+{$ENDIF}
+  UserUtils;
+
+type
+
+	//------------------------------------- Pattern
+  TCurPatDispInfo = record  //#RPatDispStatus
+    bPowerOn        : Boolean;  //TBD:DP860?
+    bPatternOn      : Boolean;  //TBD:DP860?
+    nCurPatNum      : Integer;
+    nCurAllPatIdx   : Integer;  //index of AllPat
+    bSimplePat      : Boolean;
+    {$IFDEF FEATURE_GRAY_CHANGE}
+    nGrayOffset     : Integer;  //Gray Change Offset Value (-255~255)
+    bGrayChangeR, bGrayChangeG, bGrayChangeB : Boolean;  //if (Simple Pattern) and (R|G|B Valuse is not 0) then True else False
+    {$ENDIF}
+    {$IFDEF FEATURE_DIMMING_STEP}
+    nCurPwmDuty     : Integer; //0~100
+    nCurDimmingStep : Integer; //1~4
+    {$ENDIF}
+  end;
+
+	TPatInfoStruct  = record  //#TPatInfoStruct
+	  PatInfo : array[0..MAX_PATTERN_CNT-1] of TPatternInfo;
+  //CurrPat : RPatDispStatus;  //FEATURE_GRAY_CHANGE, FEATURE_DIMMING_STEP
+	end;
+
+	//-------------------------------------------------------- GUI
+  PGuiPg2Main = ^RGuiPg2Main;
+  RGuiPg2Main = record
+    MsgType  : Integer;
+    PgNo     : Integer;
+    Mode     : Integer;
+    Param    : Integer;
+    sMsg     : string;
+  end;
+
+  PGuiPg2Test = ^RGuiPg2Test; //#TransVoltage
+  RGuiPg2Test = record
+    MsgType  : Integer;
+    PgNo     : Integer;
+    Mode     : Integer;
+    Param    : Integer;
+    sMsg     : string;
+    PwrData  : TPwrData; //AF9(dummy)
+  end;
+
+  PGuiPgDown = ^RGuiPgDown; //TBD:DP860?
+  RGuiPgDown = record
+    MsgType  : Integer;
+    PgNo     : Integer;
+    Mode     : Integer;
+    Param    : Integer;
+    Total    : Integer;
+    CurPos   : Integer;
+    IsDone   : Boolean;
+    sMsg     : string;
+  end;
+
+  //??????????????????????????????????? OLD start
+  //----------------- BMP Download
+  TFileTranStr = record //TBD:PG?
+    TransMode : Integer;
+    TransType : Integer;
+    TransSigId : Word;
+    TotalSize : Integer;
+    fileName  : string[100];
+    filePath  : string[150];
+    CheckSum  : DWORD;
+		BmpWidth  : DWORD; //2021-11-10 DP201:BMP_DOW //TBD:ITOLED?
+    Data      : array of Byte;
+  end;
+
+  {$IFDEF PG_AF9}
+  InRxMaintEventAF9 = procedure (nCh: Integer; sMsg: string) of object;
+  InTxMaintEventAF9 = procedure (nCh: Integer; sMsg: string) of object;
+	{$ENDIF}
+	{$IFDEF PG_DP860}
+  InRxMaintEventPG = procedure (nPg: Integer; sLocal,sRemote: string; sMsg: string) of object;
+  InTxMaintEventPG = procedure (nPg: Integer; sLocal,sRemote: string; sMsg: string) of object;
+	{$ENDIF}
+  InPwrReadEvnt = procedure (nPg: Integer; PwrData: TPwrData) of object; //TBD:DP860?
+  //??????????????????????????????????? OLD end
+
+	//###########################################################################
+	//###                                                                     ###
+	//### Class : TCommPG                                                     ###
+	//###                                                                     ###
+	//###########################################################################
+
+  TCommPG = class(TObject) //#TDongaPG
+  private
+    //------------------------------------------------------ COMMON
+    //------------------------------------------------------ PG(AF9)		
+    //------------------------------------------------------ PG(DP860)
+    //------------------------------------------------------ FLOW-SPECIFIC
+    //------------------------------------------------------ ETC
+    {$IF Defined(SIMULATOR_PANEL) and Defined(PG_AF9)}
+    SimTconData   : array[0..SIM_TCON_SIZE] of Byte;
+    SimAPSRegData : array[0..SIM_APSREG_SIZE] of Byte;
+    {$ENDIF}
+    sPreviousCommand : string;
+	public
+    //================================================================= COMMON
+    //------------------------------------------------------ GUI Handle
+    m_hMain    : HWND; // frmMain
+    m_hTest    : HWND; // frmTest //#m_hTestFrm
+    m_hGuiDown : HWND; // BmpDown //TBD:DP860? //#m_hGuiFrm
+    //------------------------------------------------------ PG#/CH#
+    m_nPg      : Integer;
+    m_nCh      : Integer; //0:CH1,1=CH2,2=ALL
+		{$IFDEF PG_AF9}
+		m_nAF9Ch   : AF9_enumCHANNEL_TYPE; //AF9_API: 0(ALL), 1(CH1), 2(CH2)
+    {$ENDIF}
+    //------------------------------------------------------ PG Connection
+    PG_TYPE         : Integer;
+		{$IFDEF PG_DP860}
+		PG_IPADDR       : string;
+    PG_IPPORT       : Integer;
+    PG_SourcePort   : Integer; //TBD:DP860?
+    {$ENDIF}
+    //------------------------------------------------------ PG TX/RX
+    FTxRxDEF    		: TPgTxRxData; // LocalPort(8000) for No-Ack Cmd (pg.status, [cyclic]power.read, pg.init)
+    FTxRxPG     		: TPgTxRxData; // LocalPort(8001|8002|...) for Cmd/Ack
+    FIsOnFlashAccess: Boolean;
+    //------------------------------------------------------ PG Version
+    m_PgVer         : TPgVer;
+    //------------------------------------------------------ PG Status and ConnCheck
+    StatusPg        : enumPgStatus; //TBD:DP860? //#m_PgConnSt enumPgConnSt
+	//m_PgConnSt  		: enumPgConnSt; //#StatusPg: TPgStatus //TBD:DP860?
+    //
+    m_bCyclicTimer  : Boolean;
+    m_nConnCheckNG  : Integer; //m_nConnectCheck
+    tmConnCheck     : TTimer;  //#tmAliveCheck
+    //------------------------------------------------------ Power Measure
+    m_PwrData				: TPwrData;     //#m_ReadVoltCurr	//AF9(dummy)
+    m_RxPwrData     : TRxPwrData;   //#m_ReadVoltC	  //AF9(dummy)
+    //
+    m_bPwrMeasure   : Boolean;      //#m_bMeasureTmr
+    tmPwrMeasure    : TTimer;       //#tmPowerMeasure
+    //------------------------------------------------------ Pattern
+    FCurPatGrpInfo  : TPatternGroup;   //#FCurPatGrpInfo : TPatternGroup;
+    FDisPatStruct   : TPatInfoStruct;  //#FDisPatStruct  : TPatInfoStruct;
+		m_CurPatDispInfo: TCurPatDispInfo; //#TPatInfoStruct.CurrPat
+    //------------------------------------------------------ PG Event (PG_DP860)
+    m_bWaitEvent    : Boolean;
+    m_bWaitPwrEvent : Boolean;
+    //------------------------------------------------------ Mainter
+    FIsMainter      : Boolean;
+		{$IFDEF PG_AF9}
+    FOnTxMaintEventAF9 : InTxMaintEventAF9;
+    FOnRxMaintEventAF9 : InRxMaintEventAF9;
+		{$ENDIF}
+		{$IFDEF PG_DP860}
+    FOnTxMaintEventPG : InTxMaintEventPG;
+    FOnRxMaintEventPG : InRxMaintEventPG;
+		{$ENDIF}
+    //================================================================= PG_AF9
+		{$IFDEF PG_AF9}
+		// AF9 BMP Download
+    RawBgrData      : array of byte;
+    RawData         : array of Byte;
+    Image_Pat1      : TImage;
+		{$ENDIF}
+    m_sAF9APIType  : string;  //Debug //TBD:ITOLED?
+    //================================================================= PG_DP860
+		{$IFDEF PG_DP860}
+    FIdUDPClient    : TIdUDPClient; //TBD:DP860?
+    FFTPClient      : TFTPClient;
+    m_ABinding      : TIdSocketHandle;
+		//
+    m_sEvent        : string;
+    m_hEvent        : HWND;
+    //
+    m_hPwrEvent     : HWND;
+		{$ENDIF}
+    //
+    m_nOldPatNum : Integer;		//TBD:ITOLED_FI? ITOLED_POCB?
+    //
+    TconRWCnt    : TTconRWCnt; //2023-03-28 jhhwang (for T/T Test)
+    //================================================================= FLOW-SPECIFIC
+    m_bPowerOn     : Boolean;
+    //------------------------------------------------------ FLOW-SPECIFIC(FI)
+		{$IF Defined(INSPECTOR_FI) or Defined(INSPECTOR_OQA)}
+    m_nPatNumPrev  : Integer;
+    m_nPatNumNow   : Integer;
+		{$ENDIF}
+    //------------------------------------------------------ FLOW-SPECIFIC(POCB|OC)
+		{$IFDEF FEATURE_FLASH_ACCESS}
+		m_FlashRead    : TFlashRead;
+		{$ENDIF}
+    //================================================================= ETC
+    FThreadLock    : Boolean; //TBD:DP860?
+    FForceStop     : Boolean; //TBD:DP860?
+
+
+    bIsReProgramming : Boolean;  // ReProgramming OKNG 여부
+
+    m_bChkIRA : Boolean; // IRA OK/NG 체크
+
+    m_bChkShutdown_Fault : Boolean;
+
+    m_HWCID :array[0..4] of string;
+
+
+    //================================================================= COMMON
+    //------------------------------------------------------ General
+    constructor Create(nPg: Integer; hMain: THandle); virtual;
+    destructor Destroy; override;
+    //------------------------------------------------------ Init PG Data
+		procedure InitPgTxRxData;
+		procedure InitPgVer;
+		procedure InitPgPwrData;
+		procedure InitPgPatternData;
+		{$IFDEF FEATURE_FLASH_ACCESS}
+		procedure InitFlashRead;
+		{$ENDIF}
+
+    //------------------------------------------------------ PatternGroup/PatternInfo
+    procedure SetCurPatGrpInfo(const Value: TPatternGroup);
+    procedure SetDisPatStruct(const Value: TPatInfoStruct);
+    property DisPatStruct : TPatInfoStruct read FDisPatStruct write SetDisPatStruct;
+    property CurPatGrpInfo : TPatternGroup read FCurPatGrpInfo write SetCurPatGrpInfo;
+    //------------------------------------------------------ Mainter
+    procedure SetIsMainter(const Value: Boolean);
+    property IsMainter : Boolean read FIsMainter write SetIsMainter;
+    {$IFDEF PG_AF9}
+    procedure SetOnTxMaintEventAF9(const Value: InTxMaintEventAF9);
+    procedure SetOnRxMaintEventAF9(const Value: InRxMaintEventAF9);
+    property OnRxMaintEventAF9 : InRxMaintEventAF9 read FOnRxMaintEventAF9 write SetOnRxMaintEventAF9;
+    property OnTxMaintEventAF9 : InTxMaintEventAF9 read FOnTxMaintEventAF9 write SetOnTxMaintEventAF9;
+		{$ENDIF}
+		{$IFDEF PG_DP860}
+    procedure SetOnTxMaintEventPG(const Value: InTxMaintEventPG);
+    procedure SetOnRxMaintEventPG(const Value: InRxMaintEventPG);
+    property OnRxMaintEventPG : InRxMaintEventPG read FOnRxMaintEventPG write SetOnRxMaintEventPG;
+    property OnTxMaintEventPG : InTxMaintEventPG read FOnTxMaintEventPG write SetOnTxMaintEventPG;
+		{$ENDIF}
+    //------------------------------------------------------ PG XXXX
+    function IsPgReady: Boolean; //TBD:DP860?
+    //------------------------------------------------------ PG Timer (ConnCheck)
+    procedure ConnCheckTimer(Sender: TObject);
+		procedure SetCyclicTimer(bEnable: Boolean; nDisableSec: Integer=0);
+    //------------------------------------------------------ PG Timer (PowerMeasure)
+    procedure PwrMeasureTimer(Sender: TObject); //TBD:DP860?
+    procedure SetPwrMeasureTimer(bEnable: Boolean; nInterMS: Integer=0);
+    //------------------------------------------------------ GUI
+		procedure ShowMainWindow(nGuiMode: Integer; nParam: Integer; sMsg: string);
+		procedure ShowTestWindow(nGuiMode: Integer; nParam: Integer; sMsg: string);
+		procedure ShowDownLoadStatus(nGuiType: Integer; curPos,total: Integer; sMsg: string; bIsDone: Boolean = False); //TBD:DP860?
+
+
+    //================================================================= PG_AF9
+{$IFDEF PG_AF9}
+		//------------------------------------------------------ AF9 ConnCheck
+    procedure ConnCheckTimer_AF9(Sender: TObject);
+    //------------------------------------------------------ AF9_API		
+		//
+		function AF9_Start_Connection: Integer;
+		function AF9_Stop_Connection(bDestory: Boolean = False): Integer;
+		function AF9_Connection_Status: Integer;
+		//
+		function AF9_SW_Revision: Integer;
+		function AF9_DLL_Revision: Integer;
+		//
+		function AF9_DAC_SET(nType: Integer; Channel: Integer; Voltage: Integer; Option: Integer): Boolean;
+		function AF9_ExtendIO_Set(Address: Integer; Channel: Integer; Enable: Integer): Boolean;
+		function AF9_AllPowerOnOff(OnOff: Integer): Integer;
+		//
+		function AF9_APSPatternRGBSet(R, G, B: Integer): Integer;
+		function AF9_APSBoxPatternSet(XOffset,YOffset, Width,Height, R,G,B, Background_R,Background_G,Background_B: Integer): Integer;
+		//
+		function AF9_LGDSetReg(Addr: DWORD; data: Byte): Integer;
+		function AF9_LGDSetRegM(LGDCommand: AF9_PLGDCommand; CommandCnt: Integer): Integer;
+		function AF9_LGDGetReg(Addr: DWORD): Byte;
+		function AF9_LGDRangeGetReg(const pData: PByte; StartAddr,EndAddr: DWORD): Byte;
+		//
+		function AF9_APSSetReg(Addr: Integer; Data: Integer): Integer;
+		//
+		function AF9_SendHexFileCRC(CRC: Word): Integer;
+		function AF9_SendHexFile(const pbyteBuffer: PByte; len: Integer): Integer;
+		//
+		function AF9_WriteBMPFile(const pbyteBuffer: PByte; len: Integer): Integer;
+		function AF9_BMPFileSend(pbyteBuffer: PByte; len: Integer; num: Integer): Integer;
+		function AF9_BMPFileView(num: Integer): Integer;
+		//
+		function AF9_FLASHRead(const pData: PByte; StartAddr,EndAddr: DWORD): Byte;
+		//
+		function AF9_FrrSet(FrrStart: Integer; R,G,B: Byte; BR,BG,BB: Byte; PTN1,PTN2,PTN3,PTN4,PTN5,PTN6: Byte; Hz: Integer): Integer;
+		// 
+		function AF9_InitAF9API: Boolean;
+		function AF9_FreeAF9API: Boolean; //TBD:AF9?
+		function AF9_IsVaildUSBHandler: Boolean; //TBD:AF9?
+		function AF9_SetResolution(ResHRes,ResHBP,ResHSA,ResHFP, ResVRes,ResVBP,ResVSA,ResVFP: Integer): Integer; //TBD:AF9?
+		function AF9_SetFreqChange(const pbyteBuffer: PByte; len: Integer; HzCnt: Integer; nRepeat: Integer): Integer; //TBD:AF9?
+		//------------------------------------------------------
+		function AF9_APSFrrSet(FrrStart: Integer; R,G,B, BR,BG,BB: Byte; PTNCnt: Byte; PTN: DWORD): Integer; //TBD:AF9?
+		function AF9_APSFrrSet2(FrrStart: Integer; R,G,B, BR,BG,BB: Byte; PTNCnt: Byte; PTN: DWORD; Hz:Integer): Integer; //TBD:AF9?
+		function AF9_APSSFRSet(FrrStart: Integer; R,G,B: Byte; BR,BG,BB: Byte; PTNCnt: Byte; PTN: DWORD; Hz: Integer): Integer; //TBD:AF9?
+		//------------------------------------------------------
+    function AF9_APSDotPatternRGBSet(FR,FG,FB: Integer; BR,BG,BB: Integer): Integer; stdcall;
+    function AF9_APSLineDotPatternRGBSet(FR,FG,FB: Integer; BR,BG,BB: Integer): Integer; stdcall;
+		//------------------------------------------------------
+	//function AF9_APS_REG_Set(Address: Integer; Data: Integer): Boolean;
+	//function AF9_PatternRGBSet(R, G, B: Integer): Integer;
+	//function AF9_Set_Power(ch: Integer; Vol: Integer; Option: Integer): Boolean;
+	//function AF9_WriteHexFile(const pbyteBuffer: PByte; len: Integer): Integer;
+		//------------------------------------------------------ AF9_BMP
+    function MakeRawFile_AF9(fName: String; var nDataCnt: integer): Boolean;
+    procedure SaveRawFile_AF9(fName: String);		
+{$ENDIF} //PG_AF9
+		
+    //================================================================= PG_DP860
+{$IFDEF PG_DP860}
+		//------------------------------------------------------ PG_DP860 Timer
+		procedure ConnCheckTimer_DP860(Sender: TObject);
+    //------------------------------------------------------ PG_DP860 TX/RX Common (----)
+		function DP860_GetStrCmdResult(dwRtn: DWORD): string;
+    //TBD:DP860? function DP860_LoadIpStatus(ABinding: TIdSocketHandle): Boolean;
+    //------------------------------------------------------ PG_DP860 TX/RX Common (CmdAck)
+		function CheckCmdAck(Task: TProc; nCmdId: Integer; sCmdName: string; nWaitMS,nRetry: Integer): DWORD;
+    //TBD:DP860? function CheckResetCmdAck(Task : TProc; nSid, nDelay, nRetry : Integer) : DWORD; 
+    //TBD:DP860? function CheckCmdAckAndNack(Task : TProc; nSid, nDelay, nRetry : Integer) : DWORD;
+    //TBD:DP860? function CheckDynamicDownAck(Task: TProc; nSid, nDelay, nRetry: Integer): DWORD;
+    //------------------------------------------------------ PG_DP860 TX/RX Common (Send)
+		function DP860_SendCmd(sCommand: string; nCmdId: Integer; sCmdname: string; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //TBD:DP860? Return;Integer? DWORD? 3000?
+    procedure DP860_SendData(nBindIdx: Integer; sCommand: string); //TBD:DP860?
+  //function TDongaPG.GetPgCrc16(buffer: array of Byte; nLen: Integer): Word;     //TBD:MERGE?
+    //------------------------------------------------------ PG_DP860 TX/RX Common (Receive)
+    procedure DP860_OnUdpRX(sCmdAck: string; nLocalPort,nPeerPort: Integer);
+    procedure DP860_ReadPgInit; //TBD:DP860?
+    function DP860_GetPgLogMsg(sAckStr: string): string;
+    //------------------------------------------------------ PG_DP860 Command (ConnCheck)
+		procedure DP860_SendConnCheck; // pg.status
+    procedure DP860_ReadConnCheckAck(sCmdAck: string); //TBD:DP860?
+    //------------------------------------------------------ PG_DP860 Command (Version)
+		function DP860_SendVersionAll(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; // version.all
+    procedure DP860_ReadVersionAllAck(sCmdAck: string);
+    function DP860_SendModelVersion(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; // model.version
+    procedure DP860_ReadModelVersionAck(sCmdAck: string);
+		//------------------------------------------------------ PG_DP860 Command (Model)
+		function DP860_ModelInfoDownload: DWORD;
+		function DP860_SendPowerOpen(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+		function DP860_MakeCmdParam_PowerOpen: string;
+		function DP860_SendPowerSeq(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+		function DP860_MakeCmdParam_PowerSeq: string;
+		function DP860_SendModelConfig(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+		function DP860_MakeCmdParam_ModelConfig: string;
+		function DP860_SendAlpmConfig(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+		function DP860_MakeCmdParam_AlpmConfig: string;
+    {$IFDEF DP860_TBD_XXXXXX}
+		//TBD:DP860? function DP860_SendModelFIle; // model.file <modelName.cmdl>
+		//TBD:DP860? function DP860_SendModelVersion; //  model.version ?
+    {$ENDIF}
+    //------------------------------------------------------ PG_DP860 Command (Power On/Off)
+	  function DP860_SendPowerOn(nWaitMS: Integer=10000; nRetry: Integer=0): DWORD;
+		function DP860_SendPowerOff(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+    function DP860_SendPowerBistOn(nWaitMS: Integer=10000; nRetry: Integer=0): DWORD;
+		function DP860_SendPowerBistOff(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+	  function DP860_SendInterposerOn(nWaitMS: Integer=10000; nRetry: Integer=0): DWORD;
+		function DP860_SendInterposerOff(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+    //
+    function DP860_SendDutDetect(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+    function DP860_SendTconInfo(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+    //------------------------------------------------------ PG_DP860 Command (Power Measure)
+		function DP860_SendPowerMeasure(bCyclicMeasure: Boolean=False): DWORD; // power.read //#SendPowerMeasureReq
+    procedure DP860_ReadPowerMeasureAck(sCmdAck: string);
+    procedure DP860_CheckPowerLimit(PwrData: TPwrData);
+    //------------------------------------------------------ PG_DP860 Command (Pattern)
+		function DP860_SendDisplayPatRGB(nR,nG,nB: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //DP860 Pattern(FPGA/Static)
+    function DP860_SendDisplayPatBistRGB(nR,nG,nB: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+    function DP860_SendDisplayPatBistRGB_9Bit(nR,nG,nB: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+		function DP860_SendDisplayPatNum(nPatNum: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;  //#SendDisplayPat //#SendPatDisplayReq
+		function DP860_SendDisplayPatBMP(sBmpName: string; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;  //#SendDisplayPat //#SendPatDisplayReq
+    //------------------------------------------------------ PG_DP860 Command (DBV)
+		function DP860_SendAlpdpDBV(nDBV: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; ////TBD:2023-02-02? AlpdpDBV?
+		function DP860_SendBistDBV(nDBV: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; ////TBD:2023-02-02? AlpdpDBV?
+    //------------------------------------------------------ PG_DP860 Command (APL)
+		function DP860_SendBistAPL(nR,nG,nB,nStartX,nStartY,nEndX,nEndY: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+    //------------------------------------------------------ PG_DP860 Command (TCON)
+		function DP860_SendTconRead(nRegAddr,nDataCnt: Integer; var arDataR: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0;  nDebugLog : integer= 0): DWORD;
+		function DP860_SendTconByteRead(nRegAddr,nDataCnt: Integer; var arDataR: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0;  nDebugLog : integer= 0): DWORD;
+		function DP860_SendTconWrite(nRegAddr,nDataCnt: Integer; arDataW: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0; nDebugLog : integer= 0): DWORD;
+    function DP860_SendTconOCWrite(nRegAddr,nDataCnt: Integer; arDataW: TIDBytes; nWaitMS: Integer=0; nRetry: Integer=0): DWORD;
+    function DP860_SendTconMultiWrite(nDataCnt: Integer; arRegAddr : array of integer; arDataW: TIDBytes; nWaitMS: Integer=0; nRetry: Integer=0): DWORD;
+    function DP860_SendTconSeqWrite(nMode,nSeqIdx,nDataCnt: Integer; arRegAddr : array of integer; arDataW: TIDBytes; nWaitMS: Integer=0; nRetry: Integer=0;  nDebugLog : integer= 0): DWORD;
+    function DP860_SendProgrammingWrite(nDevaddr,nRegAddr,nDataCnt: Integer; arDataW: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
+    function DP860_SendChkEnable(nEnable: Integer; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
+    function DP860_SendTconWriteRead(nRegAddr,nDataCnt,nVerify: Integer; var arDataW: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0; nDebugLog : integer= 0): DWORD;
+    //------------------------------------------------------ PG_DP860 Command (I2C)
+    function DP860_SendI2CRead(nDevAddr,nRegAddr,nDataCnt: Integer; var arDataR: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0;  nDebugLog : integer= 0): DWORD;
+    //------------------------------------------------------ PG_DP860 Command (Flash)
+  {$IFDEF FEATURE_FLASH_ACCESS}
+		function DP860_SendNvmErase(nAddr,nSize:DWORD; nWaitMS: Integer=FLASH_ERASE_WAITMS_MINIMUM; nRetry: Integer=0): DWORD;
+		function DP860_SendNvmRead(nAddr,nSize:DWORD; pData: PByte; nWaitMS: Integer=FLASH_READ_WAITMS_MINIMUM; nRetry: Integer=0): DWORD;
+	  function DP860_SendNvmReadAscii(nAddr,nSize:DWORD; var sData: string; nWaitMS: Integer=FLASH_READ_WAITMS_MINIMUM; nRetry: Integer=0): DWORD;
+		function DP860_SendNvmReadFile(nAddr,nSize:DWORD; sRemoteFile: string; nWaitMS: Integer=FLASH_READ_WAITMS_MINIMUM; nRetry: Integer=0): DWORD;
+	//function DP860_SendNvmWrite(nAddr,nSize:DWORD; pData: PByte; nWaitMS: Integer=10000; nRetry: Integer=0): DWORD; //TBD:DP860?
+		function DP860_SendNvmWriteFile(nAddr,nSize:DWORD; sRemoteFile: string; bVerify: Boolean=True; bErase: Boolean=True; nWaitMS: Integer=FLASH_WRITE_WAITMS_MINIMUM; nRetry: Integer=0): DWORD;
+		//
+		function DP860_FilePutPC2PG(sLocalFullName: string; sRemotePath, sRemoteFile: string; bClearBeforePut: Boolean=True; bEndDisc: Boolean=True): DWORD;
+		function DP860_FileGetPG2PC(sRemotePath, sRemoteFile: string; sLocalFullName: string; bClearAfterGet: Boolean=False; bEndDisc: Boolean=True): DWORD;
+ 		function DP860_FTPDiscon: DWORD;
+
+  {$ENDIF}
+    procedure DP860_ClearOcTconRWCnt; //2023-03-28 jhhwang (for T/T Test)
+    function DP860_SendOcOnOff(nState: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //2023-03-28 jhhwang (for T/T Test)
+	  function DP860_SendSendNvmInit(nMode: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //2023-03-28 jhhwang (for T/T Test)
+    function DP860_SendGpioRead(sGpio: string; nWaitMS: Integer=5000; nRetry: Integer=0): DWORD; //2023-03-28 jhhwang (for T/T Test)
+    function DP860_SendGpioPanel_IRQ(var nData : integer; nWaitMS: Integer=5000; nRetry: Integer=0): DWORD; //2023-03-28 jhhwang (for T/T Test)
+
+
+    //------------------------------------------------------ PG_DP860 System
+	//TBD:DP860?	bmp
+	//TBD:DP860?	delay.ms <ms#>
+    //------------------------------------------------------ PG_DP860 Pulse Control
+{$ENDIF} //PG_DP860
+
+    //================================================================= FLOW-SPECIFIC
+		// Script/Logic/Mainter/... --> Flow-Specific Function/Procedure --> AF9_API Call or DP860 Cmd/Ack --> return
+		//
+    //------------------------------------------------------ FLOW-SPECIFIC (Power On/Off)
+		function SendPowerOn(nMode: Integer; bPowerReset: Boolean=False; nWaitMS: Integer=10000; nRetry: Integer=0): DWORD;
+    function SendPowerBistOn(nMode: Integer; bPowerReset: Boolean=False; nWaitMS: Integer=10000; nRetry: Integer=0): DWORD;
+    //------------------------------------------------------ FLOW-SPECIFIC (Power Measure)
+    function SendPowerMeasure(bCyclicMeasure: Boolean=False): DWORD;
+    //------------------------------------------------------ FLOW-SPECIFIC (Pattern)
+    function SendDisplayPatRGB(nR,nG,nB: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //#SendSetColorRGB
+    function SendDisplayPatBistRGB(nR,nG,nB: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //#SendSetColorRGB
+    function SendDisplayPatBistRGB_9Bit(nR,nG,nB: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //#SendSetColorRGB
+    function SendDisplayPatNum(nPatNum: Integer; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD; //#SendDisplayPat //#SendPatDisplayReq
+		function SendDisplayPatPwmNum(nPatNum: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //#SendDisplayPwmPat //TBD:DP860?
+		function SendDisplayPatNext( nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //#SendDisplayPwmPat //TBD:DP860?    //------------------------------------------------------ FLOW-SPECIFIC (GrayChange|Dimming|...)
+		function SendGrayChange(nGrayOffset: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;  //FEATURE_GRAY_CHANGE
+		function SendDimming(nDimming: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+    function SendDimmingBist(nDimming: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+		function SendPocbOnOff(bOn: Boolean; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //FEATURE_POCB_ONOFF
+    //------------------------------------------------------ FLOW-SPECIFIC (I2C)
+    function SendI2CRead(nDevAddr,nRegAddr,nDataCnt: Integer; var arDataR: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0; nDebugLog : integer= 0): DWORD;
+	//{$IFDEF INSPECTOR_POCB}
+    function SendI2CWrite(nDevAddr,nRegAddr,nDataCnt: Integer; arDataW: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0; nDebugLog : integer= 0): DWORD;
+    function SendI2CMultiWrite(nDevAddr,nDataCnt: Integer; arRegAddr : array of integer; arDataW: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
+    function SendI2CSeqWrite(nMode,nSeqIdx,nDataCnt: Integer; arRegAddr : array of integer; arDataW: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
+
+    function SendReProgramming(nDevAddr,nRegAddr,nDataCnt :Integer; arDataW: TIdBytes; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+
+	//{$ELSE}
+  //function SendI2CWrite(nDevAddr,nRegAddr,nDataCnt: Integer; arDataW: array of Integer; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
+	//{$ENDIF}
+    //------------------------------------------------------ FLOW-SPECIFIC (Flash)
+  {$IFDEF FEATURE_FLASH_ACCESS}
+		function SendFlashRead (nAddr,nSize: DWORD; pData: PByte; nWaitMS: Integer=5000; nRetry: Integer=0): DWORD;
+		function SendFlashWrite(nAddr,nSize: DWORD; pData: PByte; nWaitMS: Integer=100000; nRetry: Integer=0): DWORD;
+  //function SendFlashFileWrite(sLocalPath,sLocalName: string; sRemotePath, sRemoteFile: string; nAddr,nSize:DWORD; nWaitMS: Integer=10000; nRetry: Integer=0): DWORD; //DP860(flash.filewrite) //TBD:DP860?
+    {$IFDEF PG_AF9}
+		function GetFlashDataBuf(nAddr,nLen: DWORD; pData: PByte): DWORD;
+		function UpdateFlashDataBuf(nAddr,nLen: DWORD; pData: PByte): DWORD;
+    {$ENDIF}
+  {$ENDIF}
+
+	end;
+
+	//############################################################################
+	{$IFDEF PG_DP860} //##########################################################
+
+  //============================================================================
+  // TUdpServerPG
+  //============================================================================
+
+  TUdpServerPG = class(TObject) //#TDaeUdpServer+#TUdpServerIWPD
+  private
+		// RX
+    function IpToPgNo(sPeerIp: string): Integer; //TBD:DP860?
+    procedure UdpSvrRead(AThread: TIdUDPListenerThread;const AData: TIdBytes; ABinding: TIdSocketHandle);
+    procedure UdpSvrUDPErr(AThread: TIdUDPListenerThread; ABinding: TIdSocketHandle; const AMessage: String; const AExceptionClass: TClass);
+  public
+    //
+    m_hMain   : HWND; //#FhMain
+    UdpSvr    : TIdUDPServer;
+    // TX/RX
+    FIsReadyToRead    : Boolean;
+  //FbUseStaticPCPort : Boolean; //#FbIncreasePort //TBD:DP860? // --> CommPG_PC_PORT_STATIC
+		//
+    constructor Create(hMain: THandle{; nMsgType: Integer}); virtual;
+    destructor Destroy; override;
+    //
+    procedure UdpSvrSend(nBindIdx,nPg: Integer; sData: string);
+  end;
+	//###########################################################################
+	{$ENDIF} //PG_DP860 #########################################################
+	//###########################################################################
+
+var
+{$IFDEF PG_DP860}
+  UdpServerPG : TUdpServerPG; //#UdpServerIWPD
+{$ENDIF}
+  PG : array[Defcommon.PG_1..Defcommon.PG_MAX] of TCommPG; //TCommPG = (TAF9Fpga + TDongaPG) //#TDongaPG
+
+implementation
+
+{$IF Defined(INSPECTOR_FI) or Defined(INSPECTOR_OQA)}
+uses
+  pasScriptClass;
+{$ENDIF}
+{$IF Defined(INSPECTOR_OC) or Defined(INSPECTOR_PreOC)}
+uses
+  pasScriptClass, dllClass;
+{$ENDIF}
+
+{$r+} // memory range check.
+
+//##############################################################################
+{$IFDEF PG_DP860} //############################################################
+//##############################################################################
+//###                                                                        ###
+//###                     PG_DP860 : TUdpServerPG                            ###
+//###                                                                        ###
+//##############################################################################
+//##############################################################################
+
+//------------------------------------------------------------------------------
+//	procedure/function
+//		- constructor TUdpServerPG.Create(hMain: THandle; nMsgType: Integer);
+//		- destructor TUdpServerPG.Destroy;
+//
+constructor TUdpServerPG.Create(hMain: THandle); //TBD:DP860?
+var
+  nPg : Integer;
+  {$IFDEF SIMULATOR_PG}
+  UdpSocketHandle : TIdSocketHandle;
+  {$ENDIF}
+begin
+  m_hMain := hMain;
+	//
+  FIsReadyToRead    := False;
+//FbUseStaticPCPort := False; //TBD:DP860?
+
+  for nPg := DefCommon.PG_1 to DefCommon.PG_MAX do begin
+    PG[nPg] := TCommPG.Create(nPg, hMain);
+  end;
+
+	// 
+  udpSvr := TIdUDPServer.Create;
+  udpSvr.Bindings.Clear;
+  for nPg := DefCommon.PG_1 to DefCommon.PG_MAX do begin
+    udpSvr.Bindings.Add.SetBinding(DefPG.CommPG_PC_IPADDR,PG[nPg].PG_IPPORT);
+  end;
+  udpSvr.Bindings.Add.SetBinding(DefPG.CommPG_PC_IPADDR,DefPG.CommPG_PC_PORT_BASE); //TBD:DP860? for ConnCheck/PowerRead/PgInit
+  udpSvr.DefaultPort    := DefPG.CommPG_PC_PORT_BASE; //TBD:DP860?
+  udpSvr.ThreadedEvent  := True;
+  udpSvr.OnUDPRead      := UdpSvrRead;
+  udpSvr.OnUDPException := UdpSvrUDPErr;
+//if not udpSvr.Active then udpSvr.Active := True;
+  try
+    udpSvr.Active := True;
+  except
+    udpsvr.Free;
+    udpSvr := nil;
+  end;
+end;
+
+destructor TUdpServerPG.Destroy;
+var
+  nPg : integer;
+begin
+  if udpsvr <> nil then	begin
+    udpSvr.Active := False;
+    udpSvr.Free;
+    udpSvr := nil;
+  end;
+
+  for nPg := DefCommon.PG_1 to DefCommon.PG_MAX do begin
+    if PG[nPg] <> nil then begin
+      PG[nPg].Free;
+      PG[nPg] := nil;
+    end;
+  end;
+
+  inherited;
+end;
+
+//------------------------------------------------------------------------------
+//	procedure/function
+//		- function TUdpServerPG.IpToPgNo(sPeerIp: string): Integer;
+//
+function TUdpServerPG.IpToPgNo(sPeerIp: string): Integer; 
+var
+  nPg  : Integer;
+begin
+  Result := -1;
+  try
+  	if sPeerIp = '' then Exit;
+    //
+    for nPg := DefCommon.PG_1 to DefCommon.PG_MAX do begin
+      if PG[nPg] = nil then Continue;
+      if sPeerIp = PG[nPg].PG_IPADDR then begin
+        Result := nPg;
+        Break;
+      end;
+    end;
+  except
+    //
+  end;
+end;
+
+//------------------------------------------------------------------------------
+//	procedure/function
+//		- procedure TUdpServerPG.UdpSvrRead(AThread: TIdUDPListenerThread; const AData: TIdBytes; ABinding: TIdSocketHandle);
+//		- procedure TUdpServerPG.udpSvrUDPErr(AThread: TIdUDPListenerThread; ABinding: TIdSocketHandle; const AMessage: String; const AExceptionClass: TClass);
+//
+procedure TUdpServerPG.UdpSvrRead(AThread: TIdUDPListenerThread; const AData: TIdBytes; ABinding: TIdSocketHandle);
+var
+  sPeerIP   : string;
+	nLocalPort, nPeerPort : Integer;
+
+  nPg : integer;
+  sAnsiData : AnsiString;
+  sData, sCmdAck, sTemp : string;
+	nPosAck : Integer;
+	bEnd : Boolean;
+
+  nDebugMsgType : Integer;
+  sLocal,sRemote : string;
+  PTxRxData : PPgTxRxData;
+  nRetXXLen : integer;
+begin
+  nLocalPort := ABinding.Port;
+  sPeerIP    := ABinding.PeerIP;
+  nPeerPort  := ABinding.PeerPort;
+  nRetXXLen  := 6; // default: "RET:OK" or "RET:NG"
+	//
+  nPg := IpToPgNo(sPeerIp);
+  if (nPg < DefCommon.PG_1) or (nPg > DefCommon.PG_MAX) then Exit;
+  if PG[nPg] = nil then Exit;
+	//
+  SetString(sAnsiData, PAnsiChar(@AData[0]), Length(AData));
+  if nLocalPort = DefPG.CommPG_PC_PORT_BASE then PTxRxData := @PG[nPg].FTxRxDEF else PTxRxData := @PG[nPg].FTxRxPG;
+  sData := PTxRxData^.RxPrevStr + string(sAnsiData);
+
+  bEnd := False;
+	Repeat
+  		nPosAck := Pos('RET:',UpperCase(sData));
+    //
+		if (nPosAck < 1) then begin
+      bEnd := True;
+      Break;  // Not Found "RET:"
+    end;
+    //
+    if Pos('RET:IN',UpperCase(sData)) > 0 then begin
+      if Pos('RET:INFO',UpperCase(sData)) < 0 then begin
+        bEnd := True;
+        Break;  // Found "RET:IN" but, Not Found "RET:INFO"
+      end;
+      nRetXXLen := 8;  // "RET:INFO"
+    end;
+    //
+    if Length(sData) < (nPosAck+nRetXXLen) then begin
+      bEnd := True;
+      Break; // Wait more
+    end;
+
+    // "RET:OK<CR>" or "RET:NG<CR> or "RET:INFO<CR>"
+  	sCmdAck := Trim(Copy(sData,1,nPosAck+(nRetXXLen-1)));             // ...... RET:xx
+ 		sData   := Trim(Copy(sData,nPosAck+(nRetXXLen+1),Length(sData)));
+
+    // Debug Log
+    nDebugMsgType := DEBUG_LOG_MSGTYPE_INSPECT; //TBD:DP860?
+  	{$IFDEF PG_DP860}
+  //if (btSubSigId = DefPG.SIG_PG_CONN_CHECK)        then nDebugMsgType := DEBUG_LOG_MSGTYPE_CONNCHECK
+  //else if (btSubSigId = DefPG.SIG_PG_READ_VOLTCUR) then nDebugMsgType := DEBUG_LOG_MSGTYPE_POWERREAD;
+  	{$ENDIF}
+   	sCmdAck := StringReplace(sCmdAck, #$0A, '', [rfReplaceAll]);        // remove #$0A //TBD:DP860?
+   	sCmdAck := StringReplace(sCmdAck, #$0D#$0D, #$0D, [rfReplaceAll]);  // remove #$0A //TBD:DP860?
+    if (Common.m_nDebugLogLevelActive >= nDebugMsgType) then begin
+      sLocal  := Format('%d',[nLocalPort]);
+      sRemote := Format('%d',[nPeerPort]);
+      Common.DebugLog(nPg, nDebugMsgType, 'RX', sLocal,sRemote, sCmdAck);
+    end;
+
+    // Maint Log
+    if PG[nPg].FIsMainter and Assigned(PG[nPg].OnRxMaintEventPG) and (nDebugMsgType = DEBUG_LOG_MSGTYPE_INSPECT) then begin
+      sLocal  := Format('%d',[nLocalPort]);
+      sRemote := Format('%d',[nPeerPort]);
+      PG[nPg].OnRxMaintEventPG(nPg, sLocal,sRemote, sCmdAck);
+    end;
+
+    // PG process message
+  //if Pos('pg.process',LowerCase(sCmdAck)) = 1 then begin
+    if nRetXXLen <> 6 then begin //RET:INFO (pg.process)
+      PTxRxData^.RxPrevStr := TernaryOp((Length(Trim(sData)) > 0), sData, '');
+      {$IF Defined(INSPECTOR_OC) or Defined(INSPECTOR_PreOC)} //2023-03-28 jhhwang (for OC T/T)
+      {$ELSE}
+      sTemp := '<PG> ' + Trim(Copy(sCmdAck, 1, Pos('RET:INFO',sCmdAck)-1));
+      PG[nPg].ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sTemp); //Show Log Only
+      {$ENDIF}
+      Continue; //!!! Exit -> Continue //2023-04-28
+    end;
+
+    //
+    PG[nPg].DP860_OnUdpRX(sCmdAck, nLocalPort,nPeerPort); //#OnReadEvent
+
+    //
+    if Length(sData) < 6 then bEnd := True;
+	Until bEnd;
+
+  PTxRxData^.RxPrevStr := TernaryOp((Length(Trim(sData)) > 0), sData, '');
+end;
+
+procedure TUdpServerPG.UdpSvrUDPErr(AThread: TIdUDPListenerThread; ABinding: TIdSocketHandle; const AMessage: String; const AExceptionClass: TClass);
+begin
+	//TBD:DP860?
+end;
+
+//------------------------------------------------------------------------------
+//	procedure/function
+//		- procedure TUdpServerPG.UdpSvrSend(nPg: Integer; sData: string);
+//
+
+//procedure TUdpServerPG.UdpSvrSend(nBindIdx, nPg: Integer; sData: string);
+//var
+//  sPeerIP   : string;
+//  nLocalPort, nPeerPort : Integer;
+//
+//  nDebugMsgType: Integer;
+//  sLocal, sRemote, logMessage: string;
+//  MaxRetries: Integer;
+//begin
+//  if udpSvr = nil then Exit;
+//
+//  nLocalPort := udpSvr.Bindings[nBindIdx].Port;
+//  sPeerIP    := PG[nPg].PG_IPADDR;
+//  nPeerPort  := PG[nPg].PG_IPPORT;
+//
+//  // Debug/maint log
+//  nDebugMsgType := DEBUG_LOG_MSGTYPE_INSPECT;
+//
+//
+//  sLocal  := Format('%d', [nLocalPort]);
+//  sRemote := Format('%d', [nPeerPort]);
+//  logMessage := Format('TX %s/%s: %s', [sLocal, sRemote, sData]);
+//
+//  if (Common.m_nDebugLogLevelActive >= nDebugMsgType) then
+//    Common.DebugLog(nPg, nDebugMsgType, 'TX', sLocal,sRemote, sData);
+//
+//  {$IFDEF PG_DP860}
+//  if PG[nPg].FIsMainter and Assigned(PG[nPg].OnTxMaintEventPG) and (nDebugMsgType = DEBUG_LOG_MSGTYPE_INSPECT) then
+//    PG[nPg].OnTxMaintEventPG(nPg, sLocal, sRemote, sData);
+//  {$ENDIF}
+//
+//  MaxRetries := 3; // Adjust the number of retries as needed
+//  while MaxRetries > 0 do
+//  begin
+//    try
+//      udpSvr.Bindings[nBindIdx].SendTo(PG[nPg].PG_IPADDR, PG[nPg].PG_IPPORT, sData);
+//      // Packet sent successfully
+//      Exit;
+//    except
+//      on E: Exception do
+//      begin
+//        // 예외 처리 코드 추가
+//        PG[nPg].ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG, 'UdpSvrSend : Error: ' + E.Message);
+//        if (Common.m_nDebugLogLevelActive >= nDebugMsgType) then
+//          Common.DebugLog(nPg, nDebugMsgType, 'TX', sLocal,sRemote, sData+' ...TX_NG');
+//        {$IFDEF PG_DP860}
+//        if PG[nPg].FIsMainter and Assigned(PG[nPg].OnTxMaintEventPG) and (nDebugMsgType = DEBUG_LOG_MSGTYPE_INSPECT) then
+//          PG[nPg].OnTxMaintEventPG(nPg, sLocal, sRemote, sData + ' ...TX_NG');
+//        {$ENDIF}
+//      end;
+//    end;
+//
+//    // Wait and then retry (you can adjust the sleep duration as needed)
+//    Sleep(1000); // Sleep for 1 second before retrying
+//    Dec(MaxRetries);
+//  end;
+
+  // If all retries fail, handle the failure appropriately (e.g., log the failure)
+  // ...
+//end;
+
+procedure TUdpServerPG.UdpSvrSend(nBindIdx, nPg: Integer; sData: string);
+var
+  sPeerIP   : string;
+	nLocalPort, nPeerPort : Integer;
+
+  nDebugMsgType : integer;
+  sLocal, sRemote : string;
+begin
+  if udpSvr = nil then Exit;
+
+  nLocalPort := udpSvr.Bindings[nBindIdx].Port;
+  sPeerIP    := PG[nPg].PG_IPADDR;
+  nPeerPort  := PG[nPg].PG_IPPORT;
+
+  // debug/maint log
+  nDebugMsgType := DEBUG_LOG_MSGTYPE_INSPECT;
+{$IFDEF DP860_TBD_XXXX} //TBD:DP860?
+  if (btSigId = DefPG.SIG_PG_CONN_CHECK)        then nDebugMsgType := DEBUG_LOG_MSGTYPE_CONNCHECK
+  else if (btSigId = DefPG.SIG_PG_READ_VOLTCUR) then nDebugMsgType := DEBUG_LOG_MSGTYPE_POWERREAD;
+{$ENDIF}
+//sLocal     := Format('%s/%d',[DefPG.CommPG_PC_IPADDR,nLocalPort]);
+//sRemote    := Format('%s/%d',[sPeerIP,nPeerPort]);
+  sLocal     := Format('%d',[nLocalPort]);
+  sRemote    := Format('%d',[nPeerPort]);
+  if (Common.m_nDebugLogLevelActive >= nDebugMsgType) then
+		Common.DebugLog(nPg, nDebugMsgType, 'TX', sLocal,sRemote, sData);
+    {$IFDEF PG_DP860}
+    if PG[nPg].FIsMainter and Assigned(PG[nPg].OnTxMaintEventPG) and (nDebugMsgType = DEBUG_LOG_MSGTYPE_INSPECT) then begin
+      PG[nPg].OnTxMaintEventPG(nPg, sLocal,sRemote, sData);
+    end;
+    {$ENDIF}
+
+  try
+    udpSvr.Bindings[nBindIdx].SendTo(PG[nPg].PG_IPADDR,PG[nPg].PG_IPPORT, sData);
+  except
+    on E: Exception do
+    begin
+      // 예외 처리 코드 추가
+      PG[nPg].ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG,'UdpSvrSend : Error : '+ E.Message);
+      if (Common.m_nDebugLogLevelActive >= nDebugMsgType) then
+        Common.DebugLog(nPg, nDebugMsgType, 'TX', sLocal,sRemote, sData+' ...TX_NG');
+      {$IFDEF PG_DP860}
+      if PG[nPg].FIsMainter and Assigned(PG[nPg].OnTxMaintEventPG) and (nDebugMsgType = DEBUG_LOG_MSGTYPE_INSPECT) then begin
+        PG[nPg].OnTxMaintEventPG(nPg, sLocal,sRemote, sData+' ...TX_NG');
+      end;
+      {$ENDIF}
+    end;
+  end;
+end;
+
+//##############################################################################
+{$ENDIF} //PG_DP860 ############################################################
+//##############################################################################
+
+//##############################################################################
+//##############################################################################
+//###                                                                        ###
+//###                  Class CommPG - COMMON (PG_AF9|PG_DP860)               ###   
+//###                                                                        ###
+//##############################################################################
+//##############################################################################
+
+//==============================================================================
+// General
+//------------------------------------------------------------------------------
+// procedure/function:
+//		- constructor TCommPG.Create(nPg: Integer; hMain: THandle);
+//		- destructor TCommPG.Destroy;
+//
+constructor TCommPG.Create(nPg: Integer; hMain: THandle);
+var
+  I: Integer;
+{$IFDEF SIMULATOR_PANEL}
+var
+  i : integer;
+{$ENDIF}
+begin
+	//-------------------------------------------------------- COMMON
+	// GUI Handle
+	m_hMain    := hMain;
+//TBD:DP860? m_hTest    := hTest;
+//TBD:DP860? m_hGuiDown := nil;
+	// PG#/CH#
+  m_nPg := nPg;
+  m_nCh := nPg;
+  //
+  FIsMainter := False;
+
+  for I := 0 to 4 do
+    m_HWCID[i] := '';
+  {$IFDEF PG_DP860}
+  OnTxMaintEventPG := nil;
+  OnRxMaintEventPG := nil;
+  {$ENDIF}
+	//
+	{$IFDEF PG_AF9}
+  if m_nCh = DefCommon.CH_1 then m_nAF9Ch := AF9_enumCHANNEL_TYPE.AF9CH_1
+  else                           m_nAF9Ch := AF9_enumCHANNEL_TYPE.AF9CH_2;
+	{$ENDIF}
+
+  {$IF Defined(INSPECTOR_POCB)}
+  PG_TYPE := Common.SysInfo.PG.PG_TYPE;
+  {$ELSE} // INSPECTOR_FI|INSPECTOR_OQA, INSPECTOR_GB?
+  PG_TYPE := Common.SystemInfo.PG_TYPE;
+  {$ENDIF}
+
+	{$IFDEF PG_DP860}	
+  // PG Connection
+	PG_IPADDR := DefPG.CommPG_NETWORK_PREFIX + Format('.%d',[DefPG.CommPG_PG_IPADDR_BASE + nPg]);
+	PG_IPPORT := DefPG.CommPG_PG_PORT_BASE + nPg;
+	{$ENDIF}
+  //
+	InitPgTxRxData; 		// PG TX/RX
+  InitPgVer; 	    		// PG Version
+	InitPgPwrData;			// Power Measure
+	InitPgPatternData;  // Pattern	
+	
+	// PG Status and ConnCheck
+  StatusPg := pgDisconn; //TBD? #PgConnStNotStarted
+	
+	// Cyclic Timer - ConnCheck
+	m_bCyclicTimer := True; //TBD:DP860?
+  m_nConnCheckNG := 0;
+  //
+  tmConnCheck := TTimer.Create(nil);
+	tmConnCheck.OnTimer  := ConnCheckTimer;
+	tmConnCheck.Interval := DefPG.PG_CONNCHECK_INTERVAL; //msec //TBD: ITOLED_FI|POCB 2000mseca(Ready) 1000msec(Disconn)
+	tmConnCheck.Enabled  := false;
+  {$IFDEF AF9API_MULTI}
+  if PG_TYPE = PG_TYPE_AF9 then begin
+    if m_nCh = DefCommon.CH_1 then ConnCheckTimer_AF9(nil); //TBD:AF9?
+  end;
+  {$ENDIF}
+	
+	// Cyclic Timer - PowerMeasure
+  m_bPwrMeasure := False;
+  //
+  tmPwrMeasure := TTimer.Create(nil);
+	tmPwrMeasure.OnTimer  := PwrMeasureTimer;
+	tmPwrMeasure.Interval := DefPG.PG_PWRMEASURE_INTERVAL_DEF;
+	//
+	tmPwrMeasure.Enabled  := False;
+
+  // Mainter
+  FIsMainter := False;
+	//-------------------------------------------------------- PG_AF9
+	{$IFDEF PG_AF9}
+	Image_Pat1 := TImage.Create(Image_Pat1);
+	{$ENDIF}
+	//-------------------------------------------------------- PG_DP860
+	{$IFDEF PG_DP860}
+  //
+  FIdUDPClient := TIdUDPClient.Create;
+  FIdUDPClient.Active  := False;
+  FIdUDPClient.Host    := PG_IPADDR;
+  FIdUDPClient.Port    := PG_IPPORT;
+  FIdUDPClient.Active  := True;
+  //
+  FFTPClient := TFTPClient.Create(PG_IPADDR, DefPG.DP860_FTP_USERNAME, DefPG.DP860_FTP_PASSWORD);
+  //
+  m_ABinding      := nil;
+	//
+  m_sEvent        := '';
+//TBD:DP860? m_hEvent        := nil;
+  m_bWaitEvent    := False;
+  //
+//TBD:DP860? m_hPwrEvent     := nil;
+  m_bWaitPwrEvent := False;
+	{$ENDIF}
+	//-------------------------------------------------------- FLOW-SPECIFIC
+	m_bPowerOn    := False;
+  // FLOW-SPECIFIC(FI)
+	{$IF Defined(INSPECTOR_FI) or Defined(INSPECTOR_OQA)}
+  m_nPatNumPrev := 0;
+	m_nPatNumNow  := 0;
+	{$ENDIF}
+	
+  // FLOW-SPECIFIC(POCB|OC)
+  {$IFDEF FEATURE_FLASH_ACCESS}
+  InitFlashRead;
+  {$ENDIF}	
+	//-------------------------------------------------------- ETC
+  FThreadLock := False; //TBD:DP860?
+  FForceStop  := False; //TBD:DP860?
+
+{$IFDEF SIMULATOR_PG}
+  m_sAF9APIType := '<AF9SIM> ';
+{$ELSE}
+  m_sAF9APIType := '<AF9> ';
+{$ENDIF}
+{$IF Defined(SIMULATOR_PANEL) and Defined(PG_AF9)}
+  for i := 0 to (SIM_TCON_SIZE-1) do
+    SimTconData[i] := $00;
+  SimTconData[749] := $32;
+	//
+  for i := 0 to (SIM_APSREG_SIZE-1) do
+    SimAPSRegData[i] := $00;
+{$ENDIF}
+end;
+
+destructor TCommPG.Destroy;
+begin
+  if not (StatusPg in [pgDisconn]) then begin
+    SendPowerOn(CMD_POWER_OFF,False{bPowerReset},0,0);
+  end;
+
+  sPreviousCommand := '';
+{$IFDEF PG_AF9}
+  {$IFDEF INSPECTOR_POCB}
+  if Common.SysInfo.PG.PG_TYPE = PG_TYPE_AF9 then
+  {$ELSE}
+  if Common.SystemInfo.PG_TYPE = PG_TYPE_AF9 then
+  {$ENDIF}
+  begin
+    {$IFDEF AF9API_MULTI}
+  //AF9_Stop_Connection(True{bDestory});
+  	{$ELSE}
+   	AF9_Stop_Connection(True{bDestroy});
+  	{$ENDIF}
+
+    if Image_Pat1 <> nil then begin // AF9 BMP
+      Image_Pat1.Free;
+      Image_Pat1 := nil;
+    end;
+  end;
+{$ENDIF}
+
+	//
+  if tmConnCheck <> nil then begin
+    tmConnCheck.Enabled := False;
+    tmConnCheck.Free;
+    tmConnCheck := nil;
+  end;
+	//
+  if tmPwrMeasure <> nil then begin
+    tmPwrMeasure.Enabled := False;
+    tmPwrMeasure.Free;
+    tmPwrMeasure := nil;
+  end;
+	//
+  inherited;
+end;
+
+//==============================================================================
+// Init PG Data
+//------------------------------------------------------------------------------
+// procedure/function: 
+//		- procedure TCommPG.InitPgTxRxData;
+//		- procedure TCommPG.InitPgVer;
+//		- procedure TCommPG.InitPgPwrData;
+//		- procedure TCommPG.InitPgPatternData;
+//		- procedure TCommPG.InitFlashData;
+//
+procedure TCommPG.InitPgTxRxData;
+begin
+	with FTxRxDEF do begin
+    // -
+		CmdState  := DefPG.PG_CMDSTATE_NONE;
+		CmdResult := DefPG.PG_CMDRESULT_NONE;
+		// TX
+    TxCmdId   := DefPG.PG_CMDID_UNKNOWN;
+    TxCmdStr  := '';
+    TxDataLen := 0;
+  //TxData    :=
+		// RX
+    RxCmdId   := DefPG.PG_CMDID_UNKNOWN;
+    RxAckStr  := '';
+    RxDataLen := 0;
+  //RxData    :=
+    //
+    RxPrevStr := '';
+	end;
+
+	with FTxRxPG do begin
+    // -
+		CmdState  := DefPG.PG_CMDSTATE_NONE;
+		CmdResult := DefPG.PG_CMDRESULT_NONE;
+		// TX
+    TxCmdId   := DefPG.PG_CMDID_UNKNOWN;
+    TxCmdStr  := '';
+    TxDataLen := 0;
+  //TxData    :=
+		// RX
+    RxCmdId   := DefPG.PG_CMDID_UNKNOWN;
+    RxAckStr  := '';
+    RxDataLen := 0;
+  //RxData    :=
+    //
+    RxPrevStr := '';
+	end;
+end;
+
+procedure TCommPG.InitPgVer;
+begin
+	with m_PgVer do begin
+    VerAll := '';
+	  {$IFDEF PG_DP860}
+    HW    := '';
+    FW    := '';
+    SubFW := '';
+    FPGA  := '';
+    PWR   := '';
+    //
+    VerScript := '';
+		{$ENDIF}
+		{$IFDEF PG_AF9}
+  	AF9VerMCS     := 0;
+  	AF9VerAPI     := 0;
+  	sAF9APIType := '<AF9_API> ';
+			{$IFDEF SIMULATOR_PG}
+  	sAF9APIType := '<AF9_SIM> ';
+			{$ENDIF}
+		{$ENDIF}
+	end;
+end;
+
+procedure TCommPG.InitPgPwrData;
+var
+	i : Integer;
+begin
+//for i := 0 to DefPG.PWR_MAX do begin
+// 	m_RxPwrData.VOL[i] := 0;
+//	m_RxPwrData.CUR[i] := 0;
+//	{$IFDEF PG_DP860}
+//	m_RxPwrData.VOL[i] := 0;
+//	m_RxPwrData.CUR[i] := 0;
+//	{$ENDIF}
+//end;
+
+	m_PwrData.VCC  := 0;
+	m_PwrData.VIN  := 0;
+	m_PwrData.VDD3 := 0;
+	m_PwrData.VDD4 := 0;
+	m_PwrData.VDD5 := 0;
+
+ 	m_PwrData.IVCC  := 0;
+	m_PwrData.IVIN  := 0;
+	m_PwrData.IVDD3 := 0;
+	m_PwrData.IVDD4 := 0;
+	m_PwrData.IVDD5 := 0;
+
+	//
+	{$IFDEF PG_DP860}
+	m_RxPwrData.VCC  := 0;
+	m_RxPwrData.VIN  := 0;
+	m_RxPwrData.VDD3 := 0;
+	m_RxPwrData.VDD4 := 0;
+	m_RxPwrData.VDD5 := 0;
+
+ 	m_RxPwrData.IVCC  := 0;
+	m_RxPwrData.IVIN  := 0;
+	m_RxPwrData.IVDD3 := 0;
+	m_RxPwrData.IVDD4 := 0;
+	m_RxPwrData.IVDD5 := 0;
+	{$ENDIF}
+end;
+
+procedure TCommPG.InitPgPatternData;
+begin
+	//
+//with FCurPatternGroup do begin
+//end;
+	//
+//with FCurPatListInfo do begin
+//end;
+	//
+	with m_CurPatDispInfo do begin
+  //bPowerOn      := False;
+    bPatternOn    := False;
+    nCurPatNum    := 0;
+    nCurAllPatIdx := 0;
+    bSimplePat    := True;
+    {$IFDEF FEATURE_GRAY_CHANGE}
+    nGrayOffset   := 0;
+    bGrayChangeR  := False;
+		bGrayChangeG  := False;
+		bGrayChangeB  := False;
+    {$ENDIF}
+    {$IFDEF FEATURE_DIMMING_STEP}
+    nCurPwmDuty     := 100;
+    nCurDimmingStep := 1;
+    {$ENDIF}
+  end;
+end;
+
+{$IFDEF FEATURE_FLASH_ACCESS}
+procedure TCommPG.InitFlashRead;
+begin
+	// for Interlock Flash
+  FIsOnFlashAccess := False;
+
+	// Flash Access/Read Status
+  with m_FlashRead do Begin
+		FlashAccSt   := flashAccUnknown;
+		//
+    ReadType     := flashReadNone;
+    ReadSize     := 0;
+    RxSize       := 0;
+  //RxData       : array[0..(DefPG.MAX_FLASHSIZE_BYTE-1)] of Byte;
+    ChecksumRx   := 0;
+    ChecksumCalc := 0;
+    //
+    bReadDone    := False;
+    SaveFilePath := '';
+    SaveFileName := '';
+  end;
+end;
+{$ENDIF}
+
+//==============================================================================
+// PatternGroup/PatternInfo
+//------------------------------------------------------------------------------
+// procedure/function:
+//    - procedure TCommPG.SetPatternGroup(const Value: TPatternGroup);
+//    - procedure TCommPG.SetPatInfoList(const Value: TPatInfoList); 
+//
+procedure TCommPG.SetCurPatGrpInfo(const Value: TPatternGroup);
+begin
+  FCurPatGrpInfo := Value;
+end;
+
+procedure TCommPG.SetDisPatStruct(const Value: TPatInfoStruct);
+begin
+  FDisPatStruct := Value;
+end;
+
+//==============================================================================
+// Mainter
+//------------------------------------------------------------------------------
+// procedure/function:
+//		- procedure TCommPG.SetIsMainter(const Value: Boolean);
+//		- procedure TCommPG.SetOnRxMaintEventAF9(const Value: RxMaintEventAF9);
+//		- procedure TCommPG.SetOnTxMaintEventAF9(const Value: TxMaintEventAF9);
+//
+procedure TCommPG.SetIsMainter(const Value: Boolean);
+begin
+  FIsMainter := Value;
+end;
+
+{$IFDEF PG_AF9}
+procedure TCommPG.SetOnRxMaintEventAF9(const Value: InRxMaintEventAF9);
+begin
+  FOnRxMaintEventAF9 := Value;
+end;
+
+procedure TCommPG.SetOnTxMaintEventAF9(const Value: InTxMaintEventAF9);
+begin
+  FOnTxMaintEventAF9 := Value;
+end;
+{$ENDIF}
+{$IFDEF PG_DP860}
+procedure TCommPG.SetOnRxMaintEventPG(const Value: InRxMaintEventPG);
+begin
+  FOnRxMaintEventPG := Value;
+end;
+
+procedure TCommPG.SetOnTxMaintEventPG(const Value: InTxMaintEventPG);
+begin
+  FOnTxMaintEventPG := Value;
+end;
+{$ENDIF}
+
+//==============================================================================
+// XXXXX
+//------------------------------------------------------------------------------
+// procedure/function: 
+//		- function TCommPG.IsPgReady: Boolean; //TBD:DP860?
+//
+function TCommPG.IsPgReady: Boolean; //TBD:DP860?
+begin
+  Result := False;
+  if StatusPg in [pgReady] then Result := True;
+end;
+
+//==============================================================================
+// PG Timer (ConnCheck)
+//------------------------------------------------------------------------------
+// procedure/function: 
+//		- procedure TCommPG.ConnCheckTimer(Sender: TObject);
+//    - procedure TCommPG.SetCyclicTimer(bEnable: Boolean; nDisableSec: Integer=0);
+//
+procedure TCommPG.ConnCheckTimer(Sender: TObject);
+begin
+  case PG_TYPE of
+  	{$IFDEF PG_AF9}
+  	DefPG.PG_TYPE_AF9   : ConnCheckTimer_AF9(sender);
+  	{$ENDIF}
+  	{$IFDEF PG_DP860}
+  	DefPG.PG_TYPE_DP860 : ConnCheckTimer_DP860(sender);
+  	{$ENDIF}
+  end;
+end;
+
+procedure TCommPG.SetCyclicTimer(bEnable: Boolean; nDisableSec: Integer=0);
+begin
+//Common.CodeSiteSend(Format('<PG:%d> SetCyclicTimer(bEnable:%d)',[m_nPG,TernaryOp(bEnable,1,0)]));
+  //2022-02-17 if m_bCyclicTimer = bEnable then Exit;  // Already Enabled/Disabled //TBD:MERGE?
+
+  m_bCyclicTimer       := bEnable;
+  tmConnCheck.Enabled  := bEnable;
+  tmPwrMeasure.Enabled := (bEnable and m_bPwrMeasure);
+  //
+
+  m_nConnCheckNG := 0;
+  if (not bEnable) and (nDisableSec > 0) then begin  // Disable(Duaration!=0)
+    TThread.CreateAnonymousThread(procedure var nCnt : Integer;
+    begin
+      for nCnt := 1 to nDisableSec do begin
+        if m_bCyclicTimer then Exit;
+        Sleep(3000);
+      end;
+      // Enable after nDisableSec expired
+      m_bCyclicTimer       := True;
+      tmConnCheck.Enabled  := True;
+      tmPwrMeasure.Enabled := m_bPwrMeasure;
+    end).Start;
+  end;
+end;
+
+//==============================================================================
+// PG Timer (PowerMeasure)
+//------------------------------------------------------------------------------
+// procedure/function:
+//    - procedure TCommPG.PwrMeasureTimer(Sender: TObject);
+//    - procedure TCommPG.SetPwrMeasureTimer(bEnable: Boolean; nInterMS: Integer=0);
+//
+procedure TCommPG.PwrMeasureTimer(Sender: TObject);
+begin
+	if (not m_bCyclicTimer) then Exit;
+	if (not m_bPwrMeasure)  then Exit;
+  {$IF Defined(INSPECTOR_OC) or Defined(INSPECTOR_PreOC)}
+  if CSharpDll.m_bIsDLLWork[m_nPg] then Exit;
+  {$ENDIF}
+
+{$IFDEF PG_AF9}
+  if PG_TYPE = DefPG.PG_TYPE_AF9 then exit;
+{$ENDIF}
+
+  if m_bWaitEvent then Exit;    //2020-12-16
+  if m_bWaitPwrEvent then Exit; //2020-12-16
+
+	try
+    if m_bPwrMeasure then tmPwrMeasure.Enabled := False;
+  	SendPowerMeasure(True{bCyclicMeasure});
+    if m_bPwrMeasure then tmPwrMeasure.Enabled := True;
+	except
+		OutputDebugString(PChar('>> PwrMeasureTimer Exception Error!!'));
+	end;
+end;
+
+procedure TCommPG.SetPwrMeasureTimer(bEnable: Boolean; nInterMS: Integer=0);
+begin
+{$IFDEF PG_AF9}
+  if PG_TYPE = DefPG.PG_TYPE_AF9 then exit;
+{$ENDIF}
+  //
+  if bEnable then begin
+		if (nInterMS < DefPG.PG_PWRMEASURE_INTERVAL_MIN) then nInterMS := DefPG.PG_PWRMEASURE_INTERVAL_MIN;
+    tmPwrMeasure.Interval := nInterMS;
+  end;
+  m_bPwrMeasure        := bEnable;
+  tmPwrMeasure.Enabled := bEnable;
+end;
+
+//==============================================================================
+// GUI
+//------------------------------------------------------------------------------
+// procedure/function:
+//    - procedure TCommPG.ShowMainWindow(nGuiMode: Integer; nParam: Integer; sMsg: string);
+//    - procedure TCommPG.ShowTestWindow(nGuiMode: Integer; nParam: Integer; sMsg: string);
+//    - procedure TCommPG.ShowDownLoadStatus(nGuiType: Integer; curPos,total: Integer; sMsg: string; bIsDone: Boolean = False); //TBD:DP860?
+//
+procedure TCommPG.ShowMainWindow(nGuiMode: Integer; nParam: Integer; sMsg: string);
+var
+  ccd         : TCopyDataStruct;
+  SendGui     : RGuiPg2Main;
+begin
+  SendGui.MsgType := DefCommon.MSG_TYPE_PG; //= MSG_TYPE_AF9FPGA
+  SendGui.PgNo    := m_nPg;
+  SendGui.Mode    := nGuiMode;
+  SendGui.Param   := nParam;
+  SendGui.sMsg    := sMsg;
+	//
+  ccd.dwData      := 0;
+  ccd.cbData      := SizeOf(SendGui);
+  ccd.lpData      := @SendGui;
+  SendMessage(Self.m_hMain,WM_COPYDATA,0, LongInt(@ccd));
+end;
+
+procedure TCommPG.ShowTestWindow(nGuiMode: Integer; nParam: Integer; sMsg: string);
+var
+  ccd         : TCopyDataStruct;
+  SendGui     : RGuiPg2Test;
+begin
+  SendGui.MsgType := DefCommon.MSG_TYPE_PG; //= MSG_TYPE_AF9FPGA
+  SendGui.Mode    := nGuiMode;
+  SendGui.PgNo    := m_nPg;
+  SendGui.Param   := nParam;
+  SendGui.sMsg    := sMsg;
+  SendGui.PwrData := m_PwrData; //AF9(dummy)
+	//
+  ccd.dwData      := 0;
+  ccd.cbData      := SizeOf(SendGui);
+  ccd.lpData      := @SendGui;
+  SendMessage(Self.m_hTest,WM_COPYDATA,0, LongInt(@ccd));
+
+  {$IF Defined(INSPECTOR_FI) or Defined(INSPECTOR_OC) or Defined(INSPECTOR_PreOC)}
+  if nGuiMode = MSG_MODE_DISPLAY_CONNECTION then begin
+    ShowMainWindow(nGuiMode, nParam, sMsg);
+  end;
+  {$ENDIF}
+end;
+
+procedure TCommPG.ShowDownLoadStatus(nGuiType: Integer; curPos,total: Integer; sMsg: string; bIsDone: Boolean = False); //TBD:DP860?
+var
+  ccd         : TCopyDataStruct;
+  SendGui     : RGuiPgDown;
+begin
+  SendGui.MsgType := DefCommon.MSG_TYPE_PG; //= MSG_TYPE_AF9FPGA
+  SendGui.PgNo    := m_nPg;
+  SendGui.Mode    := nGuiType;
+  //TBD:DP860? SendGui.Param   := nParam;
+  SendGui.Total   := total;
+  SendGui.CurPos  := curPos;
+  SendGui.IsDone  := bIsDone;
+  SendGui.sMsg    := sMsg;
+	//
+  ccd.dwData      := 0;
+  ccd.cbData      := SizeOf(SendGui);
+  ccd.lpData      := @SendGui;
+  SendMessage(Self.m_hGuiDown,WM_COPYDATA,0, LongInt(@ccd));
+end;
+
+//##############################################################################
+{$IFDEF PG_AF9} //##############################################################
+//##############################################################################
+//###                                                                        ###
+//###                               PG_AF9                                   ###   
+//###                                                                        ###
+//##############################################################################
+//##############################################################################
+
+//==============================================================================
+// AF9 Timer
+//==============================================================================
+
+//------------------------------------------------------------------------------
+// procedure/function: 
+//		- procedure TCommPG.ConnCheckTimer_AF9(Sender: TObject);
+//
+// [Ref:AF9_API_MFC_TEST] AF9_API_MFC_TESTDlg.cpp/CAF9_API_MFC_TESTDlg::OnTimer(UINT_PTR nIDEvent)
+//
+procedure TCommPG.ConnCheckTimer_AF9(Sender: TObject);
+var
+	nRtnAF9 : Integer;
+	nCh : Integer;
+begin
+	try
+    // Start Connection if AF9ConnStDisconn
+		if (StatusPg = pgDisconn) {or (StatusPg = pgConn)} then begin
+    	{$IFDEF AF9API_MULTI}
+    	if m_nCh <> DefCommon.CH_1 then Exit;
+    	{$ENDIF}
+			m_bCyclicTimer := True;
+			m_bPwrMeasure  := False;
+			{$IFDEF AF9API_MULTI}
+			for nCh := DefCommon.CH_2 to DefCommon.CH_MAX do begin
+	      PG[nCh].m_bCyclicTimer := True;
+	      PG[nCh].m_bPwrMeasure  := False;
+			end;
+			{$ENDIF}
+      nRtnAF9 := AF9_Start_Connection;
+			if nRtnAF9 = AF9API_STARTCONN_OK then begin
+      	StatusPg := pgConnect;
+				{$IFDEF AF9API_MULTI}
+				for nCh := DefCommon.CH_2 to DefCommon.CH_MAX do
+	      	PG[nCh].StatusPg := pgConnect;
+				{$ENDIF}
+				ShowTestWindow(Defcommon.MSG_MODE_DISPLAY_CONNECTION, DefCommon.PG_CONN_CONNECTED, 'AF9 Connect(Start)');
+      end
+      else begin
+				ShowTestWindow(Defcommon.MSG_MODE_DISPLAY_CONNECTION, DefCommon.PG_CONN_DISCONNECTED, 'AF9 Disconnected(Start Fail)');
+  			Exit;
+			end;
+    end;
+
+		// Exit if Disable Timers
+		if (not m_bCyclicTimer) then Exit;
+		if m_bPwrMeasure and tmPwrMeasure.Enabled then Exit;
+
+		// Check Connection Status and Update Status if changed
+    {$IFDEF SIMULATOR_PG}
+    nRtnAF9 := AF9_Connection_Status;
+    {$ELSE}
+    try
+    	{$IFDEF AF9API_MULTI}
+      nRtnAF9 := AF9API_MULTI_Connection_Status(Integer(m_nAF9Ch));
+    	{$ELSE}
+      nRtnAF9 := AF9API_Connection_Status;
+    	{$ENDIF}
+    except
+      nRtnAF9 := AF9API_RESULT_DLL_EXCEPTION;
+    end;
+  	{$ENDIF}
+    if nRtnAF9 = AF9API_RESULT_OK then begin
+			// Connected
+		  if (StatusPg = pgConnect) or (m_PgVer.AF9VerMCS = 0) or (m_PgVer.AF9VerAPI = 0) then begin //TBD:AF9? pgConnect? pgReady?
+        m_PgVer.AF9VerMCS := AF9_SW_Revision;  // MCS Version
+        m_PgVer.AF9VerAPI := AF9_DLL_Revision; // DLL Version
+				{$IFDEF AF9API_MULTI}
+				for nCh := DefCommon.CH_2 to DefCommon.CH_MAX do begin
+        	PG[nCh].m_PgVer.AF9VerMCS := m_PgVer.AF9VerMCS;
+        	PG[nCh].m_PgVer.AF9VerAPI := m_PgVer.AF9VerAPI;
+        	PG[nCh].StatusPg := StatusPg;
+				end;
+				{$ENDIF}
+				ShowTestWindow(Defcommon.MSG_MODE_DISPLAY_CONNECTION, DefCommon.PG_CONN_VERSION, 'AF9 Connected');
+				ShowMainWindow(Defcommon.MSG_MODE_DISPLAY_CONNECTION, DefCommon.PG_CONN_VERSION, 'AF9 Connected');
+        Sleep(10);
+        StatusPg := pgReady;
+        ShowTestWindow(Defcommon.MSG_MODE_DISPLAY_CONNECTION, DefCommon.PG_CONN_READY, 'AF9 Ready');
+        // Change ConnCheck Interval
+  			tmConnCheck.Enabled  := False;
+  			tmConnCheck.Interval := 2000;
+  			tmConnCheck.Enabled  := True;
+      end;
+      m_nConnCheckNG := 0;
+    end
+    else begin
+			// Disconnected
+      Inc(m_nConnCheckNG);
+			if (StatusPg > pgDisconn) and (m_nConnCheckNG >= 1) then begin
+        m_PgVer.AF9VerMCS := 0; // Clear FPGA Version
+        m_PgVer.AF9VerAPI := 0; // Clear DLL Version
+        StatusPg   := pgDisconn;
+				{$IFDEF AF9API_MULTI}
+				for nCh := DefCommon.CH_2 to DefCommon.CH_MAX do begin
+        	PG[nCh].m_PgVer.AF9VerMCS := m_PgVer.AF9VerMCS;
+        	PG[nCh].m_PgVer.AF9VerAPI := m_PgVer.AF9VerAPI;
+        	PG[nCh].StatusPg := StatusPg;
+				end;
+				{$ENDIF}
+				ShowTestWindow(Defcommon.MSG_MODE_DISPLAY_CONNECTION, DefCommon.PG_CONN_DISCONNECTED, 'AF9 Disconnected');
+				ShowMainWindow(Defcommon.MSG_MODE_DISPLAY_CONNECTION, DefCommon.PG_CONN_DISCONNECTED, 'AF9 Disconnected'); //TBD:AF9? ITOLED_FI?
+        // Change ConnCheck Interval
+  			tmConnCheck.Enabled  := False;
+  			tmConnCheck.Interval := 1000;
+  			tmConnCheck.Enabled  := True;
+        // Disable PwrMeasure Timer
+				tmPwrMeasure.Enabled := False;
+				m_bPwrMeasure := False;
+      end; 
+    end;
+	except
+		OutputDebugString(PChar('>> ConnCheckTimer_AF9 Exception Error!!'));
+	end;
+end;
+
+//==============================================================================
+// AF9-API Call
+//==============================================================================
+
+//------------------------------------------------------------------------------
+function TCommPG.AF9_Start_Connection: Integer;
+var
+  sApiFunc : string;
+begin
+	{$IFDEF AF9API_MULTI}
+  sApiFunc := 'MULTI_Start_Connection';
+	{$ELSE}
+  sApiFunc := 'Start_Connection';
+	{$ENDIF}
+  sApiFunc := m_PgVer.sAF9APIType + sApiFunc;
+//if FIsMainter and Assigned(OnTxMaintEventAF9) then OnTxMaintEventAF9(m_nCh,sApiFunc);
+	//
+  try
+{$IFDEF SIMULATOR_PG}
+    Result := AF9API_STARTCONN_OK; //AF9API_STARTCONN_OK
+{$ELSE}
+	{$IFDEF AF9API_MULTI}
+    Result := AF9API_MULTI_Start_Connection;
+	{$ELSE}
+    Result := AF9API_Start_Connection;
+	{$ENDIF}
+{$ENDIF}
+  except
+    Result := AF9API_STARTCONN_DLL_EXCEPTION;
+  end;
+	//
+  sApiFunc := m_PgVer.sAF9APIType + sApiFunc + Format(':(%d) ',[Result]);
+	case Result of
+     1  : sApiFunc := sApiFunc + 'OK';                         //AF9API_STARTCONN_OK
+     0  : sApiFunc := sApiFunc + 'NG(USB Device Not Found)';   //AF9API_STARTCONN_USB_NOTFOUND
+		-1  : sApiFunc := sApiFunc + 'NG(USB Library Open Fail)';  //AF9API_STARTCONN_USB_OPENFAIL
+     2  : sApiFunc := sApiFunc + 'NG(DLL Exception)';          //AF9API_STARTCONN_DLL_EXCEPTION
+    else  sApiFunc := sApiFunc + 'NG(Unknown Result)';
+	end;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING,TernaryOp((Result = AF9API_RESULT_OK),DefCommon.LOG_TYPE_INFO,DefCommon.LOG_TYPE_NG),sApiFunc);
+	if FIsMainter and Assigned(OnRxMaintEventAF9) then OnRxMaintEventAF9(m_nCh,sApiFunc);
+	
+  Result := AF9API_STARTCONN_OK; //2022-03-24 TBD:AF9? IMSI?
+end;
+
+//------------------------------------------------------------------------------
+function TCommPG.AF9_Stop_Connection(bDestory: Boolean = False): Integer;
+var
+  sApiFunc : string;
+begin
+//{$IFDEF AF9API_MULTI}
+//sApiFunc := Format('MULTI_Stop_Connection[CH%d]',[Integer(m_nAF9Ch)]);
+//{$ELSE}
+  sApiFunc := 'Stop_Connection';
+//{$ENDIF}
+  sApiFunc := m_PgVer.sAF9APIType + sApiFunc;
+//if FIsMainter and Assigned(OnTxMaintEventAF9) then OnTxMaintEventAF9(m_nCh,sApiFunc);
+	//
+  try
+{$IFDEF SIMULATOR_PG}
+    Result := AF9API_RESULT_OK;
+{$ELSE}
+//{$IFDEF AF9API_MULTI}
+  //Result := AF9API_MULTI_Stop_Connection(Integer(m_nAF9Ch));
+//{$ELSE}
+    Result := AF9API_Stop_Connection;
+//{$ENDIF}
+{$ENDIF}
+  except
+    Result := AF9API_RESULT_DLL_EXCEPTION;
+  end;
+	//
+  if bDestory then Exit;
+  //
+  sApiFunc := m_sAF9APIType + sApiFunc + Format(':(%d) ',[Result]);
+	case Result of
+     1  : sApiFunc := sApiFunc + 'OK';                         //AF9API_STARTCONN_OK
+     0  : sApiFunc := sApiFunc + 'NG(USB Device Not Found)';   //AF9API_STARTCONN_USB_NOTFOUND
+		-1  : sApiFunc := sApiFunc + 'NG(USB Library Open Fail)';  //AF9API_STARTCONN_USB_OPENFAIL
+     2  : sApiFunc := sApiFunc + 'NG(DLL Exception)';          //AF9API_STARTCONN_DLL_EXCEPTION
+    else  sApiFunc := sApiFunc + 'NG(Unknown Result)';
+	end;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING,TernaryOp((Result = AF9API_RESULT_OK),DefCommon.LOG_TYPE_INFO,DefCommon.LOG_TYPE_NG),sApiFunc);
+	if FIsMainter and Assigned(OnRxMaintEventAF9) then OnRxMaintEventAF9(m_nCh,sApiFunc);
+	{$IFDEF INSPECTOR_POCB}
+  PG[DefCommon.CH_1].StatusPg := pgDisconn;
+  PG[DefCommon.CH_2].StatusPg := pgDisconn;
+	{$ENDIF}
+end;
+
+//------------------------------------------------------------------------------
+function TCommPG.AF9_Connection_Status: Integer;
+var
+  sApiFunc : string;
+begin
+//{$IFDEF AF9API_MULTI}
+//sApiFunc := Format('MULTI_Connection_Status[CH%d]',[Integer(m_nAF9Ch)]);
+//{$ELSE}
+  sApiFunc := 'Connection_Status';
+//{$ENDIF}
+  sApiFunc := m_PgVer.sAF9APIType + sApiFunc;
+//if FIsMainter and Assigned(OnTxMaintEventAF9) then OnTxMaintEventAF9(m_nCh,sApiFunc);
+	//
+{$IFDEF SIMULATOR_PG}
+  Result := AF9API_RESULT_OK;
+{$ELSE}
+  try
+	{$IFDEF AF9API_MULTI}
+  Result := AF9API_MULTI_Connection_Status(Integer(m_nAF9Ch));
+	{$ELSE}
+  Result := AF9API_Connection_Status;
+	{$ENDIF}
+  except
+    Result := AF9API_RESULT_DLL_EXCEPTION;
+  end;
+	//
+	sApiFunc := sApiFunc + Format(':(%d) ',[Result]) + TernaryOp((Result = AF9API_RESULT_OK), 'OK', 'NG');
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING,TernaryOp((Result = AF9API_RESULT_OK),DefCommon.LOG_TYPE_INFO,DefCommon.LOG_TYPE_NG),sApiFunc);
+	if FIsMainter and Assigned(OnRxMaintEventAF9) then OnRxMaintEventAF9(m_nCh,sApiFunc);
+{$ENDIF}
+end;
+
+//------------------------------------------------------------------------------
+function TCommPG.AF9_SW_Revision: Integer;
+var
+  sApiFunc : string;
+begin
+	{$IFDEF AF9API_MULTI}
+  sApiFunc := Format('MULTI_SW_Revision[CH%d]',[Integer(m_nAF9Ch)]);
+	{$ELSE}
+  sApiFunc := 'SW_Revision';
+	{$ENDIF}
+	if FIsMainter and Assigned(OnTxMaintEventAF9) then OnTxMaintEventAF9(m_nCh,sApiFunc);
+	//
+{$IFDEF SIMULATOR_PG}
+  Result := 123;
+{$ELSE}
+	{$IFDEF AF9API_MULTI}
+  Result := AF9API_MULTI_SW_Revision(Integer(m_nAF9Ch));
+	{$ELSE}
+  Result := AF9API_SW_Revision;
+	{$ENDIF}
+{$ENDIF}
+	//
+  sApiFunc := m_sAF9APIType + sApiFunc + Format(':(%d) ',[Result]);
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING,DefCommon.LOG_TYPE_INFO,sApiFunc);
+	if FIsMainter and Assigned(OnRxMaintEventAF9) then OnRxMaintEventAF9(m_nCh,sApiFunc);
+end;
+
+//------------------------------------------------------------------------------
+function TCommPG.AF9_DLL_Revision: Integer;
+var
+  sApiFunc : string;
+begin
+//{$IFDEF AF9API_MULTI}
+//sApiFunc := Format('MULTI_DLL_Revision[CH%d]',[m_nAF9Ch]);
+//{$ELSE}
+  sApiFunc := 'DLL_Revision';
+//{$ENDIF}
+  if FIsMainter and Assigned(OnTxMaintEventAF9) then OnTxMaintEventAF9(m_nCh,sApiFunc);
+	//
+{$IFDEF SIMULATOR_PG}
+  Result := 456;
+{$ELSE}
+//{$IFDEF AF9API_MULTI}
+//Result := AF9API_MULTI_DLL_Revision(m_nAF9Ch);
+//{$ELSE}
+  Result := AF9API_DLL_Revision;
+//{$ENDIF}
+{$ENDIF}
+	//
+  sApiFunc := m_sAF9APIType + sApiFunc + Format(':(%d) ',[Result]);
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING,DefCommon.LOG_TYPE_INFO,sApiFunc);
+	if FIsMainter and Assigned(OnRxMaintEventAF9) then OnRxMaintEventAF9(m_nCh,sApiFunc);
+end;
+
+//------------------------------------------------------------------------------
+function TCommPG.AF9_DAC_SET(nType: Integer; Channel: Integer; Voltage: Integer; Option: Integer): Boolean; //type->nType
+var
+  sApiFunc : String;
+begin
+	{$IFDEF AF9API_MULTI}
+  sApiFunc := Format('MULTI_DAC_SET[CH%d]',[Integer(m_nAF9Ch)]);
+	{$ELSE}
+  sApiFunc := 'DAC_SET';
+	{$ENDIF}
+  sApiFunc := m_PgVer.sAF9APIType + sApiFunc + Format('(type=%d,channel=%d,voltage=%d,option=%d)',[nType,Channel,Voltage,Option]);
+	if FIsMainter and Assigned(OnTxMaintEventAF9) then OnTxMaintEventAF9(m_nCh,sApiFunc);
+	//
+{$IFDEF SIMULATOR_PG}
+  Result := True;
+{$ELSE}
+	{$IFDEF AF9API_MULTI}
+  Result := AF9API_MULTI_DAC_SET(nType, Channel, Voltage, Option, Integer(m_nAF9Ch));
+	{$ELSE}
+  Result := AF9API_DAC_SET(nType, Channel, Voltage, Option);
+	{$ENDIF}
+{$ENDIF}
+	//
+	sApiFunc := sApiFunc + Format(':(%d) ',[Result]) + TernaryOp(Result, 'OK', 'NG');
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING,TernaryOp(Result,DefCommon.LOG_TYPE_INFO,DefCommon.LOG_TYPE_NG),sApiFunc);
+	if FIsMainter and Assigned(OnRxMaintEventAF9) then OnRxMaintEventAF9(m_nCh,sApiFunc);
+end;
+
+function TCommPG.AF9_ExtendIO_Set(Address: Integer; Channel: Integer; Enable: Integer): Boolean;
+var
+  sApiFunc : String;
+begin
+	{$IFDEF AF9API_MULTI}
+  sApiFunc := Format('MULTI_ExtendIO_Set[CH%d]',[Integer(m_nAF9Ch)]);
+	{$ELSE}
+  sApiFunc := 'ExtendIO_Set';
+	{$ENDIF}
+  sApiFunc := m_PgVer.sAF9APIType + sApiFunc + Format('(addr=%d,channel=%d,enable=%d)',[Address,Channel,Enable]);
+	if FIsMainter and Assigned(OnTxMaintEventAF9) then OnTxMaintEventAF9(m_nCh,sApiFunc);
+	//
+{$IFDEF SIMULATOR_PG}
+  Result := True;
+{$ELSE}
+	{$IFDEF AF9API_MULTI}
+  Result := AF9API_MULTI_ExtendIO_Set(Address, Channel, Enable, Integer(m_nAF9Ch));
+	{$ELSE}
+  Result := AF9API_ExtendIO_Set(Address, Channel, Enable);
+	{$ENDIF}
+{$ENDIF}
+	//
+	sApiFunc := sApiFunc + Format(':(%d) ',[Result]) + TernaryOp((Result=True), 'OK', 'NG');
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING,TernaryOp((Result=True),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG),sApiFunc);
+	if FIsMainter and Assigned(OnRxMaintEventAF9) then OnRxMaintEventAF9(m_nCh,sApiFunc);
+end;
+
+function TCommPG.AF9_AllPowerOnOff(OnOff: Integer): Integer;
+var
+  sApiFunc : String;
+begin
+	{$IFDEF AF9API_MULTI}
+  sApiFunc := Format('MULTI_AllPowerOnOff[CH%d]',[Integer(m_nAF9Ch)]);
+	{$ELSE}
+  sApiFunc := 'AllPowerOnOff';
+	{$ENDIF}
+  sApiFunc := m_PgVer.sAF9APIType + sApiFunc + Format('(OnOff=%d)',[OnOff]);
+	if FIsMainter and Assigned(OnTxMaintEventAF9) then OnTxMaintEventAF9(m_nCh,sApiFunc);
+	//
+{$IFDEF SIMULATOR_PG}
+  Result := AF9API_RESULT_OK;
+{$ELSE}
+	{$IFDEF AF9API_MULTI}
+  Result := AF9API_MULTI_AllPowerOnOff(OnOff, Integer(m_nAF9Ch));
+	{$ELSE}
+  Result := AF9API_AllPowerOnOff(OnOff);
+	{$ENDIF}
+{$ENDIF}
+	//
+	sApiFunc := sApiFunc + Format(':(%d) ',[Result]) + TernaryOp((Result = AF9API_RESULT_OK), 'OK', 'NG');
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING,TernaryOp((Result = AF9API_RESULT_OK),DefCommon.LOG_TYPE_INFO,DefCommon.LOG_TYPE_NG),sApiFunc);
+	if FIsMainter and Assigned(OnRxMaintEventAF9) then OnRxMaintEventAF9(m_nCh,sApiFunc);
+end;
+
+//------------------------------------------------------------------------------
+function TCommPG.AF9_APSPatternRGBSet(R, G, B: Integer): Integer;
+var
+  sApiFunc : string;
+begin
+	{$IFDEF AF9API_MULTI}
+  sApiFunc := Format('MULTI_APSPatternRGBSet[CH%d]',[Integer(m_nAF9Ch)]);
+	{$ELSE}
+  sApiFunc := 'APSPatternRGBSet';
+	{$ENDIF}
+  sApiFunc := m_PgVer.sAF9APIType + sApiFunc + Format('(R=%d,G=%d,B=%d)',[R,G,B]);
+	if FIsMainter and Assigned(OnTxMaintEventAF9) then OnTxMaintEventAF9(m_nCh,sApiFunc);
+	//
+{$IFDEF SIMULATOR_PG}
+  Result := AF9API_RESULT_OK;
+{$ELSE}
+	{$IFDEF AF9API_MULTI}
+  Result := AF9API_MULTI_APSPatternRGBSet(R,G,B, Integer(m_nAF9Ch));
+	{$ELSE}
+  Result := AF9API_APSPatternRGBSet(R,G,B);
+	{$ENDIF}
+{$ENDIF}
+	//
+	sApiFunc := sApiFunc + Format(':(%d) ',[Result]) + TernaryOp((Result = AF9API_RESULT_OK), 'OK', 'NG');
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING,TernaryOp((Result = AF9API_RESULT_OK),DefCommon.LOG_TYPE_INFO,DefCommon.LOG_TYPE_NG),sApiFunc);
+	if FIsMainter and Assigned(OnRxMaintEventAF9) then OnRxMaintEventAF9(m_nCh,sApiFunc);
+end;
+
+//------------------------------------------------------------------------------
+function TCommPG.AF9_APSBoxPatternSet(XOffset,YOffset, Width,Height, R,G,B, Background_R,Background_G,Background_B: Integer): Integer;
+var
+  sApiFunc : string;
+begin
+	{$IFDEF AF9API_MULTI}
+  sApiFunc := Format('MULTI_APSBoxPatternSet[CH%d]',[Integer(m_nAF9Ch)]);
+	{$ELSE}
+  sApiFunc := 'APSBoxPatternSet';
+	{$ENDIF}
+  sApiFunc := m_PgVer.sAF9APIType + sApiFunc + Format('(X=%d,Y=%d, W=%d,H=%, R=%d,G=%d,B=%d, BR=%d,BG=%d,BB=%d)',[XOffset,YOffset, Width,Height, R,G,B, Background_R,Background_G,Background_B]);
+	if FIsMainter and Assigned(OnTxMaintEventAF9) then OnTxMaintEventAF9(m_nCh,sApiFunc);
+	//
+{$IFDEF SIMULATOR_PG}
+  Result := AF9API_RESULT_OK;
+{$ELSE}
+	{$IFDEF AF9API_MULTI}
+  Result := AF9API_MULTI_APSBoxPatternSet(XOffset,YOffset, Width,Height, R,G,B, Background_R,Background_G,Background_B, Integer(m_nAF9Ch));
+	{$ELSE}
+  Result := AF9API_APSBoxPatternSet(XOffset,YOffset, Width,Height, R,G,B, Background_R,Background_G,Background_B);
+	{$ENDIF}
+{$ENDIF}
+	//
+	sApiFunc := sApiFunc + Format(':(%d) ',[Result]) + TernaryOp((Result = AF9API_RESULT_OK), 'OK', 'NG');
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING,TernaryOp((Result = AF9API_RESULT_OK),DefCommon.LOG_TYPE_INFO,DefCommon.LOG_TYPE_NG),sApiFunc);
+	if FIsMainter and Assigned(OnRxMaintEventAF9) then OnRxMaintEventAF9(m_nCh,sApiFunc);
+end;
+
+//------------------------------------------------------------------------------
+function TCommPG.AF9_LGDSetReg(Addr: DWORD; data: Byte): Integer;
+var
+  sApiFunc : String;
+begin
+	{$IFDEF AF9API_MULTI}
+  sApiFunc := Format('MULTI_LGDSetReg[CH%d]',[Integer(m_nAF9Ch)]);
+	{$ELSE}
+  sApiFunc := 'LGDSetReg';
+	{$ENDIF}
+  sApiFunc := m_PgVer.sAF9APIType + sApiFunc + Format('(addr=%d,data=0x%0.2x)',[Addr,data]);
+	if FIsMainter and Assigned(OnTxMaintEventAF9) then OnTxMaintEventAF9(m_nCh,sApiFunc);
+	//
+{$IFDEF SIMULATOR_PG}
+  Result := AF9API_RESULT_OK;
+{$ELSE}
+	{$IFDEF AF9API_MULTI}
+  Result := AF9API_MULTI_LGDSetReg(Addr, data, Integer(m_nAF9Ch));
+	{$ELSE}
+  Result := AF9API_LGDSetReg(Addr, data);
+	{$ENDIF}
+{$ENDIF}
+  {$IFDEF SIMULATOR_PANEL}
+  SimTconData[Addr] := data;
+  {$ENDIF}
+	//
+	sApiFunc := sApiFunc + Format(':(%d) ',[Result]) + TernaryOp((Result = AF9API_RESULT_OK), 'OK', 'NG');
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING,TernaryOp((Result = AF9API_RESULT_OK),DefCommon.LOG_TYPE_INFO,DefCommon.LOG_TYPE_NG),sApiFunc);
+	if FIsMainter and Assigned(OnRxMaintEventAF9) then OnRxMaintEventAF9(m_nCh,sApiFunc);
+end;
+
+function TCommPG.AF9_LGDSetRegM(LGDCommand: AF9_PLGDCommand; CommandCnt: Integer): Integer;
+var
+  sApiFunc : string;
+  {$IFDEF SIMULATOR_PANEL}
+  i : Integer;
+  pCommand : AF9_PLGDCommand;
+  {$ENDIF}
+begin
+	{$IFDEF AF9API_MULTI}
+  sApiFunc := Format('MULTI_LGDSetRegM[CH%d]',[Integer(m_nAF9Ch)]);
+	{$ELSE}
+  sApiFunc := 'LGDSetRegM';
+	{$ENDIF}
+  sApiFunc := m_PgVer.sAF9APIType + sApiFunc + Format('(CmdCnt=%d)',[CommandCnt]);
+	if FIsMainter and Assigned(OnTxMaintEventAF9) then OnTxMaintEventAF9(m_nCh,sApiFunc);
+	//
+{$IFDEF SIMULATOR_PG}
+  Result := AF9API_RESULT_OK;
+{$ELSE}
+	{$IFDEF AF9API_MULTI}
+  Result := AF9API_MULTI_LGDSetRegM(LGDCommand, CommandCnt, Integer(m_nAF9Ch));
+	{$ELSE}
+  Result := AF9API_LGDSetRegM(LGDCommand, CommandCnt);
+	{$ENDIF}
+{$ENDIF}
+  {$IFDEF SIMULATOR_PANEL}
+  pCommand := LGDCommand;
+  for i := 0 to (CommandCnt-1) do begin
+    SimTconData[pCommand^.Addr] := pCommand^.Data;
+    Inc(pCommand);  //TBD:ITOLED?
+  end;
+  {$ENDIF}
+	//
+	sApiFunc := sApiFunc + Format(':(%d) ',[Result]) + TernaryOp((Result = AF9API_RESULT_OK), 'OK', 'NG');
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING,TernaryOp((Result = AF9API_RESULT_OK),DefCommon.LOG_TYPE_INFO,DefCommon.LOG_TYPE_NG),sApiFunc);
+	if FIsMainter and Assigned(OnRxMaintEventAF9) then OnRxMaintEventAF9(m_nCh,sApiFunc);
+end;
+
+function TCommPG.AF9_LGDGetReg(Addr: DWORD): Byte;
+var
+  sApiFunc : string;
+begin
+	{$IFDEF AF9API_MULTI}
+  sApiFunc := Format('MULTI_LGDGetReg[CH%d]',[Integer(m_nAF9Ch)]);
+	{$ELSE}
+  sApiFunc := 'LGDGetReg';
+	{$ENDIF}
+  sApiFunc := m_PgVer.sAF9APIType + sApiFunc + Format('(addr=%d)',[addr]);
+	if FIsMainter and Assigned(OnTxMaintEventAF9) then OnTxMaintEventAF9(m_nCh,sApiFunc);
+	//
+{$IF Defined(SIMULATOR_PG) or Defined(SIMULATOR_PANEL)}
+  Result := SimTconData[Addr];
+{$ELSE}
+	{$IFDEF AF9API_MULTI}
+  Result := AF9API_MULTI_LGDGetReg(addr, Integer(m_nAF9Ch));
+	{$ELSE}
+  Result := AF9API_LGDGetReg(addr);
+	{$ENDIF}
+{$ENDIF}
+  sApiFunc := sApiFunc + Format(':(0x%0.2x)',[Result]);
+	//
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING,DefCommon.LOG_TYPE_INFO,sApiFunc);
+	if FIsMainter and Assigned(OnRxMaintEventAF9) then OnRxMaintEventAF9(m_nCh,sApiFunc);
+end;
+
+function TCommPG.AF9_LGDRangeGetReg(const pData: PByte; StartAddr,EndAddr: DWORD): Byte;
+var
+  sApiFunc : string;
+  i, nCnt  : Integer;
+  pTemp    : PByte;
+begin
+	{$IFDEF AF9API_MULTI}
+  sApiFunc := Format('MULTI_LGDRangeGetReg[CH%d]',[Integer(m_nAF9Ch)]);
+	{$ELSE}
+  sApiFunc := 'LGDRangeGetReg';
+	{$ENDIF}
+  sApiFunc := m_PgVer.sAF9APIType + sApiFunc + Format('(start=%d,end=%d)',[StartAddr,EndAddr]); //TBD:AF9? Result?
+	if FIsMainter and Assigned(OnTxMaintEventAF9) then OnTxMaintEventAF9(m_nCh,sApiFunc);
+	//
+{$IF Defined(SIMULATOR_PG) or Defined(SIMULATOR_PANEL)}
+  Result := 1; //TBD:ITOLED? API:SIM
+  pTemp  := pData;
+  for i := 0 to (EndAddr-StartAddr+1) do begin
+    pTemp^ := SimTconData[StartAddr+i];
+    Inc(pTemp);
+  end;
+{$ELSE}
+	{$IFDEF AF9API_MULTI}
+  Result := AF9API_MULTI_LGDRangeGetReg(pData, StartAddr,EndAddr, Integer(m_nAF9Ch)); //TBD:ITOLED? Result?
+	{$ELSE}
+  Result := AF9API_LGDRangeGetReg(pData, StartAddr,EndAddr);
+	{$ENDIF}
+{$ENDIF}
+  //
+	sApiFunc := sApiFunc + Format(':(%d) ',[Result]) + TernaryOp((Result = AF9API_RESULT_OK), 'OK', 'NG');
+  sApiFunc := sApiFunc + '(';
+  nCnt  := EndAddr - StartAddr + 1;
+  pTemp := pData;
+  for i := 0 to (nCnt-1) do begin
+    sApiFunc := sApiFunc + Format('0x%0.2x ',[pTemp^]);
+    Inc(pTemp);
+  end;
+  sApiFunc := sApiFunc + ')';
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING,TernaryOp((Result = AF9API_RESULT_OK),DefCommon.LOG_TYPE_INFO,DefCommon.LOG_TYPE_NG),sApiFunc);
+	if FIsMainter and Assigned(OnRxMaintEventAF9) then OnRxMaintEventAF9(m_nCh,sApiFunc);
+end;
+
+//------------------------------------------------------------------------------
+function TCommPG.AF9_APSSetReg(Addr: Integer; Data: Integer): Integer;
+var
+  sApiFunc : string;
+begin
+	{$IFDEF AF9API_MULTI}
+  sApiFunc := Format('MULTI_APSSetReg[CH%d]',[Integer(m_nAF9Ch)]);
+	{$ELSE}
+  sApiFunc := 'APSSetReg';
+	{$ENDIF}
+  sApiFunc := m_PgVer.sAF9APIType + sApiFunc + Format('(addr=%d,data=0x%0.2x)',[Addr,Data]);
+	if FIsMainter and Assigned(OnTxMaintEventAF9) then OnTxMaintEventAF9(m_nCh,sApiFunc);
+	//
+{$IFDEF SIMULATOR_PG}
+  Result := AF9API_RESULT_OK;
+{$ELSE}
+	{$IFDEF AF9API_MULTI}
+  Result := AF9API_MULTI_APSSetReg(Addr, Data, Integer(m_nAF9Ch));
+	{$ELSE}
+  Result := AF9API_APSSetReg(Addr, Data);
+	{$ENDIF}
+{$ENDIF}
+  {$IFDEF SIMULATOR_PANEL}
+  SimAPSRegData[Addr] := data;
+  {$ENDIF}
+	//
+	sApiFunc := sApiFunc + Format(':(%d) ',[Result]) + TernaryOp((Result = AF9API_RESULT_OK), 'OK', 'NG');
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING,TernaryOp((Result = AF9API_RESULT_OK),DefCommon.LOG_TYPE_INFO,DefCommon.LOG_TYPE_NG),sApiFunc);
+	if FIsMainter and Assigned(OnRxMaintEventAF9) then OnRxMaintEventAF9(m_nCh,sApiFunc);
+end;
+
+//------------------------------------------------------------------------------
+// HEX File write
+//    Write the hex file to the SPI Flash memory on the module.
+//    Writing process takes about 20sec and user must reboot FPGA board after hex write.
+//    * When FPGA board transmits hex file, CRC is also transmitted together.
+//       After transmitting hex file completed, FPGA board compare hex file in the FPGA and Flash memory
+//       If CRC data in the FPGA and Flash memory are not the same, FPGA board will turn off power on the driving board
+//       During transmission, LED2 of the FPGA Board turns on, and turns off when completed.
+function TCommPG.AF9_SendHexFileCRC(CRC: Word): Integer;
+var
+  sApiFunc : String;
+begin
+	{$IFDEF AF9API_MULTI}
+  sApiFunc := Format('MULTI_SendHexFileCRC[CH%d]',[Integer(m_nAF9Ch)]);
+	{$ELSE}
+  sApiFunc := 'SendHexFileCRC';
+	{$ENDIF}
+  sApiFunc := m_PgVer.sAF9APIType + sApiFunc + Format('(CRC=0x%x:%d)',[CRC,CRC]);
+	if FIsMainter and Assigned(OnTxMaintEventAF9) then OnTxMaintEventAF9(m_nCh,sApiFunc);
+	//-------------------------------------
+{$IFDEF SIMULATOR_PG}
+  Result := AF9API_RESULT_OK;
+{$ELSE}
+	{$IFDEF AF9API_MULTI}
+  Result := AF9API_MULTI_SendHexFileCRC(CRC, Integer(m_nAF9Ch));
+	{$ELSE}
+  Result := AF9API_SendHexFileCRC(CRC);
+	{$ENDIF}
+{$ENDIF}
+	//-------------------------------------
+	sApiFunc := sApiFunc + Format(':(%d) ',[Result]) + TernaryOp((Result = AF9API_RESULT_OK), 'OK', 'NG');
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING,TernaryOp((Result = AF9API_RESULT_OK),DefCommon.LOG_TYPE_INFO,DefCommon.LOG_TYPE_NG),sApiFunc);
+	if FIsMainter and Assigned(OnRxMaintEventAF9) then OnRxMaintEventAF9(m_nCh,sApiFunc);
+end;
+
+function TCommPG.AF9_SendHexFile(const pbyteBuffer: PByte; len: Integer): Integer;
+var
+  sApiFunc  : string;
+{$IFDEF SIMULATOR_PG}	
+  sFileName : string;
+{$ENDIF}
+begin
+	{$IFDEF AF9API_MULTI}
+  sApiFunc := Format('MULTI_SendHexFile[CH%d]',[Integer(m_nAF9Ch)]);
+	{$ELSE}
+  sApiFunc := 'SendHexFile';
+	{$ENDIF}
+  sApiFunc := m_PgVer.sAF9APIType + sApiFunc + Format('(Len=%d)',[len]);
+	if FIsMainter and Assigned(OnTxMaintEventAF9) then OnTxMaintEventAF9(m_nCh,sApiFunc);
+	//-------------------------------------
+{$IFDEF SIMULATOR_PG}
+  Result := AF9API_RESULT_OK;
+{$ELSE}
+	{$IFDEF AF9API_MULTI}
+  Result := AF9API_MULTI_SendHexFile(pbyteBuffer, len, Integer(m_nAF9Ch));
+	{$ELSE}
+  Result := AF9API_SendHexFile(pbyteBuffer, len);
+	{$ENDIF}
+{$ENDIF}
+  //
+	sApiFunc := sApiFunc + Format(':(%d) ',[Result]) + TernaryOp((Result = AF9API_RESULT_OK), 'OK', 'NG');
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING,TernaryOp((Result = AF9API_RESULT_OK),DefCommon.LOG_TYPE_INFO,DefCommon.LOG_TYPE_NG),sApiFunc);
+	if FIsMainter and Assigned(OnRxMaintEventAF9) then OnRxMaintEventAF9(m_nCh,sApiFunc);
+end;
+
+//------------------------------------------------------------------------------
+// Transmit BMP File.
+//    The resolution of the BMP file is 2920x1900x3Byte
+//    and the actual image display area is 2916x1900.
+//    During transmission, LED2 of the FPGA Board turns on, and turns off when completed.
+//    BMP turns on only when KEY4 is pressed.
+//
+function TCommPG.AF9_WriteBMPFile(const pbyteBuffer: PByte; len: Integer): Integer; // Send+View
+var
+  sApiFunc : String;
+begin
+	{$IFDEF AF9API_MULTI}
+  sApiFunc := Format('MULTI_WriteBMPFile[CH%d]',[Integer(m_nAF9Ch)]);
+	{$ELSE}
+  sApiFunc := 'WriteBMPFile';
+	{$ENDIF}
+  sApiFunc := m_PgVer.sAF9APIType + sApiFunc + Format('(len=%d)',[len]);
+	if FIsMainter and Assigned(OnTxMaintEventAF9) then OnTxMaintEventAF9(m_nCh,sApiFunc);
+	//
+{$IFDEF SIMULATOR_PG}
+  Result := AF9API_RESULT_OK;
+{$ELSE}
+	{$IFDEF AF9API_MULTI}
+  Result := AF9API_MULTI_WriteBMPFile(pbyteBuffer, len, Integer(m_nAF9Ch));
+	{$ELSE}
+  Result := AF9API_WriteBMPFile(pbyteBuffer, len);
+	{$ENDIF}
+{$ENDIF}
+  //
+	sApiFunc := sApiFunc + Format(':(%d) ',[Result]) + TernaryOp((Result = AF9API_RESULT_OK), 'OK', 'NG');
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING,TernaryOp((Result = AF9API_RESULT_OK),DefCommon.LOG_TYPE_INFO,DefCommon.LOG_TYPE_NG),sApiFunc);
+	if FIsMainter and Assigned(OnRxMaintEventAF9) then OnRxMaintEventAF9(m_nCh,sApiFunc);
+end;
+
+function TCommPG.AF9_BMPFileSend(pbyteBuffer: PByte; len: Integer; num: Integer): Integer; // Send
+var
+  sApiFunc : String;
+begin
+	{$IFDEF AF9API_MULTI}
+  sApiFunc := Format('MULTI_BMPFileSend[CH%d]',[Integer(m_nAF9Ch)]);
+	{$ELSE}
+  sApiFunc := 'BMPFileSend';
+	{$ENDIF}
+  sApiFunc := m_PgVer.sAF9APIType + sApiFunc + Format('(len=%d,num=%d)',[len,num]);
+	if FIsMainter and Assigned(OnTxMaintEventAF9) then OnTxMaintEventAF9(m_nCh,sApiFunc);
+	//
+{$IFDEF SIMULATOR_PG}
+  Result := AF9API_RESULT_OK;
+{$ELSE}
+	{$IFDEF AF9API_MULTI}
+  Result := AF9API_MULTI_BMPFileSend(pbyteBuffer, len, num, Integer(m_nAF9Ch));
+	{$ELSE}
+  Result := AF9API_BMPFileSend(pbyteBuffer, len, num);
+	{$ENDIF}
+{$ENDIF}
+  //
+	sApiFunc := sApiFunc + Format(':(%d) ',[Result]) + TernaryOp((Result = AF9API_RESULT_OK), 'OK', 'NG');
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING,TernaryOp((Result = AF9API_RESULT_OK),DefCommon.LOG_TYPE_INFO,DefCommon.LOG_TYPE_NG),sApiFunc);
+	if FIsMainter and Assigned(OnRxMaintEventAF9) then OnRxMaintEventAF9(m_nCh,sApiFunc);
+end;
+
+function TCommPG.AF9_BMPFileView(num: Integer): Integer; //View
+var
+  sApiFunc : String;
+begin
+	{$IFDEF AF9API_MULTI}
+  sApiFunc := Format('MULTI_BMPFileView[CH%d]',[Integer(m_nAF9Ch)]);
+	{$ELSE}
+  sApiFunc := 'BMPFileView';
+	{$ENDIF}
+  sApiFunc := m_PgVer.sAF9APIType + sApiFunc + Format('(num=%d)',[num]);
+	if FIsMainter and Assigned(OnTxMaintEventAF9) then OnTxMaintEventAF9(m_nCh,sApiFunc);
+	//
+{$IFDEF SIMULATOR_PG}
+  Result := AF9API_RESULT_OK;
+{$ELSE}
+	{$IFDEF AF9API_MULTI}
+  Result := AF9API_MULTI_BMPFileView(num, Integer(m_nAF9Ch));
+	{$ELSE}
+  Result := AF9API_BMPFileView(num);
+	{$ENDIF}
+{$ENDIF}
+	//
+	sApiFunc := sApiFunc + Format(':(%d) ',[Result]) + TernaryOp((Result = AF9API_RESULT_OK), 'OK', 'NG');
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING,TernaryOp((Result = AF9API_RESULT_OK),DefCommon.LOG_TYPE_INFO,DefCommon.LOG_TYPE_NG),sApiFunc);
+	if FIsMainter and Assigned(OnRxMaintEventAF9) then OnRxMaintEventAF9(m_nCh,sApiFunc);
+
+	Result := 1; //AF9API_RESULT_OK //TBD:AF9? 0값으로 리턴 확인 필요
+end;
+
+//------------------------------------------------------------------------------
+function TCommPG.AF9_FLASHRead(const pData: PByte; StartAddr,EndAddr: DWORD): Byte;
+var
+  sApiFunc : string;
+{$IF Defined(SIMULATOR_PANEL)}
+  sFileName : string;
+  nDataCnt : DWORD;
+{$ENDIF}
+begin
+	{$IFDEF AF9API_MULTI}
+  sApiFunc := Format('MULTI_FLASHRead[CH%d]',[Integer(m_nAF9Ch)]);
+	{$ELSE}
+  sApiFunc := 'FLASHRead';
+	{$ENDIF}
+  sApiFunc := m_PgVer.sAF9APIType + sApiFunc + Format('(Start=%d,End=%d)',[StartAddr,EndAddr]);
+	if FIsMainter and Assigned(OnTxMaintEventAF9) then OnTxMaintEventAF9(m_nCh,sApiFunc);
+	//
+{$IF Defined(SIMULATOR_PANEL)}
+  sFileName := Common.Path.FLASH + 'X2146_FLASH_SAMPLE.hex';
+  nDataCnt := Common.GetHexLog(sFileName,(EndAddr-StartAddr)+1,pData);
+  if nDataCnt > 0 then Result := AF9API_RESULT_OK
+  else                 Result := AF9API_RESULT_NG;
+{$ELSE}
+	{$IFDEF AF9API_MULTI}
+  Result := AF9API_MULTI_FLASHRead(pData, StartAddr,EndAddr, Integer(m_nAF9Ch));
+	{$ELSE}
+  Result := AF9API_FLASHRead(pData, StartAddr,EndAddr);
+	{$ENDIF}
+{$ENDIF}
+  //
+	sApiFunc := sApiFunc + Format(':(%d) ',[Result]) + TernaryOp((Result = AF9API_RESULT_OK), 'OK', 'NG');
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING,TernaryOp((Result = AF9API_RESULT_OK),DefCommon.LOG_TYPE_INFO,DefCommon.LOG_TYPE_NG),sApiFunc);
+	if FIsMainter and Assigned(OnRxMaintEventAF9) then OnRxMaintEventAF9(m_nCh,sApiFunc);
+end;
+
+//-----------------------------------------------------------------------------
+function TCommPG.AF9_FrrSet(FrrStart: Integer; R,G,B: Byte; BR,BG,BB: Byte; PTN1,PTN2,PTN3,PTN4,PTN5,PTN6: Byte; Hz: Integer): Integer;
+var
+  sApiFunc : string;
+begin
+	{$IFDEF AF9API_MULTI}
+  sApiFunc := Format('MULTI_FrrSet[CH%d]',[Integer(m_nAF9Ch)]);
+	{$ELSE}
+  sApiFunc := 'FrrSet';
+	{$ENDIF}
+  sApiFunc := m_PgVer.sAF9APIType + sApiFunc + Format('(FrrStart=%d, R=%d,G=%d,B=%d, BR=%d,BG=%d,BB=%d, PTN1=%d,PTN2-%d,{TN3=%d,PTN4=%d,PTN5=%d,PTN6=%d, Hz=%d)',[FrrStart, R,G,B, BR,BG,BB, PTN1,PTN2,PTN3,PTN4,PTN5,PTN6, Hz]);
+	if FIsMainter and Assigned(OnTxMaintEventAF9) then OnTxMaintEventAF9(m_nCh,sApiFunc);
+	//
+{$IFDEF SIMULATOR_PG}
+  Result := AF9API_RESULT_OK;
+{$ELSE}
+	{$IFDEF AF9API_MULTI}
+  Result := AF9API_MULTI_FrrSet(FrrStart, R,G,B, BR,BG,BB, PTN1,PTN2,PTN3,PTN4,PTN5,PTN6, Hz, Integer(m_nAF9Ch));
+	{$ELSE}
+  Result := AF9API_FrrSet(FrrStart, R,G,B, BR,BG,BB, PTN1,PTN2,PTN3,PTN4,PTN5,PTN6, Hz);
+	{$ENDIF}
+{$ENDIF}
+	//
+	sApiFunc := sApiFunc + Format(':(%d) ',[Result]) + TernaryOp((Result = AF9API_RESULT_OK), 'OK', 'NG');
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING,TernaryOp((Result = AF9API_RESULT_OK),DefCommon.LOG_TYPE_INFO,DefCommon.LOG_TYPE_NG),sApiFunc);
+	if FIsMainter and Assigned(OnRxMaintEventAF9) then OnRxMaintEventAF9(m_nCh,sApiFunc);
+end;
+
+//------------------------------------------------------------------------------
+function TCommPG.AF9_APSDotPatternRGBSet(FR,FG,FB: Integer; BR,BG,BB: Integer): Integer;
+var
+  sApiFunc : string;
+begin
+	{$IFDEF AF9API_MULTI}
+  sApiFunc := Format('MULTI_APSDotPatternRGBSet[CH%d]',[Integer(m_nAF9Ch)]);
+	{$ELSE}
+  sApiFunc := 'APSDotPatternRGBSet';
+	{$ENDIF}
+  sApiFunc := m_sAF9APIType + sApiFunc + Format('(FR=%d,FG=%d,FB=%d, BR=%d,BG=%d,BB=%d)',[FR,FG,FB, BR,BG,BB]);
+	if FIsMainter and Assigned(OnTxMaintEventAF9) then OnTxMaintEventAF9(m_nCh,sApiFunc);
+	//
+{$IFDEF SIMULATOR_PG}
+  Result := AF9API_RESULT_OK;
+{$ELSE}
+	{$IFDEF AF9API_MULTI}
+  Result := AF9API_MULTI_APSDotPatternRGBSet(FR,FG,FB, BR,BG,BB, Integer(m_nAF9Ch));
+	{$ELSE}
+  Result := AF9API_APSDotPatternRGBSet(FR,FG,FB, BR,BG,BB);
+	{$ENDIF}
+{$ENDIF}
+	//
+	sApiFunc := sApiFunc + Format(':(%d) ',[Result]) + TernaryOp((Result = AF9API_RESULT_OK), 'OK', 'NG');
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING,TernaryOp((Result = AF9API_RESULT_OK),DefCommon.LOG_TYPE_INFO,DefCommon.LOG_TYPE_NG),sApiFunc);
+	if FIsMainter and Assigned(OnRxMaintEventAF9) then OnRxMaintEventAF9(m_nCh,sApiFunc);
+end;
+
+//------------------------------------------------------------------------------
+function TCommPG.AF9_APSLineDotPatternRGBSet(FR,FG,FB: Integer; BR,BG,BB: Integer): Integer;
+var
+  sApiFunc : string;
+begin
+	{$IFDEF AF9API_MULTI}
+  sApiFunc := Format('MULTI_APSLineDotPatternRGBSet[CH%d]',[Integer(m_nAF9Ch)]);
+	{$ELSE}
+  sApiFunc := 'APSLineDotPatternRGBSet';
+	{$ENDIF}
+  sApiFunc := m_sAF9APIType + sApiFunc + Format('(FR=%d,FG=%d,FB=%d, BR=%d,BG=%d,BB=%d)',[FR,FG,FB, BR,BG,BB]);
+	if FIsMainter and Assigned(OnTxMaintEventAF9) then OnTxMaintEventAF9(m_nCh,sApiFunc);
+	//
+{$IFDEF SIMULATOR_PG}
+  Result := AF9API_RESULT_OK;
+{$ELSE}
+	{$IFDEF AF9API_MULTI}
+  Result := AF9API_MULTI_APSLineDotPatternRGBSet(FR,FG,FB, BR,BG,BB, Integer(m_nAF9Ch));
+	{$ELSE}
+  Result := AF9API_APSLineDotPatternRGBSet(FR,FG,FB, BR,BG,BB);
+	{$ENDIF}
+{$ENDIF}
+	//
+	sApiFunc := sApiFunc + Format(':(%d) ',[Result]) + TernaryOp((Result = AF9API_RESULT_OK), 'OK', 'NG');
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING,TernaryOp((Result = AF9API_RESULT_OK),DefCommon.LOG_TYPE_INFO,DefCommon.LOG_TYPE_NG),sApiFunc);
+	if FIsMainter and Assigned(OnRxMaintEventAF9) then OnRxMaintEventAF9(m_nCh,sApiFunc);
+end;
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+function TCommPG.AF9_InitAF9API: Boolean;
+//var
+//sApiFunc : string;
+begin
+ 	//TBD:AF9:v2.02? AF9API_InitAF9API;
+  Result := True;
+  //
+ 	//TBD:AF9:v2.02? sApiFunc := m_sAF9APIType itAF9API';
+ 	//TBD:AF9:v2.02? ShowTestWindow(DefCommon.MSG_MODE_WORKING,0,sApiFunc)  //TBD:ITOLED:DEBUG_AF9API?
+end;
+
+function TCommPG.AF9_FreeAF9API: Boolean;
+//var
+//  sApiFunc : string;
+begin
+  //TBD:AF9:v2.02? AF9API_FreeAF9API;
+  Result := True;
+  //
+  //TBD:AF9:v2.02? sApiFunc := m_sAF9APIType eeAF9API';
+  //TBD:AF9:v2.02? ShowTestWindow(DefCommon.MSG_MODE_WORKING,0,sApiFunc)  //TBD:ITOLED:DEBUG_AF9API?
+end;
+
+function TCommPG.AF9_IsVaildUSBHandler: Boolean;
+//var
+//  sApiFunc : string;
+begin
+{$IFDEF SIMULATOR_PG}
+  Result := True;
+{$ELSE}
+//{$IFDEF AF9API_MULTI}
+//Result := AF9API_SetResolution(ResHRes,ResHBP,ResHSA,ResHFP, ResVRes,ResVBP,ResVSA,ResVFP); //TBD:AF9?
+//{$ELSE}
+  Result := AF9API_IsVaildUSBHandler;
+//{$ENDIF}
+{$ENDIF}
+  Result := AF9API_IsVaildUSBHandler;
+end;
+
+function TCommPG.AF9_SetResolution(ResHRes,ResHBP,ResHSA,ResHFP, ResVRes,ResVBP,ResVSA,ResVFP: Integer): Integer;
+var
+  sApiFunc : string;
+begin
+	//-------------------------------------
+{$IFDEF SIMULATOR_PG}
+  Result   := AF9API_RESULT_OK;
+{$ELSE}
+//{$IFDEF AF9API_MULTI}
+//Result := AF9API_SetResolution(ResHRes,ResHBP,ResHSA,ResHFP, ResVRes,ResVBP,ResVSA,ResVFP); //TBD:AF9?
+//{$ELSE}
+  Result := AF9API_SetResolution(ResHRes,ResHBP,ResHSA,ResHFP, ResVRes,ResVBP,ResVSA,ResVFP);
+//{$ENDIF}
+{$ENDIF}
+	//-------------------------------------
+  //
+//{$IFDEF AF9API_MULTI}
+//sApiFunc := Format('MULTI_SetResolution[CH%d]',[m_nAF9Ch]);
+//{$ELSE}
+  sApiFunc := 'SetResolution';
+//{$ENDIF}
+  sApiFunc := m_PgVer.sAF9APIType + sApiFunc + Format('(H=%d,HBP,HSA,HFP, V=%d,VBP=%d,VSA=%d,VFP=%d)',[ResHRes,ResHBP,ResHSA,ResHFP, ResVRes,ResVBP,ResVSA,ResVFP]);
+	sApiFunc := sApiFunc + Format(':(%d) ',[Result]) + TernaryOp((Result = AF9API_RESULT_OK), 'OK', 'NG');
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING,TernaryOp((Result = AF9API_RESULT_OK),DefCommon.LOG_TYPE_INFO,DefCommon.LOG_TYPE_NG),sApiFunc);
+end;
+
+function TCommPG.AF9_SetFreqChange(const pbyteBuffer: PByte; len: Integer; HzCnt: Integer; nRepeat: Integer): Integer;
+var
+  sApiFunc : string;
+begin
+	//-------------------------------------
+{$IFDEF SIMULATOR_PG}
+  Result := AF9API_RESULT_OK;
+{$ELSE}
+//{$IFDEF AF9API_MULTI}
+//Result := AF9API_MULTI_SetFreqChange(pbyteBuffer, len, HzCnt, nRepeat); //TBD:AF9?
+//{$ELSE}
+  Result := AF9API_SetFreqChange(pbyteBuffer, len, HzCnt, nRepeat);
+//{$ENDIF}
+{$ENDIF}
+  Result := AF9API_SetFreqChange(pbyteBuffer, len, HzCnt, nRepeat);
+	//-------------------------------------
+  //
+//{$IFDEF AF9API_MULTI}
+//sApiFunc := Format('MULTI_SetFreqChange[CH%d]',[m_nAF9Ch]);
+//{$ELSE}
+  sApiFunc := 'SetFreqChange';
+//{$ENDIF}
+  sApiFunc := m_PgVer.sAF9APIType + sApiFunc + Format('(Len=%d,HzCnt=%d,Repeat=%d)',[len, HzCnt, nRepeat]);
+	sApiFunc := sApiFunc + Format(':(%d) ',[Result]) + TernaryOp((Result = AF9API_RESULT_OK), 'OK', 'NG');
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING,TernaryOp((Result = AF9API_RESULT_OK),DefCommon.LOG_TYPE_INFO,DefCommon.LOG_TYPE_NG),sApiFunc);
+end;
+
+
+//------------------------------------------------------------------------------
+function TCommPG.AF9_APSFrrSet(FrrStart: Integer; R,G,B, BR,BG,BB: Byte; PTNCnt: Byte; PTN: DWORD): Integer;
+var
+  sApiFunc : string;
+begin
+	//-------------------------------------
+{$IFDEF SIMULATOR_PG}
+  Result := AF9API_RESULT_OK;
+{$ELSE}
+//{$IFDEF AF9API_MULTI}
+//Result := AF9API_MULTI_APSFrrSet(FrrStart, R,G,B, BR,BG,BB, PTNCnt, PTN); //TBD:AF9?
+//{$ELSE}
+  Result := AF9API_APSFrrSet(FrrStart, R,G,B, BR,BG,BB, PTNCnt, PTN);
+//{$ENDIF}
+{$ENDIF}
+  //
+	//-------------------------------------
+//{$IFDEF AF9API_MULTI}
+//sApiFunc := Format('MULTI_APSFrrSet[CH%d]',[m_nAF9Ch]);
+//{$ELSE}
+  sApiFunc := 'APSFrrSet';
+//{$ENDIF}
+  sApiFunc := m_PgVer.sAF9APIType + sApiFunc +  Format('(FrrStart=%d, R=%d,G=%d,B=%d, BR=%d,BG=%d,BB=%d, PtnCnt=%d,PTN=%d)',[FrrStart, R,G,B, BR,BG,BB, PTNCnt,PTN]);
+	sApiFunc := sApiFunc + Format(':(%d) ',[Result]) + TernaryOp((Result = AF9API_RESULT_OK), 'OK', 'NG');
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING,TernaryOp((Result = AF9API_RESULT_OK),DefCommon.LOG_TYPE_INFO,DefCommon.LOG_TYPE_NG),sApiFunc);
+end;
+
+function TCommPG.AF9_APSFrrSet2(FrrStart: Integer; R,G,B, BR,BG,BB: Byte; PTNCnt: Byte; PTN: DWORD; Hz:Integer): Integer;
+var
+  sApiFunc : string;
+begin
+	//-------------------------------------
+{$IFDEF SIMULATOR_PG}
+  Result   := AF9API_RESULT_OK;
+  sApiFunc := 'AF9SIM_';
+{$ELSE}
+//{$IFDEF AF9API_MULTI}
+//Result := AF9API_MULTI_APSFrrSet2(FrrStart, R,G,B, BR,BG,BB, PTNCnt, PTN, Hz); //TBD:AF9?
+//{$ELSE}
+  Result := AF9API_APSFrrSet2(FrrStart, R,G,B, BR,BG,BB, PTNCnt, PTN, Hz);
+//{$ENDIF}
+{$ENDIF}
+  //
+	//-------------------------------------
+//{$IFDEF AF9API_MULTI}
+//sApiFunc := Format('MULTI_APSFrrSet2[CH%d]',[m_nAF9Ch]);
+//{$ELSE}
+  sApiFunc := 'APSFrrSet2';
+//{$ENDIF}
+  sApiFunc := m_PgVer.sAF9APIType + sApiFunc +  Format('(FrrStart=%d, R=%d,G=%d,B=%d, BR=%d,BG=%d,BB=%d, PtnCnt=%d,PTN=%d, Hz=%d)',[FrrStart, R,G,B, BR,BG,BB, PTNCnt,PTN, Hz]);
+	sApiFunc := sApiFunc + Format(':(%d) ',[Result]) + TernaryOp((Result = AF9API_RESULT_OK), 'OK', 'NG');
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING,TernaryOp((Result = AF9API_RESULT_OK),DefCommon.LOG_TYPE_INFO,DefCommon.LOG_TYPE_NG),sApiFunc);
+end;
+
+function TCommPG.AF9_APSSFRSet(FrrStart: Integer; R,G,B: Byte; BR,BG,BB: Byte; PTNCnt: Byte; PTN: DWORD; Hz: Integer): Integer;
+var
+  sApiFunc : string;
+begin
+	//-------------------------------------
+{$IFDEF SIMULATOR_PG}
+  Result   := AF9API_RESULT_OK;
+{$ELSE}
+//{$IFDEF AF9API_MULTI}
+//Result := AF9API_MULTI_APSSFRSet(FrrStart, R,G,B, BR,BG,BB, PTNCnt, PTN, Hz); //TBD:AF9?
+//{$ELSE}
+  Result := AF9API_APSSFRSet(FrrStart, R,G,B, BR,BG,BB, PTNCnt, PTN, Hz);
+//{$ENDIF}
+{$ENDIF}
+  //
+	//-------------------------------------
+//{$IFDEF AF9API_MULTI}
+//sApiFunc := Format('MULTI_APSSFRSet[CH%d]',[m_nAF9Ch]);
+//{$ELSE}
+  sApiFunc := 'APSSFRSet';
+//{$ENDIF}
+  sApiFunc := m_PgVer.sAF9APIType + sApiFunc + Format('(FrrStart=%d, R=%d,G=%d,B=%d, BR=%d,BG=%d,BB=%d, PtnCnt=%d,PTN=%d, Hz=%d)',[FrrStart, R,G,B, BR,BG,BB, PTNCnt,PTN, Hz]);
+	sApiFunc := sApiFunc + Format(':(%d) ',[Result]) + TernaryOp((Result = AF9API_RESULT_OK), 'OK', 'NG');
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING,TernaryOp((Result = AF9API_RESULT_OK),DefCommon.LOG_TYPE_INFO,DefCommon.LOG_TYPE_NG),sApiFunc);
+end;
+
+//==============================================================================
+// AF9-Specific
+//==============================================================================
+
+function TCommPG.MakeRawFile_AF9(fName: String; var nDataCnt: integer): Boolean;  //TBD:ITOLED:AF9?
+var
+  i,j,k, nTemp, nType : Integer;
+  nHeight, nWidth : Integer;
+  Bmp2RawType : Integer;
+  sFunc, sDebug : string;
+begin
+  Result := False;
+	{$IF Defined(INSPECTOR_POCB)}
+  Bmp2RawType := Common.TestModelInfo[m_nCh].PG.PgModelConf.Bmp2RawType;
+  {$ELSE} // INSPECTOR_FI|INSPECTOR_OQA, INSPECTOR_GB
+  Bmp2RawType := Common.TestModelInfoPG.PgModelConf.Bmp2RawType;
+	{$ENDIF}
+  sFunc  := Format('MakeRawFile_AF9(%d=%s, %s)',[Bmp2RawType,TernaryOp(Bmp2RawType=0,'Large','Small'),Common.Path.BMP+fName]);
+  try
+    SetLength(RawData,0);    //Initial
+    SetLength(RawBgrData,0); //Initial
+    Image_Pat1.Picture := nil;
+
+    //Type에 맞지않는 Bitmap인 경우 처리
+    try
+      Image_Pat1.Picture.LoadFromFile(Common.Path.BMP + fName);
+    //Image_Pat1.Picture.LoadFromFile(fName);
+    except
+      ShowTestWindow(DefCommon.MSG_MODE_WORKING,DefCommon.LOG_TYPE_NG, sFunc+' ...NG(LoadFromFile)');
+      Exit;
+    end;
+
+    nHeight := Image_Pat1.Picture.Bitmap.Height;
+    nWidth  := Image_Pat1.Picture.Bitmap.Width;
+
+    nType := nWidth;
+    SetLength(RawData,   (nHeight*nWidth*3));
+    SetLength(RawBgrData,(nHeight*nWidth*3 *2));
+    for i := 0 to Pred(nHeight) do begin
+      CopyMemory(@RawData[i*nWidth*3],Image_Pat1.Picture.Bitmap.ScanLine[i],nWidth*3);
+    end;
+    //X2146|X2381 BMP-to-RAW Conversion
+    nDataCnt := 0;
+    for i := 0 to Pred(nHeight) do begin
+      // BMP(BGR) --> RAW(RGB)
+      for j := 0 to Pred(nWidth) do begin                         
+        RawBgrData[nDataCnt] :=  (RawData[i*nWidth*3 + j*3 + 1]);
+        nDataCnt := nDataCnt + 1;
+        RawBgrData[nDataCnt] :=  (RawData[i*nWidth*3 + j*3 + 0]);
+        nDataCnt := nDataCnt + 1;
+        RawBgrData[nDataCnt] :=  (RawData[i*nWidth*3 + j*3 + 2]);
+        nDataCnt := nDataCnt + 1;
+      end;
+      //
+      case Bmp2RawType of
+        1 : begin  // Small(X2381)
+          for k := 0 to 23 do begin
+            RawBgrData[nDataCnt] := 0;
+            nDataCnt := nDataCnt + 1;
+          end;
+        end;
+        else begin // Large(X2146)
+          //NOP
+        end;
+      end;
+    end;
+  except
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING,DefCommon.LOG_TYPE_NG,sFunc+' NG(BMP-to-RAW)');
+    Exit;
+  end;
+
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING,DefCommon.LOG_TYPE_INFO,sFunc + ' OK');
+  Result := True;
+end;
+
+procedure TCommPG.SaveRawFile_AF9(fName: String);
+var
+  fi : TFileStream;
+  saveFName : String;
+begin
+  saveFName := Common.Path.BMP + StringReplace(fName,'.bmp','.raw', [rfReplaceAll, rfIgnoreCase]);
+//	saveFName := StringReplace(fName,'.bmp','.raw', [rfReplaceAll, rfIgnoreCase]);
+  if FileExists(saveFname) then
+    fi := TFileStream.Create(saveFName, fmOpenWrite or fmShareDenyNone)
+  else
+    fi := TFileStream.Create(saveFName, fmCreate);
+  try
+    fi.WriteBuffer(RawBgrData[0],Image_Pat1.Picture.Bitmap.Height*Image_Pat1.Picture.Bitmap.Width*3)
+  finally
+    fi.Free;
+  end;
+end;
+
+//##############################################################################
+{$ENDIF} //PG_AF9 ##############################################################
+//##############################################################################
+
+
+//##############################################################################
+{$IFDEF PG_DP860} //############################################################
+//##############################################################################
+//###                                                                        ###
+//###                             PG_DP860                                   ###   
+//###                                                                        ###
+//##############################################################################
+//##############################################################################
+
+//==============================================================================
+// DP860 Timer
+//------------------------------------------------------------------------------
+// procedure/function: 
+//		- procedure TCommPG.ConnCheckTimer_DP860(Sender: TObject);
+//
+procedure TCommPG.ConnCheckTimer_DP860(Sender: TObject); //TBD:DP860?
+begin
+  try
+		//
+    if (not m_bCyclicTimer) then Exit;
+    if m_bPwrMeasure and tmPwrMeasure.Enabled then Exit;
+    {$IF Defined(INSPECTOR_OC) or Defined(INSPECTOR_PreOC)}
+    if CSharpDll.m_bIsDLLWork[m_nPg] then Exit;
+    {$ENDIF}
+		//
+    if m_bWaitEvent then Exit;
+    if m_bWaitPwrEvent then Exit;
+    //
+    if (m_nConnCheckNG > 2) and (StatusPg <> pgDisconn) then begin  //TBD:DP860? 3?
+      m_nConnCheckNG := 0;
+      StatusPg := pgDisconn;
+      //
+      InitPgVer;
+			ShowTestWindow(Defcommon.MSG_MODE_DISPLAY_CONNECTION, DefCommon.PG_CONN_DISCONNECTED, 'DP860 Disconnected');
+      ShowMainWindow(Defcommon.MSG_MODE_DISPLAY_CONNECTION, DefCommon.PG_CONN_DISCONNECTED, 'DP860 Disconnected');
+      // Change ConnCheck Interval
+  		tmConnCheck.Enabled  := False;
+  		tmConnCheck.Interval := 1000;
+  		tmConnCheck.Enabled  := True;
+      // Disable PwrMeasure Timer
+			tmPwrMeasure.Enabled := False;
+			m_bPwrMeasure := False;
+    end
+    else begin
+		//if (m_ABinding <> nil) then begin //TBD:DP860?
+        DP860_SendConnCheck;
+        Inc(m_nConnCheckNG);
+    //end;
+    end;
+	except
+		OutputDebugString(PChar('>> ConnCheckTimer_DP860 Exception Error!!'));
+	end;
+end;
+
+//==============================================================================
+// PG TX/RX Common (----)
+//==============================================================================
+
+function TCommPG.DP860_GetStrCmdResult(dwRtn: DWORD): string;
+var
+	sCmdResult : string;
+begin
+	case dwRtn of
+		WAIT_OBJECT_0 : sCmdResult := ' OK';
+		WAIT_FAILED   : sCmdResult := ' NG(Failed)';  //TBD:DP860? NAK? FAILED?
+		WAIT_TIMEOUT  : sCmdResult := ' NG(TimeOut)';
+    else 					  sCmdResult := ' NG(Etc)';
+	end;
+	Result := sCmdResult;
+end;
+
+//==============================================================================
+// DP860 TX/RX Common - CmdAck
+//------------------------------------------------------------------------------
+// procedure/function: 
+//		- function TCommPG.CheckCmdAck(Task: TProc; nCmdId: Integer; sCmdName: string; nWaitMS, nRetry: Integer): DWORD; //TBD:DP860?
+//		- 
+//
+function TCommPG.CheckCmdAck(Task: TProc; nCmdId: Integer; sCmdName: string; nWaitMS, nRetry: Integer): DWORD; //TBD:DP860?
+var
+	dwRtn : DWORD;
+	i     : Integer;
+begin
+  dwRtn := WAIT_FAILED;
+	try
+		if m_bWaitEvent then Sleep(50) else if m_bWaitPwrEvent then Sleep(100); //2020-12-16 //TBD:MERGE?
+
+    // Create Event
+    m_bWaitEvent := True;
+		m_sEvent     := Format('TxPG%d%0.2d%s',[Self.m_nPg,nCmdId,sCmdName]);
+		m_hEvent     := CreateEvent(nil, False, False, PWideChar(m_sEvent));
+
+    try
+  		for i := 0 to nRetry do begin
+    		if StatusPg in [pgDisconn] then Break;
+        //
+        with FTxRxPG do begin
+          CmdState  := DefPG.PG_CMDSTATE_TX_WAITACK;
+          CmdResult := DefPG.PG_CMDRESULT_NONE;
+          //
+          TxCmdId   := nCmdId;
+        //TxCmdStr  :=
+          TxDataLen := 0;
+          //
+          RxCmdId   := DefPG.PG_CMDID_UNKNOWN; //TBD:DP860?
+          RxAckStr  := '';                     //TBD:DP860?
+          RxDataLen := 0;                      //TBD:DP860?
+        end;
+  			//
+        try
+          Task;
+          //
+          dwRtn := WaitForSingleObject(m_hEvent, nWaitMS);
+          FTxRxPG.CmdState := DefPG.PG_CMDSTATE_NONE;
+          case dwRtn of
+            WAIT_OBJECT_0 : begin
+              if {(FTxRxPG.CmdState = DefPG.PG_CMDSTATE_RX_ACK) and} (FTxRxPG.CmdResult = DefPG.PG_CMDRESULT_OK) then
+                Break
+              else
+                dwRtn := WAIT_FAILED;
+            end;
+            WAIT_TIMEOUT : begin
+            end
+            else begin
+              Break;
+            end;
+          end;
+        except
+          Break;
+        end;
+      end;
+    except
+      //TBD?
+    end;
+
+	finally
+    // Close Event
+    CloseHandle(m_hEvent);
+    m_bWaitEvent := False;
+	end;
+  Result := dwRtn;
+end;
+
+//==============================================================================
+// PG_DP860 TX/RX Common (Send)
+//------------------------------------------------------------------------------
+// procedure/function:
+//		- function TCommPG.DP860_SendCmd(sCmd: string; nCmdId: Integer; sCmdName: string; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //TBD:DP860? Return;Integer? DWORD? 3000?
+//		- procedure TCommPG.DP860_SendData(nBindIdx: Integer; sData: string);
+//
+function TCommPG.DP860_SendCmd(sCommand: string; nCmdId: Integer; sCmdName: string; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //TBD:DP860? Return;Integer? DWORD? 3000?
+var
+  nBindIdx   : Integer;
+  PTxRxData  : PPgTxRxData;
+  bStatusCmd : Boolean;
+  i : integer;
+begin
+  //
+  bStatusCmd := False;
+  case nCmdId of
+    DefPG.PG_CMDID_CONNCHECK  : bStatusCmd := True;
+    DefPG.PG_CMDID_POWER_READ : if nWaitMS = 0 then bStatusCmd := True;
+  end;
+  bStatusCmd := (nCmdId in [DefPG.PG_CMDID_CONNCHECK {, DefPG.PG_CMDID_POWER_READ}]); //TBD?
+  if (m_bWaitEvent or m_bWaitPwrEvent) and bStatusCmd then Exit; //skip
+  //
+//if m_bWaitEvent then Sleep(100) else if m_bWaitPwrEvent then Sleep(300); //2020-12-16 //TBD:DP860? PG_PWRMEASURE_WAIT_DEF
+  if m_bWaitEvent then begin
+		i := 0;
+		while m_bWaitEvent and (i < PG_CMD_WAITACK_DEF) do begin //TBD:DP860? PG_CMD_WAITACK_DEF?
+			Sleep(1);
+			Inc(i);
+		end;
+	end
+	else if m_bWaitPwrEvent then begin
+		i := 0;
+		while m_bWaitEvent and (i < DefPG.PG_PWRMEASURE_WAITACK_DEF) do begin //TBD:DP860? PG_PWRMEASURE_WAITACK_DEF?
+			Sleep(1);
+			Inc(i);
+		end;
+	end;
+  //
+  Result := WAIT_OBJECT_0;
+  //
+  case nCmdId of
+    DefPG.PG_CMDID_CONNCHECK : begin
+      nWaitMS := 0;
+    end;
+    DefPG.PG_CMDID_POWER_READ : begin
+      if (Self.StatusPg <> pgReady) then Exit(WAIT_FAILED);
+      if (nWaitMS > 0) then m_bWaitPwrEvent := True;
+    end;
+    else begin
+      if Self.StatusPg = pgDisconn then Exit(WAIT_FAILED); //TBD:DP860?
+    end;
+  end;
+
+//TBD:DP860?  if FIsForceStop then Exit;
+//TBD:DP860?  if sCmd = 'download' then FRxSigData.IsFirstCnn := False;
+//TBD:DP860?  if sCmd = 'reset' then FRxSigData.IsFirstCnn := False;
+//TBD:DP860?  FRxSigData.IsFirstCnn := False;
+
+  //----------------
+  if (nWaitMS <= 0) then PTxRxData := @FTxRxDEF else PTxRxData := @FTxRxPG;
+  PTxRxData^.CmdState  := TernaryOp((nWaitMS > 0), DefPG.PG_CMDSTATE_TX_WAITACK, DefPG.PG_CMDSTATE_TX_NOACK);
+  PTxRxData^.CmdResult := DefPG.PG_CMDRESULT_NONE;
+  // TX
+  PTxRxData^.TxCmdId   := nCmdId;
+  PTxRxData^.TxCmdStr  := sCommand;
+  // RX
+//PTxRxData^.RxCmdId   := //TBD:DP860?
+//PTxRxData^.RxAckStr  := //TBD:DP860?
+
+  //----------------
+  if (nWaitMS <= 0) then begin
+    DP860_SendData(DefCommon.PG_CNT{nBindIdx},sCommand); //SourcePort:8000
+    Result := WAIT_OBJECT_0;
+  end
+  else begin
+    PTxRxData^.RxPrevStr := ''; //2023-04-28 //TBD?
+    Result := CheckCmdAck(procedure begin DP860_SendData(m_nPg{nBindIdx},sCommand); end, nCmdId,sCmdName, nWaitMS,nRetry);
+  end;
+end;
+
+procedure TCommPG.DP860_SendData(nBindIdx: Integer; sCommand: string);
+begin
+  UdpServerPG.UdpSvrSend(nBindIdx, m_nPg, sCommand+#$0D);
+end;
+
+//==============================================================================
+// PG_DP860 TX/RX Common (Read)
+//------------------------------------------------------------------------------
+// procedure/function: 
+//		- procedure TCommPG.DP860_OnUdpRX(sCmdAck: string; nLocalPort,nPeerPort: Integer); //#OnReadEvent //TBD:DP860?
+//
+
+procedure TCommPG.DP860_OnUdpRX(sCmdAck: string; nLocalPort,nPeerPort: Integer); //#OnReadEvent //TBD:DP860?
+var
+  arData : TArray<string>;
+  nLen   : integer;
+  PTxRxData : PPgTxRxData;
+begin
+  TconRWCnt.ContTConOcWrite := 0; //2023-03-28 jhhwang (for T/T Test)
+
+//sCmdAck := StringReplace(sCmdAck, #$0A, '', [rfReplaceAll]); // remove #$0A //2022-11-09 move to UdpServerPG.Read???
+  arData  := sCmdAck.Split([#$0D]);
+  nLen    := Length(arData);
+
+  // Case.1 : NoAckWait (ConnCheck|PowerRead|PgInit)
+  if nLocalPort = DefPG.CommPG_PC_PORT_BASE then begin
+    //
+    PTxRxData := @FTxRxDEF;
+    PTxRxData^.CmdResult := TernaryOp((UpperCase(arData[nLen-1]) = 'RET:OK'), DefPG.PG_CMDRESULT_OK, DefPG.PG_CMDRESULT_NG);
+
+    if Pos('power parameters :',LowerCase(sCmdAck)) <> 0 then begin  // ack for power.read
+      PTxRxData^.CmdState := DefPG.PG_CMDSTATE_NONE;
+      PTxRxData^.TxCmdId  := DefPG.PG_CMDID_UNKNOWN;
+      PTxRxData^.RxCmdId  := DefPG.PG_CMDID_POWER_READ;
+      DP860_ReadPowerMeasureAck(sCmdAck);
+    end
+    else if Pos(LowerCase(DefPG.PG_CMDSTR_PG_INIT),LowerCase(sCmdAck)) <> 0 then begin  // pg.init
+      PTxRxData^.RxCmdId := DefPG.PG_CMDID_PG_INIT;
+      DP860_ReadPgInit;
+    end
+    else begin
+      if PTxRxData^.TxCmdId = DefPG.PG_CMDID_CONNCHECK then begin // ack for pg.status
+        PTxRxData^.CmdState := DefPG.PG_CMDSTATE_NONE;
+        PTxRxData^.TxCmdId  := DefPG.PG_CMDID_UNKNOWN;
+        PTxRxData^.RxCmdId  := DefPG.PG_CMDID_CONNCHECK;
+        DP860_ReadConnCheckAck(sCmdAck);
+      end
+      else begin
+        //TBD:DP860??
+        PTxRxData^.RxCmdId := DefPG.PG_CMDID_UNKNOWN //TBD:IMSI?
+      end;
+    end;
+    Exit; //!!!
+  end;
+
+  // Case.2 : CmdAck (except ConnCheck|PowerRead|PgInit)
+  PTxRxData := @FTxRxPG;
+  PTxRxData^.CmdState  := DefPG.PG_CMDSTATE_RX_ACK; //TBD:DP860?
+  PTxRxData^.CmdResult := TernaryOp((UpperCase(arData[nLen-1]) = 'RET:OK'), DefPG.PG_CMDRESULT_OK, DefPG.PG_CMDRESULT_NG);
+    PTxRxData^.RxAckStr  := sCmdAck; //TBD:DP860?
+
+  if m_bWaitEvent then SetEvent(m_hEvent);
+
+{$IFDEF IMSI}
+  FCurentPort := nPort;
+{$ENDIF}
+end;
+
+procedure TCommPG.DP860_ReadPgInit;
+var
+  sDebug : string;
+begin
+  try
+    SetCyclicTimer(False{bEnable});
+    //
+   	sDebug := 'RCV pg.init';
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG, sDebug);
+    Sleep(100);
+    //
+    m_nConnCheckNG := 0;
+    StatusPg := pgGetPgVer; //TBD:DP860?
+    DP860_SendVersionAll; //TBD:DP860?
+  finally
+    SetCyclicTimer(True{bEnable});
+  end;
+end;
+
+function TCommPG.DP860_GetPgLogMsg(sAckStr: string): string;
+var
+  arTemp : TArray<string>;
+  sPgLog : string;
+  i : Integer;
+begin
+  Result := '';
+  if Length(sAckStr) = 0 then Exit;
+  //
+  try
+    arTemp := sAckStr.Split([#$0D]);
+    for i := 0 to (Length(arTemp) - 2) do begin // without RET:XX
+      if i > 0 then Result := Result + '#';
+      Result := Result + Trim(arTemp[i]);
+    end;
+  except
+    Result := 'GetErrorPgLogMsg';
+  end;
+end;
+
+//==============================================================================
+// PG_DP860 Command - ConnCheck
+//------------------------------------------------------------------------------
+// procedure/function:
+//		- procedure TCommPG.DP860_SendConnCheck;
+//    - procedure TCommPG.DP860_ReadConnCheckAck(sCmdAck: string);
+//
+procedure TCommPG.DP860_SendConnCheck;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug : string;
+begin
+  if m_bWaitEvent or m_bWaitPwrEvent then Exit; // skip if command ack waiting
+
+  //
+  nCmdId   := DefPG.PG_CMDID_CONNCHECK;
+  sCmdName := DefPG.PG_CMDSTR_CONNCHECK;  // 'pg.status'
+	//
+	sCommand := sCmdName;
+  DP860_SendCmd(sCommand, nCmdId,sCmdName, 0{bWaitAck},0{nRetry});
+  //
+//sDebug := '<PG> ' + sCommand + ':' + DP860_GetStrCmdResult(Result);
+//ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+end;
+
+procedure TCommPG.DP860_ReadConnCheckAck(sCmdAck: string);
+begin
+  m_nConnCheckNG := 0;
+  //
+  case StatusPg of
+    pgDisconn, pgConnect : begin
+			ShowTestWindow(Defcommon.MSG_MODE_DISPLAY_CONNECTION,	DefCommon.PG_CONN_CONNECTED, 'PG Connected');
+      //
+      StatusPg := pgGetPgVer;
+      DP860_SendVersionAll;
+    end;
+    pgGetPgVer, pgModelDown : begin
+			//TBD:DP860?
+    end;
+    pgReady: begin
+			//TBD:DP860?
+    end;
+    pgWait: ;
+    pgDone: ;
+    pgForceStop: begin
+			//TBD:DP860?
+		end;
+  end;
+end;
+
+//==============================================================================
+// PG_DP860 Command - Version
+//------------------------------------------------------------------------------
+// procedure/function: 
+//		- function TCommPG.DP860_SendVersionAll(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+//    - procedure TCommPG.DP860_ReadVersionAllAck(sCmdAck: string);
+//		- function TCommPG.DP860_SendModelVersion(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+//    - procedure TCommPG.DP860_ReadModelVersionAck(sCmdAck: string);
+//
+function TCommPG.DP860_SendVersionAll(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug : string;
+begin
+	nCmdId   := DefPG.PG_CMDID_VERSION_ALL;
+	sCmdName := DefPG.PG_CMDSTR_VERSION_ALL;  // 'version.all'
+	sCommand := sCmdName;
+	Result := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+  //
+	sDebug := '<PG> ' + sCommand + ':' + DP860_GetStrCmdResult(Result);
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+  Sleep(100);
+  //
+  if FTxRxPG.TxCmdId <> DefPG.PG_CMDID_VERSION_ALL then begin
+    //TBD:DP860? debug !!!
+  end;
+  //
+  case Result of  //TBD:DP860?
+    WAIT_OBJECT_0 : begin
+      DP860_ReadVersionAllAck(FTxRxPG.RxAckStr);
+		//ShowTestWindow(Defcommon.MSG_MODE_DISPLAY_CONNECTION, DefCommon.PG_CONN_VERSION, 'PG Connected');
+      //
+      if StatusPg <> pgReady then begin
+        Common.ThreadTask( procedure begin
+          DP860_SendModelVersion;
+        end);
+      end;
+    end;
+    WAIT_TIMEOUT  : StatusPg := pgDisconn; //TBD:DP860?
+    else            StatusPg := pgConnect; //TBD:DP860?
+  end;
+end;
+
+procedure TCommPG.DP860_ReadVersionAllAck(sCmdAck: string);
+var
+  arCmdAck : TArray<string>;
+  arTemp   : TArray<string>;
+  i, nVerInfo : Integer;
+begin
+  // HW_1.3_APP_1.0.2_FW_1.02_FPGA_10105(1.6.0)_PWR_1.0
+  arCmdAck := sCmdAck.Split([#$0D]);
+  m_PgVer.VerAll := arCmdAck[0];
+  //
+  arTemp := m_PgVer.VerAll.Split(['_']);
+  nVerInfo := Length(arTemp);
+  i := 0;
+  while ((i+1) <= nVerInfo) do begin
+    if      arTemp[i] = 'ITO APP'   then m_PgVer.ITO_APP    := Format('%s_%s',[arTemp[i+1],arTemp[i+2]])
+    else if arTemp[i] = 'FW'   then m_PgVer.FW := arTemp[i+1]
+    else if arTemp[i] = 'IP' then m_PgVer.IP  := arTemp[i+1]
+    else if arTemp[i] = 'PWR'  then m_PgVer.PWR   := arTemp[i+1];
+    i := i + 1;
+  end;
+end;
+
+function TCommPG.DP860_SendModelVersion(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug : string;
+begin
+	nCmdId   := DefPG.PG_CMDID_MODEL_VERSION;
+	sCmdName := DefPG.PG_CMDSTR_MODEL_VERSION; // 'model.version'
+	sCommand := sCmdName;
+	Result := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+  //
+	sDebug := '<PG> ' + sCommand + ':' + DP860_GetStrCmdResult(Result);
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+  Sleep(100);
+  //
+  if FTxRxPG.TxCmdId <> DefPG.PG_CMDID_VERSION_ALL then begin
+    //TBD:DP860? debug !!!
+  end;
+  //
+  case Result of  //TBD:DP860?
+    WAIT_OBJECT_0 : begin
+      DP860_ReadModelVersionAck(FTxRxPG.RxAckStr);
+			ShowTestWindow(Defcommon.MSG_MODE_DISPLAY_CONNECTION, DefCommon.PG_CONN_VERSION, 'PG Connected');
+      //
+      if StatusPg <> pgReady then begin
+        Common.ThreadTask( procedure begin
+          DP860_ModelInfoDownload;
+        end);
+      end;
+    end;
+    WAIT_TIMEOUT  : StatusPg := pgDisconn; //TBD:DP860?
+    else            StatusPg := pgConnect; //TBD:DP860?
+  end;
+end;
+
+procedure TCommPG.DP860_ReadModelVersionAck(sCmdAck: string);
+var
+  arCmdAck : TArray<string>;
+  arTemp   : TArray<string>;
+  i, nVerInfo : Integer;
+begin
+  // ITO_DP860__v0002_20221206
+  arCmdAck := sCmdAck.Split([#$0D]);
+  m_PgVer.VerScript := arCmdAck[0];
+end;
+
+//==============================================================================
+// PG_DP860 Command - Model
+//------------------------------------------------------------------------------
+// procedure/function:
+//		- function DP860_ModelInfoDownload: DWORD
+//		- function TCommPG.DP860_SendPowerOpen(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+//		- function TCommPG.DP860_MakeCmdParam_PowerOpen: string;
+//		- //function TCommPG.DP860_SendPowerLimit(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+//		- //function TCommPG.DP860_MakeCmdParam_PowerLimit: string;
+//		- function TCommPG.DP860_SendPowerSequence(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+//		- function TCommPG.DP860_MakeCmdParam_PowerSequence: string;
+//		- function TCommPG.DP860_SendModelConfig(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+//		- function TCommPG.DP860_MakeCmdParam_ModelConfig: string;
+//		- function TCommPG.DP860_SendAlpmConfig(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+//		- function TCommPG.DP860_MakeCmdParam_AlpmConfig: string;
+//		- //function TCommPG.DP860_SendDpTiming(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+//		- //function TCommPG.DP860_MakeCmdParam_DpTiming: string
+//
+
+function TCommPG.DP860_ModelInfoDownload: DWORD;
+var
+	sDebug : string;
+begin
+	Result := WAIT_FAILED;
+  //
+  try
+    SetCyclicTimer(False{bEnable});
+	  StatusPg := pgModelDown;
+  	//
+    sDebug   := 'PG Model Info Download (power.open)';
+    Result   := DP860_SendPowerOpen(3000{bWaitMS},1{nRetry});
+  	sDebug   := sDebug + DP860_GetStrCmdResult(Result);
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+  	if Result <> WAIT_OBJECT_0 then Exit;
+    Sleep(50);
+  	//
+    sDebug   := 'PG Model Info Download (power.seq)';
+    Result   := DP860_SendPowerSeq(3000{bWaitMS},1{nRetry});
+  	sDebug   := sDebug + DP860_GetStrCmdResult(Result);
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+  	if Result <> WAIT_OBJECT_0 then Exit;
+    Sleep(50);
+  	//
+    sDebug   := 'PG Model Info Download (model.config)';
+    Result   := DP860_SendModelConfig(3000{bWaitMS},1{nRetry});
+  	sDebug   := sDebug + DP860_GetStrCmdResult(Result);
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+  	if Result <> WAIT_OBJECT_0 then Exit;
+    Sleep(50);
+  	//
+    sDebug   := 'PG Model Info Download (alpm.comfig)';
+    Result   := DP860_SendAlpmConfig(3000{bWaitMS},1{nRetry});
+  	sDebug   := sDebug + DP860_GetStrCmdResult(Result);
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+  	if Result <> WAIT_OBJECT_0 then Exit;
+    Sleep(50);
+    //
+    Result := WAIT_OBJECT_0;
+  finally
+    case Result of
+      WAIT_OBJECT_0 : begin
+      	StatusPg := pgReady;
+  			ShowTestWindow(Defcommon.MSG_MODE_DISPLAY_CONNECTION, DefCommon.PG_CONN_READY, 'PG Ready');
+        // Change ConnCheck Interval
+    		tmConnCheck.Enabled  := False;
+    		tmConnCheck.Interval := 3000;
+    		tmConnCheck.Enabled  := True;
+      end;
+      WAIT_TIMEOUT  : StatusPg := pgDisconn;
+      else            StatusPg := pgConnect;
+    end;
+    SetCyclicTimer(True{bEnable});
+  end;
+end;
+
+//
+// power.open <channel> <VCC_voltage_value> <VIN_voltage_value> <VDD3_voltage_value> <VDD4_voltage_value> <VDD5_voltage_value>
+//                         <slope_set> <I_VCC_high_limit_value> <I_VIN_high_limit_value>  <VCC_high_limit_value> <VIN_high_limit_value>
+//    e.g., power.open ALL 4900 6500 1800 9999 9999 S0 I4000 I6000 V49 V65
+//
+function TCommPG.DP860_SendPowerOpen(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+begin
+	nCmdId   := DefPG.PG_CMDID_POWER_OPEN;
+	sCmdName := DefPG.PG_CMDSTR_POWER_OPEN;  // 'power.open'
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName + ' ' + DP860_MakeCmdParam_PowerOpen;
+	Result := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+  if Result <> WAIT_OBJECT_0 then begin
+    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+  end;
+  //
+	sDebug := '<PG> ' + sCommand + ':' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+end;
+
+function TCommPG.DP860_MakeCmdParam_PowerOpen: string;
+var
+	sCmdParam : string;
+begin
+{$IF Defined(INSPECTOR_POCB)}
+  with Common.TestModelInfo[m_nCh].PG.PgPwrData do
+{$ELSE} // INSPECTOR_FI|INSPECTOR_OQA, INSPECTOR_GB?
+  with Common.TestModelInfoPG.PgPwrData do
+{$ENDIF}
+  begin
+    sCmdParam := Format('ALL %d %d %d %d %d',[PWR_VOL[DefPG.PWR_VDD1],PWR_VOL[DefPG.PWR_VDD2],PWR_VOL[DefPG.PWR_VDD3],PWR_VOL[DefPG.PWR_VDD4],PWR_VOL[DefPG.PWR_VDD5]]);
+    //
+    sCmdParam := sCmdParam + ' ' + Format('S%d',[PWR_SLOPE]); // SLOPE_SET
+    //
+    sCmdParam := sCmdParam + ' ' + Format('I%d',[(PWR_CUR_HL[DefPG.PWR_VDD1])]);         // IVCC_HL (1=1mA)   e.g., I4000 (4.0A)
+    sCmdParam := sCmdParam + ' ' + Format('I%d',[(PWR_CUR_HL[DefPG.PWR_VDD2])]);         // IVIN_HL (1=1mA)   e.g., I5000 (5.0A)
+    sCmdParam := sCmdParam + ' ' + Format('V%d',[(PWR_VOL_HL[DefPG.PWR_VDD1] div 100)]); //  VCC_HL (1=100mV) e.g., V49 (4.9V)
+    sCmdParam := sCmdParam + ' ' + Format('V%d',[(PWR_VOL_HL[DefPG.PWR_VDD2] div 100)]); //  VIN_HL (1=100mV) e.g., V65 (6.5V)
+  end;
+	Result := sCmdParam;
+end;
+
+//
+// power.seq <on1_value> <on2_value> <off1_value> <off2_value>
+//    e.g., power.seq 4 10 150 2
+//
+function TCommPG.DP860_SendPowerSeq(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+  sCmdParam : string;
+begin
+	nCmdId   := DefPG.PG_CMDID_POWER_SEQ;
+	sCmdName := DefPG.PG_CMDSTR_POWER_SEQ; // 'power.seq'
+	sEtcMsg  := '';
+	//
+  with Common.TestModelInfoPG.PgPwrSeq do
+  begin
+    sCmdParam := Format('Power On Sequence : VCC -> (%dms) -> PWR_DWN -> (%dms) -> VIN',[SeqOn[0] ,SeqOn[1]]);  // SeqOn[0]  ~ SeqOn[1]
+    sCmdParam := sCmdParam + #13#10 + Format('Power Off Sequence : PWR_DWN -> (%dms) -> VIN -> (%dms) -> VCC',[SeqOff[0],SeqOff[1]]); // SeqOff[0] ~ SeqOff[1]
+  end;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING,0, sCmdParam);
+
+	sCommand := sCmdName  + ' ' + DP860_MakeCmdParam_PowerSeq;
+	Result := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+  if Result <> WAIT_OBJECT_0 then begin
+    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+  end;
+  //
+	sDebug := '<PG> ' + sCommand + ':' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+end;
+
+function TCommPG.DP860_MakeCmdParam_PowerSeq: string;
+var
+	sCmdParam : string;
+begin
+{$IF Defined(INSPECTOR_POCB)}
+  with Common.TestModelInfo[m_nCh].PG.PgPwrSeq do
+{$ELSE} // INSPECTOR_FI|INSPECTOR_OQA, INSPECTOR_GB?
+  with Common.TestModelInfoPG.PgPwrSeq do
+{$ENDIF}
+  begin
+    // obsoleted!!! sCmdParam :=                   Format('%d',[SeqType]);
+    // obsoleted!!! sCmdParam := sCmdParam + ' ' + Format('%d %d',[SeqOn[0] ,SeqOn[1]]);  // SeqOn[0]  ~ SeqOn[1]
+    // obsoleted!!! sCmdParam := sCmdParam + ' ' + Format('%d %d',[SeqOff[0],SeqOff[1]]); // SeqOff[0] ~ SeqOff[1]
+    sCmdParam :=                   Format('%d %d',[SeqOn[0] ,SeqOn[1]]);  // SeqOn[0]  ~ SeqOn[1]
+    sCmdParam := sCmdParam + ' ' + Format('%d %d',[SeqOff[0],SeqOff[1]]); // SeqOff[0] ~ SeqOff[1]
+  end;
+	Result := sCmdParam;
+end;
+
+//
+// model.config <Link rate> <lane> <H width> <H bporch> <H active> <H fporch> <V width> <V bporch> <V active> <V fporch> <Vsync> <Format> <ALPM set> <vfb_offset>
+//    e.g., model.config 2700 4 8 198 2360 94 2 18 1640 60 60 RGBG24 0 0
+//
+function TCommPG.DP860_SendModelConfig(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+begin
+	nCmdId   := DefPG.PG_CMDID_MODEL_CONFIG;
+	sCmdName := DefPG.PG_CMDSTR_MODEL_CONFIG; // 'model.config'
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName + ' ' + DP860_MakeCmdParam_ModelConfig; //TBD:DP860? DP860_MakeCmdParam_ModelConfig?
+	Result := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+  if Result <> WAIT_OBJECT_0 then begin
+    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+  end;
+  //
+	sDebug := '<PG> ' + sCommand + ':' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+end;
+
+function TCommPG.DP860_MakeCmdParam_ModelConfig: string;
+var
+	sCmdParam : string;
+begin
+	sCmdParam := '';
+{$IF Defined(INSPECTOR_POCB)}
+  with Common.TestModelInfo[m_nCh].PG.PgModelConf do
+{$ELSE} // INSPECTOR_FI|INSPECTOR_OQA, INSPECTOR_GB?
+  with Common.TestModelInfoPG.PgModelConf do
+{$ENDIF}
+  begin
+    sCmdParam :=                   Format('%d',[link_rate]);
+    sCmdParam := sCmdParam + ' ' + Format('%d',[lane]);
+    sCmdParam := sCmdParam + ' ' + Format('%d',[H_SA]);
+    sCmdParam := sCmdParam + ' ' + Format('%d',[H_BP]);
+    sCmdParam := sCmdParam + ' ' + Format('%d',[H_Active]);
+    sCmdParam := sCmdParam + ' ' + Format('%d',[H_FP]);
+    sCmdParam := sCmdParam + ' ' + Format('%d',[V_SA]);
+    sCmdParam := sCmdParam + ' ' + Format('%d',[V_BP]);
+    sCmdParam := sCmdParam + ' ' + Format('%d',[V_Active]);
+    sCmdParam := sCmdParam + ' ' + Format('%d',[V_FP]);
+    sCmdParam := sCmdParam + ' ' + Format('%d',[Vsync]);
+    sCmdParam := sCmdParam + ' ' + Trim(RGBFormat);
+    sCmdParam := sCmdParam + ' ' + Format('%d',[ALPM_Mode]);
+    sCmdParam := sCmdParam + ' ' + Format('%d',[vfb_offset]);
+  end;
+	Result := sCmdParam;
+end;
+
+//
+// alpm.config <h_fdp> <h_sdp> <h_pcnt> <vb_n5b> <vb_n7> <vb_n5a> <vb_sleep> <vb_n2> <vb_n3> <vb_n4> <m_vid> <n_vid> <misc_0> <misc_1> <xpol> <xdelay>
+//             <h_mg> <NoAux_Sel> <NoAux_active> <NoAux_Sleep> <Critical_section> <tps> <v_blank> <chop_enable> <chop_interval> <chop_size>
+//    e.g., alpm.config 455 16 611 172 0 0 0 0 0 0 34301 32768 32 0 X0 0 12 2 0 0 67 3 n5b 0 0 0
+//
+function TCommPG.DP860_SendAlpmConfig(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+begin
+	nCmdId   := DefPG.PG_CMDID_ALPM_CONFIG;
+	sCmdName := DefPG.PG_CMDSTR_ALPM_CONFIG; // 'alpm.config'
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName + ' ' + DP860_MakeCmdParam_AlpmConfig;
+	Result := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+  if Result <> WAIT_OBJECT_0 then begin
+    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+  end;
+  //
+	sDebug := '<PG> ' + sCommand + ':' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+end;
+
+function TCommPG.DP860_MakeCmdParam_AlpmConfig: string;
+var
+	sCmdParam : string;
+begin
+	sCmdParam := '';
+
+{$IF Defined(INSPECTOR_POCB)}
+  with Common.TestModelInfo[m_nCh].PG.PgModelConf do
+{$ELSE} // INSPECTOR_FI|INSPECTOR_OQA, INSPECTOR_GB?
+  with Common.TestModelInfoPG.PgModelConf do
+{$ENDIF}
+  begin
+    sCmdParam :=                   Format('%d',[h_fdp]);
+    sCmdParam := sCmdParam + ' ' + Format('%d',[h_sdp]);
+    sCmdParam := sCmdParam + ' ' + Format('%d',[h_pcnt]);
+    sCmdParam := sCmdParam + ' ' + Format('%d',[vb_n5b]);
+    sCmdParam := sCmdParam + ' ' + Format('%d',[vb_n7]);
+    sCmdParam := sCmdParam + ' ' + Format('%d',[vb_n5a]);
+    sCmdParam := sCmdParam + ' ' + Format('%d',[vb_sleep]);
+    sCmdParam := sCmdParam + ' ' + Format('%d',[vb_n2]);
+    sCmdParam := sCmdParam + ' ' + Format('%d',[vb_n3]);
+    sCmdParam := sCmdParam + ' ' + Format('%d',[vb_n4]);
+    sCmdParam := sCmdParam + ' ' + Format('%d',[m_vid]);
+    sCmdParam := sCmdParam + ' ' + Format('%d',[n_vid]);
+    sCmdParam := sCmdParam + ' ' + Format('%d',[misc_0]);
+    sCmdParam := sCmdParam + ' ' + Format('%d',[misc_1]);
+    sCmdParam := sCmdParam + ' ' + TernaryOp((xpol=0),'X0','X1'); //0:'X0', 1:'X1'
+    sCmdParam := sCmdParam + ' ' + Format('%d',[xdelay]);
+    sCmdParam := sCmdParam + ' ' + Format('%d',[h_mg]);
+    sCmdParam := sCmdParam + ' ' + Format('%d',[NoAux_Sel]);
+    sCmdParam := sCmdParam + ' ' + Format('%d',[NoAux_Active]);
+    sCmdParam := sCmdParam + ' ' + Format('%d',[NoAux_Sleep]);
+    sCmdParam := sCmdParam + ' ' + Format('%d',[critical_section]);
+    sCmdParam := sCmdParam + ' ' + Format('%d',[tps]);
+    sCmdParam := sCmdParam + ' ' + Format('%d',[v_blank]);
+    sCmdParam := sCmdParam + ' ' + Format('%d',[chop_enable]);
+    sCmdParam := sCmdParam + ' ' + Format('%d',[chop_interval]);
+    sCmdParam := sCmdParam + ' ' + Format('%d',[chop_size]);
+  end;
+	Result := sCmdParam;
+end;
+
+//==============================================================================
+// PG_DP860 Command - Power On/Off
+//------------------------------------------------------------------------------
+// procedure/function: 
+//		- function TCommPG.DP860_SendPowerOn(nWaitMS: Integer=10000; nRetry: Integer=0): DWORD; //TBD:DP860? nWaitMS default for PowerOn/PowerOff
+//		- function TCommPG.DP860_SendPowerOff(nWaitMS: Integer=10000; nRetry: Integer=0): DWORD; //TBD:DP860? nWaitMS default for PowerOn/PowerOff
+//    - function DP860_SendInterposerOn(nWaitMS: Integer=10000; nRetry: Integer=0): DWORD; //TBD:DP860? nWaitMS default for PowerOn/PowerOff
+//    - function DP860_SendInterposerOff(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //TBD:DP860? nWaitMS default for PowerOn/PowerOff
+//
+//    - function TCommPG.DP860_SendDutDetect(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+//    - function TCommPG.DP860_SendTconInfo(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+//
+function TCommPG.DP860_SendPowerOn(nWaitMS: Integer=10000; nRetry: Integer=0): DWORD; //TBD:DP860? nWaitMS default for PowerOn/PowerOff
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+begin
+
+	nCmdId   := DefPG.PG_CMDID_POWER_ON;
+	sCmdName := DefPG.PG_CMDSTR_POWER_ON;
+
+
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName;
+	Result   := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+  if Result <> WAIT_OBJECT_0 then begin
+    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+  end;
+  //
+	sDebug := '<PG> ' + sCommand + ':' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+end;
+
+function TCommPG.DP860_SendPowerOff(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //TBD:DP860? nWaitMS default for PowerOn/PowerOff
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+begin
+
+	nCmdId   := DefPG.PG_CMDID_POWER_OFF;
+	sCmdName := DefPG.PG_CMDSTR_POWER_OFF; // 'power.off'
+
+
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName;
+	Result   := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+  if Result <> WAIT_OBJECT_0 then begin
+    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+  end;
+  //
+	sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+end;
+
+
+function TCommPG.DP860_SendPowerBistOn(nWaitMS: Integer=10000; nRetry: Integer=0): DWORD; //TBD:DP860? nWaitMS default for PowerOn/PowerOff
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+begin
+
+	nCmdId   := DefPG.PG_CMDID_POWER_BIST_ON;    //Pre OC 및 OC FLow 제어를 위해
+	sCmdName := DefPG.PG_CMDSTR_POWER_BIST_ON;  // 'power.bist.on'
+
+
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName;
+	Result   := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+  if Result <> WAIT_OBJECT_0 then begin
+    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+  end;
+  //
+	sDebug := '<PG> ' + sCommand + ':' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+end;
+
+function TCommPG.DP860_SendPowerBistOff(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //TBD:DP860? nWaitMS default for PowerOn/PowerOff
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+begin
+
+	nCmdId   := DefPG.PG_CMDID_POWER_BIST_OFF;
+	sCmdName := DefPG.PG_CMDSTR_POWER_BIST_OFF; // 'power.off'
+
+
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName;
+	Result   := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+  if Result <> WAIT_OBJECT_0 then begin
+    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+  end;
+  //
+	sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+end;
+
+function TCommPG.DP860_SendInterposerOn(nWaitMS: Integer=10000; nRetry: Integer=0): DWORD; //TBD:DP860? nWaitMS default for PowerOn/PowerOff
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+begin
+	nCmdId   := DefPG.PG_CMDID_INTERPOSER_ON;
+	sCmdName := DefPG.PG_CMDSTR_INTERPOSER_ON;  // 'interposer.init'
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName;
+	Result   := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+  if Result <> WAIT_OBJECT_0 then begin
+    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+  end;
+  //
+	sDebug := '<PG> ' + sCommand + ':' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+end;
+
+function TCommPG.DP860_SendInterposerOff(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //TBD:DP860? nWaitMS default for PowerOn/PowerOff
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+begin
+	nCmdId   := DefPG.PG_CMDID_INTERPOSER_OFF;
+	sCmdName := DefPG.PG_CMDSTR_INTERPOSER_OFF; // 'interposer.deinit'
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName;
+	Result   := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+  if Result <> WAIT_OBJECT_0 then begin
+    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+  end;
+  //
+	sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+end;
+
+function TCommPG.DP860_SendDutDetect(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+begin
+	nCmdId   := DefPG.PG_CMDID_DUT_DETECT;
+	sCmdName := DefPG.PG_CMDSTR_DUT_DETECT; // 'dut.detec'
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName;
+	Result   := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+  if Result <> WAIT_OBJECT_0 then begin
+    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+  end;
+  //
+	sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+end;
+
+function TCommPG.DP860_SendTconInfo(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+  arCmdAck : TArray<string>;
+begin
+	nCmdId   := DefPG.PG_CMDID_TCON_INFO;
+	sCmdName := DefPG.PG_CMDSTR_TCON_INFO; // 'tcon.info'
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName;
+	Result   := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+
+  if Result <> WAIT_OBJECT_0 then begin
+    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+  end
+  else begin
+    try
+      arCmdAck := FTxRxPG.RxAckStr.Split([#$0D]);
+      sEtcMsg  := '[' + arCmdAck[0] + ']';
+    except
+    end;
+  end;
+
+  //전  ChipID_0x 875_ChipRev_0x A00_BoardID_0_BundleID_0x9700_OtpID_1
+  //후  ChipID_0x 875_ChipRev_0x A00_BoardID_0x0_BundleID_0x7401_OtpID_0_HWCID_0x 8_0xE8_0x 2
+  if Length(arCmdAck) > 0 then begin
+    arCmdAck := arCmdAck[0].Split(['_']);
+    if Length(arCmdAck) > 9 then begin
+      m_HWCID[0] := arCmdAck[5];
+      m_HWCID[1] := arCmdAck[7];
+      if Length(arCmdAck) > 13 then begin
+        m_HWCID[2] := arCmdAck[11];
+        m_HWCID[3] := arCmdAck[12];
+        m_HWCID[4] := arCmdAck[13];
+      end;
+    end;
+  end;
+
+
+	sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+end;
+
+//==============================================================================
+// PG_DP860 Command - Power Measurement
+//------------------------------------------------------------------------------
+// procedure/function:
+//		- function TCommPG.DP860_SendPowerMeasure(bCyclicMeasure: Boolean=False): DWORD;
+//		- procedure TCommPG.DP860_ReadPowerMeasureAck(sCmdAck: string);
+
+function TCommPG.DP860_SendPowerMeasure(bCyclicMeasure: Boolean=False): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+  nWaitMS : Integer;
+begin
+  if m_bWaitEvent or m_bWaitPwrEvent then begin
+    if (not bCyclicMeasure) then Sleep(TernaryOp(m_bWaitPwrEvent,DefPG.PG_PWRMEASURE_WAITACK_DEF,DefPG.PG_CMD_WAITACK_DEF)) // delay if command ack waiting
+    else                         Exit;       // skip  if command ack waiting
+  end;
+  //
+	nCmdId   := DefPG.PG_CMDID_POWER_READ;
+	sCmdName := DefPG.PG_CMDSTR_POWER_READ;
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName;
+	Result   := DP860_SendCmd(sCommand, nCmdId,sCmdName, DefPG.PG_PWRMEASURE_WAITACK_DEF); //TBD:DP860? (500ms?)
+  //
+	if (not bCyclicMeasure) then begin
+		sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result);
+  	ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+	end;
+end;
+
+procedure TCommPG.DP860_ReadPowerMeasureAck(sCmdAck: string); //TBD:DP860?
+var
+  arCmdAck : TArray<string>;
+  arTemp   : TArray<string>;
+  i, nVerInfo : Integer;
+begin
+  m_bWaitPwrEvent := False;
+
+  //
+  // Power parameters :
+  // (01) [0] VCC(mV) :3688
+  // (02) [0] I_VCC(mA) :0.000
+  // (03) [0] VIN(mV) :6140
+  // (04) [0] I_VIN(mA) :0.000
+  // (05) [0] SYS(mV) :0
+  // (06) [0] I_SYS(mA) :0.000
+  // (07) [0] VDD4(mV) :0
+  // (08) [0] I_VDD4(mA) :0.000
+  // (09) [0] VDD5(mV) :0
+  // (10) [0] I_VDD5(mA) :0.000
+  // RET:OK
+  //
+  if Pos('power parameters :',LowerCase(sCmdAck)) = 0 then begin // not found
+    //TBD:AbnormalCase?
+    Exit;
+  end;
+
+  arCmdAck := sCmdAck.Split([#$0D]);
+  if Length(arCmdAck) > 10 then  begin
+
+  //
+    arTemp := arCmdAck[1].Split([':']);  m_RxPwrData.VCC   := StrToUInt(Trim(arTemp[1]));  // VDD1(=VCC)
+    arTemp := arCmdAck[2].Split([':']);  m_RxPwrData.IVCC  := Round(StrToFloat(Trim(arTemp[1]))*1000); // IVDD1(=IVCC) //TBD:DP860?
+    arTemp := arCmdAck[3].Split([':']);  m_RxPwrData.VIN   := StrToUInt(Trim(arTemp[1]));  // VDD2(=VIN)
+    arTemp := arCmdAck[4].Split([':']);  m_RxPwrData.IVIN  := Round(StrToFloat(Trim(arTemp[1]))*1000); // IVDD2(=IVIN) //TBD:DP860?
+    arTemp := arCmdAck[5].Split([':']);  m_RxPwrData.VDD3  := StrToUInt(Trim(arTemp[1]));  // VDD3(=SYS)
+    arTemp := arCmdAck[6].Split([':']);  m_RxPwrData.IVDD3 := Round(StrToFloat(Trim(arTemp[1]))*1000); // IVDD3(=ISYS) //TBD:DP860?
+    arTemp := arCmdAck[7].Split([':']);  m_RxPwrData.VDD4  := StrToUInt(Trim(arTemp[1]));  // VDD4
+    arTemp := arCmdAck[8].Split([':']);  m_RxPwrData.IVDD4 := Round(StrToFloat(Trim(arTemp[1]))*1000); // IVDD4        //TBD:DP860?
+    arTemp := arCmdAck[9].Split([':']);  m_RxPwrData.VDD5  := StrToUInt(Trim(arTemp[1]));  // VDD5
+    arTemp := arCmdAck[10].Split([':']); m_RxPwrData.IVDD5 := Round(StrToFloat(Trim(arTemp[1]))*1000); // IVDD5        //TBD:DP860?
+    //
+    m_PwrData.VCC   := m_RxPwrData.VCC;
+    m_PwrData.IVCC  := m_RxPwrData.IVCC  div 1000; //TBD:DP860?
+    m_PwrData.VIN   := m_RxPwrData.VIN;
+    m_PwrData.IVIN  := m_RxPwrData.IVIN  div 1000; //TBD:DP860?
+    m_PwrData.VDD3  := m_RxPwrData.VDD3;
+    m_PwrData.IVDD3 := m_RxPwrData.IVDD3 div 1000; //TBD:DP860?
+    m_PwrData.VDD4  := m_RxPwrData.VDD4;
+    m_PwrData.IVDD4 := m_RxPwrData.IVDD4 div 1000; //TBD:DP860?
+    m_PwrData.VDD5  := m_RxPwrData.VDD5;
+    m_PwrData.IVDD5 := m_RxPwrData.IVDD5 div 1000; //TBD:DP860?
+
+  end;
+
+  //
+  ShowTestWindow(DefCommon.MSG_MODE_DISPLAY_VOLCUR,0,'');
+  //
+  DP860_CheckPowerLimit(m_PwrData);
+end;
+
+procedure TCommPG.DP860_CheckPowerLimit(PwrData: TPwrData);
+var
+  sMsg : string;
+  bLimitNG, bLowLimitNG : Boolean;
+  nValue, nLimit : UInt32;
+begin
+  bLimitNG    := False;
+  bLowLimitNG := False;
+  sMsg := '';
+
+  // Compare measure value with limit
+{$IF Defined(INSPECTOR_POCB)}
+  with Common.TestModelInfo[m_nCh].PG.PgPwrData do
+{$ELSE} // INSPECTOR_FI|INSPECTOR_OQA, INSPECTOR_GB?
+  with Common.TestModelInfoPG.PgPwrData do
+{$ENDIF}
+  begin
+    //---------------------------------- VCC/IVCC
+    // VCC High Limit
+  //if not bLimitNG then begin
+      nValue := PwrData.VCC;  nLimit := PWR_VOL_HL[DefPG.PWR_VCC];
+      if (nLimit > 0) and (nLimit < nValue) then begin
+        sMsg := sMsg + #13#10 + Format('VCC High NG : Limit(%0.3f V), Measure(%0.3f V), Diff(%0.3f V)', [nLimit/1000, nValue/1000, (nValue/1000 - nLimit/1000)]);
+        bLimitNG := True;  bLowLimitNG := True;
+      end;
+  //end;
+    // VCC Low Limit
+  //if not bLimitNG then begin
+      nValue := PwrData.VCC;  nLimit := PWR_VOL_LL[DefPG.PWR_VCC];
+      if (nLimit > 0) and (nLimit > nValue) then begin
+        sMsg := sMsg + #13#10 + Format('VCC Low NG : Limit(%0.3f V), Measure(%0.3f V), Diff(%0.3f V)', [nLimit/1000, nValue/1000, (nValue/1000 - nLimit/1000)]);
+        bLimitNG := True;  bLowLimitNG := True;
+      end;
+  //end;
+    // IVCC High Limit
+  //if not bLimitNG then begin
+      nValue := PwrData.IVCC; nLimit := PWR_CUR_HL[DefPG.PWR_VCC];
+      if (nLimit > 0) and (nLimit < nValue) then begin
+        sMsg := sMsg + #13#10 + Format('IVCC High NG : Limit(%d mA), Measure(%d mA), Diff(%d mA)', [nLimit, nValue, (nValue - nLimit)]);
+        bLimitNG := True;
+      end;
+  //end;
+    // IVCC Low Limit
+  //if not bLimitNG then begin
+      nValue := PwrData.IVCC; nLimit := PWR_CUR_LL[DefPG.PWR_VCC];
+      if (nLimit > 0) and (nLimit > nValue) then begin
+        sMsg := sMsg + #13#10 + Format('IVCC Low NG : Limit(%d mA), Measure(%d mA), Diff(%d mA)', [nLimit, nValue, (nValue - nLimit)]);
+        bLimitNG := True;  bLowLimitNG := True;
+      end;
+  //end;
+    //---------------------------------- VIN/IVIN
+    // VIN High Limit
+  //if not bLimitNG then begin
+      nValue := PwrData.VIN;  nLimit := PWR_VOL_HL[DefPG.PWR_VIN];
+      if (nLimit > 0) and (nLimit < nValue) then begin
+        sMsg := sMsg + #13#10 + Format('VIN High NG : Limit(%0.3f V), Measure(%0.3f V), Diff(%0.3f V)', [nLimit/1000, nValue/1000, (nValue/1000 - nLimit/1000)]);
+        bLimitNG := True;
+      end;
+  //end;
+    // VIN Low Limit
+  //if not bLimitNG then begin
+      nValue := PwrData.VIN;  nLimit := PWR_VOL_LL[DefPG.PWR_VIN];
+      if (nLimit > 0) and (nLimit > nValue) then begin
+        sMsg := sMsg + #13#10 + Format('VIN Low NG : Limit(%0.3f V), Measure(%0.3f V), Diff(%0.3f V)', [nLimit/1000, nValue/1000, (nValue/1000 - nLimit/1000)]);
+        bLimitNG := True;  bLowLimitNG := True;
+      end;
+  //end;
+    // IVIN High Limit
+  //if not bLimitNG then begin
+      nValue := PwrData.IVIN; nLimit := PWR_CUR_HL[DefPG.PWR_VIN];
+      if (nLimit > 0) and (nLimit < nValue) then begin
+        sMsg := sMsg + #13#10 + Format('IVIN High NG : Limit(%d mA), Measure(%d mA), Diff(%d mA)', [nLimit, nValue, (nValue - nLimit)]);
+        bLimitNG := True;
+      end;
+  //end;
+    // IVIN Low Limit
+  //if not bLimitNG then begin
+      nValue := PwrData.IVIN; nLimit := PWR_CUR_LL[DefPG.PWR_VIN];
+      if (nLimit > 0) and (nLimit > nValue) then begin
+        sMsg := sMsg + #13#10 + Format('IVIN Low NG : Limit(%d mA), Measure(%d mA), Diff(%d mA)', [nLimit, nValue, (nValue - nLimit)]);
+        bLimitNG := True;  bLowLimitNG := True;
+      end;
+  //end;
+    //---------------------------------- VDD3/IVDD3
+    // VDD3 High Limit
+  //if not bLimitNG then begin
+      nValue := PwrData.VDD3;  nLimit := PWR_VOL_HL[DefPG.PWR_VDD3];
+      if (nLimit > 0) and (nLimit < nValue) then begin
+        sMsg := sMsg + #13#10 + Format('VDD3 High NG : Limit(%0.3f V), Measure(%0.3f V), Diff(%0.3f V)', [nLimit/1000, nValue/1000, (nValue/1000 - nLimit/1000)]);
+        bLimitNG := True;
+      end;
+  //end;
+    // VDD3 Low Limit
+  //if not bLimitNG then begin
+      nValue := PwrData.VDD3;  nLimit := PWR_VOL_LL[DefPG.PWR_VDD3];
+       if (nLimit > 0) and (nLimit > nValue) then begin
+        sMsg := sMsg + #13#10 + Format('VDD3 Low NG : Limit(%0.3f V), Measure(%0.3f V), Diff(%0.3f V)', [nLimit/1000, nValue/1000, (nValue/1000 - nLimit/1000)]);
+        bLimitNG := True;  bLowLimitNG := True;
+      end;
+  //end;
+    // IVDD3 High Limit
+  //if not bLimitNG then begin
+      nValue := PwrData.IVDD3; nLimit := PWR_CUR_HL[DefPG.PWR_VDD3];
+      if (nLimit > 0) and (nLimit < nValue) then begin
+        sMsg := sMsg + #13#10 + Format('IVDD3 High NG : Limit(%d mA), Measure(%d mA), Diff(%d mA)', [nLimit, nValue, (nValue - nLimit)]);
+        bLimitNG := True;
+      end;
+  //end;
+    // IVDD3 Low Limit
+  //if not bLimitNG then begin
+      nValue := PwrData.IVDD3; nLimit := PWR_CUR_LL[DefPG.PWR_VDD3];
+      if (nLimit > 0) and (nLimit > nValue) then begin
+        sMsg := sMsg + #13#10 + Format('IVDD3 Low NG : Limit(%d mA), Measure(%d mA), Diff(%d mA)', [nLimit, nValue, (nValue - nLimit)]);
+        bLimitNG := True;  bLowLimitNG := True;
+      end;
+  //end;
+    //---------------------------------- VDD4/IVDD4
+    // VDD4 High Limit
+  //if not bLimitNG then begin
+      nValue := PwrData.VDD4;  nLimit := PWR_VOL_HL[DefPG.PWR_VDD4];
+      if (nLimit > 0) and (nLimit < nValue) then begin
+        sMsg := sMsg + #13#10 + Format('VDD4 High NG : Limit(%0.3f V), Measure(%0.3f V), Diff(%0.3f V)', [nLimit/1000, nValue/1000, (nValue/1000 - nLimit/1000)]);
+        bLimitNG := True;
+      end;
+  //end;
+    // VDD4 Low Limit
+  //if not bLimitNG then begin
+      nValue := PwrData.VDD4;  nLimit := PWR_VOL_LL[DefPG.PWR_VDD4];
+      if (nLimit > 0) and (nLimit > nValue) then begin
+        sMsg := sMsg + #13#10 + Format('VDD4 Low NG : Limit(%0.3f V), Measure(%0.3f V), Diff(%0.3f V)', [nLimit/1000, nValue/1000, (nValue/1000 - nLimit/1000)]);
+        bLimitNG := True;  bLowLimitNG := True;
+      end;
+  //end;
+    // IVDD4 High Limit
+  //if not bLimitNG then begin
+      nValue := PwrData.IVDD4; nLimit := PWR_CUR_HL[DefPG.PWR_VDD4];
+      if (nLimit > 0) and (nLimit < nValue) then begin
+        sMsg := sMsg + #13#10 + Format('IVDD4 High NG : Limit(%d mA), Measure(%d mA), Diff(%d mA)', [nLimit, nValue, (nValue - nLimit)]);
+        bLimitNG := True;
+      end;
+  //end;
+    // IVDD4 Low Limit
+  //if not bLimitNG then begin
+      nValue := PwrData.IVDD4; nLimit := PWR_CUR_LL[DefPG.PWR_VDD4];
+      if (nLimit > 0) and (nLimit > nValue) then begin
+        sMsg := sMsg + #13#10 + Format('IVDD4 Low NG : Limit(%d mA), Measure(%d mA), Diff(%d mA)', [nLimit, nValue, (nValue - nLimit)]);
+        bLimitNG := True;  bLowLimitNG := True;
+      end;
+  //end;
+    //---------------------------------- VDD5/IVDD5
+    // VDD5 High Limit
+  //if not bLimitNG then begin
+      nValue := PwrData.VDD5;  nLimit := PWR_VOL_HL[DefPG.PWR_VDD5];
+      if (nLimit > 0) and (nLimit < nValue) then begin
+        sMsg := sMsg + #13#10 + Format('VDD5 High NG : Limit(%0.3f V), Measure(%0.3f V), Diff(%0.3f V)', [nLimit/1000, nValue/1000, (nValue/1000 - nLimit/1000)]);
+        bLimitNG := True;
+      end;
+  //end;
+    // VDD5 Low Limit
+  //if not bLimitNG then begin
+      nValue := PwrData.VDD5;  nLimit := PWR_VOL_LL[DefPG.PWR_VDD5];
+      if (nLimit > 0) and (nLimit > nValue) then begin
+        sMsg := sMsg + #13#10 + Format('VDD5 Low NG : Limit(%0.3f V), Measure(%0.3f V), Diff(%0.3f V)', [nLimit/1000, nValue/1000, (nValue/1000 - nLimit/1000)]);
+        bLimitNG := True;  bLowLimitNG := True;
+      end;
+  //end;
+    // IVDD5 High Limit
+  //if not bLimitNG then begin
+      nValue := PwrData.IVDD5; nLimit := PWR_CUR_HL[DefPG.PWR_VDD5];
+      if (nLimit > 0) and (nLimit < nValue) then begin
+        sMsg := sMsg + #13#10 + Format('IVDD5 High NG : Limit(%d mA), Measure(%d mA), Diff(%d mA)', [nLimit, nValue, (nValue - nLimit)]);
+        bLimitNG := True;
+      end;
+  //end;
+    // IVDD5 Low Limit
+  //if not bLimitNG then begin
+      nValue := PwrData.IVDD5; nLimit := PWR_CUR_LL[DefPG.PWR_VDD5];
+      if (nLimit > 0) and (nLimit > nValue) then begin
+        sMsg := sMsg + #13#10 + Format('IVDD5 Low NG : Limit(%d mA), Measure(%d mA), Diff(%d mA)', [nLimit, nValue, (nValue - nLimit)]);
+        bLimitNG := True;  bLowLimitNG := True;
+      end;
+  //end;
+  end;
+
+  if bLimitNG then begin
+    m_bPwrMeasure        := False;
+    tmPwrMeasure.Enabled := False;
+    //
+    ShowTestWindow(DefCommon.MSG_MODE_DISPLAY_ALARM,TernaryOp(bLowLimitNG,1,0),sMsg);
+  end;
+end;
+
+//==============================================================================
+// PG_DP860 Command - Pattern
+//------------------------------------------------------------------------------
+// procedure/function: 
+//		- function TCommPG.DP860_SendDisplayPatRGB(nR,nG,nB: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+//		- function TCommPG.DP860_SendDisplayPatNum(nPatNum: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+//    - function TCommPG.DP860_SendDisplayPatBMP(sBmpName: string; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+//
+function TCommPG.DP860_SendDisplayPatRGB(nR,nG,nB: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+begin
+
+	nCmdId   := DefPG.PG_CMDID_IMAGE_RGB;
+	sCmdName := DefPG.PG_CMDSTR_IMAGE_RGB; // 'image.rgb <R> <G> <B>'
+
+
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName + ' ' + Format('%d %d %d',[nR,nG,nB]);
+	Result   := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+  if Result <> WAIT_OBJECT_0 then begin
+    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+  end;
+  //
+	sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+end;
+
+
+function TCommPG.DP860_SendDisplayPatBistRGB(nR,nG,nB: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+begin
+
+	nCmdId   := DefPG.PG_CMDID_BIST_RGB;
+	sCmdName := DefPG.PG_CMDSTR_BIST_RGB; // 'bist.rgb <R> <G> <B>'
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName + ' ' + Format('%d %d %d',[nR,nG,nB]);
+	Result   := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+  if Result <> WAIT_OBJECT_0 then begin
+    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+  end;
+  //
+	sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+end;
+
+function TCommPG.DP860_SendDisplayPatBistRGB_9Bit(nR,nG,nB: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+begin
+
+	nCmdId   := DefPG.PG_CMDID_BIST_RGB_9BIT;
+	sCmdName := DefPG.PG_CMDSTR_BIST_RGB_9BIT; // 'bist.9bit <R> <G> <B>'
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName + ' ' + Format('%d %d %d',[nR,nG,nB]);
+	Result   := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+  if Result <> WAIT_OBJECT_0 then begin
+    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+  end;
+  //
+	sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+end;
+
+function TCommPG.DP860_SendDisplayPatNum(nPatNum: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+begin
+	nCmdId   := DefPG.PG_CMDID_IMAGE_DISPLAY;
+	sCmdName := DefPG.PG_CMDSTR_IMAGE_DISPLAY; // 'image.display <pattern#>'
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName + ' ' + Format('%d',[nPatNum]);
+	Result   := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+  if Result <> WAIT_OBJECT_0 then begin
+    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+  end;
+  //
+	sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+end;
+
+function TCommPG.DP860_SendDisplayPatBMP(sBmpName: string; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+begin
+	nCmdId   := DefPG.PG_CMDID_IMAGE_FILE;
+	sCmdName := DefPG.PG_CMDSTR_IMAGE_FILE; // 'image.file <bmp_name>'
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName + ' ' + Format('%s',[sBmpName]);
+	Result   := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+  if Result <> WAIT_OBJECT_0 then begin
+    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+  end;
+  //
+	sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+end;
+
+//==============================================================================
+// PG_DP860 Command - Dimming/DBV
+//------------------------------------------------------------------------------
+// procedure/function:
+//		- function TCommPG.DP860_SendAlpdpDBV(nNit: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+//    - function TCommPG.DP860_SendBistDBV(nDBV: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+
+function TCommPG.DP860_SendAlpdpDBV(nDBV: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+begin
+	nCmdId   := DefPG.PG_CMDID_ALPDP_DBV;
+	sCmdName := DefPG.PG_CMDSTR_ALPDP_DBV; // 'alpdp.dbv <dbv#>'
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName + ' ' + Format('0x%x',[nDBV]);
+	Result   := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+//if Result <> WAIT_OBJECT_0 then begin
+    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+//end;
+  //
+	sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+end;
+
+function TCommPG.DP860_SendBistDBV(nDBV: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+begin
+	nCmdId   := DefPG.PG_CMDID_BIST_DBV;
+	sCmdName := DefPG.PG_CMDSTR_BIST_DBV; // 'bist.dbv <dbv#>'
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName + ' ' + Format('0x%x',[nDBV]);
+	Result   := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+//if Result <> WAIT_OBJECT_0 then begin
+    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+//end;
+  //
+	sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+end;
+
+function TCommPG.DP860_SendBistAPL(nR,nG,nB,nStartX,nStartY,nEndX,nEndY: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+begin
+	nCmdId   := DefPG.PG_CMDID_BIST_APL;
+	sCmdName := DefPG.PG_CMDSTR_BIST_APL;
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName + ' ' + Format('%d %d %d %d %d %d %d',[nR,nG,nB,nStartX,nStartY,nEndX,nEndY]);
+	Result   := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+//if Result <> WAIT_OBJECT_0 then begin
+    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+//end;
+  //
+	sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+end;
+
+//==============================================================================
+// PG_DP860 Command (TCON)
+//------------------------------------------------------------------------------
+// procedure/function:
+//		- function TCommPG.DP860_SendTconRead(nRegAddr,nDataCnt: Integer; var arDataR: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
+//		- function TCommPG.DP860_SendTconWrite(nRegAddr,nDataCnt: Integer; arDataW: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
+//
+function TCommPG.DP860_SendTconRead(nRegAddr,nDataCnt: Integer; var arDataR: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0; nDebugLog : integer= 0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+  //
+  arCmdAck : TArray<string>;
+  arTemp   : TArray<string>;
+  i        : Integer;
+begin
+
+	nCmdId   := DefPG.PG_CMDID_TCON_READ;
+	sCmdName := DefPG.PG_CMDSTR_TCON_READ;
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName + ' ' + Format('0x%0.4x %d',[nRegAddr,nDataCnt]); // 'tcon.read <reg_addr16> <length>'
+	Result   := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+
+  Inc(TconRWCnt.TconReadTX); //2023-03-28 jhhwang (for T/T Test)
+  TconRWCnt.ContTConOcWrite := 0; //2023-03-28 jhhwang (for T/T Test)
+  //
+  sEtcMsg  := '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr) +  '-' + FTxRxPG.RxPrevStr + ']';
+  if Result = WAIT_OBJECT_0 then begin
+    try
+      arCmdAck := FTxRxPG.RxAckStr.Split([#$0D]);
+      arTemp   := arCmdAck[0].Split([' ']);
+      //
+      if Length(arTemp) >= nDataCnt then begin
+        for i := 0 to (nDataCnt-1) do begin
+          arDataR[i] := StrToInt('$'+ arTemp[i]);
+        end;
+      end
+      else begin
+        sEtcMsg := sEtcMsg + Format('(ReadSize=%d<>RxDataCnt=%d)',[nDataCnt,Length(arTemp)]);
+        Result  := WAIT_FAILED; // RX.DATA.Cnt < nDataCnt
+      end;
+    except
+      sEtcMsg :=  sEtcMsg + '(RxDataParsingError)';
+      Result  := WAIT_FAILED;
+    end;
+  end;
+  //
+  if ((nDebugLog = 1) and (Result <> 0)) or ((Common.SystemInfo.DebugLogLevelConfig > 0) and (Common.SystemInfo.PG_TconWriteLogDisplay)) then begin
+	  sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+  end;
+end;
+
+function TCommPG.DP860_SendTconByteRead(nRegAddr,nDataCnt: Integer; var arDataR: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0; nDebugLog : integer= 0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+  //
+  arCmdAck : TArray<string>;
+  arTemp   : TArray<string>;
+  i        : Integer;
+begin
+
+	nCmdId   := DefPG.PG_CMDID_TCON_BYTEREAD;
+	sCmdName := DefPG.PG_CMDSTR_TCON_BYTEREAD;
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName + ' ' + Format('0x%0.4x %d',[nRegAddr,nDataCnt]); // 'tcon.read <reg_addr16> <length>'
+	Result   := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+
+  Inc(TconRWCnt.TconReadTX); //2023-03-28 jhhwang (for T/T Test)
+  TconRWCnt.ContTConOcWrite := 0; //2023-03-28 jhhwang (for T/T Test)
+  //
+  sEtcMsg  := '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr) +  '-' + FTxRxPG.RxPrevStr + ']';
+  if Result = WAIT_OBJECT_0 then begin
+    try
+      arCmdAck := FTxRxPG.RxAckStr.Split([#$0D]);
+      arTemp   := arCmdAck[0].Split([' ']);
+      //
+      if Length(arCmdAck) >= nDataCnt + 1 then begin
+        if (StrToInt('$'+ arTemp[0]) = nRegAddr) then begin
+          for i := 0 to (nDataCnt-1) do begin
+            arDataR[i] := StrToInt('$'+ arCmdAck[i + 1]);
+          end;
+        end
+        else begin
+          arDataR[i] := 0;
+          sEtcMsg := sEtcMsg + Format('(Read Addr : 0x%0.4x <> Return Read Addr : 0x%0.4x : Failed)',[nRegAddr,StrToInt('$'+ arTemp[0])]);
+          Result  := WAIT_FAILED; // RX.DATA.Cnt < nDataCnt
+        end;
+      end
+      else begin
+        arDataR[i] := 0;
+        sEtcMsg := sEtcMsg + Format('(ReadSize=%d <> RxDataCnt=%d)',[nDataCnt,Length(arCmdAck)]);
+        Result  := WAIT_FAILED; // RX.DATA.Cnt < nDataCnt
+      end;
+    except
+      arDataR[i] := 0;
+      sEtcMsg :=  sEtcMsg + '(RxDataParsingError)';
+      Result  := WAIT_FAILED;
+    end;
+  end;
+  //
+  if ((nDebugLog = 1) and (Result <> 0)) or ((Common.SystemInfo.DebugLogLevelConfig > 0) and (Common.SystemInfo.PG_TconWriteLogDisplay)) then begin
+	  sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+  end;
+end;
+
+
+function TCommPG.DP860_SendI2CRead(nDevAddr,nRegAddr,nDataCnt: Integer; var arDataR: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0; nDebugLog : integer= 0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+  //
+  arCmdAck : TArray<string>;
+  arTemp   : TArray<string>;
+  i        : Integer;
+begin
+
+	nCmdId   := DefPG.PG_CMDID_I2C_READ;
+	sCmdName := DefPG.PG_CMDSTR_I2C_READ;
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName + ' ' + Format('4 0x%0.4x 0x%0.4x %d',[nDevAddr,nRegAddr,nDataCnt]); // 'tcon.read <reg_addr16> <length>'
+	Result   := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+
+  Inc(TconRWCnt.TconReadTX); //2023-03-28 jhhwang (for T/T Test)
+  TconRWCnt.ContTConOcWrite := 0; //2023-03-28 jhhwang (for T/T Test)
+  //
+  sEtcMsg  := '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr) +  '-' + FTxRxPG.RxPrevStr + ']';
+  if Result = WAIT_OBJECT_0 then begin
+    try
+      arCmdAck := FTxRxPG.RxAckStr.Split([#$0D]);
+      arTemp   := arCmdAck[0].Split([' ']);
+      //
+      if Length(arTemp) >= nDataCnt then begin
+        for i := 0 to (nDataCnt-1) do begin
+          arDataR[i] := StrToInt('$'+ arTemp[i]);
+        end;
+      end
+      else begin
+        sEtcMsg := sEtcMsg + Format('(ReadSize=%d<>RxDataCnt=%d)',[nDataCnt,Length(arTemp)]);
+        Result  := WAIT_FAILED; // RX.DATA.Cnt < nDataCnt
+      end;
+    except
+      sEtcMsg :=  sEtcMsg + '(RxDataParsingError)';
+      Result  := WAIT_FAILED;
+    end;
+  end;
+  //
+  if ((nDebugLog = 1) and (Result <> 0)) or ((Common.SystemInfo.DebugLogLevelConfig > 0) and (Common.SystemInfo.PG_TconWriteLogDisplay)) then begin
+	  sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+  end;
+end;
+
+function ExtractAlphabets(const inputString: string): string;
+var
+  i: Integer;
+begin
+  Result := '';
+
+  // 문자열에서 알파벳만 추출
+  for i := 1 to Length(inputString) do
+  begin
+    if CharInSet(inputString[i], ['A'..'Z', 'a'..'z', '0'..'9']) then
+      Result := Result + inputString[i];
+  end;
+
+  // 만약 추출된 문자열이 없으면 'Not found' 반환
+  if Result = '' then
+    Result := 'Not found';
+end;
+
+
+function TCommPG.DP860_SendTconWriteRead(nRegAddr,nDataCnt,nVerify: Integer; var arDataW: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0; nDebugLog : integer= 0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg,sTESTString: string;
+  //
+  arCmdAck : TArray<string>;
+  i,nCrcData       : Integer;
+  nDataPGW, nDataPGR : Integer;
+  btaData : TIdBytes;
+begin
+//  SetLength(btaData,nDataCnt);
+//  DP860_SendTConRead(nRegAddr,nDataCnt,btaData, nWaitMS,nRetry,nDebugLog);
+//
+//  sTESTString := Format('RegAddr : 0x%0.2x Write Data : 0x%0.2x Read Data : 0x%0.2x',[nRegAddr,arDataW[0],btaData[0]]);
+//
+//  SetLength(btaData,0);
+
+	nCmdId   := DefPG.PG_CMDID_TCON_WRITEREAD;
+	sCmdName := DefPG.PG_CMDSTR_TCON_WRITEREAD;
+	sEtcMsg  := '';
+	//
+  nCrcData := 0;
+	//
+	sCommand := sCmdName + ' ' + Format('%d 0x%0.4x %d',[nVerify,nRegAddr,nDataCnt]); // tcon.writeread 1 0xFF00 1 0x01 ----- tcon.writeread <verify_enable> <reg_addr> <write_length> <data0> <data_checksum>
+	for i := 0 to Pred(nDataCnt) do begin
+		sCommand := sCommand + ' ' + Format('0x%0.2x',[arDataW[i]]);
+    nCrcData := nCrcData + arDataW[i];
+	end;
+
+  nCrcData := $FFFF and (nCrcData + nRegAddr);
+  sCommand := sCommand + ' ' + Format('0x%0.4x',[nCrcData]);
+
+	Result := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+  Inc(TconRWCnt.TconWriteTX); //2023-03-28 jhhwang (for T/T Test)
+
+  if Result = WAIT_OBJECT_0 then begin
+    try
+      if nVerify = 1 then begin
+        arCmdAck := FTxRxPG.RxAckStr.Split([#$0D]);
+        if Length(arCmdAck) > 2 then begin
+          if nRegAddr = StrToInt('$'+ExtractAlphabets(arCmdAck[0])) then begin
+            nDataPGW := StrToInt('$'+ExtractAlphabets(arCmdAck[1]));
+            nDataPGR := StrToInt('$'+ExtractAlphabets(arCmdAck[2]));
+            if nDataPGR <> nDataPGW then  begin
+              sEtcMsg :=  sEtcMsg + format('(nRegAddr Data : 0x%0.4x DataPGW : Data : 0x%0.4x DataPGR : %0x%0.4x)',[nRegAddr,nDataPGW,nDataPGR]);
+              ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sEtcMsg);
+            end;
+          end;
+        end;
+      end;
+
+    finally
+    end;
+  end
+  else begin
+    sEtcMsg := sEtcMsg + '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr) +'-' + FTxRxPG.RxPrevStr+']';
+  end;
+  //
+  if ((nDebugLog = 1) and (Result <> 0)) or ((Common.SystemInfo.DebugLogLevelConfig > 0) and (Common.SystemInfo.PG_TconWriteLogDisplay)) then begin
+//    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sTESTString);
+    sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+  end;
+  if Result = 0 then
+    sPreviousCommand := sCommand;
+end;
+
+
+
+function TCommPG.DP860_SendTconWrite(nRegAddr,nDataCnt: Integer; arDataW: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0; nDebugLog : integer=0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg ,sTESTString: string;
+	i,nCrcData,nDataPGW : Integer;
+  btaData : TIdBytes;
+
+  arCmdAck : TArray<string>;
+  arTemp   : TArray<string>;
+begin
+	nCmdId   := DefPG.PG_CMDID_TCON_WRITE;
+	sCmdName := DefPG.PG_CMDSTR_TCON_WRITE;
+	sEtcMsg  := '';
+  nCrcData := 0;
+	//
+	sCommand := sCmdName + ' ' + Format('0x%0.4x %d',[nRegAddr,nDataCnt]); // 'tcon.write <reg_addr> <write_length> <write_data0> <write_data1>…'
+	for i := 0 to Pred(nDataCnt) do begin
+		sCommand := sCommand + ' ' + Format('0x%0.2x',[arDataW[i]]);
+    nCrcData := nCrcData + arDataW[i];
+	end;
+
+  nCrcData := $FFFF and (nCrcData + nRegAddr);
+  sCommand := sCommand + ' ' + Format('0x%0.4x',[nCrcData]);
+
+	Result := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+  Inc(TconRWCnt.TconWriteTX); //2023-03-28 jhhwang (for T/T Test)
+  TconRWCnt.ContTConOcWrite := 0; //2023-03-28 jhhwang (for T/T Test)
+
+  if Result = WAIT_OBJECT_0 then begin
+    try
+
+      arCmdAck := FTxRxPG.RxAckStr.Split([#$0D]);
+      arTemp   := arCmdAck[0].Split([' ']);
+      if Length(arCmdAck) > 2 then begin
+        if nDataCnt = StrToInt('$'+ExtractAlphabets(arTemp[0])) then begin
+          arTemp   := arCmdAck[1].Split([' ']);
+          arTemp[0] := ExtractAlphabets(arTemp[0]);
+          nDataPGW := StrToInt('$'+ arTemp[0]);
+          if nCrcData <> nDataPGW then  begin
+            sEtcMsg :=  sEtcMsg + format('(nCrcData : Data : 0x%0.4x PG_Return : %0x%0.4x)',[nCrcData,nDataPGW]);
+            Result  := WAIT_FAILED;
+          end;
+        end
+        else begin
+          sEtcMsg :=  sEtcMsg + format('(nCrcData : Data Length : %d PG_Return Length : %d',[nDataCnt,StrToIntDef('$'+ExtractAlphabets(arTemp[0]),0)]);
+          Result  := WAIT_FAILED;
+        end;
+      end;
+
+//      DP860_SendTConRead(nRegAddr,nDataCnt,btaData, nWaitMS,nRetry,nDebugLog);
+//      if arDataW[0] <> btaData[0] then  begin
+//        sTESTString := Format('RegAddr : 0x%0.2x Write Data : 0x%0.2x Read Data : 0x%0.2x',[nRegAddr,arDataW[0],btaData[0]]);
+//        ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sTESTString);
+//      end;
+
+    finally
+//      SetLength(btaData,0);
+    end;
+  end
+  else begin
+    sEtcMsg := sEtcMsg + '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr) +'-' + FTxRxPG.RxPrevStr+']';
+  end;
+  //
+  if ((nDebugLog = 1) and (Result <> 0)) or ((Common.SystemInfo.DebugLogLevelConfig > 0) and (Common.SystemInfo.PG_TconWriteLogDisplay)) then begin
+//    sDebug := '<PG> Previous Command : ' + sPreviousCommand;
+//    ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+    sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+  end;
+  if Result = 0 then
+    sPreviousCommand := sCommand;
+end;
+
+function TCommPG.DP860_SendProgrammingWrite(nDevaddr,nRegAddr,nDataCnt: Integer; arDataW: TIDBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+	i : Integer;
+begin
+	nCmdId   := DefPG.PG_CMDID_REPROGRAMING;
+	sCmdName := DefPG.PG_CMDSTR_REPROGRAMING;
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName + ' ' + Format('0x%0.2x 0x%0.4x %d',[nDevaddr,nRegAddr,nDataCnt]); // 'programming.write <dev_addr> <reg_addr> <write_length> <write_data0> <write_data1>…'
+	for i := 0 to Pred(nDataCnt) do begin
+		sCommand := sCommand + ' ' + Format('%0.2x',[arDataW[i]]);
+	end;
+	Result := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+
+  sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr) +'-' + FTxRxPG.RxPrevStr+']';
+
+  sDebug := '<PG> ' + sCommand + #13#10 + DP860_GetStrCmdResult(Result) + sEtcMsg;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+
+end;
+
+function TCommPG.DP860_SendChkEnable(nEnable: Integer; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+	i : Integer;
+begin
+	nCmdId   := DefPG.PG_CMDID_CHK_ENABLE;
+	sCmdName := DefPG.PG_CMDSTR_CHK_ENABLE;
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName + ' ' + Format('%d',[nEnable]); // 'chk.enable 1'
+
+	Result := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+
+  sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr) +'-' + FTxRxPG.RxPrevStr+']';
+
+  sDebug := '<PG> ' + sCommand +' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+
+end;
+
+function TCommPG.DP860_SendTconOCWrite(nRegAddr,nDataCnt: Integer; arDataW: TIDBytes; nWaitMS: Integer=0; nRetry: Integer=0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+	i : Integer;
+begin
+	nCmdId   := DefPG.PG_CMDID_TCON_OCWRITE;
+	sCmdName := DefPG.PG_CMDSTR_TCON_OCWRITE;
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName + ' ' + Format('0x%0.4x %d',[nRegAddr,nDataCnt]); // 'tcon.write <reg_addr> <write_length> <write_data0> <write_data1>…'
+	for i := 0 to Pred(nDataCnt) do begin
+		sCommand := sCommand + ' ' + Format('0x%0.2x',[arDataW[i]]);
+	end;
+	Result := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+  Inc(TconRWCnt.TconOcWriteTX);   //2023-03-28 jhhwang (for T/T Test)
+  Inc(TconRWCnt.ContTConOcWrite); //2023-03-28 jhhwang (for T/T Test)
+
+  if Result <> WAIT_OBJECT_0 then begin
+    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+  end;
+  //
+//if (Common.SystemInfo.DebugLogLevelConfig > 0) or (Result <> 0) then begin
+  if ((Common.SystemInfo.DebugLogLevelConfig > 0) and Common.SystemInfo.PG_TconWriteLogDisplay) or (Result <> 0) then begin
+    sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+  end;
+end;
+
+function TCommPG.DP860_SendTconMultiWrite(nDataCnt: Integer; arRegAddr : array of integer; arDataW: TIDBytes; nWaitMS: Integer=0; nRetry: Integer=0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+	i : Integer;
+begin
+	nCmdId   := DefPG.PG_CMDID_TCON_MULTIWRITE;
+	sCmdName := DefPG.PG_CMDSTR_TCON_MULTIWRITE;
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName + ' ' + Format('%d',[nDataCnt]); // 'tcon.write <reg_addr> <write_length> <write_data0> <write_data1>…'
+	for i := 0 to Pred(nDataCnt) do begin
+		sCommand := sCommand + ' ' + Format('0x%0.4x 0x%0.2x',[arRegAddr[i],arDataW[i]]);
+	end;
+	Result := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+  Inc(TconRWCnt.TconMultiWriteDllCall);   //2023-03-28 jhhwang (for T/T Test)
+  Inc(TconRWCnt.ContTConOcWrite); //2023-03-28 jhhwang (for T/T Test)
+
+  if Result <> WAIT_OBJECT_0 then begin
+    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+  end;
+  //
+//if (Common.SystemInfo.DebugLogLevelConfig > 0) or (Result <> 0) then begin
+  if ((Common.SystemInfo.DebugLogLevelConfig > 0) and Common.SystemInfo.PG_TconWriteLogDisplay) or (Result <> 0) then begin
+    sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+  end;
+end;
+
+function TCommPG.DP860_SendTconSeqWrite(nMode,nSeqIdx, nDataCnt: Integer; arRegAddr : array of integer; arDataW: TIDBytes; nWaitMS: Integer=0; nRetry: Integer=0; nDebugLog : integer= 0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+	i,CrcAddr,CrcData : Integer;
+begin
+	nCmdId   := DefPG.PG_CMDID_TCON_SEQWRITE;
+	sCmdName := DefPG.PG_CMDSTR_TCON_SEQWRITE;
+	sEtcMsg  := '';
+  CrcAddr := 0;
+  CrcData := 0;
+  sCommand := '';
+	for i := 0 to Pred(nDataCnt) do begin
+		sCommand := sCommand + ' ' + Format('%0.4x %0.2x',[arRegAddr[i],arDataW[i]]);
+    CrcAddr := CrcAddr + arRegAddr[i];
+    CrcData := CrcData + arDataW[i];
+	end;
+  CrcAddr := $FFFF and CrcAddr;
+  CrcData := $FF and CrcData;
+  sCommand := sCmdName + ' ' + Format('%d %d %d %0.4x %0.2x',[nMode,nSeqIdx,nDataCnt,CrcAddr,CrcData]) + sCommand;
+
+	Result := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+  if Common.SystemInfo.PG_TconOcWriteDelayMsec > 0 then
+    Sleep(Common.SystemInfo.PG_TconOcWriteDelayMsec)
+  else if Common.SystemInfo.PG_TconOcWriteDelayMicroSec > 0 then
+    Common.SleepMicro(Common.SystemInfo.PG_TconOcWriteDelayMicroSec)  // SleepMicro 적용
+  else begin
+
+  end;
+  Inc(TconRWCnt.TconSeqWriteDllCall);   //2023-03-28 jhhwang (for T/T Test)
+
+
+  if Result <> WAIT_OBJECT_0 then begin
+    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr) +'-' + FTxRxPG.RxPrevStr+']';
+//    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+  end;
+  //
+  if ((nDebugLog = 1) and (Result <> 0)) or ((Common.SystemInfo.DebugLogLevelConfig > 0) and (Common.SystemInfo.PG_TconWriteLogDisplay)) then begin
+//  if ((Common.SystemInfo.DebugLogLevelConfig > 0) and Common.SystemInfo.PG_TconWriteLogDisplay) or (Result <> 0) then begin
+//    sDebug := '<PG> Previous Command : ' + sPreviousCommand;
+//    ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+    sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+  end;
+  if Result = 0 then
+    sPreviousCommand := sCommand;
+end;
+
+{$IFDEF FEATURE_FLASH_ACCESS}
+//==============================================================================
+// PG_DP860 Command (NVM/Flash Read)
+//------------------------------------------------------------------------------
+// procedure/function:
+//		- function TCommPG.DP860_SendNvmErase(nAddr,nSize:DWORD; nWaitMS: Integer=10000; nRetry: Integer=0): DWORD;
+//		- function TCommPG.DP860_SendNvmRead(nAddr,nSize:DWORD; pData: PByte; nWaitMS: Integer=10000; nRetry: Integer=0): DWORD;
+//		- function TCommPG.DP860_SendNvmReadAscii(nAddr,nSize:DWORD; var sData: string; nWaitMS: Integer=10000; nRetry: Integer=0): DWORD;
+//		- function TCommPG.DP860_SendNvmReadFile(nAddr,nSize:DWORD; sRemoteFile: string; nWaitMS: Integer=10000; nRetry: Integer=0): DWORD;
+//
+function TCommPG.DP860_SendNvmErase(nAddr,nSize:DWORD; nWaitMS: Integer=FLASH_ERASE_WAITMS_MINIMUM; nRetry: Integer=0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+  nFlashEraseKBPerSec : Integer;
+begin
+	nCmdId := DefPG.PG_CMDID_NVM_ERASE;
+	sCmdName := DefPG.PG_CMDSTR_NVM_ERASE;
+  sEtcMsg  := '';
+	//
+	sCommand := sCmdName;
+	sCommand := sCommand + ' ' + Format('0x%x',[nAddr]);
+  sCommand := sCommand + ' ' + Format('%d',[nSize]);
+  //
+  nFlashEraseKBPerSec := DefPG.FLASH_ERASE_KBperSEC_DEF;
+  nWaitMS := (((nSize div (nFlashEraseKBPerSec*1024)) + 1) * 1000) + nWaitMS; //TBD:FLASH:DP860?
+  //
+	sDebug := '<PG> ' + sCommand + Format(' :(AckWait=%d sec)',[(nWaitMS div 1000)]);
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
+  try
+    FIsOnFlashAccess := True;
+  	Result := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+  finally
+    FIsOnFlashAccess := False;
+  end;
+  //
+  sEtcMsg := '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+	sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+end;
+
+function TCommPG.DP860_SendNvmRead(nAddr,nSize:DWORD; pData: PByte; nWaitMS: Integer=FLASH_READ_WAITMS_MINIMUM; nRetry: Integer=0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+  //
+  arCmdAck : TArray<string>;
+  arTemp   : TArray<string>;
+  pTemp    : PByte;
+  i        : Integer;
+begin
+	nCmdId   := DefPG.PG_CMDID_NVM_READ;
+	sCmdName := DefPG.PG_CMDSTR_NVM_READ; // nvm.read <hex_addr> <length>
+  sEtcMsg  := '';
+	//
+	sCommand := sCmdName;
+	sCommand := sCommand + ' ' + Format('0x%x %d',[nAddr,nSize]);
+  try
+    FIsOnFlashAccess := True;
+  	Result := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+  finally
+    FIsOnFlashAccess := False;
+  end;
+  //
+  if Result <> WAIT_OBJECT_0 then begin
+    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+  end
+  else begin
+    try
+      arCmdAck := FTxRxPG.RxAckStr.Split([#$0D]);
+      arTemp   := arCmdAck[0].Split([' ']);
+      sEtcMsg  := Format('[%s]',[arCmdAck[0]]);
+      //
+      if Length(arTemp) >= nSize then begin
+        pTemp := pData;
+        for i := 0 to (nSize-1) do begin
+          pTemp^ := StrToInt('$'+ arTemp[i]);
+          Inc(pTemp);
+        end;
+      end
+      else begin
+        sEtcMsg := sEtcMsg + Format('[ReadSize(%d)<>RxDataCnt(%d)]',[nSize,Length(arTemp)]);
+        Result  := WAIT_FAILED; // RX.DATA.Cnt < nDataCnt
+      end;
+    except
+      sEtcMsg := sEtcMsg + '[RxMsgParsingError]';
+      Result  := WAIT_FAILED; //
+    end;
+  end;
+  //
+	sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+end;
+
+function TCommPG.DP860_SendNvmReadAscii(nAddr,nSize:DWORD; var sData: string; nWaitMS: Integer=FLASH_READ_WAITMS_MINIMUM; nRetry: Integer=0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+  //
+  arCmdAck : TArray<string>;
+begin
+	nCmdId   := DefPG.PG_CMDID_NVM_READASCII;
+	sCmdName := DefPG.PG_CMDSTR_NVM_READASCII; // nvm.readascii <hex_addr> <length>
+  sEtcMsg  := '';
+	//
+	sCommand := sCmdName;
+	sCommand := sCommand + ' ' + Format('0x%x %d',[nAddr,nSize]);
+  try
+    FIsOnFlashAccess := True;
+  	Result := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+  finally
+    FIsOnFlashAccess := False;
+  end;
+  //
+  if Result <> WAIT_OBJECT_0 then begin
+    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+  end
+  else begin
+    try
+      arCmdAck := FTxRxPG.RxAckStr.Split([#$0D]);
+      sData    := arCmdAck[0];
+      //
+      if Length(sData) <> nSize then begin
+        sEtcMsg := sEtcMsg + Format('[ReadSize(%d)<>RxDataCnt(%d)]',[nSize,Length(sData)]);
+        Result  := WAIT_FAILED;
+      end;
+    except
+      sEtcMsg := sEtcMsg + '[RxMsgParsingError]';
+      Result  := WAIT_FAILED; //
+    end;
+  end;
+  //
+  sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+	sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+end;
+
+function TCommPG.DP860_SendNvmReadFile(nAddr,nSize:DWORD; sRemoteFile: string; nWaitMS: Integer=FLASH_READ_WAITMS_MINIMUM; nRetry: Integer=0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+  nFlashReadKBPerSec : Integer;
+begin
+	nCmdId   := DefPG.PG_CMDID_NVM_READFILE;
+	sCmdName := DefPG.PG_CMDSTR_NVM_READFILE; // nvm.readfile <filename.bin> <hex_addr> <length>
+	//
+	sCommand := sCmdName;
+	sCommand := sCommand + ' ' + Format('%s 0x%x %d',[AnsiString(sRemoteFile),nAddr,nSize]);
+  //
+  {$IFDEF INSPECTOR_POCB}
+  nFlashReadKBPerSec := Common.TestModelInfo[m_nCh].PARAM.PucInfoFlash.FlashReadKBperSEC;
+  if nFlashReadKBPerSec = 0 then nFlashReadKBPerSec := DefPG.FLASH_READ_KBperSEC_DEF;
+  {$ELSE}
+  nFlashReadKBPerSec := DefPG.FLASH_READ_KBperSEC_DEF;
+  {$ENDIF}
+  nWaitMS := (((nSize div (nFlashReadKBPerSec*1024)) + 1) * 1000) + nWaitMS; //TBD:FLASH:DP860?
+  //
+	sDebug := '<PG> ' + sCommand + Format(' :(AckWait=%d sec)',[(nWaitMS div 1000)]);
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
+  //
+  try
+    FIsOnFlashAccess := True;
+  	Result := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+  finally
+    FIsOnFlashAccess := False;
+  end;
+  //
+  sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+	sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+end;
+
+//==============================================================================
+// PG_DP860 Command (NVM/Flash Write/Erase)
+//------------------------------------------------------------------------------
+// procedure/function:
+//		- function TCommPG.DP860_SendNvmWrite(nAddr,nSize:DWORD; pData: PByte; nWaitMS: Integer=10000; nRetry: Integer=0): DWORD;
+//    - function TCommPG.DP860_SendNvmWriteFile(nAddr,nSize:DWORD; sRemoteFile: string; bVerify: Boolean=True; bErase: Boolean=True; nWaitMS: Integer=10000; nRetry: Integer=0): DWORD;
+//    - function TCommPG.DP860_SendNvmErase(nAddr,nSize:DWORD; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+{$IFDEF TBD_DP860}
+function TCommPG.DP860_SendNvmWrite(nAddr,nSize:DWORD; pData: PByte; nWaitMS: Integer=10000; nRetry: Integer=0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+	pTemp : PByte;
+  i : DWORD;
+begin
+  nCmdId   := DefPG.PG_CMDID_NVM_WRITE;
+  sCmdName := DefPG.PG_CMDSTR_NVM_WRITE; // 'nvm.write <hex_addr> <hex_data1> <hex_data2> ...'
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName;
+	sCommand := sCommand + ' ' + Format('0x%x',[nAddr]);
+	pTemp    := pData;
+  for i := 0 to (nSize-1) do begin
+		sCommand := sCommand + ' ' + Format(' 0x%0.2x',[pTemp^]);
+    Inc(pTemp);
+	end;
+  //
+  try
+    FIsOnFlashAccess := True;
+  	Result := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+  finally
+    FIsOnFlashAccess := False;
+  end;
+  //
+  sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+	sDebug  := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+end;
+{$ENDIF}
+
+function TCommPG.DP860_SendNvmWriteFile(nAddr,nSize:DWORD; sRemoteFile: string; bVerify: Boolean=True; bErase: Boolean=True; nWaitMS: Integer=FLASH_WRITE_WAITMS_MINIMUM; nRetry: Integer=0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+  nFlashWriteKBPerSec : Integer;
+begin
+  nCmdId   := DefPG.PG_CMDID_NVM_WRITEFILE;
+  sCmdName := DefPG.PG_CMDSTR_NVM_WRITEFILE; // 'nvm.writefile <filename.bin> <hex_addr> <length> <option1> <option2>' (option1: 'erase' or '0', option2: 'verify' or ''0)
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName;
+	sCommand := sCommand + ' ' + Format('%s 0x%x %d',[AnsiString(sRemoteFile),nAddr,nSize]);
+	sCommand := sCommand + ' ' + TernaryOp(bErase,  'erase', '0');
+	sCommand := sCommand + ' ' + TernaryOp(bVerify, 'verify', '0');
+  //
+  {$IFDEF INSPECTOR_POCB}
+  nFlashWriteKBPerSec := Common.TestModelInfo[m_nCh].PARAM.PucInfoFlash.FlashWriteKBperSEC;
+  if nFlashWriteKBPerSec = 0 then nFlashWriteKBPerSec := DefPG.FLASH_WRITE_KBperSEC_DEF;
+  {$ELSE}
+  nFlashWriteKBPerSec := DefPG.FLASH_WRITE_KBperSEC_DEF;
+  {$ENDIF}
+  nWaitMS := (((nSize div (nFlashWriteKBPerSec*1024)) + 1) * 1000) + nWaitMS; //TBD:FLASH:DP860?
+  //
+	sDebug := '<PG> ' + sCommand + Format(' :(AckWait=%d sec)',[(nWaitMS div 1000)]);
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
+  //
+  try
+    FIsOnFlashAccess := True;
+  	Result := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+  finally
+    FIsOnFlashAccess := False;
+  end;
+  //
+  sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+	sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+end;
+
+//==============================================================================
+// PG_DP860 Command (Flash File Upload/Download)
+//------------------------------------------------------------------------------
+// procedure/function:
+//		- function TCommPG.DP860_FilePutPC2PG(sLocalFullName: string; sRemotePath, sRemoteFile: string; bClearBeforePut: Boolean=True; bEndDisc: Boolean=True): DWORD; //PC ---> PG
+//		- function TCommPG.DP860_FileGetPG2PC(sRemotePath, sRemoteFile: string; sLocalFullName: string; bClearAfterGet: Boolean=False; bEndDisc: Boolean=True): DWORD; //PC <--- PG
+//
+function TCommPG.DP860_FilePutPC2PG(sLocalFullName: string; sRemotePath,sRemoteFile: string; bClearBeforePut: Boolean=True; bEndDisc: Boolean=True): DWORD;
+var
+  sFunc, sDebug, sErrMsg : string;
+begin
+	Result  := WAIT_FAILED;
+  sFunc   := '<PG> FTP FileUpload';
+  sDebug  := '';
+  sErrMsg := '';
+
+//  sDebug := sFunc + ': Start';
+//  ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
+
+	// Create Class
+  if FFTPClient = nil then begin
+  	FFTPClient := TFTPClient.Create(PG_IPADDR, DefPG.DP860_FTP_USERNAME, DefPG.DP860_FTP_PASSWORD);
+	end;
+	// Connect
+	if not FFTPClient.FFTP.Connected then begin
+    sDebug :=  'FTP Connect';
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
+  	sErrMsg := FFTPClient.Connect;
+  	if sErrMsg <> '' then begin
+    	sDebug := sFunc + ': FTP Connect NG(' + sErrMsg + ')';
+      ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG, sDebug);
+      FFTPClient.Disconnect;      // Added by KTS 2023-04-04 오전 10:06:24
+      Exit;
+    end;
+	end;
+//  sDebug := sFunc + ': FTP Connect';
+//  ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
+
+	// Change Local Dir
+	// Change Remote Dir
+	// Delete Old File(s) if bClearBeforePut=True
+  if bClearBeforePut then begin
+  	sErrMsg := FFTPClient.DeleteFile(sRemoteFile);
+    if sErrMsg <> '' then begin
+    	sDebug := sFunc + Format(': DeleteFile(Remote=%s) NG(%s)',[sRemoteFile,sErrMsg]);
+      ShowTestWindow(DefCommon.MSG_MODE_WORKING,DefCommon.LOG_TYPE_NG, sDebug);
+      Exit;
+    end;
+	  sDebug := sFunc + Format(': DeleteFile(Remote=%s)',[sRemoteFile]);
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
+  end;
+
+	// Put
+	sErrMsg := FFTPClient.Put(sLocalFullName, sRemoteFile);
+  if sErrMsg <> '' then begin
+  	sDebug := sFunc + Format(': Put(Local=%s, Remote=%s) NG(%s)',[sLocalFullName,sRemoteFile,sErrMsg]);
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING,DefCommon.LOG_TYPE_NG, sDebug);
+    Exit;
+  end;
+	sDebug := sFunc + Format(': Put(Local=%s, Remote=%s)',[sLocalFullName, sRemoteFile]);
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
+
+	// Discon
+	if bEndDisc then begin
+  	FFTPClient.Disconnect;
+    sDebug := sFunc + ': FTP Disconnect';
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
+	end;
+	//
+	Result := WAIT_OBJECT_0;
+end;
+
+function TCommPG.DP860_FileGetPG2PC(sRemotePath, sRemoteFile: string; sLocalFullName: string; bClearAfterGet: Boolean=False; bEndDisc: Boolean=True): DWORD;
+var
+  sFunc, sDebug, sErrMsg : string;
+begin
+	Result  := WAIT_FAILED;
+  sFunc   := '<PG> FTP FileDownload';
+  sDebug  := '';
+  sErrMsg := '';
+
+  //sDebug := sFunc + ': Start';
+  //ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
+
+	// Create Class
+  if FFTPClient = nil then begin
+  	FFTPClient := TFTPClient.Create(PG_IPADDR, DefPG.DP860_FTP_USERNAME, DefPG.DP860_FTP_PASSWORD);
+	end;
+	// Connect
+	if not FFTPClient.FFTP.Connected then begin
+    sDebug :=  '<PG> FTP Connect';
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG, sDebug);
+    sErrMsg := FFTPClient.Connect;
+  	if sErrMsg <> '' then begin
+    	sDebug := sFunc + ': FTP Connect NG(' + sErrMsg + ')';
+      ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG, sDebug);
+      FFTPClient.Disconnect; // Added by KTS 2023-04-04 오전 10:06:03
+      Exit;
+    end;
+	end;
+  //sDebug := sFunc + ': FTP Connect';
+  //ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
+
+	// Change Local Dir
+	// Change Remote Dir
+	// Get
+	sErrMsg := FFTPClient.Get(sRemoteFile, sLocalFullName);
+	if sErrMsg <> '' then begin
+  	sDebug := sFunc + Format(': Get(Remote=%s, Local=%s) NG(%s)',[sRemoteFile,sLocalFullName,sErrMsg]);
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG, sDebug);
+    Exit;
+  end;
+	sDebug := sFunc + Format(': Get(Remote=%s, Local=%s)',[sRemoteFile,sLocalFullName]);
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
+
+	// Delete File(s) if bClearAfterGet=True
+  if bClearAfterGet then begin
+  	FFTPClient.DeleteFile(sRemoteFile);
+    if sErrMsg <> '' then begin
+    	sDebug := sFunc + Format(': DeleteFile(Remote=%s) NG(%s)',[sRemoteFile,sErrMsg]);
+      ShowTestWindow(DefCommon.MSG_MODE_WORKING,DefCommon.LOG_TYPE_NG, sDebug);
+      Exit;
+    end;
+  	sDebug := sFunc + Format(': DeleteFile(Remote=%s)',[sRemoteFile]);
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
+  end;
+
+	// Discon
+	if bEndDisc then begin
+  	FFTPClient.Disconnect;
+    //sDebug := sFunc + ': FTP Disconnect';
+    //ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
+	end;
+	//
+	Result := WAIT_OBJECT_0;
+end;
+
+function TCommPG.DP860_FTPDiscon: DWORD;
+var
+ sDebug : string;
+begin
+	Result  := WAIT_FAILED;
+  if FFTPClient = nil then Exit(WAIT_OBJECT_0);
+  if not FFTPClient.FFTP.Connected  then Exit(WAIT_OBJECT_0)
+  else begin
+    FFTPClient.Disconnect;
+    sDebug := '<PG> FTP Disconnect';
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
+  end;
+  Result := WAIT_OBJECT_0;
+end;
+
+{$ENDIF} //FEATURE_FLASH_ACCESS
+
+//==============================================================================
+// PG_DP860 Command - ETC
+//------------------------------------------------------------------------------
+// procedure/function:
+//		- procedure TCommPG.DP860_ClearOcTconRWCnt; //2023-03-28 jhhwang (for T/T Test)
+//		- function TCommPG.DP860_SendOcOnOff(bStart: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //2023-03-28 jhhwang (for T/T Test)
+//    - function TCommPG.DP860_SendGpioRead(sGpio: string; nWaitMS: Integer=5000; nRetry: Integer=0): DWORD; //2023-03-28 jhhwang (for T/T Test)
+procedure TCommPG.DP860_ClearOcTconRWCnt; //2023-03-28 jhhwang (for T/T Test)
+begin
+  with TconRWCnt do begin
+    TconReadDllCall  := 0;
+    TconWriteDllCall := 0;
+    TconReadTX       := 0;
+    TConWriteTX      := 0;
+    TConOcWriteTX    := 0;
+    //
+    ContTConOcWrite  := 0;
+
+    TconReadArrayDllCall  := 0;
+    TconWriteArrayDllCall := 0;
+
+    TconMultiWriteDllCall := 0;
+    TconSeqWriteDllCall := 0;
+
+    TconRetryReadCall := 0;
+    TconRetryWriteCall := 0;
+
+  end;
+end;
+
+function TCommPG.DP860_SendOcOnOff(nState: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //2023-03-28 jhhwang (for T/T Test)
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+	i : Integer;
+begin
+	nCmdId   := DefPG.PG_CMDID_OC_ONOFF;
+	sCmdName := DefPG.PG_CMDSTR_OC_ONOFF;
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName + ' ' + Format('%d',[nState]); // 'oc.onoff <number>' number:1(start), 0(end)
+	Result := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+
+//  if Result <> WAIT_OBJECT_0 then begin
+  sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+//  end;
+  //
+  sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+  with TconRWCnt do begin
+    if nState = 1 then DP860_ClearOcTconRWCnt; //OC DLL Start
+    sDebug := sDebug + Format('[SW:DllRead(%d)DllWrite(%d),ReadTX(%d)Write(%d)ReadArray(%d)WriteArray(%d)MultiWrite(%d)SeqWrite(%d)',[TconReadDllCall,TconWriteDllCall,TconReadTX,TConWriteTX,TconReadArrayDllCall,TconWriteArrayDllCall,TconMultiWriteDllCall,TconSeqWriteDllCall]);
+    sDebug := sDebug + Format('RetryRead(%d)RetryWrite(%d)',[TconRetryReadCall,TconRetryWriteCall]);
+  end;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+end;
+
+function TCommPG.DP860_SendSendNvmInit(nMode: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+	i : Integer;
+begin
+	nCmdId   := DefPG.PG_CMDID_NVM_INIT;
+	sCmdName := DefPG.PG_CMDSTR_NVM_INIT;
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName + ' ' + Format('%d',[nMode]);
+	Result := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+
+  if Result <> WAIT_OBJECT_0 then begin
+    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+  end;
+  //
+	sDebug := '<PG> ' + sCommand + ':' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+end;
+
+function TCommPG.DP860_SendGpioRead(sGpio: string; nWaitMS: Integer=5000; nRetry: Integer=0): DWORD; //2023-03-28 jhhwang (for T/T Test)
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+  arCmdAck : TArray<string>;
+begin
+	nCmdId   := DefPG.PG_CMDID_GPIO_READ;
+	sCmdName := DefPG.PG_CMDSTR_GPIO_READ;
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName + ' ' + Format('%s',[sGpio]); // 'gpio.read HPD'
+	Result := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+  //
+  sEtcMsg  := '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+  if Result = WAIT_OBJECT_0 then begin
+    try
+      if sGpio = 'HPD' then begin
+        arCmdAck := FTxRxPG.RxAckStr.Split([#$0D]);
+        if Trim(arCmdAck[0]) <> '1' then Result := WAIT_FAILED;
+      end;
+    except
+      sEtcMsg :=  sEtcMsg + '(RxDataParsingError)';
+      Result  := WAIT_FAILED;
+    end;
+  end;
+  //
+  if ((Common.SystemInfo.DebugLogLevelConfig > 0) and Common.SystemInfo.PG_TconWriteLogDisplay) or (Result <> 0) then begin
+	  sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+  end;
+end;
+
+
+function TCommPG.DP860_SendGpioPanel_IRQ(var nData : Integer; nWaitMS: Integer=5000; nRetry: Integer=0): DWORD; //2023-03-28 jhhwang (for T/T Test)
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+  arCmdAck : TArray<string>;
+begin
+  //
+	nCmdId   := DefPG.PG_CMDID_GPIO_PANEL_IRQ;
+	sCmdName := DefPG.PG_CMDSTR_GPIO_PANEL_IRQ;
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName;
+	Result   := DP860_SendCmd(sCommand, nCmdId,sCmdName,nWaitMS,nRetry); //TBD:DP860? (500ms?)
+
+  sEtcMsg  := '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+  if Result = WAIT_OBJECT_0 then begin
+    try
+      arCmdAck := FTxRxPG.RxAckStr.Split([#$0D]);
+      nData := StrToIntDef(Trim(arCmdAck[0]),0);
+    except
+      sEtcMsg :=  sEtcMsg + '(RxDataParsingError)';
+      Result  := WAIT_FAILED;
+    end;
+  end;
+
+  //
+  if ((Common.SystemInfo.DebugLogLevelConfig > 0) and Common.SystemInfo.PG_TconWriteLogDisplay) or (Result <> 0) then begin
+	  sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+  end;
+end;
+
+//##############################################################################
+{$ENDIF} //PG_DP860 ############################################################
+//##############################################################################
+
+
+//##############################################################################
+//##############################################################################
+//###                                                                        ###
+//###                             FLOW-SPECIFIC                              ###
+//###                                                                        ###
+//##############################################################################
+//##############################################################################
+
+//==============================================================================
+// FLOW-SPECIFIC (Power On/Off)
+//------------------------------------------------------------------------------
+// procedure/function:
+//		- function TCommPG.SendPowerOn({nMode: Integer;} nWaitMS: Integer=10000; nRetry: Integer=0): DWORD;
+//		- function TCommPG.SendPowerOff(nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
+//
+function TCommPG.SendPowerOn(nMode: Integer; bPowerReset: Boolean=False; nWaitMS: Integer=10000; nRetry: Integer=0): DWORD;
+var
+  sDebug : string;
+const
+  DELAY_POWER_INTERPOSER_OFF = 10;  //TBD:DP860?
+  DELAY_POWER_INTERPOSER_ON  = 10;  //TBD:DP860?
+begin
+  Result := WAIT_FAILED;
+  //
+  case nMode of
+    DefPG.CMD_POWER_OFF : begin
+    	case PG_TYPE of
+    		{$IFDEF PG_AF9}
+    		DefPG.PG_TYPE_AF9 : begin
+        	AF9_AllPowerOnOff(0);  //OFF
+      		Result := WAIT_OBJECT_0;
+    		end;
+    		{$ENDIF}
+    		{$IFDEF PG_DP860}
+    		DefPG.PG_TYPE_DP860 : begin
+          // Interlock during Flash R/W
+          if FIsOnFlashAccess then begin // Interlock during Flash Access
+            Result := WAIT_FAILED;
+            sDebug := 'Power Off NG (On Flash Access) ...Try again after flash access is done'; //TBD:2023-02?
+            ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG, sDebug);
+            Exit;
+          end;
+          // DP860 PowerOff : power.off -> interposer.deinit
+    		  Result := DP860_SendPowerOff({nMode}nWaitMS,nRetry);
+          if (not bPowerReset) then begin
+            Sleep(DELAY_POWER_INTERPOSER_OFF);
+      		  Result := DP860_SendInterposerOff({nMode}nWaitMS,nRetry);
+          end;
+    		end;
+    		{$ENDIF}
+    	end;
+      //
+    	if Result = WAIT_OBJECT_0 then begin
+        m_bPowerOn := False;
+        {$IFDEF FEATURE_GRAY_CHANGE}
+        with m_CurPatDispInfo do begin
+    			bPowerOn      := False; //TBD? m_bPowerOn? m_CurPatDispInfo.bPowerOn?
+          bPatternOn    := False;
+          nCurPatNum    := 0;
+          nCurAllPatIdx := 0;
+          bSimplePat    := False;
+          bGrayChangeR  := False;
+          bGrayChangeG  := False;
+          bGrayChangeB  := False;
+          nGrayOffset   := 0;
+        end;
+        {$ENDIF}
+    	end;
+    end;
+    DefPG.CMD_POWER_ON: begin
+    	case PG_TYPE of
+    		{$IFDEF PG_AF9}
+    		DefPG.PG_TYPE_AF9 : begin
+     			AF9_AllPowerOnOff(1); //ON
+     			Result := WAIT_OBJECT_0;
+    		end;
+    		{$ENDIF}
+    		{$IFDEF PG_DP860}
+    		DefPG.PG_TYPE_DP860 : begin
+          // DP860 PowerOn : interposer.init -> (dut.detect) -> power.on -> (tcon.info)
+          // DP860 (PowerReset)PowerOn : power.on
+          if (not bPowerReset) then begin
+            DP860_SendInterposerOff(nWaitMS,nRetry);
+            Sleep(DELAY_POWER_INTERPOSER_OFF);
+      			Result := DP860_SendInterposerOn(nWaitMS,nRetry);
+            if Result <> WAIT_OBJECT_0 then begin
+              Result := DP860_SendInterposerOff({nMode}nWaitMS,nRetry);
+              Sleep(100);
+              Result := DP860_SendInterposerOn(nWaitMS,nRetry);
+            end;
+            if Result = WAIT_OBJECT_0 then begin
+              Sleep(DELAY_POWER_INTERPOSER_ON);
+              {$IFDEF INSPECTOR_POCB}
+              if Common.TestModelInfo[m_nCh].FLOW.UseDutDetect then
+              {$ELSE}
+              if Common.TestModelInfoFLOW.UseDutDetect then
+              {$ENDIF}
+              begin
+          			Result := DP860_SendDutDetect(1000{nWaitMS},1{Retry});
+              end;
+              if Result = WAIT_OBJECT_0 then begin
+          			Result := DP860_SendPowerOn(nWaitMS,nRetry);
+                if Result = WAIT_OBJECT_0 then begin
+                  Result := DP860_SendTconInfo(1000{nWaitMS},0{Retry});
+//                  DP860_SendSendNvmInit(Common.TestModelInfoFLOW.UseNvmInit,nWaitMS,nRetry);
+                end;
+              end
+              else begin
+                Result := DP860_SendPowerOff({nMode}nWaitMS,nRetry);
+                Result := DP860_SendInterposerOff({nMode}nWaitMS,nRetry);
+              end;
+            end;
+          end
+          else begin
+            Result := DP860_SendPowerOn(nWaitMS,nRetry);
+          end;
+        //TBD? if Result <> WAIT_OBJECT_0 then begin
+        //TBD?  DP860_SendInterposerOff({nMode}nWaitMS,nRetry); //TBD?
+        //TBD? end;
+    		end;
+    		{$ENDIF}
+    	end;
+    	if Result = WAIT_OBJECT_0 then begin
+       	m_bPowerOn := True;      //TBD? m_bPowerOn? m_CurPatDispInfo.bPowerOn?
+       	{$IFDEF FEATURE_GRAY_CHANGE}
+   	   	with m_CurPatDispInfo do begin
+         	bPowerOn     := True;  //TBD? m_bPowerOn? m_CurPatDispInfo.bPowerOn?
+       	//bPatternOn   := False;
+       	//nCurrPatNum  := 0;
+       	//nCurrAllPatIdx := 0;
+       	//bSimplePat   := False;
+       	//bGrayChangeR := False;
+       	//bGrayChangeG := False;
+       	//bGrayChangeB := False;
+       	//nGrayOffset  := 0;
+       	end;
+     		{$ENDIF}
+     	end;
+    end;
+  end;
+end;
+
+
+function TCommPG.SendReProgramming(nDevAddr,nRegAddr,nDataCnt :Integer; arDataW: TIdBytes; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+begin
+  Result := WAIT_FAILED;
+  try
+    FIsOnFlashAccess := True;
+    bIsReProgramming := True;
+    Result := DP860_SendProgrammingWrite(nDevAddr,nRegAddr,nDataCnt,arDataW, nWaitMS,nRetry);
+    if Result = 0 then bIsReProgramming := False;
+  finally
+    FIsOnFlashAccess := False;
+  end;
+end;
+
+function TCommPG.SendPowerBistOn(nMode: Integer; bPowerReset: Boolean=False; nWaitMS: Integer=10000; nRetry: Integer=0): DWORD;
+var
+  sDebug : string;
+const
+  DELAY_POWER_INTERPOSER_OFF = 10;  //TBD:DP860?
+  DELAY_POWER_INTERPOSER_ON  = 10;  //TBD:DP860?
+begin
+  Result := WAIT_FAILED;
+  try
+//    SetCyclicTimer(false);
+    case nMode of
+      DefPG.CMD_POWER_OFF : begin
+        case PG_TYPE of
+          {$IFDEF PG_AF9}
+          DefPG.PG_TYPE_AF9 : begin
+            AF9_AllPowerOnOff(0);  //OFF
+            Result := WAIT_OBJECT_0;
+          end;
+          {$ENDIF}
+          {$IFDEF PG_DP860}
+          DefPG.PG_TYPE_DP860 : begin
+            // Interlock during Flash R/W
+            if FIsOnFlashAccess then begin // Interlock during Flash Access
+              Result := WAIT_FAILED;
+              sDebug := 'Power Off NG (On Flash Access) ...Try again after flash access is done'; //TBD:2023-02?
+              ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG, sDebug);
+              Exit;
+            end;
+            // DP860 PowerbistOff : power.bist.off -> interposer.deinit
+            Result := DP860_SendPowerBistOff({nMode}nWaitMS,nRetry);
+            if (not bPowerReset) then begin
+              Sleep(DELAY_POWER_INTERPOSER_OFF);
+              Result := DP860_SendInterposerOff({nMode}nWaitMS,nRetry);
+            end;
+          end;
+          {$ENDIF}
+        end;
+        //
+        if Result = WAIT_OBJECT_0 then begin
+          m_bPowerOn := False;
+          {$IFDEF FEATURE_GRAY_CHANGE}
+          with m_CurPatDispInfo do begin
+            bPowerOn      := False; //TBD? m_bPowerOn? m_CurPatDispInfo.bPowerOn?
+            bPatternOn    := False;
+            nCurPatNum    := 0;
+            nCurAllPatIdx := 0;
+            bSimplePat    := False;
+            bGrayChangeR  := False;
+            bGrayChangeG  := False;
+            bGrayChangeB  := False;
+            nGrayOffset   := 0;
+          end;
+          {$ENDIF}
+        end;
+      end;
+      DefPG.CMD_POWER_ON: begin
+        case PG_TYPE of
+          {$IFDEF PG_AF9}
+          DefPG.PG_TYPE_AF9 : begin
+            AF9_AllPowerOnOff(1); //ON
+            Result := WAIT_OBJECT_0;
+          end;
+          {$ENDIF}
+          {$IFDEF PG_DP860}
+          DefPG.PG_TYPE_DP860 : begin
+            // DP860 PowerbistOn : interposer.init -> (dut.detect) -> power.bist.on -> (tcon.info)
+            // DP860 (PowerReset)PowerOn : power.on
+            if (not bPowerReset) then begin
+              Result := DP860_SendInterposerOn(nWaitMS,nRetry);
+              if Result <> WAIT_OBJECT_0 then begin
+                Result := DP860_SendInterposerOff({nMode}nWaitMS,nRetry);
+                Sleep(100);
+                Result := DP860_SendInterposerOn(nWaitMS,nRetry);
+              end;
+
+              if Result = WAIT_OBJECT_0 then begin
+                Sleep(DELAY_POWER_INTERPOSER_ON);
+                {$IFDEF INSPECTOR_POCB}
+                if Common.TestModelInfo[m_nCh].FLOW.UseDutDetect then
+                {$ELSE}
+                if Common.TestModelInfoFLOW.UseDutDetect then
+                {$ENDIF}
+                begin
+                  Result := DP860_SendDutDetect(1000{nWaitMS},1{Retry});
+                end;
+                if Result = WAIT_OBJECT_0 then begin
+                  Result := DP860_SendPowerBistOn(nWaitMS,nRetry);
+                  if Result = WAIT_OBJECT_0 then begin
+                    Result := DP860_SendTconInfo(1000{nWaitMS},0{Retry});
+//                    DP860_SendSendNvmInit(Common.TestModelInfoFLOW.UseNvmInit,nWaitMS,nRetry);
+                  end;
+                end
+                else begin
+                  Result := DP860_SendPowerBistOff({nMode}nWaitMS,nRetry);
+                  Result := DP860_SendInterposerOff({nMode}nWaitMS,nRetry);
+                end;
+
+              end;
+            end
+            else begin
+              Result := DP860_SendPowerBistOn(nWaitMS,nRetry);
+            end;
+          //TBD? if Result <> WAIT_OBJECT_0 then begin
+          //TBD?  DP860_SendInterposerOff({nMode}nWaitMS,nRetry); //TBD?
+          //TBD? end;
+          end;
+          {$ENDIF}
+        end;
+        if Result = WAIT_OBJECT_0 then begin
+          m_bPowerOn := True;      //TBD? m_bPowerOn? m_CurPatDispInfo.bPowerOn?
+          {$IFDEF FEATURE_GRAY_CHANGE}
+          with m_CurPatDispInfo do begin
+            bPowerOn     := True;  //TBD? m_bPowerOn? m_CurPatDispInfo.bPowerOn?
+
+          end;
+          {$ENDIF}
+        end;
+      end;
+    end;
+
+  finally
+//    SetCyclicTimer(True);
+  end;
+end;
+
+//==============================================================================
+// FLOW-SPECIFIC (Power Measurement)
+//------------------------------------------------------------------------------
+// procedure/function:
+//		- function TCommPG.SendPowerMeasure(bCyclicMeasure: Boolean=False): DWORD;
+//
+function TCommPG.SendPowerMeasure(bCyclicMeasure: Boolean=False): DWORD;
+begin
+	Result := WAIT_FAILED;
+	//
+	case PG_TYPE of
+		{$IFDEF PG_AF9}
+		DefPG.PG_TYPE_AF9 : begin   //---------------- AF9
+      Result := WAIT_OBJECT_0; // N/A
+		end;
+		{$ENDIF}
+		{$IFDEF PG_DP860}
+		DefPG.PG_TYPE_DP860 : begin //---------------- DP860
+      if m_bPwrMeasure then tmPwrMeasure.Enabled := False;
+      //
+		  Result := DP860_SendPowerMeasure(bCyclicMeasure);
+			if Result = WAIT_OBJECT_0 then begin
+				DP860_ReadPowerMeasureAck(FTxRxPG.RxAckStr);
+			end;
+			//
+      if m_bPwrMeasure then tmPwrMeasure.Enabled := True;
+		end;
+		{$ENDIF}
+	end;
+end;
+
+//==============================================================================
+// FLOW-SPECIFIC (Pattern)
+//------------------------------------------------------------------------------
+// procedure/function:
+//		- function TCommPG.SendDisplayPatRGB(nR,nG,nB: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //#SendSetColorRGB
+//		- function TCommPG.SendDisplayPatPwmNum(nPatNum: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //#SendDisplayPwmPat
+//		- function TCommPG.SendDisplayPatNum(nPatNum: Integer; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD; //#SendDisplayPat		
+//
+function TCommPG.SendDisplayPatRGB(nR,nG,nB: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //#SendSetColorRGB
+{$IFDEF PG_AF9}
+var
+  nApiRtn : Integer;
+{$ENDIF}
+begin
+  Result := WAIT_FAILED;
+	//
+	if (nR < 0) then nR := 0; if (nR > 255) then nR := 255;
+	if (nG < 0) then nG := 0; if (nG > 255) then nG := 255;
+	if (nB < 0) then nB := 0; if (nB > 255) then nB := 255;
+	//
+	case PG_TYPE of
+		{$IFDEF PG_AF9}
+		DefPG.PG_TYPE_AF9 : begin //---------------- AF9
+  		nApiRtn := AF9_APSPatternRGBSet(nR,nG,nB);
+  		if nApiRtn = DefPG.AF9API_RESULT_OK then Result := WAIT_OBJECT_0;
+		end;
+		{$ENDIF}
+		{$IFDEF PG_DP860}
+		DefPG.PG_TYPE_DP860 : begin //-------------- DP860
+			Result := DP860_SendDisplayPatRGB(nR,nG,nB, nWaitMS,nRetry);
+		end;
+		{$ENDIF}
+	end;
+end;
+
+
+function TCommPG.SendDisplayPatBistRGB(nR,nG,nB: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //#SendSetColorRGB
+{$IFDEF PG_AF9}
+var
+  nApiRtn : Integer;
+{$ENDIF}
+begin
+  Result := WAIT_FAILED;
+  try
+//    SetCyclicTimer(false);
+	//
+	if (nR < 0) then nR := 0; if (nR > 255) then nR := 255;
+	if (nG < 0) then nG := 0; if (nG > 255) then nG := 255;
+	if (nB < 0) then nB := 0; if (nB > 255) then nB := 255;
+	//
+	case PG_TYPE of
+		{$IFDEF PG_AF9}
+		DefPG.PG_TYPE_AF9 : begin //---------------- AF9
+  		nApiRtn := AF9_APSPatternRGBSet(nR,nG,nB);
+  		if nApiRtn = DefPG.AF9API_RESULT_OK then Result := WAIT_OBJECT_0;
+		end;
+		{$ENDIF}
+		{$IFDEF PG_DP860}
+		DefPG.PG_TYPE_DP860 : begin //-------------- DP860
+			Result := DP860_SendDisplayPatbistRGB(nR,nG,nB, nWaitMS,nRetry);
+		end;
+		{$ENDIF}
+	end;
+  finally
+//    SetCyclicTimer(True);
+  end;
+end;
+
+function TCommPG.SendDisplayPatBistRGB_9Bit(nR,nG,nB: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //#SendSetColorRGB
+{$IFDEF PG_AF9}
+var
+  nApiRtn : Integer;
+{$ENDIF}
+begin
+  Result := WAIT_FAILED;
+	//
+	if (nR < 0) then nR := 0; if (nR > 511) then nR := 511;
+	if (nG < 0) then nG := 0; if (nG > 511) then nG := 511;
+	if (nB < 0) then nB := 0; if (nB > 511) then nB := 511;
+	//
+	case PG_TYPE of
+		DefPG.PG_TYPE_DP860 : begin //-------------- DP860
+			Result := DP860_SendDisplayPatBistRGB_9Bit(nR,nG,nB, nWaitMS,nRetry);
+		end;
+	end;
+end;
+
+function TCommPG.SendDisplayPatPwmNum(nPatNum: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //#SendDisplayPwmPat
+var
+{$IF Defined(INSPECTOR_FI) or Defined(INSEPCTOR_OQA)}
+  nDim : Integer;
+  arrData : TIdBytes;
+{$ENDIF}
+  bOK  : Boolean;
+begin
+{$IF Defined(INSPECTOR_FI) or Defined(INSEPCTOR_OQA)}
+  //
+  {$IFDEF FEATURE_PATDIM_DBV}
+  nDim := FCurPatGrpInfo.DimDBV[nPatNum];
+  {$ELSE}
+  nDim := FCurPatGrpInfo.Dimming[nPatNum];
+  {$ENDIF}
+  if (Common.TestModelInfoFLOW.UsePwmPatDisp)
+    {$IFDEF FEATURE_PATDIM_DBV}
+    and ((nDim >= 0) and (nDim <= FCurPatGrpInfo.DimDbvMax))
+    {$ELSE}
+    and ((nDim >= 0) and (nDim <= 100))
+    {$ENDIF}
+  then begin
+    Result := SendDimming(nDim, nWaitMS,nRetry);
+  end;
+  //
+  {$IFDEF FEATURE_POCB_ONOFF}
+  if (Common.TestModelInfoFLOW.PocbOnOffUse) then begin
+    if Common.TestModelInfoFLOW.PocbOnOffI2cRa <> 0 then begin
+      Result := SendPocbOnOff(TernaryOp((FCurPatGrpInfo.PucOnOff[nPatNum]=0),False,True), nWaitMS,nRetry);
+    end;
+  end;
+  {$ENDIF}
+{$ENDIF}
+  //
+  Result := SendDisplayPatNum(nPatNum, nWaitMS,nRetry);
+end;
+
+function TCommPG.SendDisplayPatNext(nWaitMS : Integer=3000; nRetry: Integer=0): DWORD;
+
+
+begin
+  Result := WAIT_FAILED;
+
+	case PG_TYPE of
+		{$IFDEF PG_AF9}
+		DefPG.PG_TYPE_AF9 : begin //---------------- AF9
+
+		end;
+		{$ENDIF}
+		{$IFDEF PG_DP860}
+		DefPG.PG_TYPE_DP860 : begin //-------------- DP860
+			Result := SendDisplayPatNext( nWaitMS,nRetry);
+		end;
+		{$ENDIF}
+	end;
+end;
+
+function TCommPG.SendDisplayPatNum(nPatNum: Integer; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD; //#SendDisplayPat //#SendPatDisplayReq
+var
+  sFunc, sDebug : String;
+  sPatName : AnsiString;
+  nPatIdx  : Integer;
+	i, nDataCnt : Integer;
+  nToolCnt, nToolType, nDirection, nLevel : Integer;
+  nSX,nSY, nEX,nEY, nMX,nMY, nR,nG,nB : Integer;
+  nBmpDownNum : Integer;
+  BmpAddInfo : TBmpAddInfo;
+	{$IFDEF PG_AF9}
+  nApiRtn : Integer;
+  {$ENDIF}
+begin
+  Result := WAIT_FAILED;
+
+  {$IFDEF INSPECTOR_POCB}
+  ShowTestWindow(DefCommon.MSG_MODE_DISPLAY_PATTERN,nPatNum,'');
+  {$ENDIF}
+
+  try
+    sPatName := FCurPatGrpInfo.PatName[nPatNum];
+    for nPatIdx := 0 to Pred(MAX_PATTERN_CNT) do begin
+      if Trim(FDisPatStruct.PatInfo[nPatIdx].pat.Data.PatName) = sPatName then Break;
+    end;
+    sFunc := Format('Display Pattern(%d:%s]: ',[nPatNum,sPatName]); //TBD:DP860?
+
+    //
+ 		case FCurPatGrpInfo.PatType[nPatNum] of
+   		PTYPE_NORMAL : begin
+     		nToolCnt := FDisPatStruct.PatInfo[nPatIdx].pat.Data.ToolCnt;
+   		//sDebug := sFunc + Format(' PatNum(%d) PatName(%s) ToolCnt(%d)',[nPatNum,sPatName,nToolCnt]);
+   		//ShowTestWindow(DefCommon.MSG_MODE_WORKING,DefCommon.LOG_TYPE_INFO, sDebug);
+     		for i := 0 to (nToolCnt-1) do begin
+       		with FDisPatStruct.PatInfo[nPatIdx].Tool[i].Data do begin
+         		{$IFDEF INSPECTOR_POCB}
+         		nSX := Common.GetDrawPosPG(m_nCh,sx); nSY := Common.GetDrawPosPG(m_nCh,sy);
+         		nEX := Common.GetDrawPosPG(m_nCh,ex); nEY := Common.GetDrawPosPG(m_nCh,ey);
+         		nMX := Common.GetDrawPosPG(m_nCh,mx); nMY := Common.GetDrawPosPG(m_nCh,my);
+         		{$ELSE}
+         		nSX := Common.GetDrawPosPG(sx);       nSY := Common.GetDrawPosPG(sy);
+         		nEX := Common.GetDrawPosPG(ex);       nEY := Common.GetDrawPosPG(ey);
+         		nMX := Common.GetDrawPosPG(mx);       nMY := Common.GetDrawPosPG(my);
+         		{$ENDIF}
+         		// (0~4095) -> (0~255)
+         		if R <= 0 then nR := 0 else if R >= 4095 then nR := 255 else nR := (R shr 4);
+         		if G <= 0 then nG := 0 else if G >= 4095 then nG := 255 else nG := (G shr 4);
+         		if B <= 0 then nB := 0 else if B >= 4095 then nB := 255 else nB := (B shr 4);
+         		// ToolType
+         		// 		ALL_LINE        : 'LINE';
+  					//    ALL_BOX         : 'BOX';
+						//    ALL_FILL_BOX    : 'FILL_BOX';
+	  				//    ALL_TRI         : 'TRI';
+		  			//    ALL_FILL_TRI    : 'FILL_TRI';
+						//    ALL_CIRCLE      : 'CIRCLE';
+						//    ALL_FILL_CIRCLE : 'FILL_CIRCLE';
+						//    ALL_H_GRAY      : 'HORIZONTAL_GRAY';
+						//    ALL_V_GRAY      : 'VERTICAL_GRAY';
+						//    ALL_C_GRAY      : 'COLOR_GRAY';
+						//    ALL_BLK_COPY    : 'BLOCK_COPY';
+						//    ALL_BLK_PASTE   : 'BLOCK_PASTE';
+						//    ALL_LOOP        : 'LOOP';
+						//    ALL_XYLOOP      : 'XYLOOP';
+						//    ALL_H_GRAY2     : 'HORIZONTAL_GRAY2';
+						//    ALL_V_GRAY2     : 'VERTICAL_GRAY2';
+						//    ALL_C_GRAY2     : 'COLOR_GRAY2';
+         		case ToolType of
+           		ALL_H_GRAY, ALL_V_GRAY, ALL_C_GRAY,	ALL_H_GRAY2, ALL_V_GRAY2, ALL_C_GRAY2 : begin
+           			//TBD:DP860?
+           		end;
+         		end;
+       		//sDebug := Format('ToolIdx[%d] ToolType(%d) Direction(%d) Level(%d) SX(%d)/SY(%d) EX(%d)/EY(%d) MX(%d)/MY(%d) R(%d)/G(%d)/B(%d)',[i,ToolType,Direction,Level,nSX,nSY,nEX,nEY,nMX,nMY,nR,nG,nB]);
+       		//ShowTestWindow(DefCommon.MSG_MODE_WORKING,DefCommon.LOG_TYPE_INFO, sDebug);
+       		end;
+       		//
+          case PG_TYPE of
+     	  		{$IFDEF PG_AF9}
+       			DefPG.PG_TYPE_AF9 : begin //-------- AF9
+           		if nToolCnt = 1 then nApiRtn := AF9_APSPatternRGBSet(nR,nG,nB)
+           		else 								 nApiRtn := AF9_APSBoxPatternSet(nSX,nSY, (nEX-nSX+1),(nEY-nSY+1), nR,nG,nB, 0,0,0); //TBD:AF9:BR/BG/BB? (BR/BG/BB option?)
+           		if nApiRtn = AF9API_RESULT_OK then Result := WAIT_OBJECT_0;
+            end;
+       			{$ENDIF}
+       			{$IFDEF PG_DP860}
+       			DefPG.PG_TYPE_DP860 : begin //-------- DP860
+       				Result := DP860_SendDisplayPatRGB(nR,nG,nB, nWaitMS,nRetry);
+              //TBD? nToolCnt>1
+       			end;
+       			{$ENDIF}
+       		end;
+        end;
+   		end; //PTYPE_NORMAL
+
+   		PTYPE_BITMAP : begin
+     		nBmpDownNum := CurPatGrpInfo.BmpAddInfo[nPatNum].BmpDownNum;
+     		//
+        case PG_TYPE of
+   	  		{$IFDEF PG_AF9}
+     			DefPG.PG_TYPE_AF9 : begin //-------- AF9
+           	sFunc := Format('Display BMP(%d:%s] : AF9BmpDownNum(%d)',[nPatNum,sPatName,nBmpDownNum]);      // Added by KTS 2022-03-15 오전 9:04:11 패턴 BMP 인 경우
+{$IFDEF INSPECTOR_POCB}
+		        //2022-06-14 BmpAddInfo.DotPatType (0:NoDotPat, 1:DotPat, 2:LineDotPat)
+          	//2022-06-15 Af9RadaPatDispOpt (0:RadaBmpDown/Disp, 1:UseRadaBmpDispApi)
+          	BmpAddInfo := CurPatGrpInfo.BmpAddInfo[nPatNum];
+          	sFunc  := Format('Display BMP(%d:%s): AF9BmpNum(%d) RadaOpt(%d)',[nPatNum,sPatName,nBmpDownNum,Common.TestModelInfo[m_nCh].FLOW.Af9RadaPatDispOpt]);
+          	if BmpAddInfo.BmpDownNum <= 0 then begin
+            	sDebug := sFunc + ' NG(Undefined AF9BmpNum)';
+            	ShowTestWindow(DefCommon.MSG_MODE_WORKING,DefCommon.LOG_TYPE_NG, sDebug);
+            	Exit;
+          	end;
+          	//
+          	if (BmpAddInfo.DotPatType <> 0) and (Common.TestModelInfo[m_nCh].FLOW.Af9RadaPatDispOpt = 1) then begin
+            	sDebug := sFunc + Format('DotPatType(%d) FR/FG/FB(%d/%d/%d) BR/BG/BB(%d/%d/%d)',[BmpAddInfo.DotPatType,BmpAddInfo.FR,BmpAddInfo.FG,BmpAddInfo.FB,BmpAddInfo.BR,BmpAddInfo.BG,BmpAddInfo.BB]);
+            	ShowTestWindow(DefCommon.MSG_MODE_WORKING,DefCommon.LOG_TYPE_INFO, sDebug);
+            	case BmpAddInfo.DotPatType of
+              	1 :  nApiRtn := AF9_APSDotPatternRGBSet(BmpAddInfo.FR,BmpAddInfo.FG,BmpAddInfo.FB,BmpAddInfo.BR,BmpAddInfo.BG,BmpAddInfo.BB);
+              	2 :  nApiRtn := AF9_APSLineDotPatternRGBSet(BmpAddInfo.FR,BmpAddInfo.FG,BmpAddInfo.FB,BmpAddInfo.BR,BmpAddInfo.BG,BmpAddInfo.BB);
+              	else nApiRtn := AF9API_RESULT_NG;
+            	end;
+            	if nApiRtn = AF9API_RESULT_OK then Result := WAIT_OBJECT_0;
+          	end
+	          else begin
+{$ENDIF}											
+							//
+           		{$IFDEF INSPECTOR_POCB}
+           		if Common.SysInfo.SYS.UseBmpDownBeforeDisplay then
+           		{$ELSE}
+           		if Common.SystemInfo.UseITOMode then
+           		{$ENDIF}
+           		begin
+             		sDebug := sFunc + ' ...Download';
+             		ShowTestWindow(DefCommon.MSG_MODE_WORKING,DefCommon.LOG_TYPE_INFO,sDebug);
+      					//
+             		if not MakeRawFile_AF9(sPatName,nDataCnt) then begin
+             			{$IF defined(INSPECTOR_FI) or defined(INSPECTOR_OQA)}
+								//Exit;  //2022-07-07 (No Exit if INSPECTOR_FI !!!)
+									{$ELSE}
+               		Exit;
+	             		{$ENDIF}
+             		end;
+             		nApiRtn := AF9_BMPFileSend(@RawBgrData[0],nDataCnt,nBmpDownNum); //TBD:DP860?
+             		if nApiRtn <> AF9API_RESULT_OK then begin
+             			{$IF defined(INSPECTOR_FI) or defined(INSPECTOR_OQA)}
+								//Exit;  //2022-07-07 (No Exit if INSPECTOR_FI !!!)
+									{$ELSE}
+               		Exit;
+	             		{$ENDIF}
+             		end;
+             		Sleep(50);
+           		end;
+      				//
+           		if nBmpDownNum > 0 then  begin
+             		nApiRtn := AF9_BMPFileView(nBmpDownNum);
+             		if nApiRtn = AF9API_RESULT_OK then Result := WAIT_OBJECT_0;
+           		end
+           		else begin
+             		sDebug := sFunc + ' Download the BMP.!!' ;
+             		ShowTestWindow(DefCommon.MSG_MODE_WORKING,DefCommon.LOG_TYPE_NG,sDebug); //TBD:DP860?
+           		end;
+{$IFDEF INSPECTOR_POCB}
+          	end;
+{$ENDIF}						
+					end;
+     			{$ENDIF} //PG_AF9
+     			{$IFDEF PG_DP860}
+     			DefPG.PG_TYPE_DP860 : begin //-------- DP860
+           	sFunc := Format('Display BMP(%d:%s]',[nPatNum,sPatName]);
+     				Result := DP860_SendDisplayPatBMP(sPatName, nWaitMS,nRetry);
+            //TBD? nToolCnt>1
+     			end;
+     			{$ENDIF}
+     		end;
+	 		end; //PTYPE_BITMAP
+  	end; //case
+
+		{$IFDEF FEATURE_GRAY_CHANGE}
+    m_CurPatDispInfo.nCurPatNum    := 0;
+    m_CurPatDispInfo.nCurAllPatIdx := 0; //index of AllPat
+    m_CurPatDispInfo.bSimplePat   := False;
+    m_CurPatDispInfo.bGrayChangeR := False;
+    m_CurPatDispInfo.bGrayChangeG := False;
+    m_CurPatDispInfo.bGrayChangeB := False;
+    m_CurPatDispInfo.nGrayOffset  := 0;
+ 		//
+    m_CurPatDispInfo.bPatternOn     := True;
+    m_CurPatDispInfo.nCurPatNum    := nPatNum;
+    m_CurPatDispInfo.nCurAllPatIdx := nPatIdx;
+    if (FCurPatGrpInfo.PatType[nPatNum] = PTYPE_NORMAL) and
+       (FDisPatStruct.PatInfo[nPatIdx].pat.Data.ToolCnt = 1) and
+       (FDisPatStruct.PatInfo[nPatIdx].Tool[0].Data.ToolType = ALL_FILL_BOX) then begin
+      m_CurPatDispInfo.bSimplePat := True;
+      //
+      if (FDisPatStruct.PatInfo[nPatIdx].Tool[0].Data.R <> 0) then m_CurPatDispInfo.bGrayChangeR := True;
+      if (FDisPatStruct.PatInfo[nPatIdx].Tool[0].Data.G <> 0) then m_CurPatDispInfo.bGrayChangeG := True;
+      if (FDisPatStruct.PatInfo[nPatIdx].Tool[0].Data.B <> 0) then m_CurPatDispInfo.bGrayChangeB := True;
+      //
+      if (FDisPatStruct.PatInfo[nPatIdx].Tool[0].Data.R = 0) and (FDisPatStruct.PatInfo[nPatIdx].Tool[0].Data.G = 0) and
+				 (FDisPatStruct.PatInfo[nPatIdx].Tool[0].Data.B = 0) then begin  //black
+        m_CurPatDispInfo.bGrayChangeR := True;
+        m_CurPatDispInfo.bGrayChangeG := True;
+        m_CurPatDispInfo.bGrayChangeB := True;
+			end;
+    end;
+		{$ENDIF}
+  except
+
+  end;
+end;
+
+//==============================================================================
+// FLOW-SPECIFIC (GrayChange|Dimming|...)
+//------------------------------------------------------------------------------
+// procedure/function: 
+//		- function TCommPG.SendGrayChange(nGrayOffset: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;  //FEATURE_GRAY_CHANGE
+//		- function TCommPG.SendDimming(nDimming: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+//
+function TCommPG.SendGrayChange(nGrayOffset: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;  //FEATURE_GRAY_CHANGE
+var
+  nApiRtn, nTry : Integer;
+  sFunc, sDebug : string;
+  //
+  nPatIdx : Integer;
+  nR, nG, nB : Integer;
+begin
+  Result := WAIT_FAILED;
+  sFunc  := Format('GrayChange(Offset=%d): ',[nGrayOffset]);
+  //
+  nPatIdx := m_CurPatDispInfo.nCurAllPatIdx;
+  with FDisPatStruct.PatInfo[nPatIdx].Tool[0].Data do begin
+    // (0~4095) -> (0~255)
+   	if (R <= 0) then nR := 0 else if (R >= 4095) then nR := 255 else nR := (R shr 4); //TBD:DP860? (0~4095 -> 0~255)?
+   	if (G <= 0) then nG := 0 else if (G >= 4095) then nG := 255 else nG := (G shr 4); //TBD:DP860? (0~4095 -> 0~255)?
+   	if (B <= 0) then nB := 0 else if (B >= 4095) then nB := 255 else nB := (B shr 4); //TBD:DP860? (0~4095 -> 0~255)?
+    // +/- GrayOffset
+    nR := nR + nGrayOffset;
+    nG := nG + nGrayOffset;
+    nB := nB + nGrayOffset;
+    //
+   	if (nR <= 0) then nR := 0 else if (nR > 255) then nR := 255;
+   	if (nG <= 0) then nG := 0 else if (nG > 255) then nG := 255;
+   	if (nB <= 0) then nB := 0 else if (nB > 255) then nB := 255;
+    //
+		case PG_TYPE of
+			{$IFDEF PG_AF9}
+			DefPG.PG_TYPE_AF9 : begin //---------------- AF9
+    		nApiRtn := AF9_APSPatternRGBSet(nR,nG,nB);
+    		if nApiRtn = AF9API_RESULT_OK then Result := WAIT_OBJECT_0;
+			end;
+			{$ENDIF}
+			{$IFDEF PG_DP860}
+			DefPG.PG_TYPE_DP860 : begin //-------------- DP860
+				Result := DP860_SendDisplayPatRGB(nR,nG,nB, nWaitMS,nRetry);
+			end;
+			{$ENDIF}
+		end;
+		//
+    if Result <> WAIT_OBJECT_0 then begin
+      sDebug := sFunc + ' Failed';
+      ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG, sDebug);
+    end
+    else begin
+      {$IFDEF FEATURE_GRAY_CHANGE}
+      m_CurPatDispInfo.nGrayOffset := nGrayOffset;
+      {$ENDIF}
+      sDebug := sFunc;
+      ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
+    end
+  end;
+end;
+
+function TCommPG.SendDimming(nDimming: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+{$IFDEF PG_AF9}
+const
+  DBV_REG_ADDR1 = 751;
+  DBV_REG_ADDR2 = 752;
+{$ENDIF}
+var
+  nApiRtn : Integer;
+  nDimmingStep       : Integer;
+  nDBV, nWriteValue  : Integer;
+  btValue1, btValue2, btRead : Byte;
+  sFunc, sDebug : string;
+  nTry : Integer;
+	//
+	arDataW, arDataR : TIdBytes;
+begin
+  Result := WAIT_FAILED;
+
+{$IFDEF PG_AF9}
+	sFunc  := Format('SET DIMMNG(%d%%): ',[nDimming]);
+  // [REF] AF9_TEST_EXE (v1.11) - DBV
+  //    - Write DBV value and press DBV button
+  //    - DBV range is 0 to 2047.
+  //    < source >
+  //    writeData = (inputData << 5) | 31;
+	//    Tmp2.Format(_T("DBV Set : Data[%d]:[%x]\n"), inputData, writeData);
+  //  	LGDSetReg(751, (writeData & 0xFF00) >> 8);
+  //  	LGDSetReg(752, (writeData & 0xFF));
+  //
+  // nDimming(0~100) --> DBV(0~2047)
+  if nDimming = 0        then nDBV := 0
+  else if nDimming = 100 then nDBV := DefCommon.DIMMING_DBV_MAX_DEF
+  else                        nDBV := (nDimming * (DefCommon.DIMMING_DBV_MAX_DEF + 1)) div 100;
+  //
+  nWriteValue := (nDBV shl 5) or $1F;
+  btValue1 := (nWriteValue shr 8) and $FF; //high
+  btValue2 := nWriteValue and $FF;         //low
+  //
+  sDebug := sFunc + Format('DBV(0x%x=%d), Value(0x%0.4x), Reg(%d:0x%0.2x, %d:0x%0.2x)',[nDBV,nDBV, nWriteValue,DBV_REG_ADDR1,btValue1,DBV_REG_ADDR2,btValue2]);
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING,DefCommon.LOG_TYPE_INFO, sDebug);
+
+	SetLength(arDataW,1);
+	SetLength(arDataR,1);
+
+  for nTry := 0 to nRetry do begin
+    // DBV_REG_ADDR1 - Wrire
+    arDataW[0] := btValue1;
+		Result := SendI2CWrite(DefPG.TCON_I2C_DEVICE_ADDR_TEMPORARY, DBV_REG_ADDR1,1,arDataW);
+    if Result <> WAIT_OBJECT_0 then break
+
+    // DBV_REG_ADDR1 - Verify
+		Result := SendI2CRead(DefPG.TCON_I2C_DEVICE_ADDR_TEMPORARY, DBV_REG_ADDR1,1,arDataR);
+    if Result <> WAIT_OBJECT_0 then break;
+
+		btRead := arDataR[0];
+    if btRead <> btValue1 then begin
+      sDebug := sFunc + Format('(Addr=%d): Value(0x%0.2x) <> Write(0x%0.2x)',[DBV_REG_ADDR1,btRead,btValue1]);
+      ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG, sDebug);
+      break;
+    end;
+    sDebug := sFunc + Format('(Addr=%d): Value(0x%0.2x) = Write(0x%0.2x)',[DBV_REG_ADDR1,btRead,btValue1]);
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_INFO, sDebug);
+
+    // DBV_REG_ADDR2 - Write
+    arDataW[0] := btValue2;
+		Result := SendI2CWrite(DefPG.TCON_I2C_DEVICE_ADDR_TEMPORARY, DBV_REG_ADDR2,1,arDataW);
+    if Result <> WAIT_OBJECT_0 then break;
+
+    // DBV_REG_ADDR2 - Verify
+		Result := SendI2CRead(DefPG.TCON_I2C_DEVICE_ADDR_TEMPORARY, DBV_REG_ADDR2,1,arDataR);
+    if Result <> WAIT_OBJECT_0 then break;
+
+		btRead := arDataR[0];
+    if btRead <> btValue2 then begin
+      sDebug := sFunc + Format('(Addr=%d): Value(0x%0.2x) <> Write(0x%0.2x)',[DBV_REG_ADDR2,btRead,btValue2]);
+      ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG, sDebug);
+      break;
+    end;
+    sDebug := sFunc + Format('(Addr=%d): Value(0x%0.2x) = Write(0x%0.2x)',[DBV_REG_ADDR2,btRead,btValue2]);
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_INFO, sDebug);
+
+  	Result := WAIT_OBJECT_0;
+    Break;
+  end;
+{$ELSE}
+
+	sDebug := Format('SET DBV#(0x%0x=%d)',[nDimming,nDimming]);
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING,DefCommon.LOG_TYPE_INFO, sDebug);
+
+  Result := DP860_SendAlpdpDBV(nDimming, nWaitMS,nRetry);
+
+   {$ENDIF}
+  //
+  if (Result <> WAIT_OBJECT_0) then begin
+    sDebug := sFunc + '...NG';
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG, sDebug);
+  end;
+  //
+  {$IFDEF FEATURE_DIMMING_STEP}
+  if (Result = WAIT_OBJECT_0) then begin
+    nDimmingStep := 0;
+    if      nDimming = Common.TestModelInfoFLOW.DimmingStep1 then nDimmingStep := 1
+    else if nDimming = Common.TestModelInfoFLOW.DimmingStep2 then nDimmingStep := 2
+    else if nDimming = Common.TestModelInfoFLOW.DimmingStep3 then nDimmingStep := 3
+    else if nDimming = Common.TestModelInfoFLOW.DimmingStep4 then nDimmingStep := 4;
+    m_CurPatDispInfo.nCurDimmingStep := nDimmingStep;
+  end;
+  {$ENDIF}
+end;
+
+
+
+
+function TCommPG.SendDimmingBist(nDimming: Integer; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+{$IFDEF PG_AF9}
+const
+  DBV_REG_ADDR1 = 751;
+  DBV_REG_ADDR2 = 752;
+{$ENDIF}
+var
+  nApiRtn : Integer;
+  nDimmingStep       : Integer;
+  nDBV, nWriteValue  : Integer;
+  btValue1, btValue2, btRead : Byte;
+  sFunc, sDebug : string;
+  nTry : Integer;
+	//
+	arDataW, arDataR : TIdBytes;
+begin
+  Result := WAIT_FAILED;
+  try
+//    SetCyclicTimer(false);
+{$IFDEF PG_AF9}
+    sFunc  := Format('SET DIMMNG(%d%%): ',[nDimming]);
+    // [REF] AF9_TEST_EXE (v1.11) - DBV
+    //    - Write DBV value and press DBV button
+    //    - DBV range is 0 to 2047.
+    //    < source >
+    //    writeData = (inputData << 5) | 31;
+    //    Tmp2.Format(_T("DBV Set : Data[%d]:[%x]\n"), inputData, writeData);
+    //  	LGDSetReg(751, (writeData & 0xFF00) >> 8);
+    //  	LGDSetReg(752, (writeData & 0xFF));
+    //
+    // nDimming(0~100) --> DBV(0~2047)
+    if nDimming = 0        then nDBV := 0
+    else if nDimming = 100 then nDBV := DefCommon.DIMMING_DBV_MAX_DEF
+    else                        nDBV := (nDimming * (DefCommon.DIMMING_DBV_MAX_DEF + 1)) div 100;
+    //
+    nWriteValue := (nDBV shl 5) or $1F;
+    btValue1 := (nWriteValue shr 8) and $FF; //high
+    btValue2 := nWriteValue and $FF;         //low
+    //
+    sDebug := sFunc + Format('DBV(0x%x=%d), Value(0x%0.4x), Reg(%d:0x%0.2x, %d:0x%0.2x)',[nDBV,nDBV, nWriteValue,DBV_REG_ADDR1,btValue1,DBV_REG_ADDR2,btValue2]);
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING,DefCommon.LOG_TYPE_INFO, sDebug);
+
+    SetLength(arDataW,1);
+    SetLength(arDataR,1);
+
+    for nTry := 0 to nRetry do begin
+      // DBV_REG_ADDR1 - Wrire
+      arDataW[0] := btValue1;
+      Result := SendI2CWrite(DefPG.TCON_I2C_DEVICE_ADDR_TEMPORARY, DBV_REG_ADDR1,1,arDataW);
+      if Result <> WAIT_OBJECT_0 then break
+
+      // DBV_REG_ADDR1 - Verify
+      Result := SendI2CRead(DefPG.TCON_I2C_DEVICE_ADDR_TEMPORARY, DBV_REG_ADDR1,1,arDataR);
+      if Result <> WAIT_OBJECT_0 then break;
+
+      btRead := arDataR[0];
+      if btRead <> btValue1 then begin
+        sDebug := sFunc + Format('(Addr=%d): Value(0x%0.2x) <> Write(0x%0.2x)',[DBV_REG_ADDR1,btRead,btValue1]);
+        ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG, sDebug);
+        break;
+      end;
+      sDebug := sFunc + Format('(Addr=%d): Value(0x%0.2x) = Write(0x%0.2x)',[DBV_REG_ADDR1,btRead,btValue1]);
+      ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_INFO, sDebug);
+
+      // DBV_REG_ADDR2 - Write
+      arDataW[0] := btValue2;
+      Result := SendI2CWrite(DefPG.TCON_I2C_DEVICE_ADDR_TEMPORARY, DBV_REG_ADDR2,1,arDataW);
+      if Result <> WAIT_OBJECT_0 then break;
+
+      // DBV_REG_ADDR2 - Verify
+      Result := SendI2CRead(DefPG.TCON_I2C_DEVICE_ADDR_TEMPORARY, DBV_REG_ADDR2,1,arDataR);
+      if Result <> WAIT_OBJECT_0 then break;
+
+      btRead := arDataR[0];
+      if btRead <> btValue2 then begin
+        sDebug := sFunc + Format('(Addr=%d): Value(0x%0.2x) <> Write(0x%0.2x)',[DBV_REG_ADDR2,btRead,btValue2]);
+        ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG, sDebug);
+        break;
+      end;
+      sDebug := sFunc + Format('(Addr=%d): Value(0x%0.2x) = Write(0x%0.2x)',[DBV_REG_ADDR2,btRead,btValue2]);
+      ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_INFO, sDebug);
+
+      Result := WAIT_OBJECT_0;
+      Break;
+    end;
+  {$ELSE}
+
+    sDebug := Format('SET DBV#(0x%0x=%d)',[nDimming,nDimming]);
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING,DefCommon.LOG_TYPE_INFO, sDebug);
+
+    Result := DP860_SendBistDBV(nDimming, nWaitMS,nRetry);
+
+  {$ENDIF}
+    //
+    if (Result <> WAIT_OBJECT_0) then begin
+      sDebug := sFunc + '...NG';
+      ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG, sDebug);
+    end;
+    //
+    {$IFDEF FEATURE_DIMMING_STEP}
+    if (Result = WAIT_OBJECT_0) then begin
+      nDimmingStep := 0;
+      if      nDimming = Common.TestModelInfoFLOW.DimmingStep1 then nDimmingStep := 1
+      else if nDimming = Common.TestModelInfoFLOW.DimmingStep2 then nDimmingStep := 2
+      else if nDimming = Common.TestModelInfoFLOW.DimmingStep3 then nDimmingStep := 3
+      else if nDimming = Common.TestModelInfoFLOW.DimmingStep4 then nDimmingStep := 4;
+      m_CurPatDispInfo.nCurDimmingStep := nDimmingStep;
+    end;
+  {$ENDIF}
+  finally
+//    SetCyclicTimer(True);
+  end;
+end;
+
+function TCommPG.SendPocbOnOff(bOn: Boolean; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //FEATURE_POCB_ONOFF
+var
+  sDebug : string;
+	arDataW : TIdBytes;
+begin
+  Result := WAIT_FAILED;
+
+  {$IF Defined(INSPECTOR_FI) or Defined(INSEPCTOR_OQA)}
+  sDebug := Format('POCB ON/OFF#(%s)',[TernaryOp(bOn,'ON','OFF')]);
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_INFO, sDebug);
+
+  SetLength(arDataW, 1);
+  with Common.TestModelInfoFLOW do begin
+    arDataW[0] := TernaryOp(bOn, PocbOnOffI2cOnVal, PocbOnOffI2cOffVal);
+    Result := SendI2CWrite(DefPG.TCON_I2C_DEVICE_ADDR_TEMPORARY, PocbOnOffI2cRa,1,arDataW);
+    if Result = WAIT_OBJECT_0 then
+      ShowTestWindow(DefCommon.MSG_MODE_TESTCH_UI, TernaryOp(bOn,1,0), '0');
+  end;
+  if (Result <> WAIT_OBJECT_0) then begin
+    sDebug := sDebug + '...NG';
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG, sDebug);
+  end;
+  {$ENDIF}
+end;
+
+//==============================================================================
+// FLOW-SPECIFIC (I2C)
+//------------------------------------------------------------------------------
+// procedure/function: 
+//		- function TCommPG.SendI2CRead(nDevAddr,nRegAddr,nDataCnt: Integer; var arRData: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
+//		- function TCommPG.SendI2CWrite(nDevAddr,nRegAddr,nDataCnt: Integer; arWData: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
+//
+function TCommPG.SendI2CRead(nDevAddr,nRegAddr,nDataCnt: Integer; var arDataR: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0; nDebugLog : integer= 0): DWORD;
+var
+  sDebug  : string;
+  i       : Integer;
+//btData  : Byte;
+  btaData : TIdBytes;
+begin
+  Result := WAIT_FAILED;
+
+if Length(arDataR) < nDataCnt then begin
+		sDebug := Format('SendI2CRead NG(ReadDataCnt:%d < ReadDataBuf.Length:%d)',[nDataCnt,Length(arDataR)]);
+  	ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+		Exit;
+	end;
+
+	//
+ 	SetLength(btaData, nDataCnt);
+	case PG_TYPE of
+		{$IFDEF PG_AF9}
+		DefPG.PG_TYPE_AF9 : begin //---------------- AF9
+    	if nDataCnt = 1 then begin
+				btaData[0] := AF9_LGDGetReg(DWORD(nRegAddr));
+    	end
+    	else begin
+      	AF9_LGDRangeGetReg(@btaData[0],DWORD(nRegAddr){StartAddress},DWORD(nRegAddr+nDataCnt-1{EndAddress}));
+    	end;
+     	Result := WAIT_OBJECT_0;
+		end;
+		{$ENDIF}
+		{$IFDEF PG_DP860}
+		DefPG.PG_TYPE_DP860 : begin //-------------- DP860
+      {$IF Defined(INSPECTOR_OC) or Defined(INSPECTOR_PreOC)} //2023-03-28 jhhwang (for OC T/T)
+      if Common.SystemInfo.PG_TconWriteCmdType = 0 then Sleep(Common.SystemInfo.PG_TconReadBeforeDelayMsec); //2023-04-24 jhhwang (for T/T Test) (if oc.write)
+  		{$ENDIF}
+      if nDevAddr <> $A0 then begin
+        Result := DP860_SendI2CRead(nDevAddr,nRegAddr,nDataCnt,btaData, nWaitMS,nRetry,nDebugLog);
+      end
+      else begin
+        case Common.SystemInfo.PG_TconReadCmdType of
+          0 : begin
+            Result := DP860_SendTConRead(nRegAddr,nDataCnt,btaData, nWaitMS,nRetry,nDebugLog);
+          end;
+          1 : begin
+            Result := DP860_SendTconByteRead(nRegAddr,nDataCnt,btaData, nWaitMS,nRetry,nDebugLog);
+          end;
+        end;
+      end;
+		end;
+		{$ENDIF}
+	end;
+  //
+  if Result = WAIT_OBJECT_0 then begin
+    FTxRxPG.RxDataLen := nDataCnt;
+   	for i := 0 to (nDataCnt-1) do begin
+			arDataR[i] := btaData[i];
+      FTxRxPG.RxData[i] := btaData[i]; //TBD?
+   	end;
+  end;
+end;
+
+function TCommPG.SendI2CWrite(nDevAddr,nRegAddr,nDataCnt: Integer; arDataW: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0; nDebugLog : integer= 0): DWORD;
+var
+	{$IFDEF PG_AF9}
+  nApiRtn : Integer;
+	{$ENDIF}
+  i : Integer;
+  bWriteSync : Boolean; //2023-03-28 jhhwang (for T/T Test)
+begin
+  Result := WAIT_FAILED;
+  //
+	case PG_TYPE of
+		{$IFDEF PG_AF9}
+		DefPG.PG_TYPE_AF9 : begin //---------------- AF9
+  		if nDevAddr = DefPG.TCON_I2C_DEVICE_ADDR_TEMPORARY then begin
+    		for i := 0 to (nDataCnt-1) do begin
+	    		if nDevAddr = DefPG.TCON_I2C_DEVICE_ADDR_TEMPORARY then nApiRtn := AF9_LGDSetReg(DWORD(nRegAddr+i),(arDataW[i] and $FF))
+  				else                                                    nApiRtn := AF9_APSSetReg(DWORD(nRegAddr),(arDataW[0] and $FF));
+       		if nApiRtn <> DefPG.AF9API_RESULT_OK then Exit;
+    		end;
+      	Result := WAIT_OBJECT_0;
+  		end;
+    end;
+    {$ENDIF}
+		{$IFDEF PG_DP860}
+		DefPG.PG_TYPE_DP860 : begin //-------------- DP860
+      {$IF Defined(INSPECTOR_OC) or Defined(INSPECTOR_PreOC)} //2023-03-28 jhhwang (for OC T/T)
+      case Common.SystemInfo.PG_TconWriteCmdType of
+        0 : begin // all tcon.ocwrite (no ack)
+          if (Common.SystemInfo.PG_WaitAckAfterContOcWriteCnt = 0) or (TconRWCnt.ContTConOcWrite < Common.SystemInfo.PG_WaitAckAfterContOcWriteCnt) then begin
+      			Result := DP860_SendTconOCWrite(nRegAddr,nDataCnt,arDataW, 0{nWaitMS},0);
+            if Common.SystemInfo.PG_TconOcWriteDelayMsec > 0 then
+              Sleep(Common.SystemInfo.PG_TconOcWriteDelayMsec)
+            else if Common.SystemInfo.PG_TconOcWriteDelayMicroSec > 0 then
+              Common.SleepMicro(Common.SystemInfo.PG_TconOcWriteDelayMicroSec)  // SleepMicro 적용
+            else begin
+              for i := 0 to Pred(Common.SystemInfo.PG_TconOcWriteDelayLoopCnt) do begin
+                ; //NOP
+              end;
+            end;
+          end
+          else begin
+            Result := DP860_SendTconWrite(nRegAddr,nDataCnt,arDataW, nWaitMS,nRetry,nDebugLog);
+            if Common.SystemInfo.PG_TconOcWriteDelayMsec > 0 then
+              Sleep(Common.SystemInfo.PG_TconOcWriteDelayMsec)
+            else if Common.SystemInfo.PG_TconOcWriteDelayMicroSec > 0 then
+              Common.SleepMicro(Common.SystemInfo.PG_TconOcWriteDelayMicroSec)  // SleepMicro 적용
+            else begin
+
+            end;
+          end;
+        end;
+        1 : begin // all tcon.write (ack)
+    			Result := DP860_SendTconWrite(nRegAddr,nDataCnt,arDataW, nWaitMS,nRetry,nDebugLog);
+          if Common.SystemInfo.PG_TconOcWriteDelayMsec > 0 then
+            Sleep(Common.SystemInfo.PG_TconOcWriteDelayMsec)
+          else if Common.SystemInfo.PG_TconOcWriteDelayMicroSec > 0 then
+            Common.SleepMicro(Common.SystemInfo.PG_TconOcWriteDelayMicroSec)  // SleepMicro 적용
+          else begin
+
+          end;
+        end;
+        3 : begin // all tcon.writeRead (ack)
+    			Result := DP860_SendTconWriteRead(nRegAddr,nDataCnt,Common.CheckPGWriteReadPassAddr(nRegAddr),arDataW, nWaitMS,nRetry,nDebugLog);
+          if Common.SystemInfo.PG_TconOcWriteDelayMsec > 0 then
+            Sleep(Common.SystemInfo.PG_TconOcWriteDelayMsec)
+          else if Common.SystemInfo.PG_TconOcWriteDelayMicroSec > 0 then
+            Common.SleepMicro(Common.SystemInfo.PG_TconOcWriteDelayMicroSec)  // SleepMicro 적용
+          else begin
+
+          end;
+        end;
+        2 : begin // default tcon.ocwrite + selective tcon.write only if SyncAddr
+          bWriteSync := False;
+          if (Common.SystemInfo.PG_WaitAckAfterContOcWriteCnt = 0) or (TconRWCnt.ContTConOcWrite < Common.SystemInfo.PG_WaitAckAfterContOcWriteCnt) then begin
+            for i := 0 to Length(Common.SystemInfo.PG_ToonOcWriteSyncAddrArr)-1 do begin
+              if Common.SystemInfo.PG_ToonOcWriteSyncAddrArr[i] = nRegAddr then begin
+                bWriteSync := True;
+                break;
+              end;
+            end;
+          end
+          else begin
+            bWriteSync := True;
+          end;
+          //
+          if bWriteSync then begin
+            Result := DP860_SendTconWrite(nRegAddr,nDataCnt,arDataW, nWaitMS,nRetry,nDebugLog);
+          end
+          else begin
+      			Result := DP860_SendTconOCWrite(nRegAddr,nDataCnt,arDataW, 0{nWaitMS},0);
+            Sleep(Common.SystemInfo.PG_TconOcWriteDelayMsec);
+          end;
+        end;
+      end;
+      {$ELSE}
+			Result := DP860_SendTconWrite(nRegAddr,nDataCnt,arDataW, nWaitMS,nRetry,nDebugLog);
+      {$ENDIF}
+		end;
+		{$ENDIF}
+	end;
+end;
+
+function TCommPG.SendI2CMultiWrite(nDevAddr,nDataCnt: Integer; arRegAddr : array of Integer; arDataW: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
+var
+	{$IFDEF PG_AF9}
+  nApiRtn : Integer;
+	{$ENDIF}
+  i : Integer;
+  bWriteSync : Boolean; //2023-03-28 jhhwang (for T/T Test)
+begin
+  Result := WAIT_FAILED;
+  //
+	case PG_TYPE of
+		DefPG.PG_TYPE_DP860 : begin //-------------- DP860
+      Result := DP860_SendTconMultiWrite(nDataCnt,arRegAddr,arDataW, nWaitMS,nRetry);
+		end;
+	end;
+end;
+
+
+function TCommPG.SendI2CSeqWrite(nMode, nSeqIdx,nDataCnt: Integer; arRegAddr : array of Integer; arDataW: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
+var
+  bWriteSync : Boolean; //2023-03-28 jhhwang (for T/T Test)
+begin
+  Result := WAIT_FAILED;
+  //
+	case PG_TYPE of
+		DefPG.PG_TYPE_DP860 : begin //-------------- DP860
+      Result := DP860_SendTconSeqWrite(nMode,nSeqIdx,nDataCnt,arRegAddr,arDataW, nWaitMS,nRetry);
+		end;
+	end;
+end;
+
+
+
+
+//==============================================================================
+// FLOW-SPECIFIC (Flash)
+//------------------------------------------------------------------------------
+// procedure/function:
+//		- function TCommPG.SendFlashRead(nAddr,nSize: DWORD; pData: PByte; nWaitMS: Integer=5000; nRetry: Integer=0): DWORD;
+//		- function TCommPG.SendFlashWrite(nAddr,nSize: DWORD; const pData: PByte; nWaitMS: Integer=100000; nRetry: Integer=0): DWORD;
+//		- function TCommPG.GetFlashDataBuf(nAddr,nLen: DWORD; pDataBuf: PByte): DWORD;
+//		- function TCommPG.UpdateFlashDataBuf(nAddr,nLen: DWORD; pData: PByte): DWORD;
+//
+{$IFDEF FEATURE_FLASH_ACCESS}
+//function TCommPG.SendFlashRead(nAddr,nSize: DWORD; pData: PByte; nWaitMS: Integer=5000; nRetry: Integer=0): DWORD;
+//var
+//  btApiRtn : Byte;
+//  nTry : Integer;
+//  sFunc, sDebug,sDate,sPID : string;
+//  sRemotePath, sRemoteFile, sLocalPath, sLocalFile, sLocalFullName,sRemoteBackupFile, sLocalPathBackUp,sLocalFullBackupName : string;
+//  //
+//  mtData : TMemoryStream;
+//  rxData : array of Byte;
+//  fs   : TFileStream;
+//begin
+//  Result := WAIT_FAILED;
+//  sFunc  := Format('FlashRead(Addr=%d,Size=%d) ',[nAddr,nSize]);
+//
+//  try
+//    FIsOnFlashAccess := True;
+//    //
+//    for nTry := 0 to nRetry do begin
+//  		case PG_TYPE of
+//  			{$IFDEF PG_AF9}
+//  			DefPG.PG_TYPE_AF9 : begin //---------------- AF9
+//      		btApiRtn := AF9_FLASHRead(pData, nAddr,(nAddr+nSize-1){nEndAddr});
+//      		if btApiRtn = DefPG.AF9API_RESULT_OK then begin
+//    				Result := WAIT_OBJECT_0;
+//  					break;
+//  				end;
+//  			end;
+//  			{$ENDIF}
+//  			{$IFDEF PG_DP860}
+//  			DefPG.PG_TYPE_DP860 : begin //-------------- DP860
+//  				if nSize < 256 then begin
+//  					Result := DP860_SendNvmRead(nAddr,nSize, pData, nWaitMS,nRetry);
+//  				end
+//  				else begin
+//            // Send flash.read2file
+//  					sRemoteFile := Format('FlashR_A0x%x_L%d.bin',[nAddr,nSize]);
+//  					Result := DP860_SendNvmReadFile(nAddr,nSize, sRemoteFile, nWaitMS,nRetry);
+//  					if Result <> WAIT_OBJECT_0 then begin
+//              //TBD?
+//              break;
+//            end;
+//  					// Get flash read data file from PG
+//  					sRemotePath := '/home/upload';
+//  					sLocalPath  := Common.Path.FLASH;
+//  					sLocalFile  := Format('CH%d_',[m_nPG+1]) + sRemoteFile;
+//            sLocalFullName := Trim(sLocalPath + sLocalFile);
+//  					Result := DP860_FileGetPG2PC(sRemotePath,sRemoteFile, sLocalFullName, False{bClearAfterGet}, True{nEndDisc} {,nWaitMS,nRetry});
+//  					if Result <> WAIT_OBJECT_0 then begin
+//              //TBD?
+//              break;
+//            end;
+//            // Get Flash data from bin file
+//            mtData := TMemoryStream.Create;
+//            try
+//              mtData.LoadFromFile(sLocalFullName);
+//              if mtData.Size <> nSize then begin
+//                //TBD? RxDataSizeNG
+//              end;
+//              SetLength(rxData,nSize);
+//              mtData.Position := 0;
+//              mtData.Read(rxData[0],mtData.Size);
+//              CopyMemory(pData,@rxData[0],nSize);
+//            finally
+//              mtData.Free;
+//            end;
+//
+//            break;
+//  				end;
+//  			end;
+//  			{$ENDIF}
+//	  	end;
+//  	end;
+//  finally
+//    FIsOnFlashAccess := False;
+//  end;
+//
+//	//
+//  if (Result <> WAIT_OBJECT_0) then begin
+//    sDebug := sFunc + '...NG';
+//    ShowTestWindow(DefCommon.MSG_MODE_WORKING,DefCommon.LOG_TYPE_NG, sDebug);
+//    Exit;
+//  end;
+//end;
+
+function TCommPG.SendFlashRead(nAddr, nSize: DWORD; pData: PByte; nWaitMS: Integer = 5000; nRetry: Integer = 0): DWORD;
+var
+  btApiRtn: Byte;
+  nTry: Integer;
+  sFunc, sDebug, sDate, sPID: string;
+  sRemoteFile, sLocalFile, sLocalFullName, sRemoteBackupFile, sLocalPathBackUp, sLocalFullBackupName: string;
+  mtData: TMemoryStream;
+  rxData: TBytes;
+begin
+  Result := WAIT_FAILED;
+  sFunc := Format('FlashRead(Addr=%d,Size=%d) ', [nAddr, nSize]);
+
+  try
+    FIsOnFlashAccess := True;
+
+    for nTry := 0 to nRetry do
+    begin
+      case PG_TYPE of
+        {$IFDEF PG_AF9}
+        DefPG.PG_TYPE_AF9:
+          begin //---------------- AF9
+            btApiRtn := AF9_FLASHRead(pData, nAddr, (nAddr + nSize - 1){nEndAddr});
+            if btApiRtn = DefPG.AF9API_RESULT_OK then
+            begin
+              Result := WAIT_OBJECT_0;
+              Break;
+            end;
+          end;
+        {$ENDIF}
+        {$IFDEF PG_DP860}
+        DefPG.PG_TYPE_DP860:
+          begin //-------------- DP860
+            if nSize < 256 then
+              Result := DP860_SendNvmRead(nAddr, nSize, pData, nWaitMS, nRetry)
+            else
+            begin
+              sRemoteFile := Format('FlashR_A0x%x_L%d.bin', [nAddr, nSize]);
+              Result := DP860_SendNvmReadFile(nAddr, nSize, sRemoteFile, nWaitMS, nRetry);
+
+              if Result <> WAIT_OBJECT_0 then
+                Break;
+
+              sLocalFullName := Trim(Common.Path.FLASH + Format('CH%d_', [m_nPG + 1]) + sRemoteFile);
+              Result := DP860_FileGetPG2PC('/home/upload', sRemoteFile, sLocalFullName, False, False);
+
+              if Result <> WAIT_OBJECT_0 then
+                Break;
+
+              mtData := TMemoryStream.Create;
+              try
+                mtData.LoadFromFile(sLocalFullName);
+                if mtData.Size <> nSize then
+                begin
+                  // Handle size mismatch
+                  // TBD? RxDataSizeNG
+                end;
+
+                SetLength(rxData, nSize);
+                mtData.Position := 0;
+                mtData.ReadBuffer(rxData[0], mtData.Size);
+                Move(rxData[0], pData^, nSize);
+
+              finally
+                SetLength(rxData, 0);
+                mtData.Free;
+              end;
+
+              // Additional backup logic (TBD?)
+              // ...
+
+              Break;
+            end;
+          end;
+        {$ENDIF}
+      end;
+    end;
+
+  finally
+    FIsOnFlashAccess := False;
+  end;
+
+  if Result <> WAIT_OBJECT_0 then
+  begin
+    sDebug := sFunc + '...NG';
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG, sDebug);
+  end;
+end;
+
+
+function TCommPG.SendFlashWrite(nAddr, nSize: DWORD; pData: PByte; nWaitMS: Integer = 100000; nRetry: Integer = 0): DWORD;
+var
+  btApiRtn: Byte;
+  i, nTry: integer;
+  CalcCRC, RxCRC: Word;
+  sFunc, sDebug, sRemotePath, sRemoteFile, sLocalPath, sLocalPathBackUp, sLocalFile, sLocalFullName, sLocalFullBackupName, sRemoteBackupFile: string;
+  bVerifyPG, bErasePG: Boolean;
+  arData: TBytes;
+  fs: TFileStream;
+begin
+  Result := WAIT_FAILED;
+
+  // Calc SumCRC
+  CalcCRC := 0;
+  for i := 0 to Pred(nSize) do
+    CalcCRC := Word((CalcCRC + pData[i]) and $FFFF);
+
+  sFunc := Format('SendFlashWrite(Addr=0x%x,Size=%d, Retry=%d)(CRC=0x%x:%d)', [nAddr, nSize, nRetry, CalcCRC, CalcCRC]);
+
+  try
+    FIsOnFlashAccess := True;
+
+    for nTry := 0 to nRetry do
+    begin
+      sRemotePath := '/home/upload';
+      sRemoteFile := Format('FlashW_A0x%x_L%d.bin', [nAddr, nSize]);
+      sLocalPath := Common.Path.FLASH;
+      sLocalFile := Format('CH%d_', [m_nPG + 1]) + sRemoteFile;
+      sLocalFullName := sLocalPath + sLocalFile;
+
+      // Create TBytes array from pData
+      SetLength(arData, nSize);
+      Move(pData^, arData[0], nSize);
+
+      // Write the data to a file using TFile.WriteAllBytes
+      fs := TFileStream.Create(sLocalFullName, fmCreate or fmOpenWrite);
+      try
+        fs.WriteBuffer(pData^, nSize);
+      finally
+        fs.Free;
+      end;
+
+      // FTP Put to PG
+      Result := DP860_FilePutPC2PG(sLocalFullName, sRemotePath, sRemoteFile, True, False);
+      if Result <> WAIT_OBJECT_0 then
+        Break;
+
+      // Send flash.write2file
+      bVerifyPG := True; //TBD:DP860?
+      bErasePG := True; //TBD:DP860?
+      Result := DP860_SendNvmWriteFile(nAddr, nSize, sRemoteFile, bVerifyPG, bErasePG, nWaitMS, nRetry);
+      if Result <> WAIT_OBJECT_0 then
+        Break;
+    end;
+
+  finally
+    FIsOnFlashAccess := False;
+  end;
+
+  // Free the memory allocated for arData explicitly
+  SetLength(arData, 0);
+
+  if Result <> WAIT_OBJECT_0 then
+  begin
+    sDebug := sFunc + '...NG';
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG, sDebug);
+    Exit;
+  end;
+end;
+
+
+//function TCommPG.SendFlashWrite(nAddr,nSize: DWORD; pData: PByte; nWaitMS: Integer=100000; nRetry: Integer=0): DWORD; //TBD:DP860?
+//var
+//  btApiRtn : Byte;
+//  i, nTry  : integer;
+//  CalcCRC, RxCRC : Word; //Word?
+//  pTemp : PByte;
+//  sFunc, sDebug,sDate,sPID : string;
+//  sRemotePath, sRemoteFile, sLocalPath,sLocalPathBackUp, sLocalFile, sLocalFullName, sLocalFullBackupName, sRemoteBackupFile : string;
+//  bVerifyPG, bErasePG : Boolean;
+//
+//  fs   : TFileStream;
+//  arData : array of Byte;
+//begin
+//  Result := WAIT_FAILED;
+//
+//  // Calc SumCRC
+//  CalcCRC := 0;
+//  pTemp := pData;
+//  for i := 0 to Pred(nSize) do begin
+//    CalcCRC := Word((CalcCRC + pTemp^) and $FFFF);
+//    Inc(pTemp);
+//  end;
+//  sFunc := Format('SendFlashWrite(Addr=0x%x,Size=%d, Retry=%d)(CRC=0x%x:%d)',[nAddr,nSize,nRetry,CalcCRC,CalcCRC]);
+//
+//  try
+//    FIsOnFlashAccess := True;
+//    //
+//    for nTry := 0 to nRetry do begin
+//      sRemotePath := '/home/upload';
+//      sRemoteFile := Format('FlashW_A0x%x_L%d.bin',[nAddr,nSize]);
+//      // Make flash data file
+//      sLocalPath  := Common.Path.FLASH; //TBD?
+//      sLocalFile  := Format('CH%d_',[m_nPG+1]) + sRemoteFile;
+//      sLocalFullName := sLocalPath + sLocalFile;
+//      //
+//      SetLength(arData, nSize);
+//      CopyMemory(@arData[0],pData,nSize);
+//      fs := TFileStream.Create(sLocalFullName, fmCreate);
+//      try
+//        fs.Write(arData[0], nSize);
+//      finally
+//        fs.Free;
+//        fs := nil;
+//      end;
+//
+//
+//      // FTP Put to PG
+//      Result := DP860_FilePutPC2PG(sLocalFullName, sRemotePath,sRemoteFile, True{bClearBeforePut}, True{nEndDisc} {,nWaitMS,nRetry});
+//      if Result <> WAIT_OBJECT_0 then begin
+//        //TBD?
+//        break;
+//      end;
+//      // Send flash.write2file
+//      bVerifyPG := True; //TBD:DP860?
+//      bErasePG  := True; //TBD:DP860?
+//      Result := DP860_SendNvmWriteFile(nAddr,nSize, sRemoteFile, bVerifyPG,bErasePG, nWaitMS,nRetry);
+//      if Result <> WAIT_OBJECT_0 then begin
+//        //TBD?
+//        break;
+//      end;
+//
+//  	end;
+//  finally
+//    FIsOnFlashAccess := False;
+//  end;
+//
+//  //
+//  if (Result <> WAIT_OBJECT_0) then begin
+//    sDebug := sFunc + '...NG';
+//    ShowTestWindow(DefCommon.MSG_MODE_WORKING,DefCommon.LOG_TYPE_NG, sDebug);
+//    Exit;
+//  end;
+//end;
+
+{$IFDEF PG_AF9}
+function TCommPG.GetFlashData(nAddr,nLen: DWORD; pData: PByte): DWORD;
+var
+  dwRtn : DWORD;
+  nFlashReadSize : DWORD;
+begin
+  Result := WAIT_FAILED;
+  {$IF Defined(INSPECTOR_POCB)}
+  if not m_FlashData.bValid then begin //TBD?
+    nFlashReadSize := Common.TestModelInfo[m_nCh].PARAM.PucInfoFlash.FlashSizeKB*1024;
+    dwRtn := Pg[m_nCh].SendFlashRead(0{nStartAddr},nFlashReadSize, @Pg[m_nCh].m_FlashData.Data[0]);
+    if dwRtn <> WAIT_OBJECT_0 then Exit;
+  end;
+  {$ENDIF}
+  //
+  if not m_FlashData.bValid then Exit;
+  if (nAddr < m_FlashData.StartAddr) then Exit;
+  if (nAddr+nLen) > (m_FlashData.StartAddr+m_FlashData.Size) then Exit;
+	//
+  CopyMemory(pData,@m_FlashData.Data[nAddr],nLen);
+  Result := WAIT_OBJECT_0;
+end;
+
+function TCommPG.UpdateFlashDataBuf(nAddr,nLen: DWORD; pData: PByte): DWORD;
+var
+  dwRtn : DWORD;
+  nFlashReadSize : DWORD;
+begin
+  Result := WAIT_FAILED;
+
+	{$IFDEF INSPECTOR_POCB}
+  if not m_FlashData.bValid then begin //TBD?
+    nFlashReadSize := Common.TestModelInfo[m_nCh].PARAM.PucInfoFlash.FlashSizeKB*1024;
+    dwRtn := Pg[m_nCh].SendFlashRead(0{nStartAddr},nFlashReadSize, @Pg[m_nCh].m_FlashData.Data[0]);
+    if dwRtn <> WAIT_OBJECT_0 then Exit;
+  end;
+  {$ENDIF}
+  //
+  if not m_FlashData.bValid then Exit;
+
+  if (nAddr < m_FlashData.StartAddr) then Exit;
+  if (nAddr+nLen) > (m_FlashData.StartAddr+m_FlashData.Size) then Exit;
+
+  CopyMemory(@m_FlashData.Data[nAddr],pData,nLen);
+  Result := WAIT_OBJECT_0;
+end;
+{$ENDIF}   // PG_AF9
+
+{$ENDIF} //FEATURE_FLASH_ACCESS
+
+//##############################################################################
+//##############################################################################
+//###                                                                        ###
+//###                             ETC (GUI/...)                              ###
+//###                                                                        ###
+//##############################################################################
+//##############################################################################
+
+end.
