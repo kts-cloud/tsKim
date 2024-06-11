@@ -580,6 +580,8 @@ begin
   nCH := (Sender as TRzButton).Tag;
   m_nOkCnt[nCh] := 0;
   m_nNgCnt[nCh] := 0;
+  PasScr[nCH].TestInfo.OKCount := m_nOkCnt[nCh];
+  PasScr[nCH].TestInfo.NGCount := m_nNgCnt[nCh];
   pnlTotalValues[nCh].Caption := IntToStr(m_nOkCnt[nCh] + m_nNgCnt[nCh]);
   pnlOKValues[nCh].Caption := IntToStr(m_nOkCnt[nCh]);
   pnlNGValues[nCh].Caption := IntToStr(m_nNgCnt[nCh]);
@@ -3539,18 +3541,38 @@ wdRet,i : integer;
 begin
   Result := 1;
   if not PasScr[nCH].m_bInLine_AAMode then Exit;
-  if Length(sNGCode) <> 4 then begin
-    StartScript(nCH,DefScript.SEQ_RESTART_1);
-  end
-  else begin
-    sNgType := Copy(sNGCode, 1, 1);
-    if (sNgType = 'Q') or (sNgType = 'L')  then
-      StartScript(nCH,DefScript.SEQ_RESTART_2)
-    else if sNgType = 'B' then
-      StartScript(nCH,DefScript.SEQ_RESTART_3)
-    else StartScript(nCH,DefScript.SEQ_RESTART_1);
+
+  sNgType := Copy(sNGCode, 1, 1);
+  for I := 0 to Pred(Length(Common.GAAModeInfo)) do begin
+    if Pos(sNgType,Common.GAAModeInfo[i].sErrCode) > 0 then begin
+      case Common.GAAModeInfo[i].nInspectionType of
+        1: begin
+          StartScript(nCH,DefScript.SEQ_RESTART_1);
+          Result := 0;
+          Break;
+        end;
+        2 : begin
+          StartScript(nCH,DefScript.SEQ_RESTART_2);
+          Result := 0;
+          Break;
+        end;
+        3 : begin
+          StartScript(nCH,DefScript.SEQ_RESTART_3);
+          Result := 0;
+          Break;
+        end;
+        else begin
+          StartScript(nCH,DefScript.SEQ_RESTART_1);
+          Result := 0;
+          Break;
+        end;
+      end;
+    end;
   end;
-  Result := 0;
+  if Result <> 0  then begin
+    PasScr[nCH].m_bInLine_AAMode := False;
+  end;
+
 end;
 
 procedure TfrmTest4ChOC.MakeOpticPassRgb(nCh: Integer);
@@ -4703,14 +4725,13 @@ begin
             sTemp := CSharpDll.MainOC_GetSummaryLogData(nCh,'DEFECT_CODE');   // ERROR CODE 불러오기
           end;
 
-
           PG[nCH].DP860_SendOcOnOff(0{end},2000,0); //2023-03-28 jhhwang (for T/T Test)
           if 'XXXX' <> sTemp then begin
-            if Common.SystemInfo.UseInLine_AAMode and (Common.SystemInfo.OCType = DefCommon.OCType) and (not Common.PLCInfo.InlineGIB) then begin        // AA mode 실행
-              AddLog(format('GetSummaryLogData : %s',[sTemp]),nCh);
-              if InlineOCReStart(nCh,sTemp) = 0 then exit;
-            end;
             PasScr[nCh].m_nNgCode:= GetNGCode_ByErroCode(sTemp);
+            if Common.SystemInfo.UseInLine_AAMode and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin        // AA mode 실행
+              AddLog(format('GetSummaryLogData : %s',[sTemp]),nCh);
+              if InlineOCReStart(nCh,sTemp) = 0 then exit;       // AA Mode 진행
+            end;
           end
           else PasScr[nCh].m_nNgCode:= 0;
           AddLog(format('GetSummaryLogData : %s GetNGCode_ByErroCode: %d',[sTemp,PasScr[nCh].m_nNgCode]),nCh);
@@ -5200,21 +5221,23 @@ begin
                           //g_CommPLC.GetGlassData_Processing_Status(g_CommPLC.GlassData[nCh],nEQP_ID, nSeq, 16);
                           g_CommPLC.GetGlassData_PreviousUnitProcessing(g_CommPLC.GlassData[nCh],nEQP_ID, nSeq, 16);
 
-                          if nSeq = 1 then begin
-                            Common.MLog(nCh, ' AAB Mode : Restart SEQ : ' + inttostr(nSeq),True);
+                          if (nSeq = 1) and (g_CommPLC.GlassData[nCh].GlassJudge = 78) then begin  // A진행 후 NG 발생 시 재 시작
+                            Common.MLog(nCh, 'ECS AAB Mode : Restart SEQ : ' + inttostr(nSeq),True);
                             AutoLogicStart(nCh);
                           end
                           else SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, nCh , nCh , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
                         end
-                        else
+                        else begin
+                          Common.MLog(nCh, 'ECS AAB Mode : OFF!!',True);
                           SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, nCh , nCh , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
+                        end;
                       end
                       else begin
                         case nCH of
                           0, 1 :
                           begin
                             for i := DefCommon.CH1 to DefCommon.CH2 do begin
-                              if PasScr[i].m_bIsScriptWork then begin
+                              if PasScr[i].m_bIsScriptWork or PasScr[i].TestInfo.PreOcReStart then begin
                                 Common.MLog(nCH, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(i));
                                 Exit;
                               end;
@@ -5234,7 +5257,7 @@ begin
                           2,3 :
                           begin
                             for i := DefCommon.CH3 to DefCommon.CH4 do begin
-                              if PasScr[i].m_bIsScriptWork then begin
+                              if PasScr[i].m_bIsScriptWork or PasScr[i].TestInfo.PreOcReStart then begin
                                 Common.MLog(nCH, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(i));
                                 Exit;
                               end;
@@ -5263,7 +5286,7 @@ begin
                         0, 1 :
                         begin
                           for i := DefCommon.CH1 to DefCommon.CH2 do begin
-                            if PasScr[i].m_bIsScriptWork then begin
+                            if PasScr[i].m_bIsScriptWork or PasScr[i].TestInfo.PreOcReStart then begin
                               Common.MLog(nCh, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(i));
                               Exit;
                             end;
@@ -5289,7 +5312,7 @@ begin
                         2,3 :
                         begin
                           for i := DefCommon.CH3 to DefCommon.CH4 do begin
-                            if PasScr[i].m_bIsScriptWork then begin
+                            if PasScr[i].m_bIsScriptWork or PasScr[i].TestInfo.PreOcReStart then begin
                               Common.MLog(nCH, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(i));
                               Exit;
                             end;
