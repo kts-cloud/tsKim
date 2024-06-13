@@ -184,6 +184,7 @@ type
     GIB_Test : Integer;
     nPwrVCC : Integer;
     nPwrVIN : Integer;
+    Temp_Sensor : array [0..5] of Integer;
     function Get_MeasureTime: Integer;
     property MeasureTime: Integer read Get_MeasureTime;
   end;
@@ -402,6 +403,8 @@ type
     procedure GetCameraFFCData_Proc(AMachine:TatVirtualMachine);
     procedure GetCameraINFOData_Proc(AMachine:TatVirtualMachine);
     procedure GetCameraINFOName_Proc(AMachine:TatVirtualMachine);
+    procedure GetTempSensorData_Proc(AMachine: TatVirtualMachine);
+    procedure SetTempSensorData_Proc(AMachine: TatVirtualMachine);
     procedure ChangeBuff_Proc(AMachine:TatVirtualMachine);
     procedure I2CWrite_Proc(AMachine:TatVirtualMachine);
     procedure ProgrammingWrite_Proc(AMachine:TatVirtualMachine);
@@ -580,6 +583,7 @@ type
   {$IFDEF CA310_USE}
     procedure SetCa310Data( Data : TBrightValue);
   {$ENDIF}
+    function GetTempSensorData: string;
 
     procedure SetBCRData;
     procedure SetDioEvent;
@@ -589,6 +593,7 @@ type
     // Test , Main 이 아니 Handle로 사용하기 위함. ex> Model Info, Mainter.
     property hDisplay : HWND read FhDisplay write SethDisplay;
     property GetPatGrp : TPatterGroup read FGetPatGrp write SetGetPatGrp;
+
 //    property TouchData : TRxData read FRxData write SetRxData;
   end;
 var
@@ -695,7 +700,7 @@ procedure TScrCls.DefineMethodFunc(SetPaScript : TatPascalScripter);
 
 var
   sParamHint : string;
-  nValue : integer;
+  nValue,i : integer;
 begin
 // Define Method.
 //  atPasScrpt.DefineMethod('DisplayProgress',2,tkNone,nil,DisplayProgressProc,False,2);
@@ -851,6 +856,9 @@ begin
   SetPaScript.DefineMethod('f_GetCameraINFOData',   1,tkInteger,    nil, GetCameraINFOData_Proc,    False).SetVarArgs([0]);
   SetPaScript.DefineMethod('f_GetCameraINFOName',   1,tkInteger,    nil, GetCameraINFOName_Proc,    False).SetVarArgs([0]);
 
+  SetPaScript.DefineMethod('f_GetTempSensorData',   1,tkInteger,    nil, GetTempSensorData_Proc,    False).SetVarArgs([0]);
+  SetPaScript.DefineMethod('f_SetTempSensorData',   2,tkNone,    nil,SetTempSensorData_Proc,   False);
+
   SetPaScript.DefineMethod('f_GetMathSqrt', 2,tkNone,    nil,GetMathSqrt_Proc, False).SetVarArgs([1]);  //GIB-OPTIC
   SetPaScript.DefineMethod('f_GetMathPower', 3,tkNone,   nil,GetMathPower_Proc, False).SetVarArgs([2]); //GIB-OPTIC
   SetPaScript.DefineMethod('f_GetTimeDiffMsec', 2,tkInteger, nil,GetTimeDiffMsec_Proc, False); //GIB-OPTIC
@@ -956,6 +964,7 @@ begin
   SetPaScript.AddVariable('c_bChkIRA',PG[Self.FPgNo].m_bChkIRA);
 
   SetPaScript.AddVariable('c_bChkShutdown_Fault',PG[Self.FPgNo].m_bChkShutdown_Fault);
+
 
 
 //  SetPaScript.AddVariable('c_NVMWriteSequence',nNVMWriteSequence);
@@ -1574,6 +1583,39 @@ begin
   end;
 end;
 
+procedure TScrCls.GetTempSensorData_Proc(AMachine: TatVirtualMachine);
+var
+  dRet      : Integer;
+  vData : Variant;
+  nCamCh: Integer;
+  i: Integer;
+begin
+  With AMachine do begin
+    dRet := 0;
+    vData := GetInputArg(0);
+    for i := 0 to 5 do begin
+      vData[i]:=IntToStr(TestInfo.Temp_Sensor[i]);
+    end;
+
+    SetInputArg(0, vData); //결과 값 반환
+    ReturnOutputArg( dRet);
+  end;
+end;
+
+procedure TScrCls.SetTempSensorData_Proc(AMachine: TatVirtualMachine);
+var
+  nParam : Integer;
+begin
+  With AMachine do begin
+		Case InputArgCount of
+      2 : begin
+        nParam := GetInputArgAsInteger(0);
+        TestInfo.Temp_Sensor[nParam] := GetInputArgAsInteger(1);
+      end;
+    End;
+  end;
+end;
+
 procedure TScrCls.GetInfo_Proc(AMachine: TatVirtualMachine);
 begin
   With AMachine do begin
@@ -1895,7 +1937,7 @@ var
   nDevAddr, nRegAddr, nDataCnt : Integer;
   getV : Variant;  //var
   bDataLog : Boolean;
-  nWaitMS, nRetry : Integer;
+  nWaitMS, nRetry,nType : Integer;
   //
   arRData : TIdBytes;
   //
@@ -1943,8 +1985,17 @@ begin
       WAIT_FAILED : sDebug := 'I2C READ NG (Failed)';
       else          sDebug := 'I2C READ NG (Etc)';
     end;
-//    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,sDebug,'', TernaryOp((wdRet=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG));
-//    ReturnOutputArg(wdRet);
+
+    if wdRet <> WAIT_OBJECT_0  then begin
+      SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,sDebug,'', TernaryOp((wdRet=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG));
+      {$IFDEF SIMULATOR_PG}
+        getV[0] := Random(50);
+      {$ELSE}
+        getV[0] := 0;
+      {$ENDIF}
+      SetInputArg(3,getV);
+    end;
+    ReturnOutputArg(wdRet);
   end;
 end;
 //
@@ -2248,6 +2299,9 @@ begin
   TestInfo.Test_Repeat:= Common.SystemInfo.Test_Repeat;
   TestInfo.OCDllCall := False;
   TestInfo.PreOcReStart := False;
+
+  for I := 0 to 5 do
+  TestInfo.Temp_Sensor[i] := 0;
 
   TestInfo.Final_x := 0.0;
   TestInfo.Final_y := 0.0;
@@ -3331,9 +3385,10 @@ begin
         sSerialNo := string(Trim(sAnsiStr));
         SetLength(SerialNoBuf,0);
 
-//        {$IFDEF SIMULATOR}
-//          sSerialNo := Format('PPPGU500011EEEEEEE000000ABNAA00000S00B12C00000000000000000003XA000000C43GQA0009R00000EL+3+T32LL1GM750D7R00000EN+1GJ6GLL0022B00000EPGJ6GPE0014M00000EQTHAGPG000MT00000EKF3111111112C1LY1GTS255720000273J1LLL3125AJY043010304T0MHU0S00ML341WL013L_%d',[FPgNo]);
-//        {$ENDIF}
+        {$IFDEF SIMULATOR_PG}
+          wdRet := 0;
+          sSerialNo := Format('PPPGU500011EEEEEEE000000ABNAA00000S00B12C00000000000000000003XA000000C43GQA0009R00000EL+3+T32LL1GM750D7R00000EN+1GJ6GLL0022B00000EPGJ6GPE0014M00000EQTHAGPG000MT00000EKF3111111112C1LY1GTS255720000273J1LLL3125AJY043010304T0MHU0S00ML341WL013L_%d',[FPgNo]);
+        {$ENDIF}
         sIsAlphaNumeric := Copy(sSerialNo,1,1);
         if not IsValidString(sIsAlphaNumeric) then begin
           sSerialNo := Format('TEST_CH%d',[Self.FPgNo]);
@@ -4444,13 +4499,13 @@ begin
         1 : begin
           sSN := GetInputArgAsString(0);
           if Length(sSN) = 0 then begin
-            ReturnOutputArg(0);
+            wdRet := -1;
             Exit;
           end;
           if not Common.StatusInfo.LogIn then begin
 //            Common.MLog(self.FPgNo, 'APDR_EAS SKIP - OFF');
             SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'APDR_EAS SKIP - OFF');
-            ReturnOutputArg(0);
+            wdRet := -1;
             Exit;
           end;
           Common.MLog(FPgNo,'SendApdr_EAS_Proc : Start!!');
@@ -4461,7 +4516,7 @@ begin
             wdRet := WAIT_OBJECT_0;
           end
           else begin
-            wdRet := WAIT_OBJECT_0;
+            wdRet := -1;
           end;
           Common.MLog(FPgNo,'SendApdr_EAS_Proc : Finish!!');
         end;
@@ -4516,7 +4571,7 @@ begin
         if not Common.StatusInfo.LogIn then begin
 //          Common.MLog(self.FPgNo, 'EICR SKIP - OFF');
           SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'EICR SKIP - OFF');
-          ReturnOutputArg(0);
+          ReturnOutputArg(-1);
           Exit;
         end;
 
@@ -4535,7 +4590,13 @@ begin
             SendMainGuiDisplay(DefGmes.MES_EICR,1);
             SendTestGuiDisplay(DefGmes.MES_EICR, '','', 0);
           end,(DongaGmes.MES_Queue_Cnt * 60000),1);
-          if wdRet = WAIT_OBJECT_0 then begin
+          if wdRet <> WAIT_OBJECT_0 then begin
+            wdRet := CheckSyncCmdAck(procedure begin
+              SendMainGuiDisplay(DefGmes.MES_EICR,1);
+              SendTestGuiDisplay(DefGmes.MES_EICR, '','', 0);
+            end,(DongaGmes.MES_Queue_Cnt * 60000),1);
+          end
+          else if wdRet = WAIT_OBJECT_0 then begin
             wdRet :=  m_nHostResult;
             if m_nHostResult = 0 then  TestInfo.CanSendApdr := True;
           end;
@@ -4568,7 +4629,7 @@ begin
         if not Common.StatusInfo.LogIn then begin
 //          Common.MLog(self.FPgNo, 'EIJR SKIP - OFF');
           SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'EIJR SKIP - OFF');
-          ReturnOutputArg(0);
+          ReturnOutputArg(-1);
           Exit;
         end;
         if g_CommPLC <> nil then begin
@@ -4582,8 +4643,8 @@ begin
               if nEQP_ID = 1 then begin
                 if nValue and $7 = 0 then begin
 //                  Common.MLog(self.FPgNo, 'AABMode - A Mode- EIJR SKIP');
-                  SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'AABMode - A Mode- EIJR SKIP');
-                  wdRet := 0;
+                  SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'ECS AA Mode - A Mode- EIJR SKIP');
+                  wdRet := -1;
                   Exit;
                 end;
 //                if nValue and $38 = 0 then  begin
@@ -4596,8 +4657,8 @@ begin
 
                 if nValue and $1C00 = 0 then begin
 //                  Common.MLog(self.FPgNo, 'AABMode - A Mode- EIJR SKIP');
-                  SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'AABMode - A Mode- EIJR SKIP');
-                  wdRet := 0;
+                  SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'ECS AA Mode - A Mode- EIJR SKIP');
+                  wdRet := -1;
                   Exit;
                 end;
 //                if nValue and $E000 = 0 then  begin
@@ -4628,7 +4689,13 @@ begin
             SendMainGuiDisplay(DefGmes.MES_RPR_EIJR,1);
             SendTestGuiDisplay(DefGmes.MES_RPR_EIJR, '','', 0);
           end,(DongaGmes.MES_Queue_Cnt * 60000),1);
-          if wdRet = WAIT_OBJECT_0 then begin
+          if wdRet <> WAIT_OBJECT_0 then begin
+            wdRet := CheckSyncCmdAck(procedure begin
+              SendMainGuiDisplay(DefGmes.MES_RPR_EIJR,1);
+              SendTestGuiDisplay(DefGmes.MES_RPR_EIJR, '','', 0);
+            end,(DongaGmes.MES_Queue_Cnt * 60000),1);
+          end
+          else if wdRet = WAIT_OBJECT_0 then begin
             wdRet :=  m_nHostResult;
             if m_nHostResult = 0 then  TestInfo.CanSendApdr := True;
           end;
@@ -4690,6 +4757,7 @@ begin
         TestInfo.CarrierId := GetInputArgAsString(1);
         // Default.
         TestInfo.nSerialType := 0;      // 0: FOG ID, 1 :PID
+        SendTestGuiDisplay(DefCommon.MSG_MODE_SHOW_SERIAL_NUMBER,TestInfo.SerialNo);
         if InputArgCount = 3 then TestInfo.nSerialType := GetInputArgAsInteger(2);
 
 //        sTemp := '';
@@ -4713,14 +4781,21 @@ begin
             SendTestGuiDisplay(DefGmes.MES_PCHK, '','', 0);
           end,(DongaGmes.MES_Queue_Cnt * 60000),1);
 
-
-          if wdRet = WAIT_OBJECT_0 then begin
+          if wdRet <> WAIT_OBJECT_0 then begin
+            Common.MLog(FPgNo,'SendPCHK_Proc : ReStart!!');
+            wdRet := CheckSyncCmdAck(procedure begin         // PCHK 대기 시간 변경 (65000 -> MES 전송 대기 사항 갯수따라 가변)
+              SendMainGuiDisplay(DefGmes.MES_PCHK,1);
+              SendTestGuiDisplay(DefGmes.MES_PCHK, '','', 0);
+            end,(DongaGmes.MES_Queue_Cnt * 60000),1);
+          end
+          else if wdRet = WAIT_OBJECT_0 then begin
             wdRet :=  m_nHostResult;
             //TestInfo.RTN_PID:= m_sMesPchkRtnPID;
             TestInfo.RTN_PID:= DongaGMes.MesData[Self.FPgNo].PchkRtnPID;
             TestInfo.RTN_MODEL:= DongaGMes.MesData[Self.FPgNo].Model;
             TestInfo.CarrierId := DongaGMes.MesData[Self.FPgNo].PchkRtnZig_ID;
           end;
+
           Common.MLog(FPgNo,'SendPCHK_Proc : Done!!');
         end
         else begin
@@ -4764,12 +4839,22 @@ begin
         SendMainGuiDisplay(DefGmes.MES_INS_PCHK, 1);
         SendTestGuiDisplay(DefGmes.MES_INS_PCHK, '','', 0);
       end,(DongaGmes.MES_Queue_Cnt * 60000),1);
-      if wdRet = WAIT_OBJECT_0 then begin
+
+      if wdRet <> WAIT_OBJECT_0 then begin
+        Common.MLog(FPgNo,'SendINSPCHK_Proc : ReStart!!');
+        wdRet := CheckSyncCmdAck(procedure begin
+          SendMainGuiDisplay(DefGmes.MES_INS_PCHK, 1);
+          SendTestGuiDisplay(DefGmes.MES_INS_PCHK, '','', 0);
+        end,(DongaGmes.MES_Queue_Cnt * 60000),1);
+
+      end
+      else if wdRet = WAIT_OBJECT_0 then  begin
         wdRet :=  m_nHostResult;
         //TestInfo.RTN_PID:= m_sMesPchkRtnPID;
         TestInfo.RTN_PID:= DongaGMes.MesData[Self.FPgNo].PchkRtnPID;
         TestInfo.RTN_MODEL:= DongaGMes.MesData[Self.FPgNo].Model;
       end;
+
       Common.MLog(FPgNo,'SendINSPCHK_Proc : Done!!');
     end
     else begin
@@ -5392,6 +5477,34 @@ begin
     m_nHostResult := nRet;
     SetEvent(m_hSyncEvnet);
   end;
+end;
+
+function TScrCls.GetTempSensorData: string;
+var
+i,j : Integer;
+sNit : string;
+begin
+  Result := '';
+  with TStringBuilder.Create do
+  begin
+    try
+      for I := 0 to 5 do begin
+
+        Append('OC')
+          .Append(':')
+          .Append(Format('PMIC_%d',[i +1]))
+          .Append(':')
+          .Append(IntToStr(TestInfo.Temp_Sensor[i]))
+          .Append(',');
+
+      end;
+
+      Result := ToString;
+    finally
+      Free;
+    end;
+  end;
+
 end;
 
 procedure TScrCls.SetInit_Proc(AMachine: TatVirtualMachine);
