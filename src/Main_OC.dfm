@@ -882,7 +882,7 @@ object frmMain_OC: TfrmMain_OC
         DetailView.Font.Height = -11
         DetailView.Font.Name = 'Tahoma'
         DetailView.Font.Style = []
-        Version = '1.7.4.1'
+        Version = '1.9.0.0'
       end
     end
     object RzgrpDFS: TRzGroupBox

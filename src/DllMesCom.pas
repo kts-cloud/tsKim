@@ -205,7 +205,7 @@ var
 sAddr : string;
 begin
   sAddr := ServicePort + ',' + Network + ',' + Deamon_Port+ ',' +Local_Subject + ',' +Remote_Subject + ',' + sLogPath;
-  Result :=  m_Initialize(nCh, PAnsiChar(AnsiString(sAddr)));
+  Result :=  m_Initialize(nCh, PAnsiChar(AnsiString(sAddr + #00)));
 end;
 
 function TCommTibRv64.Send_Data(nCH : integer; sMsg: string): Boolean;

@@ -25,7 +25,6 @@ object frmECSStatus: TfrmECSStatus
     Top = 0
     Width = 1594
     Height = 548
-    Cursor = crDefault
     Align = alTop
     Color = clWhite
     ColCount = 24
@@ -41,9 +40,7 @@ object frmECSStatus: TfrmECSStatus
     Font.Style = []
     Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRangeSelect, goRowSizing, goColSizing]
     ParentFont = False
-    ScrollBars = ssBoth
     TabOrder = 0
-    HoverRowCells = [hcNormal, hcSelected]
     ActiveCellFont.Charset = DEFAULT_CHARSET
     ActiveCellFont.Color = clWindowText
     ActiveCellFont.Height = -11
@@ -79,6 +76,14 @@ object frmECSStatus: TfrmECSStatus
     ControlLook.DropDownFooter.Font.Style = []
     ControlLook.DropDownFooter.Visible = True
     ControlLook.DropDownFooter.Buttons = <>
+    ControlLook.ToggleSwitch.BackgroundBorderWidth = 1.000000000000000000
+    ControlLook.ToggleSwitch.ButtonBorderWidth = 1.000000000000000000
+    ControlLook.ToggleSwitch.CaptionFont.Charset = DEFAULT_CHARSET
+    ControlLook.ToggleSwitch.CaptionFont.Color = clWindowText
+    ControlLook.ToggleSwitch.CaptionFont.Height = -11
+    ControlLook.ToggleSwitch.CaptionFont.Name = 'Tahoma'
+    ControlLook.ToggleSwitch.CaptionFont.Style = []
+    ControlLook.ToggleSwitch.Shadow = False
     DefaultAlignment = taCenter
     Filter = <>
     FilterDropDown.Font.Charset = DEFAULT_CHARSET
@@ -108,7 +113,6 @@ object frmECSStatus: TfrmECSStatus
     FixedFont.Style = [fsBold]
     FloatFormat = '%.2f'
     HoverButtons.Buttons = <>
-    HoverButtons.Position = hbLeftFromColumnLeft
     HTMLSettings.ImageFolder = 'images'
     HTMLSettings.ImageBaseName = 'img'
     PrintSettings.DateFormat = 'dd/mm/yyyy'
@@ -148,8 +152,8 @@ object frmECSStatus: TfrmECSStatus
     SearchFooter.MatchCaseCaption = 'Match case'
     SearchFooter.ResultFormat = '(%d of %d)'
     ShowSelection = False
-    SortSettings.DefaultFormat = ssAutomatic
-    Version = '8.3.2.4'
+    Version = '9.0.0.7'
+    ExplicitTop = 5
     ColWidths = (
       96
       96
@@ -999,12 +1003,9 @@ object frmECSStatus: TfrmECSStatus
       Top = 30
       Width = 799
       Height = 204
-      Cursor = crDefault
       DrawingStyle = gdsClassic
       RowCount = 9
-      ScrollBars = ssBoth
       TabOrder = 0
-      HoverRowCells = [hcNormal, hcSelected]
       ActiveCellFont.Charset = DEFAULT_CHARSET
       ActiveCellFont.Color = clWindowText
       ActiveCellFont.Height = -11
@@ -1034,6 +1035,14 @@ object frmECSStatus: TfrmECSStatus
       ControlLook.DropDownFooter.Font.Style = []
       ControlLook.DropDownFooter.Visible = True
       ControlLook.DropDownFooter.Buttons = <>
+      ControlLook.ToggleSwitch.BackgroundBorderWidth = 1.000000000000000000
+      ControlLook.ToggleSwitch.ButtonBorderWidth = 1.000000000000000000
+      ControlLook.ToggleSwitch.CaptionFont.Charset = DEFAULT_CHARSET
+      ControlLook.ToggleSwitch.CaptionFont.Color = clWindowText
+      ControlLook.ToggleSwitch.CaptionFont.Height = -11
+      ControlLook.ToggleSwitch.CaptionFont.Name = 'Tahoma'
+      ControlLook.ToggleSwitch.CaptionFont.Style = []
+      ControlLook.ToggleSwitch.Shadow = False
       Filter = <>
       FilterDropDown.Font.Charset = DEFAULT_CHARSET
       FilterDropDown.Font.Color = clWindowText
@@ -1061,7 +1070,6 @@ object frmECSStatus: TfrmECSStatus
       FixedFont.Style = [fsBold]
       FloatFormat = '%.2f'
       HoverButtons.Buttons = <>
-      HoverButtons.Position = hbLeftFromColumnLeft
       HTMLSettings.ImageFolder = 'images'
       HTMLSettings.ImageBaseName = 'img'
       PrintSettings.DateFormat = 'dd/mm/yyyy'
@@ -1100,8 +1108,7 @@ object frmECSStatus: TfrmECSStatus
       SearchFooter.HintHighlight = 'Highlight occurrences'
       SearchFooter.MatchCaseCaption = 'Match case'
       SearchFooter.ResultFormat = '(%d of %d)'
-      SortSettings.DefaultFormat = ssAutomatic
-      Version = '8.3.2.4'
+      Version = '9.0.0.7'
       ColWidths = (
         64
         282

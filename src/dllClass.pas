@@ -1565,16 +1565,16 @@ begin
       data := arRData[0]
     else begin
       data := 0;
-{$IFDEF SIMULATOR_PG}
+    {$IFDEF SIMULATOR_PG}
 
-{$ELSE}
+    {$ELSE}
       sDebug := Format('TCONGetReg NG CH : %d',[nChannel]);
       CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
 //      CSharpDll.MainOC_Stop_CH1(nChannel);
-{$ENDIF}
+    {$ENDIF}
     end;
     Result := nResult;
-  {$ENDIF}
+    {$ENDIF}
   finally
     SetLength(arRData,0);
     SetLength(arRData2,0);
@@ -2850,7 +2850,7 @@ function TCSharpDll.MainOC_Start_CH4(nDLLType, nCH : Integer; sPID,sSerialNumber
 var
 sParameter,sHWCID,sDebug : string;
 sCrcData   : AnsiString;
-dCheckSum: dword;
+dCheckSum : dword;
 begin
   try
     m_nDLLType[nCH] := nDLLType;
@@ -2893,7 +2893,7 @@ end;
 
 function TCSharpDll.MainOC_Flash_Read(nCH : Integer): integer;
 begin
-m_MainOC_Flash_Read(nCH);
+  m_MainOC_Flash_Read(nCH);
 end;
 
 
@@ -2951,7 +2951,6 @@ begin
     tmrCycle := nil;
 
   end;
-
   FreeLibrary(m_hDll);
   m_hDll := 0;
   inherited;

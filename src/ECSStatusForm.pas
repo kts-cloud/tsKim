@@ -911,6 +911,7 @@ begin
     Exit;
   end;
   cboChannel_Robot.Items.Clear;
+  grdStatus.Font.Color := clBlack;
 
   if (Common.PLCInfo.InlineGIB)  then begin
     for i := 0 to 3 do begin
@@ -1887,6 +1888,7 @@ procedure TfrmECSStatus.UpdateStatus;
 var
   i,nCH: Integer;
 begin
+  grdStatus.Font.Color := clBlack;
   if (Common.PLCInfo.InlineGIB)  then
   nCH := 3
   else nCH := 1;

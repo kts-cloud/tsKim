@@ -1861,17 +1861,14 @@ begin
     DfsFtpCommon := TDfsFtp.Create(sIp, sUsrName, sPw, DefCommon.MAX_PG_CNT); //-1{nCh:dummy for DfsFtpCommon});
     DfsFtpCommon.m_hMain := Self.Handle;
     DfsFtpCommon.Connect;
-    for nCh := DefCommon.CH1 to DefCommon.MAX_CH do begin
-      DfsFtpCh[nCh] := TDfsFtp.Create(sIp, sUsrName, sPw, nCh);
-      DfsFtpCh[nCh].m_hMain := Self.Handle;
-    end;
+
     //
     if Common.DfsConfInfo.bUseCombiDown and DfsFtpCommon.IsConnected then begin
       DfsFtpCommon.DownloadCombiFile;
       ledDfs.Value   := True;
     end;
 
-    Common.LoadCombiFile;
+    Common.LoadRCPFile;
 
     DfsFtpCommon.Disconnect;
   end
@@ -2825,7 +2822,7 @@ begin
           //PLC 연결 됨
           pnlPlcStatus.Caption:= 'Connected';
           ledPlc.Value:= True;
-          ShowSysLog('PLC Connected:' + pGUIMsg.Msg);
+          SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4, 'PLC Connected:' + pGUIMsg.Msg);
         end;
         1: begin
           pnlPlcStatus.Caption:= 'Disconnected';
@@ -2872,10 +2869,10 @@ begin
         COMMPLC_PARAM_AAB_MODE: begin  //AAB Mode 변경
           Common.StatusInfo.AABMode:= pGUIMsg.Param2 <> 0;
           if pGUIMsg.Param2 <> 0 then begin
-            ShowSysLog('ECS_AAB Mode ON ' + pGUIMsg.Msg);
+            ShowSysLog('ECS_AA Mode ON ' + pGUIMsg.Msg);
           end
           else begin
-            ShowSysLog('ECS_AAB Mode OFF ' + pGUIMsg.Msg);
+            ShowSysLog('ECS_AA Mode OFF ' + pGUIMsg.Msg);
           end;
         end;
       end;
@@ -3124,7 +3121,7 @@ end;
 procedure TfrmMain_OC.ProcessMsg_SCRIPT(pGUIMsg: PGUIMessage);
 var
   nCh : Integer;
-  sDebug,sSN,sPID,sGD_DEFECT,sIRTempData,sEASR2RData,sFileName : string;
+  sDebug,sSN,sPID,sGD_DEFECT,sIRTempData,sEASR2RData,sTempSensorData,sFileName : string;
 begin
   nCh:= pGUIMsg.Channel;
   case pGUIMsg.Mode of
@@ -3187,8 +3184,9 @@ begin
         else begin
           sIRTempData := ',' + frmTest4ChOC[0].GetIRTempData(nCh);
           sEASR2RData := ',' + DongaGmes.GetEASR2RData(nCH);
+          sTempSensorData := ',' + PasScr[nCh].ExecExtraFunction('MakeApdrData_EAS');
           DongaGmes.MesData[nCh].ApdrData := Common.ReadLGDDLLSummaryLog_New(sFileName,sPID,PasScr[nCh].TestInfo.SerialNo,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
-          DongaGmes.MesData[nCh].ApdrData := DongaGmes.MesData[nCh].ApdrData + sIRTempData + sEASR2RData;
+          DongaGmes.MesData[nCh].ApdrData := DongaGmes.MesData[nCh].ApdrData + sIRTempData + sTempSensorData + sEASR2RData;
         end;
 //        Common.MLog(nCh,format('ApdrData : Done : PID : %s!!',[sPID]));
 //        DongaGmes.MesData[nCh].ApdrData := PasScr[nCh].TestInfo.ApdrData;
@@ -3379,10 +3377,8 @@ begin
               end;
             end;
           end;
-//          frmTest4ChOC[nStage].ClearChData(nCH);
-//          frmTest4ChOC[nStage].DisplayResult(nCH, -3, 0, 'Request Load');
+
           SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, nCH, 'Request Load');
-//          Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_LOADING;
 
           g_CommPLC.ROBOT_Load_Request(nCH);
         end
@@ -3495,11 +3491,7 @@ begin
               g_CommPLC.EQP_UnloadBeforeCh(DefCommon.CH_BOTTOM,DefCommon.CH2,nRet);
             end;
 
-//            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, format('Request Load %s 0', [chr(ord('A') + nStage)]));
-//            frmTest4ChOC[nStage].DisplayResult(0, -3, 0, 'Request Load');
             SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, 0, 'Request Load');
-//            sleep(50);
-//            frmTest4ChOC[nStage].DisplayResult(1, -3, 0, 'Request Load');
             SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, 1, 'Request Load');
 
 //            Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_LOADING;
@@ -3615,12 +3607,7 @@ begin
               nRet := ControlDio.CheckPreOCPanelDetectCh(DefCommon.CH4, 1);
               g_CommPLC.EQP_UnloadBeforeCh(DefCommon.CH_BOTTOM,DefCommon.CH4,nRet);
             end;
-//            ShowSysLog(format('Request Load %s 1', [chr(ord('A') + nStage)]),0);
-//            SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, format('Request Load %s 1', [chr(ord('A') + nStage)]));
-//            frmTest4ChOC[nStage].DisplayResult(2, -3, 0, 'Request Load');
             SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, 2, 'Request Load');
-//            sleep(50);
-//            frmTest4ChOC[nStage].DisplayResult(3, -3, 0, 'Request Load');
             SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, 3, 'Request Load');
 
 //            Common.StatusInfo.StageStep[JIG_A]:= STAGE_STEP_LOADING;
@@ -3837,10 +3824,7 @@ begin
             end;
 
             SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, 0, 'Request Exchange');
-//            frmTest4ChOC[nStage].DisplayResult(0, -3, 0, 'Request Exchange');
-//            sleep(50);
             SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, 1, 'Request Exchange');
-//            frmTest4ChOC[nStage].DisplayResult(1, -3, 0, 'Request Exchange');
             sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[0 + nStage*4]);
             SendCHMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 0, sMsg);
             sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[1 + nStage*4]);
@@ -4054,13 +4038,8 @@ begin
             end;
 
             SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, format('Request Load %s 0', [chr(ord('A') + nStage)]));
-//            frmTest4ChOC[nStage].ClearChData(0);
-//            frmTest4ChOC[nStage].ClearChData(1);
             SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, 0, 'Request Load');
             SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, 1, 'Request Load');
-//            frmTest4ChOC[nStage].DisplayResult(0, -3, 0, 'Request Load');
-//            frmTest4ChOC[nStage].DisplayResult(1, -3, 0, 'Request Load');
-
 //            Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_LOADING;
             g_CommPLC.ROBOT_Load_Request(COMMPLC_CH_12);
           end;
@@ -4105,12 +4084,8 @@ begin
 
             SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, format('Request Load %s 1', [chr(ord('A') + nStage)]));
 
-//            frmTest4ChOC[nStage].ClearChData(2);
-//            frmTest4ChOC[nStage].ClearChData(3);
             SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, 2, 'Request Load');
             SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, 3, 'Request Load');
-//            frmTest4ChOC[nStage].DisplayResult(2, -3, 0, 'Request Load');
-//            frmTest4ChOC[nStage].DisplayResult(3, -3, 0, 'Request Load');
 
 //            Common.StatusInfo.StageStep[JIG_A]:= STAGE_STEP_LOADING;
             g_CommPLC.ROBOT_Load_Request(COMMPLC_CH_34);
@@ -4144,9 +4119,7 @@ begin
           end;
 
           SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, format('Request Load  CH : %d ',[nCH]));
-//          frmTest4ChOC[nStage].ClearChData(nCH);
           SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, nCH, 'Request Load');
-//          frmTest4ChOC[nStage].DisplayResult(nCH, -3, 0, 'Request Load');
 
 //          Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_LOADING;
           g_CommPLC.ROBOT_Load_Request(nCH);
@@ -4294,10 +4267,6 @@ try
             g_CommPLC.EQP_UnloadBeforeCh(DefCommon.CH_TOP,DefCommon.CH2,nRet);
           end;
 
-//          ShowSysLog(format('Request UnLoad %s 0', [chr(ord('A') + nStage)]),0);
-//          SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,format('Request UnLoad %s 0', [chr(ord('A') + nStage)]));
-//          frmTest4ChOC[nStage].DisplayResult(0, -3, 0, 'Request UnLoad');
-//          frmTest4ChOC[nStage].DisplayResult(1, -3, 0, 'Request UnLoad');
           SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, 0, 'Request UnLoad');
           SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, 1, 'Request UnLoad');
 
@@ -4306,11 +4275,7 @@ try
           sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[1 + nStage*4]);
           SendCHMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 1, sMsg);
 
-          //SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,format('Request UnLoad %s 0 1', [chr(ord('A') + nStage)]));
-//          Common.StatusInfo.StageStep[nStage]:= STAGE_STEP_UNLOADING;
-          //SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,format('Request UnLoad %s 0 2', [chr(ord('A') + nStage)]));
           g_CommPLC.ROBOT_Unload_Request(COMMPLC_CH_12);
-          //SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,format('Request UnLoad %s 0 3', [chr(ord('A') + nStage)]));
         end;
       end;
 
@@ -4431,11 +4396,7 @@ try
           sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[3 + nStage*4]);
           SendCHMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, nStage, 3, sMsg);
 
-          //SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,format('Request UnLoad %s 1 1', [chr(ord('A') + nStage)]));
-//          Common.StatusInfo.StageStep[JIG_A]:= STAGE_STEP_UNLOADING;
-          //SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,format('Request UnLoad %s 1 2', [chr(ord('A') + nStage)]));
           g_CommPLC.ROBOT_Unload_Request(COMMPLC_CH_34);
-          //SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4,format('Request UnLoad %s 1 3', [chr(ord('A') + nStage)]));
         end;
 
       end;
@@ -4494,11 +4455,8 @@ try
           end;
         end;
 
-//        ShowSysLog(format('Request UnLoad %s 0', [chr(ord('A') + nStage)]),0);
         SendMsgAddLog(MSG_MODE_ADDLOG, 0, 4, format('Request UnLoad CH : %d', [nCH + 1]));
 
-//        frmTest4ChOC[nStage].ClearChData(nCH);
-//        frmTest4ChOC[nStage].DisplayResult(nCH, -3, 0, 'Request UnLoad');
         SendCHMsgAddLog(MSG_MODE_DISPLAY, -3, nCH, 'Request UnLoad');
 
         sMsg:= '[UNLOAD GLASSDATA] ' + g_CommPLC.GetGlassDataString(g_CommPLC.GlassData[nCH]);
@@ -5210,6 +5168,7 @@ var
   sDebug : string;
 begin
   try
+    if mmoSysLog <> nil then exit;
     sDebug := FormatDateTime('[HH:MM:SS.zzz] ',now) + sMsg;
     Common.MLog(DefCommon.MAX_SYSTEM_LOG, sMsg);
 //    mmoSysLog.DisableAlign;
@@ -5253,6 +5212,7 @@ begin
   end;
 
 end;
+
 
 procedure TfrmMain_OC.StartAutoProcess;
 var
@@ -5326,6 +5286,8 @@ begin
           else Robot_Request_Load(CH4);
         end
         else if nRet = mrNo then begin
+          if MessageDlg('Do you really want to proceed with  Unload??', mtConfirmation, [mbYes, mbNo], 0) = mrNo then
+            Exit;
           ShowSysLog('StartAutoProcess Carrier Detected. Request Exchange A');
           g_CommPLC.ECS_Unit_Status(COMMPLC_UNIT_STATE_RUN, 0);
 //          Common.StatusInfo.StageStep[JIG_A]:= STAGE_STEP_LOADING;
@@ -5380,6 +5342,13 @@ begin
           Set_AutoMode(False);
           Exit;
         end;
+        if nRetCH12 = mrNo then begin
+          if MessageDlg('Do you really want to proceed with the CH1,2 Unload??', mtConfirmation, [mbYes, mbNo], 0) = mrNo then begin
+            ShowSysLog('StartAutoProcess Carrier Detected. User CH1,2 UnLoad');
+            Set_AutoMode(False);
+            Exit;
+          end;
+        end;
 
         frmSelectDetect.pnlCaption.Caption := 'CH 3,4 Carrier Detected';
         nRetCH34:= frmSelectDetect.ShowModal;
@@ -5390,6 +5359,16 @@ begin
           Set_AutoMode(False);
           Exit;
         end;
+        if nRetCH34 = mrNo then begin
+          if MessageDlg('Do you really want to proceed with the CH3,4 Unload??', mtConfirmation, [mbYes, mbNo], 0) = mrNo then begin
+            frmSelectDetect.Free;
+            ShowSysLog('StartAutoProcess Carrier Detected. User CH3,4 UnLoad');
+            Set_AutoMode(False);
+            Exit;
+          end;
+        end;
+
+        frmSelectDetect.Free;
 
         if nRetCH12 = mrYes then begin
           ShowSysLog('StartAutoProcess Carrier Detected. Start CH 1,2');
@@ -5491,6 +5470,16 @@ begin
             Set_AutoMode(False);
             Exit;
           end;
+          if nRetCH12 = mrNo then begin
+            if not (PasScr[DefCommon.CH1].TestInfo.CanSendApdr and PasScr[DefCommon.CH2].TestInfo.CanSendApdr)  then begin
+              if MessageDlg('Do you really want to proceed with the CH1,2 unload??', mtConfirmation, [mbYes, mbNo], 0) = mrNo then begin
+                frmSelectDetect.Free;
+                ShowSysLog('StartAutoProcess Carrier Detected. User CH1,2 UnLoad');
+                Set_AutoMode(False);
+                Exit;
+              end;
+            end;
+          end;
 
           frmSelectDetect.pnlCaption.Caption := 'CH 3,4 Carrier Detected';
           nRetCH34:= frmSelectDetect.ShowModal;
@@ -5501,6 +5490,17 @@ begin
             Set_AutoMode(False);
             Exit;
           end;
+          if nRetCH34 = mrNo then begin
+            if not (PasScr[DefCommon.CH3].TestInfo.CanSendApdr and PasScr[DefCommon.CH4].TestInfo.CanSendApdr)  then begin
+              if MessageDlg('Do you really want to proceed with the CH3,4 unload??', mtConfirmation, [mbYes, mbNo], 0) = mrNo then begin
+                frmSelectDetect.Free;
+                ShowSysLog('StartAutoProcess Carrier Detected. User CH3,4 UnLoad');
+                Set_AutoMode(False);
+                Exit;
+              end;
+            end;
+          end;
+          frmSelectDetect.Free;
 
           if nRetCH12 = mrYes then begin
             ShowSysLog('StartAutoProcess Carrier Detected. Start CH 1,2');
@@ -5691,7 +5691,8 @@ begin
   Display_Memory_DI;
   Display_Memory_DO;
 
-  ShowSysLog('Prepare OK');
+//  ShowSysLog('Prepare OK');
+  SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4,'Prepare OK');
   tmrWatch.Enabled:= False;
   tmrWatch.Tag:= 0;
   self.Enabled:= True;
@@ -6255,11 +6256,12 @@ begin
                 ShowSysLog(Format('LGDDLLNam : %s',[sMsg]), 0);
               end;
               if Common.SystemInfo.OCType = DefCommon.OCType then begin
-                if pGUIMsg.Param2 = 1 then begin
+
+                if (pGUIMsg.Param2 = 1) and (Common.SystemInfo.DisplayDLLCnt > 0) then begin
                   pnlLGDDLLName.Caption := pnlLGDDLLName.Caption +','+ sMsg;
                   ShowSysLog(Format('LGDDLLNam 1 : %s',[sMsg]), 0);
                 end;
-                if pGUIMsg.Param2 = 2 then begin
+                if (pGUIMsg.Param2 = 2) and (Common.SystemInfo.DisplayDLLCnt > 1) then begin
                   pnlLGDDLLName.Caption :=  pnlLGDDLLName.Caption +','+ sMsg;
                   ShowSysLog(Format('LGDDLLNam 2 : %s',[sMsg]), 0);
                 end;

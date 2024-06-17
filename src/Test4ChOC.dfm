@@ -172,7 +172,8 @@ object frmTest4ChOC: TfrmTest4ChOC
       TabOrder = 0
       UseDockManager = True
       Visible = False
-      Version = '2.5.7.1'
+      Version = '2.6.3.4'
+      BorderColor = clBlack
       CanMove = True
       Caption.Color = clHighlight
       Caption.ColorTo = clNone
@@ -197,10 +198,10 @@ object frmTest4ChOC: TfrmTest4ChOC
       Text = ''
       FullHeight = 200
       object pnlErrAlramMsg: TPanel
-        Left = 1
-        Top = 65
-        Width = 735
-        Height = 93
+        Left = 0
+        Top = 64
+        Width = 737
+        Height = 95
         Align = alClient
         Caption = 'Power Limit Error'
         Color = clRed
@@ -215,9 +216,9 @@ object frmTest4ChOC: TfrmTest4ChOC
         StyleElements = [seBorder]
       end
       object btnErrorDisplay: TRzButton
-        Left = 1
-        Top = 158
-        Width = 735
+        Left = 0
+        Top = 159
+        Width = 737
         Height = 34
         Align = alBottom
         Caption = 'Close'
@@ -227,9 +228,9 @@ object frmTest4ChOC: TfrmTest4ChOC
         OnClick = btnErrorDisplayClick
       end
       object pnl2: TPanel
-        Left = 1
-        Top = 19
-        Width = 735
+        Left = 0
+        Top = 18
+        Width = 737
         Height = 46
         Align = alTop
         Caption = 'Power Alarm'
@@ -270,7 +271,8 @@ object frmTest4ChOC: TfrmTest4ChOC
     TabOrder = 2
     UseDockManager = True
     Visible = False
-    Version = '2.5.7.1'
+    Version = '2.6.3.4'
+    BorderColor = clBlack
     CanMove = True
     Caption.Color = clHighlight
     Caption.ColorTo = clNone
@@ -1177,7 +1179,8 @@ object frmTest4ChOC: TfrmTest4ChOC
     TabOrder = 3
     UseDockManager = True
     Visible = False
-    Version = '2.5.7.1'
+    Version = '2.6.3.4'
+    BorderColor = clBlack
     CanMove = True
     Caption.Color = clHighlight
     Caption.ColorTo = clNone

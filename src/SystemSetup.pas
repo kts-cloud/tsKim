@@ -270,6 +270,10 @@ type
     chkAutoLGDLogBackup: TRzCheckBox;
     chkInLineAAMode: TRzCheckBox;
     chkOnlyRestartMode: TRzCheckBox;
+    RzPanel52: TRzPanel;
+    cboDisplayDllCnt: TRzComboBox;
+    RzPanel53: TRzPanel;
+    edVerInterlockProcess_Code: TRzEdit;
 
     procedure FormCreate(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -816,6 +820,7 @@ begin
     EQPId_PGIB_Process_Code := edPRCS_CD_PGIB.Text;
 
     MES_CODE_Cnt := StrToIntDef(edMESCodeCnt.Text,0);
+    DisplayDLLCnt := cboDisplayDllCnt.ItemIndex;
 
     PopupMsgTime := StrToIntDef(edPopupMsgTime.Text,0);
     PGResetDelayTime := StrToIntDef(edPGResetDelayTime.Text,0);
@@ -883,7 +888,6 @@ begin
     AutoBackupUse := chkAutoBackup.Checked;
     AutoBackupList := edAutoBackup.Text;
 
-    DLLVerInterlock := chkVerInterlock.Checked;
     SWVerInterlock := edVerInterlock.Text;
     UseEQCC       := chkEQCC.Checked;
 //    MIPILog       := chkMIPILog.Checked;
@@ -899,24 +903,6 @@ begin
 
     UseInLine_AAMode := chkInLineAAMode.Checked;
 
-//    IonizerCnt     := StrToIntDef(edIonizerCnt.Text,0);
-//    if IonizerCnt > DefCommon.MAX_IONIZER_CNT then begin
-//      ShowMessage(Format('Maximum IONIZER Count is %d',[DefCommon.MAX_IONIZER_CNT]));
-//      edIonizerCnt.SetFocus;
-//      Exit;
-//    end;
-//    for i := 0 to Pred(DefCommon.MAX_IONIZER_CNT) do begin
-//      if (IonizerCnt-1) < i then begin
-//        Com_Ionizer[i] := 0;
-//        cboIonizer.ItemIndex := 0;
-//        cboIonizerModel.ItemIndex := 0;
-//        Model_Ionizer[i] := 0;
-//      end
-//      else begin
-//        Com_Ionizer[i] := cboIonizer[i].ItemIndex;
-//        Model_Ionizer[i] := cboIonizerModel[i].ItemIndex;
-//      end;
-//    end;
     Com_Ionizer[0] := cboIonizer.ItemIndex;
     Model_Ionizer[0] := cboIonizerModel.ItemIndex;
     Com_Ionizer[1] := cboIonizer2.ItemIndex;
@@ -1001,8 +987,13 @@ begin
     Version_FW      := edtVrsion_FW.Text;
     Version_DLL     := edtVrsion_Dll.Text;
     Version_LGDDLL  := edtVrsion_LGDDll.Text;
-//    Version_FPGA    := edtVrsion_FPGA.Text;
-//    Version_Power   := edtVrsion_Power.Text;
+  end;
+
+
+  with Common.OnLineInterlockInfo do begin
+    Use             := chkVerInterlock.Checked;
+    Process_Code   := edVerInterlockProcess_Code.Text;
+    Version_Model  := edVerInterlock.Text;
   end;
 
 
@@ -1309,6 +1300,8 @@ begin
 
     chkAutoLGDLogBackup.Checked     := AutoLGDLogBackup;
 
+    cboDisplayDllCnt.ItemIndex :=   DisplayDLLCnt;
+
     chkCh1.Checked      := UseCh[0];
     chkCh2.Checked      := UseCh[1];
     chkCh3.Checked      := UseCh[2];
@@ -1317,7 +1310,6 @@ begin
     edtLoginID.Text := AutoLoginID;
 
     chkVerInterlock.Checked := DLLVerInterlock;
-    edVerInterlock.Text := DLLVerInterlockList;
 
     edMESCodeCnt.Text  := IntToStr(MES_CODE_Cnt);
 
@@ -1428,6 +1420,11 @@ begin
     edtVrsion_FW.Text        := Common.InterlockInfo.Version_FW;
     edtVrsion_SW.Text      := Common.InterlockInfo.Version_SW;
     edtVrsion_LGDDLL.Text     := Common.InterlockInfo.Version_LGDDLL;
+  end;
+    with Common.OnLineInterlockInfo do begin
+    chkInterlock_SW.Checked  := Use;
+    edVerInterlockProcess_Code.Text        := Process_Code;
+    edVerInterlock.Text := Version_Model;
   end;
 
 end;

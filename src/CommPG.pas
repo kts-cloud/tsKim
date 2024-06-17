@@ -6044,7 +6044,7 @@ var
 begin
   Result := WAIT_FAILED;
 
-if Length(arDataR) < nDataCnt then begin
+  if Length(arDataR) < nDataCnt then begin
 		sDebug := Format('SendI2CRead NG(ReadDataCnt:%d < ReadDataBuf.Length:%d)',[nDataCnt,Length(arDataR)]);
   	ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
 		Exit;

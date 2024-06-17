@@ -3224,7 +3224,6 @@ object frmMainter: TfrmMainter
             Top = 21
             Width = 965
             Height = 110
-            Cursor = crDefault
             Align = alClient
             ColCount = 16
             DefaultColWidth = 60
@@ -3237,9 +3236,7 @@ object frmMainter: TfrmMainter
             Font.Name = 'Tahoma'
             Font.Style = []
             ParentFont = False
-            ScrollBars = ssBoth
             TabOrder = 0
-            HoverRowCells = [hcNormal, hcSelected]
             ActiveCellFont.Charset = DEFAULT_CHARSET
             ActiveCellFont.Color = clWindowText
             ActiveCellFont.Height = -11
@@ -3263,6 +3260,14 @@ object frmMainter: TfrmMainter
             ControlLook.DropDownFooter.Font.Style = []
             ControlLook.DropDownFooter.Visible = True
             ControlLook.DropDownFooter.Buttons = <>
+            ControlLook.ToggleSwitch.BackgroundBorderWidth = 1.000000000000000000
+            ControlLook.ToggleSwitch.ButtonBorderWidth = 1.000000000000000000
+            ControlLook.ToggleSwitch.CaptionFont.Charset = DEFAULT_CHARSET
+            ControlLook.ToggleSwitch.CaptionFont.Color = clWindowText
+            ControlLook.ToggleSwitch.CaptionFont.Height = -11
+            ControlLook.ToggleSwitch.CaptionFont.Name = 'Tahoma'
+            ControlLook.ToggleSwitch.CaptionFont.Style = []
+            ControlLook.ToggleSwitch.Shadow = False
             Filter = <>
             FilterDropDown.Font.Charset = DEFAULT_CHARSET
             FilterDropDown.Font.Color = clWindowText
@@ -3291,7 +3296,6 @@ object frmMainter: TfrmMainter
             FixedFont.Style = [fsBold]
             FloatFormat = '%.2f'
             HoverButtons.Buttons = <>
-            HoverButtons.Position = hbLeftFromColumnLeft
             HTMLSettings.ImageFolder = 'images'
             HTMLSettings.ImageBaseName = 'img'
             PrintSettings.DateFormat = 'dd/mm/yyyy'
@@ -3331,9 +3335,8 @@ object frmMainter: TfrmMainter
             SearchFooter.MatchCaseCaption = 'Match case'
             SearchFooter.ResultFormat = '(%d of %d)'
             ShowDesignHelper = False
-            SortSettings.DefaultFormat = ssAutomatic
             VAlignment = vtaCenter
-            Version = '8.3.2.4'
+            Version = '9.0.0.7'
             ColWidths = (
               60
               60
@@ -3546,7 +3549,6 @@ object frmMainter: TfrmMainter
             Top = 26
             Width = 441
             Height = 147
-            Cursor = crDefault
             ColCount = 4
             Ctl3D = True
             DefaultColWidth = 109
@@ -3565,7 +3567,6 @@ object frmMainter: TfrmMainter
             ScrollBars = ssNone
             TabOrder = 0
             StyleElements = [seClient, seBorder]
-            HoverRowCells = [hcNormal, hcSelected]
             ActiveCellFont.Charset = DEFAULT_CHARSET
             ActiveCellFont.Color = clWindowText
             ActiveCellFont.Height = -16
@@ -3599,6 +3600,14 @@ object frmMainter: TfrmMainter
             ControlLook.DropDownFooter.Font.Style = []
             ControlLook.DropDownFooter.Visible = True
             ControlLook.DropDownFooter.Buttons = <>
+            ControlLook.ToggleSwitch.BackgroundBorderWidth = 1.000000000000000000
+            ControlLook.ToggleSwitch.ButtonBorderWidth = 1.000000000000000000
+            ControlLook.ToggleSwitch.CaptionFont.Charset = DEFAULT_CHARSET
+            ControlLook.ToggleSwitch.CaptionFont.Color = clWindowText
+            ControlLook.ToggleSwitch.CaptionFont.Height = -11
+            ControlLook.ToggleSwitch.CaptionFont.Name = 'Tahoma'
+            ControlLook.ToggleSwitch.CaptionFont.Style = []
+            ControlLook.ToggleSwitch.Shadow = False
             DefaultAlignment = taCenter
             DefaultEditor = edFloat
             ExcelStyleDecimalSeparator = True
@@ -3630,7 +3639,6 @@ object frmMainter: TfrmMainter
             FixedFont.Style = [fsBold]
             FloatFormat = '%f'
             HoverButtons.Buttons = <>
-            HoverButtons.Position = hbLeftFromColumnLeft
             HTMLSettings.ImageFolder = 'images'
             HTMLSettings.ImageBaseName = 'img'
             PrintSettings.DateFormat = 'dd/mm/yyyy'
@@ -3675,10 +3683,10 @@ object frmMainter: TfrmMainter
             SearchFooter.HintHighlight = 'Highlight occurrences'
             SearchFooter.MatchCaseCaption = 'Match case'
             SearchFooter.ResultFormat = '(%d of %d)'
+            SelectionTextColor = clWindowText
             ShowDesignHelper = False
-            SortSettings.DefaultFormat = ssAutomatic
             VAlignment = vtaCenter
-            Version = '8.3.2.4'
+            Version = '9.0.0.7'
             WordWrap = False
             ColWidths = (
               109

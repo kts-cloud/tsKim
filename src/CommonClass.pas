@@ -614,6 +614,20 @@ type
     Version_DLL    : string;
     Version_LGDDLL : string;
   end;
+
+  TOnLineInterlockInfo = packed record
+    Use: Boolean;
+    Process_Code   : String;
+    sINIFileName   : String;
+    sINIDownTime   : String;
+    Version_SW     : String;
+    Version_Model  : string;
+    Version_FW     : string;
+    Version_FPGA   : string;
+    Version_Power  : string;
+    Version_DLL    : string;
+    Version_LGDDLL : string;
+  end;
   TModelInfoPG = record
 		//-------------- DP860,AF9
 		PgVer       : TPgVer;          // PgVer
@@ -716,6 +730,7 @@ type
     SystemInfo   : TSystemInfo;
     PLCInfo      : TPLCInfo;
     InterlockInfo: TInterlockInfo;
+    OnLineInterlockInfo : TOnLineInterlockInfo;
     SimulateInfo : TSimulateInfo;
     OpticInfo    : TOcInfo;
     ModelInfo    : TMODELINFO;
@@ -917,6 +932,7 @@ type
     procedure FileCompress (sFullFileName: string; bDeleteOrgFile: Boolean;var sZipFileName : string);
     procedure FileDecompress (sFullZipName: string);
     procedure LoadCombiFile;
+    procedure LoadRCPFile;
     procedure CheckAuthority(sID, sPassword: string);
     procedure GetZ_AxisData;
     procedure DebugLog(nCh, nMsgType: Integer; sRTX: string; sLocal,sRemote: string; sMsg: string);
@@ -2790,6 +2806,54 @@ begin
   finally
     Stream.Free;
 //    Stream := nil;
+  end;
+end;
+
+
+procedure TCommon.LoadRCPFile;
+var
+  i, j, Rslt : Integer;
+  sIniFile : string;
+  fSys : TIniFile;
+  sProcess_Code : string;
+  SearchRec : TSearchRec;
+  saProcess_Code : TArray<string>;
+begin
+  if FindFirst(Path.CombiCode + '*.ini', faAnyFile, SearchRec) = 0 then begin
+    sProcess_Code := Common.OnLineInterlockInfo.Process_Code;
+    saProcess_Code:= sProcess_Code.Split(['_']);
+    if Length(saProcess_Code) < 2 then Exit;
+
+    Rslt := 0;
+    while Rslt = 0 do begin
+      // 공정 code 별로 파일 확인
+      if (Pos(saProcess_Code[0],SearchRec.Name) > 0) then begin
+        OnLineInterlockInfo.sINIFileName := AnsiString(SearchRec.Name);
+        OnLineInterlockInfo.sINIDownTime := FormatDateTime('yyyymmddhhnnss', Now);
+        Break;
+      end;
+      Rslt := FindNext(Searchrec);
+    end;
+  end;
+  FindClose(SearchRec);
+
+  sIniFile := Path.CombiCode + OnLineInterlockInfo.sINIFileName;
+  if not FileExists(sIniFile) then Exit;
+  MLog(DefCommon.MAX_SYSTEM_LOG,'Load RCP '+sIniFile);
+  try
+    fSys := TIniFile.Create(sIniFile);
+    try
+      OnLineInterlockInfo.Version_SW := fSys.ReadString(sProcess_Code, 'UI_Ver', '');
+      OnLineInterlockInfo.Version_FW := fSys.ReadString(sProcess_Code, 'FW', '');
+      OnLineInterlockInfo.Version_LGDDLL := fSys.ReadString(sProcess_Code, 'LGD_DLL', '');
+      OnLineInterlockInfo.Version_DLL := fSys.ReadString(sProcess_Code, 'OC_DLL', '');
+
+    except
+
+    end;
+  finally
+    fSys.Free;
+    fSys := nil;
   end;
 end;
 
@@ -6234,6 +6298,16 @@ begin
       InterlockInfo.Version_DLL       := fSys.ReadString('Interlock', 'Version_DLL', '');
       InterlockInfo.Version_LGDDLL       := fSys.ReadString('Interlock', 'Version_LGDDLL', '');
 
+      OnLineInterlockInfo.Use               := fSys.ReadBool  ('OnLineInterlock',       'USE', False);
+      OnLineInterlockInfo.Process_Code      := fSys.ReadString('OnLineInterlock', 'Process_Code','');
+      OnLineInterlockInfo.Version_SW        := fSys.ReadString('OnLineInterlock', 'Version_SW', '-');
+      OnLineInterlockInfo.Version_Model     := fSys.ReadString('OnLineInterlock', 'Version_MODEL', '-');
+      OnLineInterlockInfo.Version_FW        := fSys.ReadString('OnLineInterlock', 'Version_FW', '-');
+      OnLineInterlockInfo.Version_FPGA      := fSys.ReadString('OnLineInterlock', 'Version_FPGA', '-');
+      OnLineInterlockInfo.Version_Power     := fSys.ReadString('OnLineInterlock', 'Version_Power', '-');
+      OnLineInterlockInfo.Version_DLL       := fSys.ReadString('OnLineInterlock', 'Version_DLL', '');
+      OnLineInterlockInfo.Version_LGDDLL    := fSys.ReadString('OnLineInterlock', 'Version_LGDDLL', '');
+
 
       SimulateInfo.Use_PG              := fSys.ReadBool('SimulateInfo',    'USE_PG', False);
       SimulateInfo.Use_PLC             := fSys.ReadBool('SimulateInfo',    'USE_PLC', False);
@@ -6848,6 +6922,17 @@ begin
       WriteString('Interlock', 'Version_Power',      InterlockInfo.Version_Power);
       WriteString('Interlock', 'Version_DLL',        InterlockInfo.Version_DLL);
       WriteString('Interlock', 'Version_LGDDLL',        InterlockInfo.Version_LGDDLL);
+
+      WriteBool  ('OnLineInterlock',       'USE'     ,OnLineInterlockInfo.Use          );
+      WriteString('OnLineInterlock', 'Process_Code'  ,OnLineInterlockInfo.Process_Code );
+      WriteString('OnLineInterlock', 'Version_SW'    ,OnLineInterlockInfo.Version_SW   );
+      WriteString('OnLineInterlock', 'Version_MODEL' ,OnLineInterlockInfo.Version_Model);
+      WriteString('OnLineInterlock', 'Version_FW'    ,OnLineInterlockInfo.Version_FW   );
+      WriteString('OnLineInterlock', 'Version_FPGA'  ,OnLineInterlockInfo.Version_FPGA );
+      WriteString('OnLineInterlock', 'Version_Power' ,OnLineInterlockInfo.Version_Power);
+      WriteString('OnLineInterlock', 'Version_DLL'   ,OnLineInterlockInfo.Version_DLL  );
+      WriteString('OnLineInterlock', 'Version_LGDDLL',OnLineInterlockInfo.Version_LGDDLL);
+
     except
     end;
   end;

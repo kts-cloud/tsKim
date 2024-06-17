@@ -28,7 +28,7 @@ object frmSystemSetup: TfrmSystemSetup
     Width = 853
     Height = 757
     Hint = ''
-    ActivePage = TabSheet1
+    ActivePage = TabSheet2
     Align = alClient
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
@@ -36,7 +36,7 @@ object frmSystemSetup: TfrmSystemSetup
     Font.Name = 'Tahoma'
     Font.Style = [fsBold]
     ParentFont = False
-    TabIndex = 0
+    TabIndex = 3
     TabOrder = 0
     FixedDimension = 22
     object TabSheet1: TRzTabSheet
@@ -2379,10 +2379,10 @@ object frmSystemSetup: TfrmSystemSetup
         end
       end
       object RzGrpOptions: TRzGroupBox
-        Left = 422
+        Left = 426
         Top = 519
         Width = 400
-        Height = 82
+        Height = 123
         Caption = 'ITO MODEL Options'
         CaptionFont.Charset = DEFAULT_CHARSET
         CaptionFont.Color = clWindowText
@@ -2420,6 +2420,51 @@ object frmSystemSetup: TfrmSystemSetup
           Caption = 'Only Restart'
           State = cbUnchecked
           TabOrder = 2
+        end
+        object RzPanel52: TRzPanel
+          Left = 19
+          Top = 66
+          Width = 110
+          Height = 26
+          BorderOuter = fsFlatRounded
+          Caption = 'Display DLL Cnt'
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -13
+          Font.Name = 'Verdana'
+          Font.Style = []
+          ParentFont = False
+          TabOrder = 3
+        end
+        object cboDisplayDllCnt: TRzComboBox
+          Left = 135
+          Top = 66
+          Width = 68
+          Height = 24
+          Style = csDropDownList
+          Ctl3D = False
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clBlack
+          Font.Height = -13
+          Font.Name = 'Verdana'
+          Font.Style = [fsBold]
+          FocusColor = 14283263
+          FrameHotTrack = True
+          FrameVisible = True
+          ImeName = 'Microsoft IME 2010'
+          ParentCtl3D = False
+          ParentFont = False
+          TabOrder = 4
+          Text = '1'
+          Items.Strings = (
+            '1'
+            '2'
+            '3')
+          ItemIndex = 0
+          Values.Strings = (
+            '0'
+            '1'
+            '2')
         end
       end
       object grpDebugLogLevel: TRzGroupBox
@@ -2645,9 +2690,9 @@ object frmSystemSetup: TfrmSystemSetup
       end
       object RzGroupBox9: TRzGroupBox
         Left = 3
-        Top = 599
+        Top = 561
         Width = 400
-        Height = 90
+        Height = 81
         BiDiMode = bdLeftToRight
         Caption = 'SW / DLL Version Interlock '
         CaptionFont.Charset = DEFAULT_CHARSET
@@ -2663,11 +2708,10 @@ object frmSystemSetup: TfrmSystemSetup
         ParentBiDiMode = False
         ParentCtl3D = False
         TabOrder = 10
-        Visible = False
         object edVerInterlock: TRzEdit
-          Left = 6
-          Top = 53
-          Width = 384
+          Left = 110
+          Top = 49
+          Width = 281
           Height = 22
           Text = ''
           Font.Charset = ANSI_CHARSET
@@ -2819,6 +2863,39 @@ object frmSystemSetup: TfrmSystemSetup
           TabOrder = 1
           UseCustomGlyphs = True
           OnClick = chkAutoBackupClick
+        end
+        object RzPanel53: TRzPanel
+          Left = 5
+          Top = 49
+          Width = 99
+          Height = 21
+          BorderOuter = fsFlatRounded
+          Caption = 'PCHK MODEL'
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clBlack
+          Font.Height = -11
+          Font.Name = 'Verdana'
+          Font.Style = []
+          ParentFont = False
+          TabOrder = 2
+        end
+        object edVerInterlockProcess_Code: TRzEdit
+          Left = 258
+          Top = 21
+          Width = 131
+          Height = 22
+          Text = ''
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clBlack
+          Font.Height = -12
+          Font.Name = 'Verdana'
+          Font.Style = [fsBold]
+          FocusColor = 14283263
+          FrameHotTrack = True
+          FrameVisible = True
+          ImeName = 'Microsoft IME 2010'
+          ParentFont = False
+          TabOrder = 3
         end
       end
     end
@@ -6089,8 +6166,8 @@ object frmSystemSetup: TfrmSystemSetup
       Color = clWindow
       Caption = 'GB Configuration'
       object grpCa310Set: TRzGroupBox
-        Left = 12
-        Top = 3
+        Left = 20
+        Top = 16
         Width = 400
         Height = 434
         Caption = 'Serial Port Setting'

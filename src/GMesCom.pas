@@ -1725,6 +1725,7 @@ begin
 
   SeperateData(sMsg,nCh);
 
+
   sDebug := StringReplace(sMsg,#$0a, #$24, [rfReplaceAll]);
   sDebug := StringReplace(sDebug,#$0d, #$25, [rfReplaceAll]);
 

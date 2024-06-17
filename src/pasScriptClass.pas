@@ -4589,14 +4589,8 @@ begin
           wdRet := CheckSyncCmdAck(procedure begin
             SendMainGuiDisplay(DefGmes.MES_EICR,1);
             SendTestGuiDisplay(DefGmes.MES_EICR, '','', 0);
-          end,(DongaGmes.MES_Queue_Cnt * 60000),1);
-          if wdRet <> WAIT_OBJECT_0 then begin
-            wdRet := CheckSyncCmdAck(procedure begin
-              SendMainGuiDisplay(DefGmes.MES_EICR,1);
-              SendTestGuiDisplay(DefGmes.MES_EICR, '','', 0);
-            end,(DongaGmes.MES_Queue_Cnt * 60000),1);
-          end
-          else if wdRet = WAIT_OBJECT_0 then begin
+          end,(DongaGmes.MES_Queue_Cnt * 60000),2);
+          if wdRet = WAIT_OBJECT_0 then begin
             wdRet :=  m_nHostResult;
             if m_nHostResult = 0 then  TestInfo.CanSendApdr := True;
           end;
@@ -4688,14 +4682,8 @@ begin
           wdRet := CheckSyncCmdAck(procedure begin
             SendMainGuiDisplay(DefGmes.MES_RPR_EIJR,1);
             SendTestGuiDisplay(DefGmes.MES_RPR_EIJR, '','', 0);
-          end,(DongaGmes.MES_Queue_Cnt * 60000),1);
-          if wdRet <> WAIT_OBJECT_0 then begin
-            wdRet := CheckSyncCmdAck(procedure begin
-              SendMainGuiDisplay(DefGmes.MES_RPR_EIJR,1);
-              SendTestGuiDisplay(DefGmes.MES_RPR_EIJR, '','', 0);
-            end,(DongaGmes.MES_Queue_Cnt * 60000),1);
-          end
-          else if wdRet = WAIT_OBJECT_0 then begin
+          end,(DongaGmes.MES_Queue_Cnt * 60000),2);
+          if wdRet = WAIT_OBJECT_0 then begin
             wdRet :=  m_nHostResult;
             if m_nHostResult = 0 then  TestInfo.CanSendApdr := True;
           end;
@@ -4779,16 +4767,9 @@ begin
           wdRet := CheckSyncCmdAck(procedure begin         // PCHK 대기 시간 변경 (65000 -> MES 전송 대기 사항 갯수따라 가변)
             SendMainGuiDisplay(DefGmes.MES_PCHK,1);
             SendTestGuiDisplay(DefGmes.MES_PCHK, '','', 0);
-          end,(DongaGmes.MES_Queue_Cnt * 60000),1);
+          end,(DongaGmes.MES_Queue_Cnt * 60000),2);
 
-          if wdRet <> WAIT_OBJECT_0 then begin
-            Common.MLog(FPgNo,'SendPCHK_Proc : ReStart!!');
-            wdRet := CheckSyncCmdAck(procedure begin         // PCHK 대기 시간 변경 (65000 -> MES 전송 대기 사항 갯수따라 가변)
-              SendMainGuiDisplay(DefGmes.MES_PCHK,1);
-              SendTestGuiDisplay(DefGmes.MES_PCHK, '','', 0);
-            end,(DongaGmes.MES_Queue_Cnt * 60000),1);
-          end
-          else if wdRet = WAIT_OBJECT_0 then begin
+          if wdRet = WAIT_OBJECT_0 then begin
             wdRet :=  m_nHostResult;
             //TestInfo.RTN_PID:= m_sMesPchkRtnPID;
             TestInfo.RTN_PID:= DongaGMes.MesData[Self.FPgNo].PchkRtnPID;
@@ -4838,17 +4819,9 @@ begin
       wdRet := CheckSyncCmdAck(procedure begin
         SendMainGuiDisplay(DefGmes.MES_INS_PCHK, 1);
         SendTestGuiDisplay(DefGmes.MES_INS_PCHK, '','', 0);
-      end,(DongaGmes.MES_Queue_Cnt * 60000),1);
+      end,(DongaGmes.MES_Queue_Cnt * 60000),2);
 
-      if wdRet <> WAIT_OBJECT_0 then begin
-        Common.MLog(FPgNo,'SendINSPCHK_Proc : ReStart!!');
-        wdRet := CheckSyncCmdAck(procedure begin
-          SendMainGuiDisplay(DefGmes.MES_INS_PCHK, 1);
-          SendTestGuiDisplay(DefGmes.MES_INS_PCHK, '','', 0);
-        end,(DongaGmes.MES_Queue_Cnt * 60000),1);
-
-      end
-      else if wdRet = WAIT_OBJECT_0 then  begin
+      if wdRet = WAIT_OBJECT_0 then  begin
         wdRet :=  m_nHostResult;
         //TestInfo.RTN_PID:= m_sMesPchkRtnPID;
         TestInfo.RTN_PID:= DongaGMes.MesData[Self.FPgNo].PchkRtnPID;
