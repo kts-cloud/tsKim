@@ -461,6 +461,8 @@ type
 		function SendPocbOnOff(bOn: Boolean; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //FEATURE_POCB_ONOFF
     //------------------------------------------------------ FLOW-SPECIFIC (I2C)
     function SendI2CRead(nDevAddr,nRegAddr,nDataCnt: Integer; var arDataR: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0; nDebugLog : integer= 0): DWORD;
+    function SendTEMPRead(nDevAddr,nRegAddr,nDataCnt: Integer; var arDataR: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0; nDebugLog : integer= 0): DWORD;
+
 	//{$IFDEF INSPECTOR_POCB}
     function SendI2CWrite(nDevAddr,nRegAddr,nDataCnt: Integer; arDataW: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0; nDebugLog : integer= 0): DWORD;
     function SendI2CMultiWrite(nDevAddr,nDataCnt: Integer; arRegAddr : array of integer; arDataW: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
@@ -6035,6 +6037,45 @@ end;
 //		- function TCommPG.SendI2CRead(nDevAddr,nRegAddr,nDataCnt: Integer; var arRData: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
 //		- function TCommPG.SendI2CWrite(nDevAddr,nRegAddr,nDataCnt: Integer; arWData: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
 //
+
+
+function TCommPG.SendTEMPRead(nDevAddr,nRegAddr,nDataCnt: Integer; var arDataR: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0; nDebugLog : integer= 0): DWORD;
+var
+  sDebug  : string;
+  i       : Integer;
+//btData  : Byte;
+  btaData : TIdBytes;
+begin
+  Result := WAIT_FAILED;
+
+  if Length(arDataR) < nDataCnt then begin
+		sDebug := Format('SendI2CRead NG(ReadDataCnt:%d < ReadDataBuf.Length:%d)',[nDataCnt,Length(arDataR)]);
+  	ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+		Exit;
+	end;
+
+ 	SetLength(btaData, nDataCnt);
+	case PG_TYPE of
+
+		DefPG.PG_TYPE_DP860 : begin //-------------- DP860
+      {$IF Defined(INSPECTOR_OC) or Defined(INSPECTOR_PreOC)} //2023-03-28 jhhwang (for OC T/T)
+      if Common.SystemInfo.PG_TconWriteCmdType = 0 then Sleep(Common.SystemInfo.PG_TconReadBeforeDelayMsec); //2023-04-24 jhhwang (for T/T Test) (if oc.write)
+  		{$ENDIF}
+
+      Result := DP860_SendI2CRead(nDevAddr,nRegAddr,nDataCnt,btaData, nWaitMS,nRetry,nDebugLog);
+
+		end;
+
+	end;
+  //
+  if Result = WAIT_OBJECT_0 then begin
+    FTxRxPG.RxDataLen := nDataCnt;
+   	for i := 0 to (nDataCnt-1) do begin
+			arDataR[i] := btaData[i];
+      FTxRxPG.RxData[i] := btaData[i]; //TBD?
+   	end;
+  end;
+end;
 function TCommPG.SendI2CRead(nDevAddr,nRegAddr,nDataCnt: Integer; var arDataR: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0; nDebugLog : integer= 0): DWORD;
 var
   sDebug  : string;
@@ -6069,17 +6110,12 @@ begin
       {$IF Defined(INSPECTOR_OC) or Defined(INSPECTOR_PreOC)} //2023-03-28 jhhwang (for OC T/T)
       if Common.SystemInfo.PG_TconWriteCmdType = 0 then Sleep(Common.SystemInfo.PG_TconReadBeforeDelayMsec); //2023-04-24 jhhwang (for T/T Test) (if oc.write)
   		{$ENDIF}
-      if nDevAddr <> $A0 then begin
-        Result := DP860_SendI2CRead(nDevAddr,nRegAddr,nDataCnt,btaData, nWaitMS,nRetry,nDebugLog);
-      end
-      else begin
-        case Common.SystemInfo.PG_TconReadCmdType of
-          0 : begin
-            Result := DP860_SendTConRead(nRegAddr,nDataCnt,btaData, nWaitMS,nRetry,nDebugLog);
-          end;
-          1 : begin
-            Result := DP860_SendTconByteRead(nRegAddr,nDataCnt,btaData, nWaitMS,nRetry,nDebugLog);
-          end;
+      case Common.SystemInfo.PG_TconReadCmdType of
+        0 : begin
+          Result := DP860_SendTConRead(nRegAddr,nDataCnt,btaData, nWaitMS,nRetry,nDebugLog);
+        end;
+        1 : begin
+          Result := DP860_SendTconByteRead(nRegAddr,nDataCnt,btaData, nWaitMS,nRetry,nDebugLog);
         end;
       end;
 		end;

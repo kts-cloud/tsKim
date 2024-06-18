@@ -409,6 +409,7 @@ type
     procedure I2CWrite_Proc(AMachine:TatVirtualMachine);
     procedure ProgrammingWrite_Proc(AMachine:TatVirtualMachine);
     procedure I2CRead_Proc(AMachine:TatVirtualMachine);
+    procedure TEMPRead_Proc(AMachine: TatVirtualMachine);
     procedure MIPIWrite_Proc(AMachine:TatVirtualMachine);
     procedure MIPIWriteHS_Proc(AMachine: TatVirtualMachine);
     procedure MIPI_ICWrite_Proc(AMachine:TatVirtualMachine);
@@ -887,6 +888,10 @@ begin
 //  sParamHint := 'Line Select(1 byte),Add Size(1 byte),I2C_Type(1 byte),Device_Add(1 byte),MSB Register_Add(1 byte)';
 //  sParamHint := sParamHint + ',LSB Register_Add(1 byte),Data Length(2 byte) / Read Buffer.';
   with SetPaScript.DefineMethod('f_I2CRead', 4, tkVariant, nil, I2CRead_Proc, False,3) do begin
+//    UpdateParameterHints(sParamHint);
+    SetVarArgs([3]);
+  end;
+    with SetPaScript.DefineMethod('f_TEMPRead', 4, tkVariant, nil, TEMPRead_Proc, False,3) do begin
 //    UpdateParameterHints(sParamHint);
     SetVarArgs([3]);
   end;
@@ -1932,6 +1937,69 @@ UINT8 MSB Register_Add
 UINT8 LSB Register_Add
 UINT16 Length}
 
+procedure TScrCls.TEMPRead_Proc(AMachine: TatVirtualMachine);
+var
+  nDevAddr, nRegAddr, nDataCnt : Integer;
+  getV : Variant;  //var
+  bDataLog : Boolean;
+  nWaitMS, nRetry,nType : Integer;
+  //
+  arRData : TIdBytes;
+  //
+  wdRet   : DWORD;
+  sDebug  : string;
+  i       : Integer;
+begin
+  With AMachine do begin
+    wdRet := WAIT_FAILED;
+    // Get Param ---------------------------------------------------------------
+    if InputArgCount < 4 then begin
+      ReturnOutputArg(wdRet);
+      Exit;
+    end;
+    nDevAddr     := GetInputArgAsInteger(0);  // arg[0:M] nDevAddr: Integer
+    nRegAddr     := GetInputArgAsInteger(1);  // arg[1:M] nRegAddr: Integer
+    nDataCnt     := GetInputArgAsInteger(2);  // arg[2:M] nDataCnt: Integer
+    getV         := GetInputArg(3);           // arg[3:M] getV:Variant
+    if InputArgCount >= 5 then bDataLog := GetInputArgAsBoolean(4)  // arg[5:O] bDataLog: Boolean (default: False)
+    else                       bDataLog := False;
+    if InputArgCount >= 6 then nWaitMS  := GetInputArgAsInteger(5)*1000  // arg[6:O] nWaitSec: Integer   //TBD?Sec?MS?
+    else                       nWaitMS  := 3*1000; //TBD:AF9? I2CCMD_WAIT_TIMESEC;
+    if InputArgCount >= 7 then nRetry   := GetInputArgAsInteger(6)  // arg[7:O] nRetry: Integer (default:1:NoRetry)
+    else                       nRetry   := 1;
+    if nRetry = 0 then nRetry := 1;
+    //
+//    sDebug := Format('I2C READ: DevAddr(0x%0.2x) RegAddr(0x%0.4x) DataCnt(%d), WaitMS(%d) Retry(%d) ',[nDevAddr,nRegAddr,nDataCnt, nWaitMS,nRetry]);
+//    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,sDebug,'',DefCommon.LOG_TYPE_INFO);
+
+    SetLength(arRData,nDataCnt);
+    wdRet := Pg[Self.FPgNo].SendTEMPRead(nDevAddr,nRegAddr,nDataCnt,arRData, nWaitMS,nRetry);
+    case wdRet of
+      WAIT_OBJECT_0: begin
+        sDebug := 'I2C READ: RX:DATA:';
+        for i := 0 to Pred(nDataCnt) do begin
+          getV[i] := arRData[i];
+          sDebug := sDebug + Format(' 0x%0.2x',[arRData[i]]);
+        end;
+        SetInputArg(3,getV);
+      end;
+      WAIT_TIMEOUT: sDebug := 'I2C READ NG (Timeout)';
+      WAIT_FAILED : sDebug := 'I2C READ NG (Failed)';
+      else          sDebug := 'I2C READ NG (Etc)';
+    end;
+
+    if wdRet <> WAIT_OBJECT_0  then begin
+      SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,sDebug,'', TernaryOp((wdRet=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG));
+      for i := 0 to Pred(nDataCnt) do begin
+        getV[i] := 0;
+        sDebug := sDebug + Format(' 0x%0.2x',[arRData[i]]);
+      end;
+      SetInputArg(3,getV);
+    end;
+    ReturnOutputArg(wdRet);
+  end;
+end;
+
 procedure TScrCls.I2CRead_Proc(AMachine: TatVirtualMachine);
 var
   nDevAddr, nRegAddr, nDataCnt : Integer;
@@ -1988,11 +2056,8 @@ begin
 
     if wdRet <> WAIT_OBJECT_0  then begin
       SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,sDebug,'', TernaryOp((wdRet=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG));
-      {$IFDEF SIMULATOR_PG}
-        getV[0] := Random(50);
-      {$ELSE}
-        getV[0] := 0;
-      {$ENDIF}
+
+      getV[0] := 0;
       SetInputArg(3,getV);
     end;
     ReturnOutputArg(wdRet);
