@@ -1235,7 +1235,7 @@ const
   PG_CMDID_POWER_BIST_OFF       =  27;  PG_CMDSTR_POWER_BIST_OFF       = 'power.bist.off'; // PreOC 및 OC는bist on,off로 전원 제어
   PG_CMDID_BIST_RGB             =  28;  PG_CMDSTR_BIST_RGB             = 'bist.rgb'; // PreOC 및 OC RGB 패턴 출력
   PG_CMDID_BIST_RGB_9BIT        =  29;  PG_CMDSTR_BIST_RGB_9BIT        = 'bist.9bit'; // PreOC 및 OC RGB 패턴 출력	//------------------------------------------ Power measurement
-  PG_CMDID_POWER_READ           =  30;  PG_CMDSTR_POWER_READ           = 'power.read';    //voltage+current
+  PG_CMDID_POWER_READ           =  30;  PG_CMDSTR_POWER_READ           = 'power.read all';    //voltage+current
   //
   PG_CMDID_POWER_VOLTAGE        =  31;  PG_CMDSTR_POWER_VOLTAGE        = 'power.voltage'; //voltage(specific rail)
   PG_CMDID_POWER_CURRENT        =  32;  PG_CMDSTR_POWER_CURRENT        = 'power.current'; //current(specific rail)
@@ -1245,6 +1245,8 @@ const
      	PGSIG_POWER_RAIL_VDD4 = 'VDD4';
      	PGSIG_POWER_RAIL_VDD5 = 'VDD5';
   PG_CMDID_BIST_APL             =  33;  PG_CMDSTR_BIST_APL             = 'bist.box.apl'; // APL 함수 추가
+  PG_CMDID_SYS1V8_ON            =  34;  PG_CMDSTR_SYS1V8_ON             = 'sys1v8.on'; // VSYS On
+  PG_CMDID_SYS1V8_OFF           =  35;  PG_CMDSTR_SYS1V8_OFF             = 'sys1v8.off'; // VSYS Off
 	//------------------------------------------ TCON R/W
   PG_CMDID_TCON_READ            =  40;  PG_CMDSTR_TCON_READ            = 'tcon.read';
   PG_CMDID_TCON_WRITE           =  41;  PG_CMDSTR_TCON_WRITE           = 'tcon.write';
