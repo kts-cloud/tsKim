@@ -184,6 +184,7 @@ type
     GIB_Test : Integer;
     nPwrVCC : Integer;
     nPwrVIN : Integer;
+    nPwrVDD3 : Integer;
     Temp_Sensor : array [0..5] of Integer;
     function Get_MeasureTime: Integer;
     property MeasureTime: Integer read Get_MeasureTime;
@@ -446,7 +447,7 @@ type
 //    procedure ChangeVoltSet_Proc(AMachine: TatVirtualMachine);
 //    procedure EnableVoltSet_Proc(AMachine: TatVirtualMachine);  // Added by KTS 2022-12-14 오전 9:38:15 기능 확인
 
-    procedure SendMainGuiDisplay(nGuiMode : Integer; nP1: Integer = 0; nP2: Integer = 0; nP3 : Integer = 0);
+    procedure SendMainGuiDisplay(nGuiMode : Integer; nP1: Integer = 0; nP2: Integer = 0; nP3 : Integer = 0; sMsg: string = '');
     procedure SendTestGuiDisplay(nGuiMode : Integer; sMsg: string = ''; sMsg2: string = ''; nParam: Integer = 0; nParam2 : Integer = 0);   overload;
     procedure SendTestGuiDisplay(nMsgType,nGuiMode : Integer; sMsg: string = ''; sMsg2: string = ''; nParam: Integer = 0; nParam2 : Integer = 0); overload;
     procedure SendDisplayGuiDisplay(nGuiMode : Integer; nParam : Integer = 0;sMsg : string = '');
@@ -495,6 +496,7 @@ type
     procedure PowerSet_Proc(AMachine: TatVirtualMachine);
     procedure PowerBistSet_Proc(AMachine: TatVirtualMachine);
     function CheckConfirmHostAck: DWORD;
+    function CheckAutoVersionInterlock: Boolean;
 
 
 //    function SendPocbHexFile_D84X_Template(nPacketSize, nFirstAddr, nNormalAddr: Integer; var sHexCS: String): Integer;
@@ -649,6 +651,7 @@ begin
   TestInfo.NgCode:= 0;
   TestInfo.nPwrVCC := Common.TestModelInfoPG.PgPwrData.PWR_VOL[DefPG.PWR_VCC];
   TestInfo.nPwrVIN := Common.TestModelInfoPG.PgPwrData.PWR_VOL[DefPG.PWR_VIN];
+  TestInfo.nPwrVDD3 := Common.TestModelInfoPG.PgPwrData.PWR_VOL[DefPG.PWR_VDD3];
   TestInfo.StartTime := Now;
 
   SetLength(m_InspectResult,Common.m_nGmesInfoCnt);
@@ -2352,6 +2355,7 @@ begin
   TestInfo.LCM_ID:= '';
   TestInfo.MateriID := '';   // Added by KTS 2023-06-01 오전 7:35:35
   TestInfo.ApdrData := '';
+  TestInfo.RTN_MODEL := '';
   TestInfo.PowerOn   := False;
   TestInfo.CanSendApdr := False;
   TestInfo.NG_EICR:= False;
@@ -2366,7 +2370,7 @@ begin
   TestInfo.PreOcReStart := False;
 
   for I := 0 to 5 do
-  TestInfo.Temp_Sensor[i] := 0;
+   TestInfo.Temp_Sensor[i] := 0;
 
   TestInfo.Final_x := 0.0;
   TestInfo.Final_y := 0.0;
@@ -3332,6 +3336,51 @@ begin
 end;
 
 
+function TScrCls.CheckAutoVersionInterlock: Boolean;
+var
+  sErrMsg: String;
+  sVersion: String;
+  i: integer;
+begin
+  Result:= True;
+  sErrMsg:= '[Alarm] :AutoVersionInterlock -'+ #10#13;
+  with Common.OnLineInterlockInfo do begin
+    if Use then begin
+      if Version_SW <> Common.ExeVersion then begin
+        sErrMsg:= sErrMsg + format('SW Version Mismatch %s : %s', [Version_SW, Common.ExeVersion]) + #10#13;
+        Result:= False;
+      end;
+      if Common.SystemInfo.OC_Converter_Name <> Version_DLL then begin
+        sErrMsg:= sErrMsg + format('OC_Con.DLL Version Mismatch %s : %s', [Version_DLL, Common.SystemInfo.OC_Converter_Name]) + #10#13;
+        Result:= False;
+      end;
+      if (Pos(Version_Model,TestInfo.RTN_MODEL) <> 0) and (Length(TestInfo.RTN_MODEL) > 0) then begin
+        sErrMsg:= sErrMsg + format('RTN_MODEL Version Mismatch %s : %s', [Version_Model,TestInfo.RTN_MODEL]) + #10#13;
+        Result:= False;
+      end;
+
+      if Common.SystemInfo.LGD_DLLVER_Name <> Version_LGDDLL then begin
+        sErrMsg:= sErrMsg + format('LGD.DLL Version Mismatch %s : %s', [Version_LGDDLL, Common.SystemInfo.LGD_DLLVER_Name]) + #10#13;
+        Result:= False;
+      end;
+
+      sVersion:= Pg[Self.FPgNo].m_PgVer.ITO_APP;
+      if sVersion <> Version_FW then begin
+        sErrMsg:= sErrMsg + format('FW Version Mismatch %s : %s' + #10#13, [Version_FW, sVersion]);
+        Result:= False;
+      end;
+
+
+      if not Result then begin
+        SendTestGuiDisplay(defCommon.MSG_MODE_WORKING,sErrMsg,'',0);
+        SendMainGuiDisplay(DefCommon.MSG_MODE_DISPLAY_ALARM,118,0,0,sErrMsg);
+      end;
+    end; //if Common.InterlockInfo.Use then begin
+  end;
+
+end;
+
+
 
 procedure TScrCls.OCFlowStart_Proc(AMachine: TatVirtualMachine);
 var
@@ -3340,18 +3389,22 @@ var
 begin
   With AMachine do begin
     wdRet := 3;
-//    if not CSharpDll.m_bIsDLLWork[FPgNo] then begin
-
-    PG[FPgNo].DP860_SendOcOnOff(1{start},2000,0); //2023-03-28 jhhwang (for T/T Test)
-    PG[FPgNo].SetCyclicTimer(False);
-
 
     case InputArgCount of
       2..3 : begin
         sPID := GetInputArgAsstring(0);
         sSerialNumber := Trim(GetInputArgAsstring(1));
         nDLLtype := 0;
+
         if InputArgCount = 3 then nDLLtype := GetInputArgAsInteger(2);
+
+        if not CheckAutoVersionInterlock then begin  // 인터록 추가
+          ReturnOutputArg(0);
+          Exit;
+        end;
+
+        PG[FPgNo].DP860_SendOcOnOff(1{start},2000,0); //2023-03-28 jhhwang (for T/T Test)
+        PG[FPgNo].SetCyclicTimer(False);
 
         if Common.SystemInfo.OCType = DefCommon.OCType then begin
           if DongaGmes <> nil then  begin
@@ -3370,6 +3423,7 @@ begin
           if DongaGmes <> nil then
             sPID := DongaGmes.MesData[FPgNo].PchkRtnPID;
         end;
+
         if Length(sPID) = 0 then sPID := Copy(sSerialNumber,1,3);
 
         if Common.SystemInfo.OCType = DefCommon.OCType then begin
@@ -3377,6 +3431,7 @@ begin
             if (g_CommPLC.GlassData[FPgNo].MateriID <> '') and ((Pos('TEST_CH',sSerialNumber) > 0) or (Pos('Contact_NG',sSerialNumber) > 0)) then begin
               sSerialNumber := g_CommPLC.GlassData[FPgNo].MateriID;
               m_sMateriID := g_CommPLC.GlassData[FPgNo].MateriID;
+              TestInfo.SerialNo := g_CommPLC.GlassData[FPgNo].MateriID;
             end;
           end;
 
@@ -3391,7 +3446,7 @@ begin
         wdRet := CSharpDll.MainOC_Start(nDLLtype,Self.FPgNo,sPID,sSerialNumber,sUSERID,sEquipment);
       end;
     end;
-    ReturnOutputArg( Integer(wdRet));
+    ReturnOutputArg(Integer(wdRet));
   end;
 end;
 
@@ -3714,6 +3769,18 @@ begin
               TestInfo.PowerOn := True;
 //              wdRet := Pg[Self.FPgNo].SendPowerOn(nWaitMS,nRetry);
               wdRet := Pg[Self.FPgNo].SendPowerBistOn(1{On},true,nWaitMS,nRetry); //TBD:DP860?
+            end
+            else if naParam[1] = DefScript.PP_COMMAD_PWR_OFF_VSYS then begin
+              wdRet := Pg[Self.FPgNo].SendPowerVsysOn(0{Off},False,nWaitMS,nRetry); //TBD:DP860?
+            end
+            else if naParam[1] = DefScript.PP_COMMAD_PWR_ON_VSYS then begin
+              wdRet := Pg[Self.FPgNo].SendPowerVsysOn(1{On},False,nWaitMS,nRetry); //TBD:DP860?
+            end
+            else if naParam[1] = DefScript.PP_COMMAD_PWR_OFF_VSYS_RESET then begin
+              wdRet := Pg[Self.FPgNo].SendPowerVsysOn(0{Off},True,nWaitMS,nRetry); //TBD:DP860?
+            end
+            else if naParam[1] = DefScript.PP_COMMAD_PWR_ON_VSYS_RESET then begin
+              wdRet := Pg[Self.FPgNo].SendPowerVsysOn(1{On},True,nWaitMS,nRetry); //TBD:DP860?
             end;
           end;
 
@@ -5330,7 +5397,7 @@ begin
   nRet := -1;
 end;
 
-procedure TScrCls.SendMainGuiDisplay(nGuiMode, nP1, nP2, nP3: Integer);
+procedure TScrCls.SendMainGuiDisplay(nGuiMode, nP1, nP2, nP3: Integer; sMsg: string);
 var
   ccd         : TCopyDataStruct;
   GuiData     : RGuiScript;
@@ -5340,6 +5407,7 @@ begin
   GuiData.Mode    := nGuiMode;
   GuiData.nParam  := nP1;
   GuiData.nParam2 := nP2;
+  GuiData.Msg     := sMsg;
   ccd.dwData      := 0;
   ccd.cbData      := SizeOf(GuiData);
   ccd.lpData      := @GuiData;
