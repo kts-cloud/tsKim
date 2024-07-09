@@ -383,6 +383,9 @@ type
 		function DP860_SendPowerBistOff(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
 	  function DP860_SendInterposerOn(nWaitMS: Integer=10000; nRetry: Integer=0): DWORD;
 		function DP860_SendInterposerOff(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
+
+    function DP860_SendVsysPowerOn(nWaitMS: Integer=10000; nRetry: Integer=0): DWORD;
+		function DP860_SendVsysPowerOff(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
     //
     function DP860_SendDutDetect(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
     function DP860_SendTconInfo(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
@@ -446,6 +449,8 @@ type
     //------------------------------------------------------ FLOW-SPECIFIC (Power On/Off)
 		function SendPowerOn(nMode: Integer; bPowerReset: Boolean=False; nWaitMS: Integer=10000; nRetry: Integer=0): DWORD;
     function SendPowerBistOn(nMode: Integer; bPowerReset: Boolean=False; nWaitMS: Integer=10000; nRetry: Integer=0): DWORD;
+    function SendPowerVsysOn(nMode: Integer; bPowerReset: Boolean=False; nWaitMS: Integer=10000; nRetry: Integer=0): DWORD;
+
     //------------------------------------------------------ FLOW-SPECIFIC (Power Measure)
     function SendPowerMeasure(bCyclicMeasure: Boolean=False): DWORD;
     //------------------------------------------------------ FLOW-SPECIFIC (Pattern)
@@ -3474,6 +3479,50 @@ begin
   ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
 end;
 
+function TCommPG.DP860_SendVsysPowerOn(nWaitMS: Integer=10000; nRetry: Integer=0): DWORD; //TBD:DP860? nWaitMS default for PowerOn/PowerOff
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+begin
+
+	nCmdId   := DefPG.PG_CMDID_SYS1V8_ON;    //Pre OC 및 OC FLow 제어를 위해
+	sCmdName := DefPG.PG_CMDSTR_SYS1V8_ON;  // 'sys1v8.on'
+
+
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName;
+	Result   := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+  if Result <> WAIT_OBJECT_0 then begin
+    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+  end;
+  //
+	sDebug := '<PG> ' + sCommand + ':' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+end;
+
+function TCommPG.DP860_SendVsysPowerOff(nWaitMS: Integer=3000; nRetry: Integer=0): DWORD; //TBD:DP860? nWaitMS default for PowerOn/PowerOff
+var
+	nCmdId : Integer;
+	sCmdName, sCommand, sDebug, sEtcMsg : string;
+begin
+
+	nCmdId   := DefPG.PG_CMDID_SYS1V8_OFF;
+	sCmdName := DefPG.PG_CMDSTR_SYS1V8_OFF; // 'sys1v8.off'
+
+
+	sEtcMsg  := '';
+	//
+	sCommand := sCmdName;
+	Result   := DP860_SendCmd(sCommand, nCmdId,sCmdName, nWaitMS,nRetry);
+  if Result <> WAIT_OBJECT_0 then begin
+    sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
+  end;
+  //
+	sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+end;
+
 function TCommPG.DP860_SendInterposerOn(nWaitMS: Integer=10000; nRetry: Integer=0): DWORD; //TBD:DP860? nWaitMS default for PowerOn/PowerOff
 var
 	nCmdId : Integer;
@@ -5194,6 +5243,68 @@ begin
   end;
 end;
 
+
+function TCommPG.SendPowerVsysOn(nMode: Integer; bPowerReset: Boolean; nWaitMS, nRetry: Integer): DWORD;
+var
+  sDebug : string;
+const
+  DELAY_POWER_INTERPOSER_OFF = 10;  //TBD:DP860?
+  DELAY_POWER_INTERPOSER_ON  = 10;  //TBD:DP860?
+begin
+  Result := WAIT_FAILED;
+  try
+//    SetCyclicTimer(false);
+    case nMode of
+      DefPG.CMD_POWER_OFF : begin
+        // DP860 PowerVsysOff : sys1v8.off -> interposer.deinit
+        Result := DP860_SendVsysPowerOff({nMode}nWaitMS,nRetry);
+        if (not bPowerReset) then begin
+          Sleep(DELAY_POWER_INTERPOSER_OFF);
+          Result := DP860_SendInterposerOff({nMode}nWaitMS,nRetry);
+        end;
+      end;
+      DefPG.CMD_POWER_ON: begin
+
+        // DP860 PowerVsysOn : interposer.init -> sys1v8.on
+        if (not bPowerReset) then begin
+          Result := DP860_SendInterposerOn(nWaitMS,nRetry);
+          if Result <> WAIT_OBJECT_0 then begin
+            Result := DP860_SendInterposerOff({nMode}nWaitMS,nRetry);
+            Sleep(100);
+            Result := DP860_SendInterposerOn(nWaitMS,nRetry);
+          end;
+
+          if Result = WAIT_OBJECT_0 then begin
+            Sleep(DELAY_POWER_INTERPOSER_ON);
+            {$IFDEF INSPECTOR_POCB}
+            if Common.TestModelInfo[m_nCh].FLOW.UseDutDetect then
+            {$ELSE}
+            if Common.TestModelInfoFLOW.UseDutDetect then
+            {$ENDIF}
+            begin
+              Result := DP860_SendDutDetect(1000{nWaitMS},1{Retry});
+            end;
+            if Result = WAIT_OBJECT_0 then begin
+              Result := DP860_SendVsysPowerOn(nWaitMS,nRetry);
+            end
+            else begin
+              Result := DP860_SendVsysPowerOff({nMode}nWaitMS,nRetry);
+              Result := DP860_SendInterposerOff({nMode}nWaitMS,nRetry);
+            end;
+
+          end;
+        end
+        else begin
+          Result := DP860_SendVsysPowerOn(nWaitMS,nRetry);
+        end;
+
+      end;
+    end;
+
+  finally
+//    SetCyclicTimer(True);
+  end;
+end;
 
 function TCommPG.SendReProgramming(nDevAddr,nRegAddr,nDataCnt :Integer; arDataW: TIdBytes; nWaitMS: Integer=3000; nRetry: Integer=0): DWORD;
 begin
