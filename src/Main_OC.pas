@@ -1608,9 +1608,9 @@ begin
   pnlUserName.Caption := '';
   sDebug := '#################################### Turn On ISPD Program (';
   sDebug := sDebug + Format('Version Check : SW(%s %s)',[Common.GetVersionDate,Common.ProductVersion])+') ####################################';
-  for i := DefCommon.CH1 to DefCommon.MAX_CH do common.MLog(i,sDebug);
+  for i := DefCommon.CH1 to DefCommon.MAX_PG_CNT do common.MLog(i,sDebug);
   sDebug := 'Memory usage : ' + Format('%0.2f%%', [Common.GetMemoryUsagePercentage]);
-  for i := DefCommon.CH1 to DefCommon.MAX_CH do common.MLog(i,sDebug);
+  for i := DefCommon.CH1 to DefCommon.MAX_PG_CNT do common.MLog(i,sDebug);
   ShowSysLog('#################### [ Turn On Program ] - Version ' + Common.GetVersionDate + ' ' + Common.ProductVersion);
   sDebug := Format('Version Check : SW(%s %s)',[Common.GetVersionDate,Common.ProductVersion]);
   sDebug := sDebug + Format(', Psu(%s/%s), MES_CODE(%s), ThreadID(%4x)',[Common.m_Ver.psu_Date,Common.m_Ver.psu_Crc, Common.m_Ver.MES_CSV, TThread.CurrentThread.ThreadID]);
@@ -1732,6 +1732,9 @@ begin
   end; //if Common.InterlockInfo.Use then begin
 
 end;
+
+
+
 
 procedure TfrmMain_OC.chkCH;
 var
@@ -1866,6 +1869,7 @@ begin
     if Common.DfsConfInfo.bUseCombiDown and DfsFtpCommon.IsConnected then begin
       DfsFtpCommon.DownloadCombiFile;
       ledDfs.Value   := True;
+      pnlSysinfoDfs.Caption := 'Connected';
     end;
 
     Common.LoadRCPFile;
@@ -1895,11 +1899,11 @@ begin
   if Common.DfsConfInfo.bUseDfs then begin
     RzgrpDFS.visible := True;
 
-    pnlCombiModelRCP.Caption      := Common.CombiCodeData.sRcpName;
+    pnlCombiModelRCP.Caption      := Common.OnLineInterlockInfo.sINIFileName;
     pnlCombiProcessNo.Caption     := Common.CombiCodeData.sProcessNo;
     pnlCombiRouterNo.Caption      := IntToStr(Common.CombiCodeData.nRouterNo); //2019-04-07
 
-    sDebug := Format('sRcpName(%s),ProcessNo(%s),RouterNo(%d)',[Common.CombiCodeData.sRcpName,Common.CombiCodeData.sProcessNo,Common.CombiCodeData.nRouterNo]);
+    sDebug := Format('sRcpName(%s),ProcessNo(%s),RouterNo(%d)',[Common.OnLineInterlockInfo.sINIFileName,Common.CombiCodeData.sProcessNo,Common.CombiCodeData.nRouterNo]);
     Common.MLog(DefCommon.MAX_SYSTEM_LOG,sDebug);
   end
   else begin
@@ -2104,8 +2108,8 @@ begin
 
   for i := DefCommon.CH1 to DefCommon.MAX_CH do begin
     if g_CommPLC <> nil then begin
-    g_CommPLC.SaveGlassData_CH(i,Common.Path.Ini + format('GlassData_CH%d.dat',[i+1]));
-  end;
+      g_CommPLC.SaveGlassData_CH(i,Common.Path.Ini + format('GlassData_CH%d.dat',[i+1]));
+    end;
     if DfsFtpCh[i] <> nil then begin
       DfsFtpCh[i].Free;
       DfsFtpCh[i] := nil;
@@ -3121,12 +3125,17 @@ end;
 procedure TfrmMain_OC.ProcessMsg_SCRIPT(pGUIMsg: PGUIMessage);
 var
   nCh : Integer;
-  sDebug,sSN,sPID,sGD_DEFECT,sIRTempData,sEASR2RData,sTempSensorData,sFileName : string;
+  sDebug,sSN,sPID,sGD_DEFECT,sIRTempData,sEASR2RData,sTempSensorData,sFileName,sMsg : string;
 begin
   nCh:= pGUIMsg.Channel;
   case pGUIMsg.Mode of
     DefCommon.MSG_MODE_LOG_CSV : begin
       //
+    end;
+    DefCommon.MSG_MODE_DISPLAY_ALARM : begin
+      Set_AlarmData(pGUIMsg.Param,1,1);
+      sMsg := pGUIMsg.Msg;
+      ShowNgMessage(sMsg);
     end;
     DefCommon.MSG_MODE_LOG_CSV_SUMMARY : begin
       SaveCsvSummaryLog(nCh);
@@ -5168,7 +5177,7 @@ var
   sDebug : string;
 begin
   try
-    if mmoSysLog <> nil then exit;
+    if mmoSysLog = nil then exit;
     sDebug := FormatDateTime('[HH:MM:SS.zzz] ',now) + sMsg;
     Common.MLog(DefCommon.MAX_SYSTEM_LOG, sMsg);
 //    mmoSysLog.DisableAlign;
@@ -6240,7 +6249,6 @@ begin
         MSG_MODE_DISPLAY : begin
           if pGUIMsg.Param = 1 then
             DisplayMes(True);
-
         end;
 
         MSG_MODE_RESET_ALARM: begin
@@ -6891,6 +6899,8 @@ begin
   Common.StatusInfo.AlarmMsg[114]:= 'Robot Door Opened';
   Common.StatusInfo.AlarmMsg[116]:= 'PLC Communication';
   Common.StatusInfo.AlarmMsg[117]:= 'Robot Interface Error';
+
+  Common.StatusInfo.AlarmMsg[118]:= 'Interlock check NG';
 
   Common.StatusInfo.AlarmMsg[120]:=  'Cannel 1 Power Limit NG';
   Common.StatusInfo.AlarmMsg[121]:=  'Cannel 2 Power Limit NG';

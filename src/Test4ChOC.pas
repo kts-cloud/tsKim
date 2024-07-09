@@ -4729,7 +4729,7 @@ begin
           if 'XXXX' <> sTemp then begin
             PasScr[nCh].m_nNgCode:= GetNGCode_ByErroCode(sTemp);
             if Common.SystemInfo.UseInLine_AAMode and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin        // AA mode 실행
-              AddLog(format('GetSummaryLogData : %s',[sTemp]),nCh);
+              AddLog(format('AA MODE : GetSummaryLogData : %s',[sTemp]),nCh);
               if InlineOCReStart(nCh,sTemp) = 0 then exit;       // AA Mode 진행
             end;
           end

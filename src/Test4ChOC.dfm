@@ -546,7 +546,6 @@ object frmTest4ChOC: TfrmTest4ChOC
       Left = 5
       Top = 134
       Width = 87
-      Caption = 'GRR'
       HotTrack = True
       TabOrder = 3
       TabStop = False
@@ -669,7 +668,6 @@ object frmTest4ChOC: TfrmTest4ChOC
       Left = 98
       Top = 134
       Width = 87
-      Caption = 'PowerCal'
       HotTrack = True
       TabOrder = 1
       TabStop = False

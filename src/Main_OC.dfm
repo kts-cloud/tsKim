@@ -971,10 +971,10 @@ object frmMain_OC: TfrmMain_OC
         TabOrder = 0
       end
       object pnlSysinfoDfs: TRzPanel
-        Left = 101
-        Top = 15
+        Left = 103
+        Top = 16
         Width = 142
-        Height = 21
+        Height = 19
         BorderOuter = fsFlat
         Caption = 'Disconnected'
         TabOrder = 1

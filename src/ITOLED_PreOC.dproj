@@ -121,7 +121,7 @@
         <VerInfo_Locale>1033</VerInfo_Locale>
         <DCC_ExeOutput>..\IT_OLED_PreOC\</DCC_ExeOutput>
         <BRCC_Defines>SIMULATOR;$(BRCC_Defines)</BRCC_Defines>
-        <DCC_Define>SIMULATOR;madExcept;LeakChecking;$(DCC_Define)</DCC_Define>
+        <DCC_Define>SIMULATOR;$(DCC_Define)</DCC_Define>
         <DCC_MapFile>3</DCC_MapFile>
         <VerInfo_MajorVer>2</VerInfo_MajorVer>
         <VerInfo_MinorVer>4</VerInfo_MinorVer>
