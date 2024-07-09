@@ -2818,6 +2818,7 @@ var
   sProcess_Code : string;
   SearchRec : TSearchRec;
   saProcess_Code : TArray<string>;
+  sLog : string;
 begin
   if FindFirst(Path.CombiCode + '*.ini', faAnyFile, SearchRec) = 0 then begin
     sProcess_Code := Common.OnLineInterlockInfo.Process_Code;
@@ -2851,6 +2852,12 @@ begin
     except
 
     end;
+    sLog := format('[GET] UI_Ver : %s  ',[OnLineInterlockInfo.Version_SW]) + #13#10;
+    sLog := sLog + format('[GET] FW : %s  ',[OnLineInterlockInfo.Version_FW]) + #13#10;
+    sLog := sLog + format('[GET] LGD_DLL : %s  ',[OnLineInterlockInfo.Version_LGDDLL]) + #13#10;
+    sLog := sLog + format('[GET] OC_DLL : %s  ',[OnLineInterlockInfo.Version_DLL]) + #13#10;
+
+    MLog(DefCommon.MAX_SYSTEM_LOG,sLog);
   finally
     fSys.Free;
     fSys := nil;
@@ -5619,6 +5626,14 @@ begin
       Result := 'DEFECT_DESCRIPTION:DEFECT_DESCRIPTION:APDR data not found';
       Exit;
     end;
+
+    if (System.Length(asSummaryGroupHeader) <> System.Length(asSummaryAPDRData)) or
+    (System.Length(asSummaryHeader) <> System.Length(asSummaryAPDRData)) then begin
+      MLog(nCh,format('The number of data is different from that of the header : PID : %s S/N : %s',[sPid,Copy(sSn,1,50)]));
+      Result := 'DEFECT_DESCRIPTION:DEFECT_DESCRIPTION:APDR The number of data is different from that of the header';
+      Exit;
+    end;
+
 
     // StringBuilder 사용
     with TStringBuilder.Create do
