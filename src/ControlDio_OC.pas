@@ -263,37 +263,37 @@ begin
     nAlarmNo:= DefDio.IN_FAN_1_EXHAUST;
     if not CheckDi(nAlarmNo) then begin
       nRet := nAlarmNo;
-      SendAlarm(MSG_MODE_DISPLAY_ALARAM, nAlarmNo, 1);
+      SendAlarm(MSG_MODE_SYSTEM_ALARAM, nAlarmNo, 1);
     end
     else begin
-      SendAlarm(MSG_MODE_DISPLAY_ALARAM, nAlarmNo, 0);
+      SendAlarm(MSG_MODE_SYSTEM_ALARAM, nAlarmNo, 0);
     end;
 
     nAlarmNo:= DefDio.IN_FAN_1_EXHAUST+1;
     if not CheckDi(nAlarmNo) then begin
       nRet := nAlarmNo;
-      SendAlarm(MSG_MODE_DISPLAY_ALARAM, nAlarmNo, 1);
+      SendAlarm(MSG_MODE_SYSTEM_ALARAM, nAlarmNo, 1);
     end
     else begin
-      SendAlarm(MSG_MODE_DISPLAY_ALARAM, nAlarmNo, 0);
+      SendAlarm(MSG_MODE_SYSTEM_ALARAM, nAlarmNo, 0);
     end;
 
     nAlarmNo:= DefDio.IN_FAN_1_EXHAUST+2;
     if not CheckDi(nAlarmNo) then begin
       nRet := nAlarmNo;
-      SendAlarm(MSG_MODE_DISPLAY_ALARAM, nAlarmNo, 1);
+      SendAlarm(MSG_MODE_SYSTEM_ALARAM, nAlarmNo, 1);
     end
     else begin
-      SendAlarm(MSG_MODE_DISPLAY_ALARAM, nAlarmNo, 0);
+      SendAlarm(MSG_MODE_SYSTEM_ALARAM, nAlarmNo, 0);
     end;
 
     nAlarmNo:= DefDio.IN_FAN_1_EXHAUST+3;
     if not CheckDi(nAlarmNo) then begin
       nRet := nAlarmNo;
-      SendAlarm(MSG_MODE_DISPLAY_ALARAM, nAlarmNo, 1);
+      SendAlarm(MSG_MODE_SYSTEM_ALARAM, nAlarmNo, 1);
     end
     else begin
-      SendAlarm(MSG_MODE_DISPLAY_ALARAM, nAlarmNo, 0);
+      SendAlarm(MSG_MODE_SYSTEM_ALARAM, nAlarmNo, 0);
     end;
   end
   else begin
@@ -319,37 +319,37 @@ begin
     nAlarmNo:= DefDio.IN_FAN_1_EXHAUST;
     if not CheckDi(nAlarmNo) then begin
       nRet := nAlarmNo;
-      SendAlarm(MSG_MODE_DISPLAY_ALARAM, nAlarmNo, 1);
+      SendAlarm(MSG_MODE_SYSTEM_ALARAM, nAlarmNo, 1);
     end
     else begin
-      SendAlarm(MSG_MODE_DISPLAY_ALARAM, nAlarmNo, 0);
+      SendAlarm(MSG_MODE_SYSTEM_ALARAM, nAlarmNo, 0);
     end;
 
     nAlarmNo:= DefDio.IN_FAN_1_EXHAUST+1;
     if not CheckDi(nAlarmNo) then begin
       nRet := nAlarmNo;
-      SendAlarm(MSG_MODE_DISPLAY_ALARAM, nAlarmNo, 1);
+      SendAlarm(MSG_MODE_SYSTEM_ALARAM, nAlarmNo, 1);
     end
     else begin
-      SendAlarm(MSG_MODE_DISPLAY_ALARAM, nAlarmNo, 0);
+      SendAlarm(MSG_MODE_SYSTEM_ALARAM, nAlarmNo, 0);
     end;
 
     nAlarmNo:= DefDio.IN_FAN_1_EXHAUST+2;
     if not CheckDi(nAlarmNo) then begin
       nRet := nAlarmNo;
-      SendAlarm(MSG_MODE_DISPLAY_ALARAM, nAlarmNo, 1);
+      SendAlarm(MSG_MODE_SYSTEM_ALARAM, nAlarmNo, 1);
     end
     else begin
-      SendAlarm(MSG_MODE_DISPLAY_ALARAM, nAlarmNo, 0);
+      SendAlarm(MSG_MODE_SYSTEM_ALARAM, nAlarmNo, 0);
     end;
 
     nAlarmNo:= DefDio.IN_FAN_1_EXHAUST+3;
     if not CheckDi(nAlarmNo) then begin
       nRet := nAlarmNo;
-      SendAlarm(MSG_MODE_DISPLAY_ALARAM, nAlarmNo, 1);
+      SendAlarm(MSG_MODE_SYSTEM_ALARAM, nAlarmNo, 1);
     end
     else begin
-      SendAlarm(MSG_MODE_DISPLAY_ALARAM, nAlarmNo, 0);
+      SendAlarm(MSG_MODE_SYSTEM_ALARAM, nAlarmNo, 0);
     end;
 
     nAlarmNo := DefDio.IN_GIB_CH_12_LIGHTCURTAIN;
