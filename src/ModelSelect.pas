@@ -26,10 +26,11 @@ type
     procedure cbbModelTypeClick(Sender: TObject);
   private
     { Private declarations }
-
+    m_ModelNameType : Integer;
     procedure Load_Model(nIdx : Integer);
     procedure FindItemToListbox(tList: TRzListbox; sItem: string);
     procedure SetModelType;
+
 //    function CheckModelDownload(sModelName : string) : Boolean;
   public
     { Public declarations }
@@ -62,7 +63,7 @@ begin
 //      lstModel.Items.Add(Copy(srD.Name, 1, pos('.', srD.Name) - 1));
       sModel  := srD.Name;
       if nIdx <> 0 then begin
-        sModelType := Common.GetModelType(2,sModel);
+        sModelType := Common.GetModelType(m_ModelNameType,sModel);
         if sTarget = sModelType then lstModel.Items.Add(sModel);
       end
       else begin
@@ -94,10 +95,13 @@ end;
 
 procedure TfrmSelectModel.FormCreate(Sender: TObject);
 begin
-
+  if Common.SystemInfo.OCType = DefCommon.OCType then  // OC Model명 변경 요청MODEL tpye 위치 변경: H12F-OTOLED-X2146-OC -> X2146-OC-XXXXXX
+   m_ModelNameType := 0
+  else m_ModelNameType := 2;
   SetModelType;
   Load_Model(cbbModelType.ItemIndex);
   m_bClickOkBtn := False;
+
 end;
 
 
@@ -129,7 +133,7 @@ begin
     while nRstD = 0 do begin
       if not ((Trim(srD.Name) = '.') or (Trim(srD.Name) = '..') or ( (srD.Attr and faDirectory) = 0)) then begin
   //      lstModel.Items.Add(Copy(srD.Name, 1, pos('.', srD.Name) - 1));
-        sModelType :=  Common.GetModelType(2,srD.Name);
+        sModelType :=  Common.GetModelType(m_ModelNameType,srD.Name);
         if Trim(sModelType) <> '' then begin
 
           bCheck := True;
@@ -148,7 +152,7 @@ begin
   finally
     FindClose(srD);
   end;
-  sModelType := Common.GetModelType(2,Common.SystemInfo.TestModel);
+  sModelType := Common.GetModelType(m_ModelNameType,Common.SystemInfo.TestModel);
   for i := 1 to Pred(cbbModelType.Items.Count) do begin
     if cbbModelType.Items[i] = sModelType then begin
       cbbModelType.ItemIndex := i;

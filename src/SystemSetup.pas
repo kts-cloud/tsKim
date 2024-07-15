@@ -258,7 +258,6 @@ type
     Label2: TLabel;
     edSetTemperature: TRzNumericEdit;
     RzGroupBox9: TRzGroupBox;
-    edVerInterlock: TRzEdit;
     chkVerInterlock: TRzCheckBox;
     edMESCodeCnt: TRzEdit;
     RzPanel50: TRzPanel;
@@ -272,8 +271,6 @@ type
     chkOnlyRestartMode: TRzCheckBox;
     RzPanel52: TRzPanel;
     cboDisplayDllCnt: TRzComboBox;
-    RzPanel53: TRzPanel;
-    edVerInterlockProcess_Code: TRzEdit;
 
     procedure FormCreate(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -314,7 +311,6 @@ type
     procedure cboCa310_4Click(Sender: TObject);
     procedure btnPgFwDownloadClick(Sender: TObject);
     procedure btnFileOpenClick(Sender: TObject);
-    procedure RzBitBtn2Click(Sender: TObject);
   private
     edProbeSerial : array[DefCommon.CH1 .. DefCommon.MAX_CH] of TRzEdit;
     edProbeDevice : array[DefCommon.CH1 .. DefCommon.MAX_CH] of TRzEdit;
@@ -781,7 +777,7 @@ end;
 
 procedure TfrmSystemSetup.btnSaveClick(Sender: TObject);
 var
-  i : Integer;
+  i,nLine : Integer;
   OldSysInfo: TSystemInfo;
   OldPLCInfo: TPLCInfo;
   OldDFSInfo: TDfsConfInfo;
@@ -888,7 +884,6 @@ begin
     AutoBackupUse := chkAutoBackup.Checked;
     AutoBackupList := edAutoBackup.Text;
 
-    SWVerInterlock := edVerInterlock.Text;
     UseEQCC       := chkEQCC.Checked;
 //    MIPILog       := chkMIPILog.Checked;
     NGAlarmCount  := cboNGAlarmCount.ItemIndex;
@@ -936,6 +931,12 @@ begin
     Common.MLog(DefCommon.MAX_SYSTEM_LOG, 'Changed SystemInfo');
   end;
 
+  with Common.OnLineInterlockInfo do begin
+    Use             := chkVerInterlock.Checked;
+    nLine := StrToInt(Copy(Common.SystemInfo.EQPId,length(Common.SystemInfo.EQPId)-2,1));
+    Process_Code := Format('45100_50%d',[nLine]);
+  end;
+
   OldDFSInfo:= Common.DfsConfInfo;
   with Common.DfsConfInfo do begin
     bUseDfs         := cbDfsFtpUse.Checked;
@@ -948,7 +949,11 @@ begin
     bUseCombiDown   := cbUseCombiDown.Checked;
     sCombiDownPath  := edCombiDownPath.Text;
     sProcessName    := Trim(edProcessName.Text);
+
+    bUseDfs := Common.OnLineInterlockInfo.Use;        // OnLineInterlockInfo 설정으로 통합
+    bUseCombiDown := Common.OnLineInterlockInfo.Use;  // OnLineInterlockInfo 설정으로 통합
   end;
+
 
   if CheckChangedDFSInfo(@OldDFSInfo, @Common.DfsConfInfo) = True then begin
     //변경됨
@@ -988,15 +993,6 @@ begin
     Version_DLL     := edtVrsion_Dll.Text;
     Version_LGDDLL  := edtVrsion_LGDDll.Text;
   end;
-
-
-  with Common.OnLineInterlockInfo do begin
-    Use             := chkVerInterlock.Checked;
-    Process_Code   := edVerInterlockProcess_Code.Text;
-    Version_Model  := edVerInterlock.Text;
-  end;
-
-
 
   Common.SaveSystemInfo;
 
@@ -1421,10 +1417,8 @@ begin
     edtVrsion_SW.Text      := Common.InterlockInfo.Version_SW;
     edtVrsion_LGDDLL.Text     := Common.InterlockInfo.Version_LGDDLL;
   end;
-    with Common.OnLineInterlockInfo do begin
-    chkInterlock_SW.Checked  := Use;
-    edVerInterlockProcess_Code.Text        := Process_Code;
-    edVerInterlock.Text := Version_Model;
+  with Common.OnLineInterlockInfo do begin
+    chkVerInterlock.Checked  := Use;
   end;
 
 end;
@@ -1644,13 +1638,6 @@ begin
 end;
 
 
-
-procedure TfrmSystemSetup.RzBitBtn2Click(Sender: TObject);
-begin
-  if dlgOpenGmes.Execute then begin
-    edVerInterlock.Text := dlgOpenGmes.FileName;
-  end;
-end;
 
 procedure TfrmSystemSetup.RzBitBtn3Click(Sender: TObject);
 var

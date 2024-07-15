@@ -3347,26 +3347,31 @@ begin
   with Common.OnLineInterlockInfo do begin
     if Use then begin
       if Version_SW <> Common.ExeVersion then begin
-        sErrMsg:= sErrMsg + format('SW Version Mismatch %s : %s', [Version_SW, Common.ExeVersion]) + #10#13;
+        sErrMsg:= sErrMsg + format('SW Version Mismatch Setting %s : Current %s', [Version_SW, Common.ExeVersion]) + #10#13;
         Result:= False;
       end;
       if Common.SystemInfo.OC_Converter_Name <> Version_DLL then begin
-        sErrMsg:= sErrMsg + format('OC_Con.DLL Version Mismatch %s : %s', [Version_DLL, Common.SystemInfo.OC_Converter_Name]) + #10#13;
+        sErrMsg:= sErrMsg + format('OC_Con.DLL Version Mismatch Setting %s : Current %s', [Version_DLL, Common.SystemInfo.OC_Converter_Name]) + #10#13;
         Result:= False;
       end;
       if (Pos(Version_Model,TestInfo.RTN_MODEL) <> 0) and (Length(TestInfo.RTN_MODEL) > 0) then begin
-        sErrMsg:= sErrMsg + format('RTN_MODEL Version Mismatch %s : %s', [Version_Model,TestInfo.RTN_MODEL]) + #10#13;
+        sErrMsg:= sErrMsg + format('RTN_MODEL Version Mismatch Setting %s : Current %s', [Version_Model,TestInfo.RTN_MODEL]) + #10#13;
         Result:= False;
       end;
 
       if Common.SystemInfo.LGD_DLLVER_Name <> Version_LGDDLL then begin
-        sErrMsg:= sErrMsg + format('LGD.DLL Version Mismatch %s : %s', [Version_LGDDLL, Common.SystemInfo.LGD_DLLVER_Name]) + #10#13;
+        sErrMsg:= sErrMsg + format('LGD.DLL Version Mismatch Setting %s : Current %s', [Version_LGDDLL, Common.SystemInfo.LGD_DLLVER_Name]) + #10#13;
+        Result:= False;
+      end;
+
+      if Common.SystemInfo.TestModel <> Version_Script then begin
+        sErrMsg:= sErrMsg + format('Script Version Mismatch Setting %s : Current %s', [Version_Script,Common.SystemInfo.TestModel]) + #10#13;
         Result:= False;
       end;
 
       sVersion:= Pg[Self.FPgNo].m_PgVer.ITO_APP;
       if sVersion <> Version_FW then begin
-        sErrMsg:= sErrMsg + format('FW Version Mismatch %s : %s' + #10#13, [Version_FW, sVersion]);
+        sErrMsg:= sErrMsg + format('FW Version Mismatch Setting %s : Current %s' + #10#13, [Version_FW, sVersion]);
         Result:= False;
       end;
 
@@ -3398,7 +3403,10 @@ begin
 
         if InputArgCount = 3 then nDLLtype := GetInputArgAsInteger(2);
 
+        Common.LoadRCPFile(Self.FPgNo);
+
         if not CheckAutoVersionInterlock then begin  // 인터록 추가
+          Pg[Self.FPgNo].SendPowerOn(0); // power off 진행
           ReturnOutputArg(0);
           Exit;
         end;
@@ -3991,8 +3999,6 @@ begin
       nSet:= GetInputArgAsInteger(0);
       if nSet = 1 then       dwRet := Pg[FPgNo].SendPowerOn(DefPG.CMD_POWER_ON) // power on
       else   dwRet := Pg[FPgNo].SendPowerOn(DefPG.CMD_POWER_OFF); // power on
-
-
 
       if dwRet = WAIT_OBJECT_0 then begin
         sDebug := Format('PowerSet OK, Set:%d', [nSet]);

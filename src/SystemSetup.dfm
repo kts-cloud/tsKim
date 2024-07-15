@@ -28,7 +28,7 @@ object frmSystemSetup: TfrmSystemSetup
     Width = 853
     Height = 757
     Hint = ''
-    ActivePage = TabSheet1
+    ActivePage = tbDfsConfigration
     Align = alClient
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
@@ -36,7 +36,7 @@ object frmSystemSetup: TfrmSystemSetup
     Font.Name = 'Tahoma'
     Font.Style = [fsBold]
     ParentFont = False
-    TabIndex = 0
+    TabIndex = 2
     TabOrder = 0
     FixedDimension = 22
     object TabSheet1: TRzTabSheet
@@ -2692,7 +2692,7 @@ object frmSystemSetup: TfrmSystemSetup
         Left = 3
         Top = 561
         Width = 400
-        Height = 81
+        Height = 50
         BiDiMode = bdLeftToRight
         Caption = 'SW / DLL Version Interlock '
         CaptionFont.Charset = DEFAULT_CHARSET
@@ -2708,24 +2708,6 @@ object frmSystemSetup: TfrmSystemSetup
         ParentBiDiMode = False
         ParentCtl3D = False
         TabOrder = 10
-        object edVerInterlock: TRzEdit
-          Left = 110
-          Top = 49
-          Width = 281
-          Height = 22
-          Text = ''
-          Font.Charset = ANSI_CHARSET
-          Font.Color = clBlack
-          Font.Height = -12
-          Font.Name = 'Verdana'
-          Font.Style = [fsBold]
-          FocusColor = 14283263
-          FrameHotTrack = True
-          FrameVisible = True
-          ImeName = 'Microsoft IME 2010'
-          ParentFont = False
-          TabOrder = 0
-        end
         object chkVerInterlock: TRzCheckBox
           Left = 10
           Top = 25
@@ -2860,42 +2842,9 @@ object frmSystemSetup: TfrmSystemSetup
           HotTrack = True
           ParentFont = False
           State = cbUnchecked
-          TabOrder = 1
+          TabOrder = 0
           UseCustomGlyphs = True
           OnClick = chkAutoBackupClick
-        end
-        object RzPanel53: TRzPanel
-          Left = 5
-          Top = 49
-          Width = 99
-          Height = 21
-          BorderOuter = fsFlatRounded
-          Caption = 'PCHK MODEL'
-          Font.Charset = ANSI_CHARSET
-          Font.Color = clBlack
-          Font.Height = -11
-          Font.Name = 'Verdana'
-          Font.Style = []
-          ParentFont = False
-          TabOrder = 2
-        end
-        object edVerInterlockProcess_Code: TRzEdit
-          Left = 258
-          Top = 21
-          Width = 131
-          Height = 22
-          Text = ''
-          Font.Charset = ANSI_CHARSET
-          Font.Color = clBlack
-          Font.Height = -12
-          Font.Name = 'Verdana'
-          Font.Style = [fsBold]
-          FocusColor = 14283263
-          FrameHotTrack = True
-          FrameVisible = True
-          ImeName = 'Microsoft IME 2010'
-          ParentFont = False
-          TabOrder = 3
         end
       end
     end
@@ -5490,6 +5439,7 @@ object frmSystemSetup: TfrmSystemSetup
           State = cbUnchecked
           TabOrder = 6
           UseCustomGlyphs = True
+          Visible = False
         end
         object btnLoadDfsConfig: TBitBtn
           Left = 440
@@ -5672,6 +5622,7 @@ object frmSystemSetup: TfrmSystemSetup
           State = cbUnchecked
           TabOrder = 8
           UseCustomGlyphs = True
+          Visible = False
         end
         object RzpnlCombiPath: TRzPanel
           Left = 266

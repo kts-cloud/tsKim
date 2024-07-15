@@ -895,6 +895,7 @@ object frmMain_OC: TfrmMain_OC
       GroupStyle = gsUnderline
       TabOrder = 2
       Visible = False
+      OnDblClick = RzgrpDFSDblClick
       object ledDfs: ThhALed
         Left = 78
         Top = 16
@@ -907,7 +908,7 @@ object frmMain_OC: TfrmMain_OC
       object RzPanel2: TRzPanel
         Left = 1
         Top = 35
-        Width = 124
+        Width = 100
         Height = 14
         BorderOuter = fsFlat
         Caption = 'RCF'
@@ -916,14 +917,14 @@ object frmMain_OC: TfrmMain_OC
       object pnlCombiModelRCP: TRzPanel
         Left = 1
         Top = 48
-        Width = 124
+        Width = 100
         Height = 16
         BorderOuter = fsFlat
         Color = clWhite
         TabOrder = 5
       end
-      object pnlCombiProcessNo: TRzPanel
-        Left = 124
+      object pnlVersionModel: TRzPanel
+        Left = 101
         Top = 48
         Width = 79
         Height = 16
@@ -931,32 +932,32 @@ object frmMain_OC: TfrmMain_OC
         Color = clWhite
         TabOrder = 6
       end
-      object pnlCombiRouterNo: TRzPanel
-        Left = 202
+      object pnlLineName: TRzPanel
+        Left = 175
         Top = 48
-        Width = 41
+        Width = 68
         Height = 16
         BorderOuter = fsFlat
         Color = clWhite
         TabOrder = 7
       end
       object RzPanel4: TRzPanel
-        Left = 124
+        Left = 102
         Top = 35
         Width = 79
         Height = 14
         BorderOuter = fsFlat
-        Caption = 'Process No'
+        Caption = 'VersionModel'
         TabOrder = 3
       end
       object RzPanel7: TRzPanel
-        Left = 202
+        Left = 175
         Top = 35
-        Width = 41
+        Width = 68
         Height = 14
         Hint = 'Router No'
         BorderOuter = fsFlat
-        Caption = 'RNO'
+        Caption = 'LineName'
         ParentShowHint = False
         ShowHint = True
         TabOrder = 4
