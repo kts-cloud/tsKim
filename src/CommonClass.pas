@@ -618,6 +618,7 @@ type
   TOnLineInterlockInfo = packed record
     Use: Boolean;
     Process_Code   : String;
+    Process_Index  : Integer;
     sINIFileName   : String;
     sINIDownTime   : String;
     Version_SW     : String;
@@ -627,6 +628,7 @@ type
     Version_Power  : string;
     Version_DLL    : string;
     Version_LGDDLL : string;
+    Version_Script : string;
   end;
   TModelInfoPG = record
 		//-------------- DP860,AF9
@@ -932,7 +934,7 @@ type
     procedure FileCompress (sFullFileName: string; bDeleteOrgFile: Boolean;var sZipFileName : string);
     procedure FileDecompress (sFullZipName: string);
     procedure LoadCombiFile;
-    procedure LoadRCPFile;
+    procedure LoadRCPFile(nCH : Integer);
     procedure CheckAuthority(sID, sPassword: string);
     procedure GetZ_AxisData;
     procedure DebugLog(nCh, nMsgType: Integer; sRTX: string; sLocal,sRemote: string; sMsg: string);
@@ -2355,7 +2357,13 @@ begin
       else begin
         sRet := Format('%s-%s-%s',[slstData[2],slstData[3],slstData[4]]);
       end;
+    end
+    else if slstData.Count > 2 then begin
+      if Pos('-OC-',UpperCase(Common.SystemInfo.TestModel)) > 0 then begin
+        sRet := sModel;
+      end
     end;
+
   finally
     slstData.Free;
     slstData := nil;
@@ -2810,7 +2818,7 @@ begin
 end;
 
 
-procedure TCommon.LoadRCPFile;
+procedure TCommon.LoadRCPFile(nCH : Integer);
 var
   i, j, Rslt : Integer;
   sIniFile : string;
@@ -2840,7 +2848,8 @@ begin
 
   sIniFile := Path.CombiCode + OnLineInterlockInfo.sINIFileName;
   if not FileExists(sIniFile) then Exit;
-  MLog(DefCommon.MAX_SYSTEM_LOG,'Load RCP '+sIniFile);
+
+  MLog(nCH,'Load RCP '+sIniFile);
   try
     fSys := TIniFile.Create(sIniFile);
     try
@@ -2848,7 +2857,7 @@ begin
       OnLineInterlockInfo.Version_FW := fSys.ReadString(sProcess_Code, 'FW', '');
       OnLineInterlockInfo.Version_LGDDLL := fSys.ReadString(sProcess_Code, 'LGD_DLL', '');
       OnLineInterlockInfo.Version_DLL := fSys.ReadString(sProcess_Code, 'OC_DLL', '');
-
+      OnLineInterlockInfo.Version_Script := fSys.ReadString(sProcess_Code, 'Script_Ver', '');
     except
 
     end;
@@ -2856,8 +2865,8 @@ begin
     sLog := sLog + format('[GET] FW : %s  ',[OnLineInterlockInfo.Version_FW]) + #13#10;
     sLog := sLog + format('[GET] LGD_DLL : %s  ',[OnLineInterlockInfo.Version_LGDDLL]) + #13#10;
     sLog := sLog + format('[GET] OC_DLL : %s  ',[OnLineInterlockInfo.Version_DLL]) + #13#10;
-
-    MLog(DefCommon.MAX_SYSTEM_LOG,sLog);
+    sLog := sLog + format('[GET] Script_Ver : %s  ',[OnLineInterlockInfo.Version_Script]) + #13#10;
+    MLog(nCH,sLog);
   finally
     fSys.Free;
     fSys := nil;
@@ -6072,6 +6081,7 @@ var
   fSys        : TIniFile;
   i : Integer;
   arTemp   : TArray<string>; //2023-03-28 jhhwang (for T/T Test)
+  nLine : Integer;
 begin
   if not FileExists(Path.SysInfo) then begin
     InitSystemInfo;
@@ -6315,13 +6325,21 @@ begin
 
       OnLineInterlockInfo.Use               := fSys.ReadBool  ('OnLineInterlock',       'USE', False);
       OnLineInterlockInfo.Process_Code      := fSys.ReadString('OnLineInterlock', 'Process_Code','');
+      OnLineInterlockInfo.Process_Index     := fSys.ReadInteger('OnLineInterlock', 'Process_Index'  ,0);
       OnLineInterlockInfo.Version_SW        := fSys.ReadString('OnLineInterlock', 'Version_SW', '-');
-      OnLineInterlockInfo.Version_Model     := fSys.ReadString('OnLineInterlock', 'Version_MODEL', '-');
+      OnLineInterlockInfo.Version_Model     := fSys.ReadString('OnLineInterlock', 'Version_MODEL', 'LD130QD1');
+      OnLineInterlockInfo.Version_Model := 'LD130QD1';
       OnLineInterlockInfo.Version_FW        := fSys.ReadString('OnLineInterlock', 'Version_FW', '-');
       OnLineInterlockInfo.Version_FPGA      := fSys.ReadString('OnLineInterlock', 'Version_FPGA', '-');
       OnLineInterlockInfo.Version_Power     := fSys.ReadString('OnLineInterlock', 'Version_Power', '-');
       OnLineInterlockInfo.Version_DLL       := fSys.ReadString('OnLineInterlock', 'Version_DLL', '');
       OnLineInterlockInfo.Version_LGDDLL    := fSys.ReadString('OnLineInterlock', 'Version_LGDDLL', '');
+
+
+      DfsConfInfo.bUseDfs              := OnLineInterlockInfo.Use;    // OnLineInterlockInfo 설정으로 통합
+      DfsConfInfo.bUseCombiDown   := OnLineInterlockInfo.Use;         // OnLineInterlockInfo 설정으로 통합
+      nLine := StrToInt(Copy(SystemInfo.EQPId,length(SystemInfo.EQPId)-2,1));
+      OnLineInterlockInfo.Process_Code := Format('45100_50%d',[nLine]);
 
 
       SimulateInfo.Use_PG              := fSys.ReadBool('SimulateInfo',    'USE_PG', False);
@@ -6940,6 +6958,7 @@ begin
 
       WriteBool  ('OnLineInterlock',       'USE'     ,OnLineInterlockInfo.Use          );
       WriteString('OnLineInterlock', 'Process_Code'  ,OnLineInterlockInfo.Process_Code );
+      WriteInteger('OnLineInterlock', 'Process_Index'  ,OnLineInterlockInfo.Process_Index );
       WriteString('OnLineInterlock', 'Version_SW'    ,OnLineInterlockInfo.Version_SW   );
       WriteString('OnLineInterlock', 'Version_MODEL' ,OnLineInterlockInfo.Version_Model);
       WriteString('OnLineInterlock', 'Version_FW'    ,OnLineInterlockInfo.Version_FW   );
@@ -6947,6 +6966,8 @@ begin
       WriteString('OnLineInterlock', 'Version_Power' ,OnLineInterlockInfo.Version_Power);
       WriteString('OnLineInterlock', 'Version_DLL'   ,OnLineInterlockInfo.Version_DLL  );
       WriteString('OnLineInterlock', 'Version_LGDDLL',OnLineInterlockInfo.Version_LGDDLL);
+
+
 
     except
     end;
