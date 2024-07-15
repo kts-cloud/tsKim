@@ -90,8 +90,8 @@ type
     RzgrpDFS: TRzGroupBox;
     RzPanel2: TRzPanel;
     pnlCombiModelRCP: TRzPanel;
-    pnlCombiProcessNo: TRzPanel;
-    pnlCombiRouterNo: TRzPanel;
+    pnlVersionModel: TRzPanel;
+    pnlLineName: TRzPanel;
     RzPanel4: TRzPanel;
     RzPanel7: TRzPanel;
     RzPanel9: TRzPanel;
@@ -198,6 +198,7 @@ type
     procedure Button2Click(Sender: TObject);
     procedure Button3Click(Sender: TObject);
     procedure Button4Click(Sender: TObject);
+    procedure RzgrpDFSDblClick(Sender: TObject);
   private
     { Private declarations }
     // DIO
@@ -1813,16 +1814,10 @@ begin
     Exit;
   end;
 
-  case nStage of
-    JIG_A : begin
-//      Common.StatusInfo.StageStep[JIG_A]:= STAGE_STEP_LOADZONE;
-//        g_CommPLC.ECS_Accessory_Unit_Status(0, 1, 0); //Stage A
-      frmTest4ChOC[DefCommon.JIG_A].AutoLogicStart(nCH);
-    end;
-    else begin
-      ShowSysLog('Turnning is not Complete', 1);
-    end;
-  end;
+  InitDfs;
+
+  frmTest4ChOC[DefCommon.JIG_A].AutoLogicStart(nCH);
+
 
 end;
 
@@ -1871,8 +1866,7 @@ begin
       ledDfs.Value   := True;
       pnlSysinfoDfs.Caption := 'Connected';
     end;
-
-    Common.LoadRCPFile;
+//    Common.LoadRCPFile;
 
     DfsFtpCommon.Disconnect;
   end
@@ -1896,20 +1890,23 @@ begin
       end;
     end;
   end;
+  RzgrpDFS.visible := True;
   if Common.DfsConfInfo.bUseDfs then begin
-    RzgrpDFS.visible := True;
+//    RzgrpDFS.visible := True;
 
     pnlCombiModelRCP.Caption      := Common.OnLineInterlockInfo.sINIFileName;
-    pnlCombiProcessNo.Caption     := Common.CombiCodeData.sProcessNo;
-    pnlCombiRouterNo.Caption      := IntToStr(Common.CombiCodeData.nRouterNo); //2019-04-07
+    pnlVersionModel.Caption     := Common.OnLineInterlockInfo.Version_Model;
+    pnlLineName.Caption      := Common.OnLineInterlockInfo.Process_Code;
 
-    sDebug := Format('sRcpName(%s),ProcessNo(%s),RouterNo(%d)',[Common.OnLineInterlockInfo.sINIFileName,Common.CombiCodeData.sProcessNo,Common.CombiCodeData.nRouterNo]);
+    sDebug := Format('sRcpName(%s),VersionModel(%s),LineName(%s)',[Common.OnLineInterlockInfo.sINIFileName,Common.OnLineInterlockInfo.Version_Model,Common.OnLineInterlockInfo.Process_Code]);
     Common.MLog(DefCommon.MAX_SYSTEM_LOG,sDebug);
   end
   else begin
-    RzgrpDFS.visible := False;
+//    RzgrpDFS.visible := False;
   end;
 end;
+
+
 
 procedure TfrmMain_OC.initform;
 begin
@@ -4488,6 +4485,30 @@ end;
 
 end;
 
+procedure TfrmMain_OC.RzgrpDFSDblClick(Sender: TObject);
+var
+ i : Integer;
+ sMsg : string;
+begin
+  if Common.StatusInfo.AutoMode then begin
+    Application.MessageBox('Can not Excute On Auto Mode', 'Confirm', MB_OK+MB_ICONSTOP);
+    Exit;
+  end;
+
+  if CheckAdminPasswd then begin
+    if Common.SupervisorMode then begin
+      sMsg := 'DFS Server Interlock - OFF!!!!';
+      for I := DefCommon.CH1 to DefCommon.MAX_PG_CNT do
+        SendCHMsgAddLog(MSG_MODE_ADDLOG_CHANNEL, 0, i, sMsg);
+      Common.DfsConfInfo.bUseDfs := False;
+      Common.OnLineInterlockInfo.Use := False;
+      InitDfs;
+    end;
+  end;
+
+
+end;
+
 procedure TfrmMain_OC.RzPanel6DblClick(Sender: TObject);
 begin
   Button1.Visible := not Button1.Visible;
@@ -4846,7 +4867,7 @@ begin
   cds.cbData      := SizeOf(COPYDATAMessage);
   cds.lpData      := @COPYDATAMessage;
 
-  SendMessage(frmMain_OC.Handle ,WM_COPYDATA,0, LongInt(@cds));
+  SendMessage(Self.Handle ,WM_COPYDATA,0, LongInt(@cds));
 end;
 
 procedure TfrmMain_OC.SetEcsMesPosition;
@@ -4989,11 +5010,12 @@ begin
         ShowSysLog('Do not Auto Start - PG Disconnected');
         Exit;
       end;
-
-      if not CheckVersionInterlock then begin
-        ShowSysLog('Version Interlock NG', 1);
-        //ShowNgMessage('Version Interlock NG');
-        Exit;
+      if Common.PLCInfo.InlineGIB then begin
+        if not CheckVersionInterlock then begin
+          ShowSysLog('Version Interlock NG', 1);
+          //ShowNgMessage('Version Interlock NG');
+          Exit;
+        end;
       end;
 
       for i := 0 to 150 do begin      //  Alarm 리셋 여부 확인
@@ -5172,6 +5194,17 @@ begin
 end;
 
 
+procedure LockControl(Control: TWinControl);
+begin
+  SendMessage(Control.Handle, WM_SETREDRAW, WPARAM(False), 0);
+end;
+
+procedure UnlockControl(Control: TWinControl);
+begin
+  SendMessage(Control.Handle, WM_SETREDRAW, WPARAM(True), 0);
+  Control.Invalidate;
+end;
+
 procedure TfrmMain_OC.ShowSysLog(sMsg: string; nType: Integer);
 var
   sDebug : string;
@@ -5180,10 +5213,11 @@ begin
     if mmoSysLog = nil then exit;
     sDebug := FormatDateTime('[HH:MM:SS.zzz] ',now) + sMsg;
     Common.MLog(DefCommon.MAX_SYSTEM_LOG, sMsg);
+    LockControl(mmoSysLog);
 //    mmoSysLog.DisableAlign;
-    if mmoSysLog.Lines.Count > 1000 then begin
-      mmoSysLog.Clear;
-    end;
+//    if mmoSysLog.Lines.Count > 1000 then begin
+//      mmoSysLog.Clear;
+//    end;
 
 //    case nType of
 //      1: begin
@@ -5208,8 +5242,15 @@ begin
 //    end;
 
     try
-      mmoSysLog.Lines.Add(sDebug);
-      mmoSysLog.Perform(WM_VSCROLL, SB_BOTTOM, 0);
+      mmoSysLog.Lines.BeginUpdate;
+      try
+        mmoSysLog.Lines.Add(sDebug);
+        mmoSysLog.Perform(WM_VSCROLL, SB_BOTTOM, 0);
+
+      finally
+        mmoSysLog.Lines.EndUpdate;
+      end;
+
     except
       //유효하지 않은 문자열일 경우 오류(madException) 방지: RichEdit line insertion error.
       on E: Exception do  begin
@@ -5217,6 +5258,7 @@ begin
       end;
     end;
   finally
+    UnlockControl(mmoSysLog);
 //    mmoSysLog.EnableAlign;
   end;
 
@@ -5700,8 +5742,6 @@ begin
   Display_Memory_DI;
   Display_Memory_DO;
 
-//  ShowSysLog('Prepare OK');
-  SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4,'Prepare OK');
   tmrWatch.Enabled:= False;
   tmrWatch.Tag:= 0;
   self.Enabled:= True;
@@ -5716,11 +5756,17 @@ begin
     PasScr[i].InitialScript;
   end;
 
+  for i := DefCommon.PG_1 to DefCommon.PG_MAX do
+    Common.LoadRCPFile(i);
+  pnlCombiModelRCP.Caption := Common.OnLineInterlockInfo.sINIFileName;
+
 
   if Common.SystemInfo.Use_ECS then begin
     InitGmes;
   end;
   Set_Login(True);
+  //  ShowSysLog('Prepare OK');
+  SendMsgAddLog(MSG_MODE_ADDLOG, 1, 4,'Prepare OK');
 end;
 
 
