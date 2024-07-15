@@ -104,6 +104,43 @@ uses Main_OC;
 
 { TDispAlarmForm }
 
+
+procedure ScaleImageToResolution(Image: TImage);
+var
+  ScreenWidth, ScreenHeight: Integer;
+  ScaleFactor: Double;
+  ScaledWidth, ScaledHeight: Integer;
+  Bitmap: TBitmap;
+begin
+  // 현재 화면 해상도를 가져옵니다.
+  ScreenWidth := Screen.Width;
+  ScreenHeight := Screen.Height;
+
+  // 해상도에 따른 스케일 팩터를 계산합니다.
+  if ScreenWidth > 1920 then
+    ScaleFactor := 1.5
+  else if ScreenWidth > 1280 then
+    ScaleFactor := 1.25
+  else
+    ScaleFactor := 1.0;
+
+  // TImage의 크기를 조절합니다.
+  ScaledWidth := Round(Image.Picture.Width * ScaleFactor);
+  ScaledHeight := Round(Image.Picture.Height * ScaleFactor);
+  Image.Width := ScaledWidth;
+  Image.Height := ScaledHeight;
+
+  // 이미지를 스케일링합니다.
+  Bitmap := TBitmap.Create;
+  try
+    Bitmap.SetSize(ScaledWidth, ScaledHeight);
+    Bitmap.Canvas.StretchDraw(Rect(0, 0, ScaledWidth, ScaledHeight), Image.Picture.Graphic);
+    Image.Picture.Graphic := Bitmap;
+  finally
+    Bitmap.Free;
+  end;
+end;
+
 procedure TfrmDisplayAlarm.FormCreate(Sender: TObject);
 var
 sImageName : string;
@@ -114,6 +151,9 @@ begin
     sImageName := 'OC.png'
   else sImageName := 'Pre_OC.png';
   imgEquipment.Picture.LoadFromFile(Common.Path.IMAGE +sImageName);
+
+  // 해상도에 따라 이미지를 스케일링합니다.
+  ScaleImageToResolution(imgEquipment);
   mmoMessage.Lines.Clear;
 end;
 
