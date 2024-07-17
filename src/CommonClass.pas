@@ -1617,7 +1617,7 @@ begin
   sFilePath := Path.DebugLog + sDate + '\';
   if CheckDir(sFilePath) then Exit;
   case nCh of
-    DefCommon.CH_ALL: sFileName := sFilePath + Format('DebugLog_%s_%s_%s.txt',[systemInfo.EQPId,sDate,sDevType]);
+    DefCommon.MAX_SYSTEM_LOG: sFileName := sFilePath + Format('DebugLog_%s_%s_%s.txt',[systemInfo.EQPId,sDate,sDevType]);
     else begin
       sFileName := sFilePath + Format('DebugLog_%s_%s_%s_Ch%d.txt',[systemInfo.EQPId,sDate,sDevType,nCh+1]);
     end;
@@ -2761,6 +2761,10 @@ begin
   TestModelInfoPG   := EdModelInfoPG;
   TestModelInfoFLOW := EdModelInfoFLOW;
 
+  if Pos('X2146',SystemInfo.TestModel) > 0 then             // DFS interlock MODEL 가변(Hard coding 요청)
+    OnLineInterlockInfo.Version_Model := 'LD130QD1'
+  else OnLineInterlockInfo.Version_Model := 'LD111QD1';
+
 //  TestModelInfo := TempModelInfo;
 //  TestModelInfo2 := TempModelInfo2;
   // load pattern Group file.
@@ -3519,7 +3523,7 @@ begin
 
       SetLength(DGMA_Para, 32);
       for nBand := 0 to 31 do
-      SetLength(DGMA_Para[nBand],20);
+      SetLength(DGMA_Para[nBand],25);
 
       nRow := 0;
       nTapCnt := 0;
@@ -5589,7 +5593,7 @@ var
   sCopyFileName: String;
   sLine, sResult: String;
   txtFile: TEXTFILE;
-  i, nlineCount: Integer;
+  i, nlineCount,nDataCnt: Integer;
   sw : TStopwatch;
   slData : TStringList;
   bFound : Boolean;
@@ -5636,11 +5640,15 @@ begin
       Exit;
     end;
 
+
+
     if (System.Length(asSummaryGroupHeader) <> System.Length(asSummaryAPDRData)) or
     (System.Length(asSummaryHeader) <> System.Length(asSummaryAPDRData)) then begin
       MLog(nCh,format('The number of data is different from that of the header : PID : %s S/N : %s',[sPid,Copy(sSn,1,50)]));
-      Result := 'DEFECT_DESCRIPTION:DEFECT_DESCRIPTION:APDR The number of data is different from that of the header';
-      Exit;
+      nDataCnt := System.Length(asSummaryAPDRData) - System.Length(asSummaryGroupHeader);
+      SetLength(asSummaryGroupHeader, Length(asSummaryGroupHeader) + nDataCnt);
+      nDataCnt := System.Length(asSummaryAPDRData) - System.Length(asSummaryHeader);
+      SetLength(asSummaryHeader, Length(asSummaryHeader) + nDataCnt);
     end;
 
 
@@ -6328,6 +6336,7 @@ begin
       OnLineInterlockInfo.Process_Index     := fSys.ReadInteger('OnLineInterlock', 'Process_Index'  ,0);
       OnLineInterlockInfo.Version_SW        := fSys.ReadString('OnLineInterlock', 'Version_SW', '-');
       OnLineInterlockInfo.Version_Model     := fSys.ReadString('OnLineInterlock', 'Version_MODEL', 'LD130QD1');
+
       OnLineInterlockInfo.Version_Model := 'LD130QD1';
       OnLineInterlockInfo.Version_FW        := fSys.ReadString('OnLineInterlock', 'Version_FW', '-');
       OnLineInterlockInfo.Version_FPGA      := fSys.ReadString('OnLineInterlock', 'Version_FPGA', '-');
