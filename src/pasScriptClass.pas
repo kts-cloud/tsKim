@@ -544,6 +544,8 @@ type
 
     m_bInLine_AAMode : Boolean;
 
+    m_nInLine_AAModeCnt : Integer;
+
     m_bMaintWindowOn  : Boolean;  //2018-07-31 JHHWANG
     m_nGibOpticNo     : Integer;  //2018-08-06 JHHWANG
     m_lstPrevRet      : TList<Integer>;
@@ -2263,6 +2265,7 @@ begin
   g_bIsBcrReady       := False;
   m_nNgCode           := 0; // Ã³À½¿¡´Â Ç×»ó OK·Î ¼³Á¤ ÇÏÀÚ.
   m_bCEL_Stop := False;
+  m_nInLine_AAModeCnt := 0;
   // Initialize MES Buffer.
   if DongaGmes <> nil then begin
     DongaGmes.MesData[Self.FPgNo].Rwk := '';
@@ -2299,6 +2302,8 @@ begin
   sDebug := Format('Version Check : FW(%s), SW(%s %s)',[sPgVer,Common.GetVersionDate,Common.ProductVersion]);
   sDebug := sDebug + Format(', Psu(%s/%s), MES_CODE(%s)',[Common.m_Ver.psu_Date,Common.m_Ver.psu_Crc, Common.m_Ver.MES_CSV]);
   sDebug := sDebug + Format(', OC_ConverterDLL (%s),LGD DLL (%s)',[Common.SystemInfo.OC_Converter_Name,Common.SystemInfo.LGD_DLLVER_Name]);
+  sDebug := sDebug + Format(', CA410_MemoryCh (%s),Ca310_SERIAL(%s)',[Common.SystemInfo.CA410_MemoryCh[Self.FPgNo],Common.SystemInfo.Com_Ca310_SERIAL[Self.FPgNo]]);
+
   //sDebug := sDebug + Format(', Psu(%s/%s), Oc_Param(%s)',[Common.m_Ver.psu_Date,Common.m_Ver.psu_Crc,Common.m_Ver.OcParam]);
   //sDebug := sDebug + Format(', Oc_Verify(%s), Otp_Table(%s)',[Common.m_Ver.OcVerify,Common.m_Ver.OtpTable]);
   //sDebug := sDebug + Format(', Oc_Offset(%s), MES_CODE(%s)',[Common.m_Ver.OcOffSet,Common.m_Ver.MES_CSV]);
@@ -3354,7 +3359,7 @@ begin
         sErrMsg:= sErrMsg + format('OC_Con.DLL Version Mismatch Setting %s : Current %s', [Version_DLL, Common.SystemInfo.OC_Converter_Name]) + #10#13;
         Result:= False;
       end;
-      if (Pos(Version_Model,TestInfo.RTN_MODEL) <> 0) and (Length(TestInfo.RTN_MODEL) > 0) then begin
+      if (Pos(Version_Model,TestInfo.RTN_MODEL) = 0) and (Length(TestInfo.RTN_MODEL) > 0) then begin
         sErrMsg:= sErrMsg + format('RTN_MODEL Version Mismatch Setting %s : Current %s', [Version_Model,TestInfo.RTN_MODEL]) + #10#13;
         Result:= False;
       end;

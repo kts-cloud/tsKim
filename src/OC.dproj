@@ -3,7 +3,7 @@
         <ProjectGuid>{4E89ED08-28B6-4B22-BC7F-65A545EFCA41}</ProjectGuid>
         <ProjectVersion>18.4</ProjectVersion>
         <FrameworkType>VCL</FrameworkType>
-        <MainSource>ITOLED_OC.dpr</MainSource>
+        <MainSource>OC.dpr</MainSource>
         <Base>True</Base>
         <Config Condition="'$(Config)'==''">Release</Config>
         <Platform Condition="'$(Platform)'==''">Win64</Platform>
@@ -75,7 +75,7 @@
         <Icon_MainIcon>$(BDS)\bin\delphi_PROJECTICON.ico</Icon_MainIcon>
         <UWP_DelphiLogo44>$(BDS)\bin\Artwork\Windows\UWP\delphi_UwpDefault_44.png</UWP_DelphiLogo44>
         <UWP_DelphiLogo150>$(BDS)\bin\Artwork\Windows\UWP\delphi_UwpDefault_150.png</UWP_DelphiLogo150>
-        <SanitizedProjectName>ITOLED_OC</SanitizedProjectName>
+        <SanitizedProjectName>OC</SanitizedProjectName>
         <DCC_Define>ISPD_OC;$(DCC_Define)</DCC_Define>
         <VerInfo_Locale>1042</VerInfo_Locale>
         <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
@@ -154,14 +154,14 @@
         <DCC_SymbolReferenceInfo>2</DCC_SymbolReferenceInfo>
         <DCC_Define>IITOLED_OC;madExcept;LeakChecking;$(DCC_Define)</DCC_Define>
         <VerInfo_MajorVer>3</VerInfo_MajorVer>
-        <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=3.1.11.1;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=3.1.11.2;Comments=</VerInfo_Keys>
+        <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=3.1.15.1;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=3.1.15.1;Comments=</VerInfo_Keys>
         <DCC_MapFile>3</DCC_MapFile>
         <DCC_DebugInformation>2</DCC_DebugInformation>
         <DCC_LocalDebugSymbols>true</DCC_LocalDebugSymbols>
         <AppExecutionLevel>requireAdministrator</AppExecutionLevel>
         <VerInfo_MinorVer>1</VerInfo_MinorVer>
         <VerInfo_Build>1</VerInfo_Build>
-        <VerInfo_Release>11</VerInfo_Release>
+        <VerInfo_Release>15</VerInfo_Release>
         <Icon_MainIcon>IMD_GB_PG_Icon.ico</Icon_MainIcon>
     </PropertyGroup>
     <ItemGroup>
@@ -248,7 +248,7 @@
         <DCCReference Include="LibCommFuncs.pas"/>
         <DCCReference Include="CommThermometerMulti.pas"/>
         <None Include="Common.inc"/>
-        <None Include="ITOLED_OC.todo"/>
+        <None Include="OC.todo"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
@@ -271,7 +271,7 @@
         <BorlandProject>
             <Delphi.Personality>
                 <Source>
-                    <Source Name="MainSource">ITOLED_OC.dpr</Source>
+                    <Source Name="MainSource">OC.dpr</Source>
                 </Source>
                 <Excluded_Packages>
                     <Excluded_Packages Name="C:\Users\Public\Documents\Embarcadero\Studio\19.0\Bpl\TMSWebGMapsPkgDEDXE11.bpl">TMS VCL WebGMaps design-time support</Excluded_Packages>
@@ -287,12 +287,6 @@
                 </Excluded_Packages>
             </Delphi.Personality>
             <Deployment Version="3">
-                <DeployFile LocalName="ITOLED_OC.todo" Configuration="Release" Class="ProjectFile">
-                    <Platform Name="Win64">
-                        <RemoteDir>.\</RemoteDir>
-                        <Overwrite>true</Overwrite>
-                    </Platform>
-                </DeployFile>
                 <DeployFile LocalName="Common.inc" Configuration="Debug" Class="ProjectFile">
                     <Platform Name="Win64">
                         <RemoteDir>.\</RemoteDir>
@@ -317,28 +311,28 @@
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployFile LocalName="..\IT_OLED_OC\ITOLED_OC.exe" Configuration="Debug" Class="ProjectOutput">
+                <DeployFile LocalName="..\IT_OLED_OC\OC.exe" Configuration="Debug" Class="ProjectOutput">
                     <Platform Name="Win64">
-                        <RemoteName>ITOLED_OC.exe</RemoteName>
+                        <RemoteName>OC.exe</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployFile LocalName="..\ISPD_POCB\ITOLED_OC.exe" Configuration="Debug" Class="ProjectOutput">
+                <DeployFile LocalName="..\ISPD_POCB\OC.exe" Configuration="Debug" Class="ProjectOutput">
                     <Platform Name="Win32">
-                        <RemoteName>ITOLED_OC.exe</RemoteName>
+                        <RemoteName>OC.exe</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployFile LocalName="..\IT_OLED_OC\ITOLED_OC.exe" Configuration="Release" Class="ProjectOutput">
+                <DeployFile LocalName="..\IT_OLED_OC\OC.exe" Configuration="Release" Class="ProjectOutput">
                     <Platform Name="Win64">
-                        <RemoteName>ITOLED_OC.exe</RemoteName>
+                        <RemoteName>OC.exe</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployFile LocalName="..\ISPD_A_POCB\ITOLED_OC.exe" Configuration="Release" Class="ProjectOutput">
+                <DeployFile LocalName="..\ISPD_A_POCB\OC.exe" Configuration="Release" Class="ProjectOutput">
                     <Platform Name="Win32">
                         <RemoteDir>.\</RemoteDir>
-                        <RemoteName>ITOLED_OC.exe</RemoteName>
+                        <RemoteName>OC.exe</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
@@ -348,9 +342,9 @@
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployFile LocalName="..\IT_OLED_OC\ITOLED_OC.rsm" Configuration="Debug" Class="DebugSymbols">
+                <DeployFile LocalName="OC.todo" Configuration="Release" Class="ProjectFile">
                     <Platform Name="Win64">
-                        <RemoteName>ITOLED_OC.rsm</RemoteName>
+                        <RemoteDir>.\</RemoteDir>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
