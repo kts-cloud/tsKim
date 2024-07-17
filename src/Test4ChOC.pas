@@ -3540,31 +3540,48 @@ sPID,sSerialNumber,sUSERID,sEquipment,sNgType : string;
 wdRet,i : integer;
 begin
   Result := 1;
-  if not PasScr[nCH].m_bInLine_AAMode then Exit;
+
+//  if not PasScr[nCH].m_bInLine_AAMode then Exit;
 
   sNgType := Copy(sNGCode, 1, 1);
   for I := 0 to Pred(Length(Common.GAAModeInfo)) do begin
     if Pos(sNgType,Common.GAAModeInfo[i].sErrCode) > 0 then begin
       case Common.GAAModeInfo[i].nInspectionType of
         1: begin
-          StartScript(nCH,DefScript.SEQ_RESTART_1);
-          Result := 0;
-          Break;
+          Inc(PasScr[nCH].m_nInLine_AAModeCnt);
+          if PasScr[nCH].m_nInLine_AAModeCnt <= Common.GAAModeInfo[i].nInspectionCnt then begin
+            AddLog(format('AA Mode Process Count (%d/%d)',[PasScr[nCH].m_nInLine_AAModeCnt,Common.GAAModeInfo[i].nInspectionCnt]),nCH,0);
+            StartScript(nCH,DefScript.SEQ_RESTART_1);
+            Result := 0;
+            Break;
+          end;
         end;
         2 : begin
-          StartScript(nCH,DefScript.SEQ_RESTART_2);
-          Result := 0;
-          Break;
+          Inc(PasScr[nCH].m_nInLine_AAModeCnt);
+          if PasScr[nCH].m_nInLine_AAModeCnt <= Common.GAAModeInfo[i].nInspectionCnt then begin
+            AddLog(format('AA Mode Process Count (%d/%d)',[PasScr[nCH].m_nInLine_AAModeCnt,Common.GAAModeInfo[i].nInspectionCnt]),nCH,0);
+            StartScript(nCH,DefScript.SEQ_RESTART_2);
+            Result := 0;
+            Break;
+          end;
         end;
         3 : begin
-          StartScript(nCH,DefScript.SEQ_RESTART_3);
-          Result := 0;
-          Break;
+          Inc(PasScr[nCH].m_nInLine_AAModeCnt);
+          if PasScr[nCH].m_nInLine_AAModeCnt <= Common.GAAModeInfo[i].nInspectionCnt then begin
+            AddLog(format('AA Mode Process Count (%d/%d)',[PasScr[nCH].m_nInLine_AAModeCnt,Common.GAAModeInfo[i].nInspectionCnt]),nCH,0);
+            StartScript(nCH,DefScript.SEQ_RESTART_3);
+            Result := 0;
+            Break;
+          end;
         end;
         else begin
-          StartScript(nCH,DefScript.SEQ_RESTART_1);
-          Result := 0;
-          Break;
+          Inc(PasScr[nCH].m_nInLine_AAModeCnt);
+          if PasScr[nCH].m_nInLine_AAModeCnt <= Common.GAAModeInfo[i].nInspectionCnt then begin
+            AddLog(format('AA Mode Process Count (%d/%d)',[PasScr[nCH].m_nInLine_AAModeCnt,Common.GAAModeInfo[i].nInspectionCnt]),nCH,0);
+            StartScript(nCH,DefScript.SEQ_RESTART_1);
+            Result := 0;
+            Break;
+          end;
         end;
       end;
     end;
