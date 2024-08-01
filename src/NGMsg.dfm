@@ -3,7 +3,7 @@ object frmNgMsg: TfrmNgMsg
   Top = 270
   BorderIcons = [biSystemMenu]
   Caption = 'NG Message.'
-  ClientHeight = 392
+  ClientHeight = 466
   ClientWidth = 1291
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -21,7 +21,7 @@ object frmNgMsg: TfrmNgMsg
     Left = 0
     Top = 0
     Width = 1291
-    Height = 392
+    Height = 466
     Align = alClient
     Color = clMaroon
     Font.Charset = DEFAULT_CHARSET
@@ -33,12 +33,13 @@ object frmNgMsg: TfrmNgMsg
     ParentFont = False
     TabOrder = 0
     StyleElements = [seBorder]
+    ExplicitHeight = 392
     object lblShow: TRzLabel
       AlignWithMargins = True
-      Left = 4
-      Top = 62
+      Left = 0
+      Top = 24
       Width = 1281
-      Height = 231
+      Height = 345
       Alignment = taCenter
       AutoSize = False
       WordWrap = True
@@ -48,8 +49,8 @@ object frmNgMsg: TfrmNgMsg
       BlinkIntervalOn = 1000
     end
     object btnClose: TRzBitBtn
-      Left = 506
-      Top = 308
+      Left = 498
+      Top = 388
       Width = 277
       Height = 47
       Caption = 'Exit'

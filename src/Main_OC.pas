@@ -604,7 +604,7 @@ begin
   if CheckScriptRun then Exit;
   ReleaseReadyModOnPlc;
   if CheckAdminPasswd then begin
-    Common.ReadSystemInfo;
+//    Common.ReadSystemInfo;
     sDebug := '[Click Event] System Info';
     ShowSysLog(sDebug);
     for i := DefCommon.CH1 to DefCommon.MAX_CH do
@@ -1604,6 +1604,15 @@ begin
   Common.m_sUserId := 'PM';
   //grpSystemInfo.Caption:= 'System Information. ST ' + IntToStr(Common.PLCInfo.EQP_ID);
   m_bIsClose := False;
+  {$IFDEF RELEASE}
+  if Common.SystemInfo.OCType = DefCommon.OCType then begin    // OC SW 실행 시 항상 on
+    Common.OnLineInterlockInfo.Use     := True;
+    Common.DfsConfInfo.bUseDfs         := True;    // OnLineInterlockInfo 설정으로 통합
+    Common.DfsConfInfo.bUseCombiDown   := True;    // OnLineInterlockInfo 설정으로 통합
+    Common.SaveSystemInfo;
+  end;
+  {$ENDIF}
+
 
   Common.UpdateSystemInfo_Runtime;
   pnlUserId.Caption := Common.m_sUserId;
@@ -5202,17 +5211,6 @@ begin
 end;
 
 
-procedure LockControl(Control: TWinControl);
-begin
-  SendMessage(Control.Handle, WM_SETREDRAW, WPARAM(False), 0);
-end;
-
-procedure UnlockControl(Control: TWinControl);
-begin
-  SendMessage(Control.Handle, WM_SETREDRAW, WPARAM(True), 0);
-  Control.Invalidate;
-end;
-
 procedure TfrmMain_OC.ShowSysLog(sMsg: string; nType: Integer);
 var
   sDebug : string;
@@ -5221,7 +5219,7 @@ begin
     if mmoSysLog = nil then exit;
     sDebug := FormatDateTime('[HH:MM:SS.zzz] ',now) + sMsg;
     Common.MLog(DefCommon.MAX_SYSTEM_LOG, sMsg);
-    LockControl(mmoSysLog);
+    Common.LockControl(mmoSysLog);
 //    mmoSysLog.DisableAlign;
 //    if mmoSysLog.Lines.Count > 1000 then begin
 //      mmoSysLog.Clear;
@@ -5266,7 +5264,7 @@ begin
       end;
     end;
   finally
-    UnlockControl(mmoSysLog);
+    Common.UnlockControl(mmoSysLog);
 //    mmoSysLog.EnableAlign;
   end;
 
@@ -5760,13 +5758,13 @@ begin
       g_CommPLC.LoadGlassData_CH(i,Common.Path.Ini + format('GlassData_CH%d.dat',[i + 1])); //기존에 저장된 데이터를 로드 - Initialize나 종료 시 소실 방지
   end;
 
+  for i := DefCommon.CH1 to DefCommon.MAX_JIG_CH do
+    Common.LoadRCPFile(i);
+  pnlCombiModelRCP.Caption := Common.OnLineInterlockInfo.sINIFileName;
+
   for i := DefCommon.CH1 to DefCommon.MAX_JIG_CH do begin
     PasScr[i].InitialScript;
   end;
-
-  for i := DefCommon.PG_1 to DefCommon.PG_MAX do
-    Common.LoadRCPFile(i);
-  pnlCombiModelRCP.Caption := Common.OnLineInterlockInfo.sINIFileName;
 
 
   if Common.SystemInfo.Use_ECS then begin
@@ -5979,16 +5977,6 @@ begin
   finally
   end;
 
-
-//  Application.ProcessMessages;
-//  Sleep(10);
-//  Application.ProcessMessages;
-
-
-
-//  if Common.SystemInfo.ServicePort <> '' then begin
-//    btnLogInClick(nil);
-//  end;
   Common.StatusInfo.AutoMode:= False;
   if Common.SystemInfo.OcManualType then begin
     g_CommPLC:= TCommPLCThread.Create(self.Handle, MSG_TYPE_COMM_ECS, 1,Common.PLCInfo.Use_Simulation);
@@ -6056,6 +6044,8 @@ begin
   else begin
     tmSaveEnergy.Enabled := False;
   end;
+
+
 
 
 

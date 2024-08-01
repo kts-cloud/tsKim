@@ -1508,9 +1508,22 @@ begin
   end;
 
   DisplaySystemInfo;
-  if Common.SupervisorMode  then
-    RzGroupBox4.Visible := True
-  else RzGroupBox4.Visible := False;
+  if (Common.SystemInfo.OCType = DefCommon.OCType) and (Pos('A-',Common.SystemInfo.TestModel) = 0) then
+    chkInLineAAMode.Visible := True
+  else chkInLineAAMode.Visible := False;
+
+  if Common.SupervisorMode  then begin
+    RzGroupBox4.Visible := True;
+    RzGroupBox9.Visible := True;
+    RzpnlCombiPath.Visible := True;
+    edCombiDownPath.Visible := True;
+  end
+  else begin
+    RzGroupBox4.Visible := False;
+    RzGroupBox9.Visible := False;
+    RzpnlCombiPath.Visible := False;
+    edCombiDownPath.Visible := False;
+  end;
 end;
 
 procedure TfrmSystemSetup.FormDestroy(Sender: TObject);

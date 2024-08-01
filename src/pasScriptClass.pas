@@ -107,6 +107,7 @@ type
     IsReport      : Boolean;
     IsLoaded      : Boolean;
     CanSendApdr   : Boolean;
+    bPchkResult   : Boolean;
     AutoMode      : Boolean;
     AABMode       : Boolean;
     Login         : Boolean;
@@ -336,6 +337,7 @@ type
     procedure NextStep_Proc(AMachine:TatVirtualMachine);
     procedure CheckRetry_Proc(AMachine:TatVirtualMachine);
     procedure ReadPairNgCode_Proc(AMachine:TatVirtualMachine);
+    procedure ReadPairIsBcrReady_Proc(AMachine:TatVirtualMachine);
 
     //OC DLL FLOW
     procedure OCFlowStart_Proc(AMachine:TatVirtualMachine);
@@ -753,6 +755,8 @@ begin
   SetPaScript.DefineMethod('f_Flash_Write_Se_NO',      1,tkInteger, nil,OCThreadFlash_Write_Proc,False,1).SetVarArgs([0]);
   SetPaScript.DefineMethod('f_SetAgingTm',             2, tkNone, nil, SetAgingTm_Proc,False, 2);
   SetPaScript.DefineMethod('f_ReadPairNgCode',         1, tkNone, nil, ReadPairNgCode_Proc,False, 1).SetVarArgs([0]);
+  SetPaScript.DefineMethod('f_ReadPairIsBcrReady',         1, tkNone, nil, ReadPairIsBcrReady_Proc,False, 1).SetVarArgs([0]);
+
   SetPaScript.DefineMethod('f_ReadGpioPanel_IRQ',      1, tkInteger, nil, GpioPanel_IRQ_Proc,False, 1).SetVarArgs([0]);
 
   SetPaScript.DefineMethod('f_ConfirmHost', 1, tkInteger, nil, ConfirmHost_Proc,
@@ -2363,6 +2367,7 @@ begin
   TestInfo.RTN_MODEL := '';
   TestInfo.PowerOn   := False;
   TestInfo.CanSendApdr := False;
+  TestInfo.bPchkResult := False;
   TestInfo.NG_EICR:= False;
   TestInfo.NGAlarmCount:= Common.SystemInfo.NGAlarmCount;
   TestInfo.RetryCount:= Common.SystemInfo.RetryCount;
@@ -2402,6 +2407,8 @@ procedure TScrCls.InitialScript;
 begin
   try
     ScriptThread('Seq_Init',0);
+    if Common.SystemInfo.OCType = DefCommon.OCType then     // 초기화 시 interlock 확인
+      CheckAutoVersionInterlock;
   except
     on E:Exception do begin
       SendTestGuiDisplay(defCommon.MSG_MODE_CH_RESULT,'SCRIPT Initialize NG','',1); // 0: OK, 1 : NG.
@@ -3359,10 +3366,10 @@ begin
         sErrMsg:= sErrMsg + format('OC_Con.DLL Version Mismatch Setting %s : Current %s', [Version_DLL, Common.SystemInfo.OC_Converter_Name]) + #10#13;
         Result:= False;
       end;
-      if (Pos(Version_Model,TestInfo.RTN_MODEL) = 0) and (Length(TestInfo.RTN_MODEL) > 0) then begin
-        sErrMsg:= sErrMsg + format('RTN_MODEL Version Mismatch Setting %s : Current %s', [Version_Model,TestInfo.RTN_MODEL]) + #10#13;
-        Result:= False;
-      end;
+//      if (Pos(Version_Model,TestInfo.RTN_MODEL) = 0) and (Length(TestInfo.RTN_MODEL) > 0) then begin  // 07/30 임시 주석 처리
+//        sErrMsg:= sErrMsg + format('RTN_MODEL Version Mismatch Setting %s : Current %s', [Version_Model,TestInfo.RTN_MODEL]) + #10#13;
+//        Result:= False;
+//      end;
 
       if Common.SystemInfo.LGD_DLLVER_Name <> Version_LGDDLL then begin
         sErrMsg:= sErrMsg + format('LGD.DLL Version Mismatch Setting %s : Current %s', [Version_LGDDLL, Common.SystemInfo.LGD_DLLVER_Name]) + #10#13;
@@ -3375,7 +3382,7 @@ begin
       end;
 
       sVersion:= Pg[Self.FPgNo].m_PgVer.ITO_APP;
-      if sVersion <> Version_FW then begin
+      if (sVersion <> Version_FW) and (Length(sVersion) > 0) then begin
         sErrMsg:= sErrMsg + format('FW Version Mismatch Setting %s : Current %s' + #10#13, [Version_FW, sVersion]);
         Result:= False;
       end;
@@ -4918,12 +4925,14 @@ begin
             TestInfo.RTN_PID:= DongaGMes.MesData[Self.FPgNo].PchkRtnPID;
             TestInfo.RTN_MODEL:= DongaGMes.MesData[Self.FPgNo].Model;
             TestInfo.CarrierId := DongaGMes.MesData[Self.FPgNo].PchkRtnZig_ID;
+            if m_nHostResult = 0 then  TestInfo.bPchkResult := True;
           end;
 
           Common.MLog(FPgNo,'SendPCHK_Proc : Done!!');
         end
         else begin
           wdRet := WAIT_OBJECT_0;
+          TestInfo.bPchkResult := True;
         end;
       end;
     End;
@@ -4969,12 +4978,14 @@ begin
         //TestInfo.RTN_PID:= m_sMesPchkRtnPID;
         TestInfo.RTN_PID:= DongaGMes.MesData[Self.FPgNo].PchkRtnPID;
         TestInfo.RTN_MODEL:= DongaGMes.MesData[Self.FPgNo].Model;
+        if m_nHostResult = 0 then  TestInfo.bPchkResult := True;
       end;
 
       Common.MLog(FPgNo,'SendINSPCHK_Proc : Done!!');
     end
     else begin
       wdRet := WAIT_OBJECT_0;
+      TestInfo.bPchkResult := True;
     end;
 
     ReturnOutputArg( wdRet);
@@ -6662,6 +6673,21 @@ begin
       nPairCh:= FPgNo - 1;
     end;
     SetInputArg(0,PasScr[nPairCh].m_nNgCode);
+  end;
+end;
+
+procedure TScrCls.ReadPairIsBcrReady_Proc(AMachine: TatVirtualMachine);
+var
+  nPairCh : integer;
+begin
+  With AMachine do begin
+    if (FPgNo mod 2) = 0 then begin
+      nPairCh:= FPgNo + 1;
+    end
+    else begin
+      nPairCh:= FPgNo - 1;
+    end;
+    SetInputArg(0,PasScr[nPairCh].g_bIsBcrReady);
   end;
 end;
 

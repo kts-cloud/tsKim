@@ -552,7 +552,7 @@ object frmModelInfo: TfrmModelInfo
       end
       object btnSaveModelInfo: TRzBitBtn
         Left = 900
-        Top = 655
+        Top = 657
         Width = 182
         Height = 42
         FrameColor = clGradientActiveCaption
@@ -4878,6 +4878,7 @@ object frmModelInfo: TfrmModelInfo
           Height = 111
           Caption = 'Power Sequence'
           Color = clWhite
+          Enabled = False
           Font.Charset = DEFAULT_CHARSET
           Font.Color = 7879740
           Font.Height = -11
@@ -4895,6 +4896,7 @@ object frmModelInfo: TfrmModelInfo
             Width = 17
             Height = 14
             Caption = 'ms'
+            Enabled = False
             Font.Charset = ANSI_CHARSET
             Font.Color = 7879740
             Font.Height = -12
@@ -4911,6 +4913,7 @@ object frmModelInfo: TfrmModelInfo
             Width = 17
             Height = 14
             Caption = 'ms'
+            Enabled = False
             Font.Charset = ANSI_CHARSET
             Font.Color = 7879740
             Font.Height = -12
@@ -4927,6 +4930,7 @@ object frmModelInfo: TfrmModelInfo
             Width = 17
             Height = 14
             Caption = 'ms'
+            Enabled = False
             Font.Charset = ANSI_CHARSET
             Font.Color = 7879740
             Font.Height = -12
@@ -4944,6 +4948,7 @@ object frmModelInfo: TfrmModelInfo
             Width = 17
             Height = 14
             Caption = 'ms'
+            Enabled = False
             Font.Charset = ANSI_CHARSET
             Font.Color = 7879740
             Font.Height = -12
@@ -4960,6 +4965,7 @@ object frmModelInfo: TfrmModelInfo
             Width = 17
             Height = 14
             Caption = 'ms'
+            Enabled = False
             Font.Charset = ANSI_CHARSET
             Font.Color = 7879740
             Font.Height = -12
@@ -4976,6 +4982,7 @@ object frmModelInfo: TfrmModelInfo
             Width = 17
             Height = 14
             Caption = 'ms'
+            Enabled = False
             Font.Charset = ANSI_CHARSET
             Font.Color = 7879740
             Font.Height = -12
@@ -4994,6 +5001,7 @@ object frmModelInfo: TfrmModelInfo
             Height = 22
             Style = csDropDownList
             Ctl3D = False
+            Enabled = False
             Font.Charset = DEFAULT_CHARSET
             Font.Color = clWindowText
             Font.Height = -12
@@ -5022,6 +5030,7 @@ object frmModelInfo: TfrmModelInfo
             BorderShadow = 6080734
             Caption = 'Off'
             Color = 11921137
+            Enabled = False
             FlatColorAdjustment = 0
             Font.Charset = DEFAULT_CHARSET
             Font.Color = clWindowText
@@ -5043,6 +5052,7 @@ object frmModelInfo: TfrmModelInfo
             BorderShadow = 6080734
             Caption = 'On'
             Color = 11921137
+            Enabled = False
             FlatColorAdjustment = 0
             Font.Charset = DEFAULT_CHARSET
             Font.Color = clWindowText
@@ -5059,6 +5069,7 @@ object frmModelInfo: TfrmModelInfo
             Top = 48
             Width = 50
             Height = 22
+            Enabled = False
             Font.Charset = ANSI_CHARSET
             Font.Color = clBlack
             Font.Height = -12
@@ -5080,6 +5091,7 @@ object frmModelInfo: TfrmModelInfo
             Top = 48
             Width = 50
             Height = 22
+            Enabled = False
             Font.Charset = ANSI_CHARSET
             Font.Color = clBlack
             Font.Height = -12
@@ -5101,6 +5113,7 @@ object frmModelInfo: TfrmModelInfo
             Top = 69
             Width = 50
             Height = 22
+            Enabled = False
             Font.Charset = ANSI_CHARSET
             Font.Color = clBlack
             Font.Height = -12
@@ -5122,6 +5135,7 @@ object frmModelInfo: TfrmModelInfo
             Top = 69
             Width = 50
             Height = 22
+            Enabled = False
             Font.Charset = ANSI_CHARSET
             Font.Color = clBlack
             Font.Height = -12
@@ -5143,6 +5157,7 @@ object frmModelInfo: TfrmModelInfo
             Top = 48
             Width = 50
             Height = 22
+            Enabled = False
             Font.Charset = ANSI_CHARSET
             Font.Color = clBlack
             Font.Height = -12
@@ -5164,6 +5179,7 @@ object frmModelInfo: TfrmModelInfo
             Top = 69
             Width = 50
             Height = 22
+            Enabled = False
             Font.Charset = ANSI_CHARSET
             Font.Color = clBlack
             Font.Height = -12
@@ -6816,7 +6832,7 @@ object frmModelInfo: TfrmModelInfo
           Font.Name = 'Tahoma'
           Font.Style = []
           ParentFont = False
-          TabOrder = 2
+          TabOrder = 0
           Transparent = True
           object btn1: TRzBitBtn
             Left = 1226

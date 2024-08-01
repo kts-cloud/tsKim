@@ -95,9 +95,7 @@ end;
 
 procedure TfrmSelectModel.FormCreate(Sender: TObject);
 begin
-  if Common.SystemInfo.OCType = DefCommon.OCType then  // OC Model명 변경 요청MODEL tpye 위치 변경: H12F-OTOLED-X2146-OC -> X2146-OC-XXXXXX
-   m_ModelNameType := 0
-  else m_ModelNameType := 2;
+  m_ModelNameType := 0;         //model 명 변경에 따른 조치  2 -> 0
   SetModelType;
   Load_Model(cbbModelType.ItemIndex);
   m_bClickOkBtn := False;

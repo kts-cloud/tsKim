@@ -28,7 +28,7 @@ object frmSystemSetup: TfrmSystemSetup
     Width = 853
     Height = 757
     Hint = ''
-    ActivePage = TabSheet2
+    ActivePage = TabSheet1
     Align = alClient
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
@@ -36,7 +36,7 @@ object frmSystemSetup: TfrmSystemSetup
     Font.Name = 'Tahoma'
     Font.Style = [fsBold]
     ParentFont = False
-    TabIndex = 3
+    TabIndex = 0
     TabOrder = 0
     FixedDimension = 22
     object TabSheet1: TRzTabSheet
@@ -5646,6 +5646,7 @@ object frmSystemSetup: TfrmSystemSetup
           Height = 22
           Text = ''
           Ctl3D = True
+          Enabled = False
           Font.Charset = ANSI_CHARSET
           Font.Color = clBlack
           Font.Height = -12
@@ -5660,8 +5661,8 @@ object frmSystemSetup: TfrmSystemSetup
           TabOrder = 10
         end
         object cbDfsHexCompress: TRzCheckBox
-          Left = 7
-          Top = 118
+          Left = 8
+          Top = 119
           Width = 254
           Height = 18
           Cursor = crHandPoint
@@ -5796,6 +5797,7 @@ object frmSystemSetup: TfrmSystemSetup
           State = cbUnchecked
           TabOrder = 11
           UseCustomGlyphs = True
+          Visible = False
         end
         object cbDfsHexDelete: TRzCheckBox
           Left = 8
@@ -5934,6 +5936,7 @@ object frmSystemSetup: TfrmSystemSetup
           State = cbUnchecked
           TabOrder = 12
           UseCustomGlyphs = True
+          Visible = False
         end
         object RzPanel18: TRzPanel
           Left = 266
@@ -5949,6 +5952,7 @@ object frmSystemSetup: TfrmSystemSetup
           Font.Style = []
           ParentFont = False
           TabOrder = 13
+          Visible = False
         end
         object edProcessName: TRzEdit
           Left = 426
@@ -5969,6 +5973,7 @@ object frmSystemSetup: TfrmSystemSetup
           ParentCtl3D = False
           ParentFont = False
           TabOrder = 14
+          Visible = False
         end
       end
       object pnlDfsFtpStatus: TPanel

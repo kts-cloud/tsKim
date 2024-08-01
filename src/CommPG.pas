@@ -4641,7 +4641,9 @@ begin
   end;
   //
 	sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
-  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+  if (Common.SystemInfo.DebugLogLevelConfig > 0) or (Result <> 0) then begin
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+  end;
 end;
 
 function TCommPG.DP860_SendNvmReadAscii(nAddr,nSize:DWORD; var sData: string; nWaitMS: Integer=FLASH_READ_WAITMS_MINIMUM; nRetry: Integer=0): DWORD;
@@ -4684,7 +4686,9 @@ begin
   //
   sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
 	sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
-  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+  if (Common.SystemInfo.DebugLogLevelConfig > 0) or (Result <> 0) then begin
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+  end;
 end;
 
 function TCommPG.DP860_SendNvmReadFile(nAddr,nSize:DWORD; sRemoteFile: string; nWaitMS: Integer=FLASH_READ_WAITMS_MINIMUM; nRetry: Integer=0): DWORD;
@@ -4708,7 +4712,8 @@ begin
   nWaitMS := (((nSize div (nFlashReadKBPerSec*1024)) + 1) * 1000) + nWaitMS; //TBD:FLASH:DP860?
   //
 	sDebug := '<PG> ' + sCommand + Format(' :(AckWait=%d sec)',[(nWaitMS div 1000)]);
-  ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
+  if (Common.SystemInfo.DebugLogLevelConfig > 0) then
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
   //
   try
     FIsOnFlashAccess := True;
@@ -4719,7 +4724,10 @@ begin
   //
   sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
 	sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
-  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+  if (Common.SystemInfo.DebugLogLevelConfig > 0) or (Result <> 0) then begin
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+  end;
+
 end;
 
 //==============================================================================
@@ -4758,7 +4766,9 @@ begin
   //
   sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
 	sDebug  := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
-  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+  if (Common.SystemInfo.DebugLogLevelConfig > 0) or (Result <> 0) then begin
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+  end;
 end;
 {$ENDIF}
 
@@ -4786,7 +4796,8 @@ begin
   nWaitMS := (((nSize div (nFlashWriteKBPerSec*1024)) + 1) * 1000) + nWaitMS; //TBD:FLASH:DP860?
   //
 	sDebug := '<PG> ' + sCommand + Format(' :(AckWait=%d sec)',[(nWaitMS div 1000)]);
-  ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
+  if (Common.SystemInfo.DebugLogLevelConfig > 0) then
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
   //
   try
     FIsOnFlashAccess := True;
@@ -4797,7 +4808,9 @@ begin
   //
   sEtcMsg :=  '['+DP860_GetPgLogMsg(FTxRxPG.RxAckStr)+']';
 	sDebug := '<PG> ' + sCommand + ' :' + DP860_GetStrCmdResult(Result) + sEtcMsg;
-  ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+  if (Common.SystemInfo.DebugLogLevelConfig > 0) or (Result <> 0) then begin
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, TernaryOp((Result=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG), sDebug);
+  end;
 end;
 
 //==============================================================================
@@ -4826,7 +4839,8 @@ begin
 	// Connect
 	if not FFTPClient.FFTP.Connected then begin
     sDebug :=  'FTP Connect';
-    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
+    if (Common.SystemInfo.DebugLogLevelConfig > 0) then
+      ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
   	sErrMsg := FFTPClient.Connect;
   	if sErrMsg <> '' then begin
     	sDebug := sFunc + ': FTP Connect NG(' + sErrMsg + ')';
@@ -4849,7 +4863,8 @@ begin
       Exit;
     end;
 	  sDebug := sFunc + Format(': DeleteFile(Remote=%s)',[sRemoteFile]);
-    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
+    if (Common.SystemInfo.DebugLogLevelConfig > 0) then
+      ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
   end;
 
 	// Put
@@ -4860,7 +4875,10 @@ begin
     Exit;
   end;
 	sDebug := sFunc + Format(': Put(Local=%s, Remote=%s)',[sLocalFullName, sRemoteFile]);
-  ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
+  if (Common.SystemInfo.DebugLogLevelConfig > 0) then
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
+
+//  ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
 
 	// Discon
 	if bEndDisc then begin
@@ -4891,7 +4909,8 @@ begin
 	// Connect
 	if not FFTPClient.FFTP.Connected then begin
     sDebug :=  '<PG> FTP Connect';
-    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG, sDebug);
+    if (Common.SystemInfo.DebugLogLevelConfig > 0) then
+      ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG, sDebug);
     sErrMsg := FFTPClient.Connect;
   	if sErrMsg <> '' then begin
     	sDebug := sFunc + ': FTP Connect NG(' + sErrMsg + ')';
@@ -4913,7 +4932,8 @@ begin
     Exit;
   end;
 	sDebug := sFunc + Format(': Get(Remote=%s, Local=%s)',[sRemoteFile,sLocalFullName]);
-  ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
+  if (Common.SystemInfo.DebugLogLevelConfig > 0) then
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
 
 	// Delete File(s) if bClearAfterGet=True
   if bClearAfterGet then begin
@@ -4924,7 +4944,8 @@ begin
       Exit;
     end;
   	sDebug := sFunc + Format(': DeleteFile(Remote=%s)',[sRemoteFile]);
-    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
+    if (Common.SystemInfo.DebugLogLevelConfig > 0) then
+      ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
   end;
 
 	// Discon

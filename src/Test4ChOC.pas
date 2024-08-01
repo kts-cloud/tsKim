@@ -378,6 +378,7 @@ begin
   if (nCh > DefCommon.CH4) or (nCh < DefCommon.CH1) then Exit;
   Common.MLog(nCh, sMsg);
   try
+    Common.LockControl(mmChannelLog[nCh]);
 //    mmChannelLog[nCh].DisableAlign;
     case nType of
       10: begin
@@ -402,8 +403,14 @@ begin
         sLog := FormatDateTime('[HH:MM:SS.zzz] ',now) + sMsg
       end;
 
-      mmChannelLog[nCh].Lines.Add(sLog);
-      mmChannelLog[nCh].Perform(WM_VSCROLL, SB_BOTTOM, 0);
+      mmChannelLog[nCh].Lines.BeginUpdate;
+      try
+        mmChannelLog[nCh].Lines.Add(sLog);
+        mmChannelLog[nCh].Perform(WM_VSCROLL, SB_BOTTOM, 0);
+
+      finally
+        mmChannelLog[nCh].Lines.EndUpdate;
+      end;
 
     except
       //유효하지 않은 문자열일 경우 오류(madException) 방지: RichEdit line insertion error.
@@ -414,6 +421,7 @@ begin
     end;
 
   finally
+    Common.UnlockControl(mmChannelLog[nCh]);
 //    mmChannelLog[nCh].EnableAlign;
   end;
 
@@ -4789,6 +4797,7 @@ begin
               else begin
                 for I := DefCommon.CH1 to DefCommon.CH2 do  begin
                   if not PasScr[i].m_bUse then CSharpDll.m_bIsProcessDone[i] := true;
+                  if not PasScr[i].TestInfo.bPchkResult then CSharpDll.m_bIsProcessDone[i] := true;
                 end;
                 if CSharpDll.m_bIsProcessDone[DefCommon.CH1] and CSharpDll.m_bIsProcessDone[DefCommon.CH2] then  begin
 
@@ -4823,6 +4832,7 @@ begin
               else begin
                 for I := DefCommon.CH3 to DefCommon.CH4 do  begin
                   if not PasScr[i].m_bUse then CSharpDll.m_bIsProcessDone[i] := true;
+                  if not PasScr[i].TestInfo.bPchkResult then CSharpDll.m_bIsProcessDone[i] := true;
                 end;
                 if CSharpDll.m_bIsProcessDone[DefCommon.CH3] and CSharpDll.m_bIsProcessDone[DefCommon.CH4] then begin
                   SendMessageMain(STAGE_MODE_UNLOAD, 1, 2,0, 'OC Flow Process_Finish',nil);

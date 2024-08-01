@@ -9,7 +9,7 @@ uses
   System.IniFiles,  CodeSiteLogging, StrUtils,  DefCommon, system.zip,DefPG, TLHelp32, ComObj, Variants,PdhExample,
 
   System.Threading, {FlexCel.Core, FlexCel.XlsAdapter,}System.Diagnostics,System.TimeSpan,RegularExpressions,
-
+  Controls,
   Graphics,  IdSocketHandle, DateUtils, Winapi.ActiveX, System.Generics.Collections,
   Winapi.Messages,DongaPattern,Registry, SyncObjs,Vcl.Imaging.pngimage, Vcl.Imaging.jpeg,Math; //, AdvGrid, AdvObj, AdvGridWorkbook, , ScrMemo; //, DefScript;
 {$I Common.inc}
@@ -965,6 +965,10 @@ type
     procedure ScheduledTask;
     function ExtractNumbersFromString(inputString: string): string;
     procedure FindFoldersWithPartialName(const AFolder, APartialName: string; AList: TStrings);
+
+    procedure LockControl(Control: TWinControl);
+
+    procedure UnlockControl(Control: TWinControl);
 //    procedure AddMLog(nCh : Integer; sLog: String; bSave: Boolean);
 
 
@@ -2754,6 +2758,9 @@ begin
 {$ENDIF}
   LoadModelInfo(SystemInfo.TestModel);
 
+  if Pos('A-',SystemInfo.TestModel) > 0 then    // A model  AA mode 임시 제거
+    SystemInfo.UseInLine_AAMode := False;
+
 
 
 //  GetZ_AxisData;
@@ -2820,6 +2827,18 @@ begin
 //    Stream := nil;
   end;
 end;
+
+procedure TCommon.LockControl(Control: TWinControl);
+begin
+  SendMessage(Control.Handle, WM_SETREDRAW, WPARAM(False), 0);
+end;
+
+procedure TCommon.UnlockControl(Control: TWinControl);
+begin
+  SendMessage(Control.Handle, WM_SETREDRAW, WPARAM(True), 0);
+  Control.Invalidate;
+end;
+
 
 
 procedure TCommon.LoadRCPFile(nCH : Integer);
@@ -6277,9 +6296,21 @@ begin
       DfsConfInfo.sDfsServerIP    := fSys.ReadString('DFSDATA',  'DFS_SERVER_IP','');
       DfsConfInfo.sDfsUserName    := fSys.ReadString('DFSDATA',  'DFS_USER_NAME','');
       DfsConfInfo.sDfsPassword    := fSys.ReadString('DFSDATA',  'DFS_PASSWORD','');
-      //
+{$IFDEF RELEASE}
+      DfsConfInfo.sDfsServerIP    := '10.122.8.64';   // Added by KTS 2024-07-31 오후 1:54:04 LGD 요청 사항 Hard coding
+      DfsConfInfo.sDfsUserName    := 'dfsopsh9';      // Added by KTS 2024-07-31 오후 1:54:04 LGD 요청 사항 Hard coding
+      DfsConfInfo.sDfsPassword    := '!01dfsops';     // Added by KTS 2024-07-31 오후 1:54:04 LGD 요청 사항 Hard coding
+      DfsConfInfo.sCombiDownPath  := '/data0h9d01/H9_MOD/DEFECT/MD';     // Added by KTS 2024-07-31 오후 1:54:04 LGD 요청 사항 Hard coding
+{$ELSE}
+      DfsConfInfo.sDfsServerIP    := '127.0.0.1';   // Added by KTS 2024-07-31 오후 1:54:04 LGD 요청 사항 Hard coding
+      DfsConfInfo.sDfsUserName    := 'kts';      // Added by KTS 2024-07-31 오후 1:54:04 LGD 요청 사항 Hard coding
+      DfsConfInfo.sDfsPassword    := '1111';     // Added by KTS 2024-07-31 오후 1:54:04 LGD 요청 사항 Hard coding
+      DfsConfInfo.sCombiDownPath  := '/h9_mod/DEFECT/MD';     // Added by KTS 2024-07-31 오후 1:54:04 LGD 요청 사항 Hard coding
+{$ENDIF}
+
       DfsConfInfo.bUseCombiDown   := fSys.Readbool('DFSDATA', 	  'USE_COMBI_DOWN',  False);
-      DfsConfInfo.sCombiDownPath  := fSys.ReadString('DFSDATA',  'COMBI_DOWN_PATH','');
+//      DfsConfInfo.sCombiDownPath  := fSys.ReadString('DFSDATA',  'COMBI_DOWN_PATH','');
+
       DfsConfInfo.sProcessName    := fSys.ReadString('DFSDATA',  'PROCESS_NAME','');
 
 {$ENDIF}
@@ -6331,7 +6362,7 @@ begin
       InterlockInfo.Version_DLL       := fSys.ReadString('Interlock', 'Version_DLL', '');
       InterlockInfo.Version_LGDDLL       := fSys.ReadString('Interlock', 'Version_LGDDLL', '');
 
-      OnLineInterlockInfo.Use               := fSys.ReadBool  ('OnLineInterlock',       'USE', False);
+      OnLineInterlockInfo.Use               := fSys.ReadBool  ('OnLineInterlock',       'USE', True);
       OnLineInterlockInfo.Process_Code      := fSys.ReadString('OnLineInterlock', 'Process_Code','');
       OnLineInterlockInfo.Process_Index     := fSys.ReadInteger('OnLineInterlock', 'Process_Index'  ,0);
       OnLineInterlockInfo.Version_SW        := fSys.ReadString('OnLineInterlock', 'Version_SW', '-');

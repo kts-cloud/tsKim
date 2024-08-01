@@ -9,7 +9,7 @@
         <Projects Include="ITOLED_OC_Simulator.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="ITOLED_PreOC.dproj">
+        <Projects Include="PreOC.dproj">
             <Dependencies/>
         </Projects>
     </ItemGroup>
@@ -38,23 +38,23 @@
     <Target Name="ITOLED_OC_Simulator:Make">
         <MSBuild Projects="ITOLED_OC_Simulator.dproj" Targets="Make"/>
     </Target>
-    <Target Name="ITOLED_PreOC">
-        <MSBuild Projects="ITOLED_PreOC.dproj"/>
+    <Target Name="PreOC">
+        <MSBuild Projects="PreOC.dproj"/>
     </Target>
-    <Target Name="ITOLED_PreOC:Clean">
-        <MSBuild Projects="ITOLED_PreOC.dproj" Targets="Clean"/>
+    <Target Name="PreOC:Clean">
+        <MSBuild Projects="PreOC.dproj" Targets="Clean"/>
     </Target>
-    <Target Name="ITOLED_PreOC:Make">
-        <MSBuild Projects="ITOLED_PreOC.dproj" Targets="Make"/>
+    <Target Name="PreOC:Make">
+        <MSBuild Projects="PreOC.dproj" Targets="Make"/>
     </Target>
     <Target Name="Build">
-        <CallTarget Targets="OC;ITOLED_OC_Simulator;ITOLED_PreOC"/>
+        <CallTarget Targets="OC;ITOLED_OC_Simulator;PreOC"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="OC:Clean;ITOLED_OC_Simulator:Clean;ITOLED_PreOC:Clean"/>
+        <CallTarget Targets="OC:Clean;ITOLED_OC_Simulator:Clean;PreOC:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="OC:Make;ITOLED_OC_Simulator:Make;ITOLED_PreOC:Make"/>
+        <CallTarget Targets="OC:Make;ITOLED_OC_Simulator:Make;PreOC:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>
