@@ -119,8 +119,8 @@ begin
   // 해상도에 따른 스케일 팩터를 계산합니다.
   if ScreenWidth > 1920 then
     ScaleFactor := 1.5
-  else if ScreenWidth > 1280 then
-    ScaleFactor := 1.25
+//  else if ScreenWidth > 1280 then
+//    ScaleFactor := 1.25
   else
     ScaleFactor := 1.0;
 

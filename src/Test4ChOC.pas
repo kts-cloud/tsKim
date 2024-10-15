@@ -86,6 +86,7 @@ type
     RzBitBtn7_2: TRzBitBtn;
     RzBitBtn8_2: TRzBitBtn;
     pnlJigInform: TRzPanel;
+    TimerLogUpdate: TTimer;
     procedure WMCopyData(var Msg : TMessage); message WM_COPYDATA;
     procedure WMCopyData_LOGIC(var WmMsg: TMessage);
     procedure WMCopyData_PG(var CopyMsg: TMessage);
@@ -108,6 +109,7 @@ type
     procedure btnSendHostClick(Sender : TObject);   //2020-06-03 CONFIRM_RESULT_REPORT_TO_HOST
     procedure btnCancelHostClick(Sender : TObject);
     procedure ButtonKeyPress(Sender: TObject; var Key: Char);
+    procedure TimerLogUpdateTimer(Sender: TObject);
 
   private
     { Private declarations }
@@ -119,6 +121,8 @@ type
     m_nTotalTact, m_nUnitTact   :array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of   Integer;
     tmTotalTactTime  : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of  TTimer;
     tmUnitTactTime   : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of  TTimer;
+
+    FLogBuffer : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of  TStringList;  // 로그를 임시 저장할 리스트
 
     m_bAutoPlcProbeBack : Boolean;
 //    pnlJigInform   :  TRzPanel;
@@ -377,53 +381,68 @@ begin
   if Common.StatusInfo.Closing then Exit;
   if (nCh > DefCommon.CH4) or (nCh < DefCommon.CH1) then Exit;
   Common.MLog(nCh, sMsg);
-  try
-    Common.LockControl(mmChannelLog[nCh]);
-//    mmChannelLog[nCh].DisableAlign;
-    case nType of
-      10: begin
-        //저장만 한다.
-        Exit;
-      end
-      else begin
-//        if Common.SystemInfo.UIType = DefCommon.UI_WIN10_BLACK then begin
-//           mmChannelLog[nCh].SelAttributes.Color := clWhite;
-//        end
-//        else begin
-//          mmChannelLog[nCh].SelAttributes.Color := clBlack;
-//        end;
-//        mmChannelLog[nCh].SelAttributes.Style := [];
-      end;
-    end;
-    try
-      if Length(sMsg) > 600 then begin
-        sLog := FormatDateTime('[HH:MM:SS.zzz] ',now) + Copy(sMsg,1,600);
-      end
-      else begin
-        sLog := FormatDateTime('[HH:MM:SS.zzz] ',now) + sMsg
-      end;
 
-      mmChannelLog[nCh].Lines.BeginUpdate;
-      try
-        mmChannelLog[nCh].Lines.Add(sLog);
-        mmChannelLog[nCh].Perform(WM_VSCROLL, SB_BOTTOM, 0);
-
-      finally
-        mmChannelLog[nCh].Lines.EndUpdate;
-      end;
-
-    except
-      //유효하지 않은 문자열일 경우 오류(madException) 방지: RichEdit line insertion error.
-      on E: Exception do  begin
-        Sleep(10); //MLog 충돌 방지 딜레이
-  //      Common.MLog(DefCommon.MAX_SYSTEM_LOG, 'MLog Exception:' + E.Message + #13#10 + sMsg);
-      end;
-    end;
-
-  finally
-    Common.UnlockControl(mmChannelLog[nCh]);
-//    mmChannelLog[nCh].EnableAlign;
+  case nType of
+    10: Exit;
   end;
+
+
+  if Length(sMsg) > 600 then
+    sLog := FormatDateTime('[HH:MM:SS.zzz] ', Now) + Copy(sMsg, 1, 600)
+  else
+    sLog := FormatDateTime('[HH:MM:SS.zzz] ', Now) + sMsg;
+
+  // 로그를 바로 표시하지 않고, 임시 로그 리스트에 저장
+
+  FLogBuffer[nCh].Add(sLog);
+
+//  try
+//    Common.LockControl(mmChannelLog[nCh]);
+////    mmChannelLog[nCh].DisableAlign;
+//    case nType of
+//      10: begin
+//        //저장만 한다.
+//        Exit;
+//      end
+//      else begin
+////        if Common.SystemInfo.UIType = DefCommon.UI_WIN10_BLACK then begin
+////           mmChannelLog[nCh].SelAttributes.Color := clWhite;
+////        end
+////        else begin
+////          mmChannelLog[nCh].SelAttributes.Color := clBlack;
+////        end;
+////        mmChannelLog[nCh].SelAttributes.Style := [];
+//      end;
+//    end;
+//    try
+//      if Length(sMsg) > 600 then begin
+//        sLog := FormatDateTime('[HH:MM:SS.zzz] ',now) + Copy(sMsg,1,600);
+//      end
+//      else begin
+//        sLog := FormatDateTime('[HH:MM:SS.zzz] ',now) + sMsg
+//      end;
+//
+//      mmChannelLog[nCh].Lines.BeginUpdate;
+//      try
+//        mmChannelLog[nCh].Lines.Add(sLog);
+//        mmChannelLog[nCh].Perform(WM_VSCROLL, SB_BOTTOM, 0);
+//
+//      finally
+//        mmChannelLog[nCh].Lines.EndUpdate;
+//      end;
+//
+//    except
+//      //유효하지 않은 문자열일 경우 오류(madException) 방지: RichEdit line insertion error.
+//      on E: Exception do  begin
+//        Sleep(10); //MLog 충돌 방지 딜레이
+//  //      Common.MLog(DefCommon.MAX_SYSTEM_LOG, 'MLog Exception:' + E.Message + #13#10 + sMsg);
+//      end;
+//    end;
+//
+//  finally
+//    Common.UnlockControl(mmChannelLog[nCh]);
+////    mmChannelLog[nCh].EnableAlign;
+//  end;
 
 end;
 
@@ -3051,7 +3070,11 @@ begin
     m_nOkCnt[i] := 0;
     m_nNgCnt[i] := 0;
     SetLength(pnlPrevResult[i],m_NGAlarmCount);
+    FLogBuffer[i] := TStringList.Create;
   end;
+
+  TimerLogUpdate.Interval := 1000;  // 1초마다 실행
+  TimerLogUpdate.Enabled := True;
 
 //  SetLength(m_nPreSeqFlowIdx,DefCommon.MAX_PG_CNT);
   m_PlcStatus := psReadyPc;
@@ -3066,6 +3089,8 @@ var
   i,j : Integer;
 begin
   m_csBcrRead.Free;
+
+  TimerLogUpdate.Enabled := False;
 
   for I := 0 to DefCommon.MAX_CH do begin
     if tmTotalTactTime[i] <> nil then begin
@@ -3083,6 +3108,7 @@ begin
       tmCheckIRTemp[i].Free;
       tmCheckIRTemp[i] := nil;
     end;
+    FLogBuffer[i].Free;
     for j := 0 to 5 do
      setlength(m_aTempIr[i][j],0);
   end;
@@ -4224,8 +4250,8 @@ begin
 
   Common.ReadDLLSet;
 
+  CsharpDll.Create_CallBackFunction;
 
-  CsharpDll.Create_Test;
   for i := DefCommon.CH1 to DefCommon.MAX_CH do begin
     PG[i].m_hTest := Self.Handle;
     m_bPassCH[i] := False; //CH PASS 초기화
@@ -4396,6 +4422,34 @@ begin
 
     end;
     Common.MLog(DefCommon.MAX_SYSTEM_LOG,sDebug);
+  end;
+end;
+
+procedure TfrmTest4ChOC.TimerLogUpdateTimer(Sender: TObject);
+var
+  i: Integer;
+begin
+  for i := 0 to DefCommon.MAX_CH do
+  begin
+    if FLogBuffer[i].Count > 0 then begin
+      Common.LockControl(mmChannelLog[i]);
+      try
+        mmChannelLog[i].Lines.BeginUpdate;
+        try
+          if mmChannelLog[i].Lines.Count > 300 then begin
+            mmChannelLog[i].Clear;
+          end;
+
+          mmChannelLog[i].Lines.AddStrings(FLogBuffer[i]);
+          mmChannelLog[i].Perform(WM_VSCROLL, SB_BOTTOM, 0);
+          FLogBuffer[i].Clear;
+        finally
+          mmChannelLog[i].Lines.EndUpdate;
+        end;
+      finally
+        Common.UnlockControl(mmChannelLog[i]);
+      end;
+    end;
   end;
 end;
 

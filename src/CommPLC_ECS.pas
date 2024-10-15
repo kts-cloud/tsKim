@@ -249,8 +249,8 @@ type
     m_nStatus_ONLINE : integer;
 
 
-//    m_ActUtl: TActUtlType64;
-    //m_ActUtl :TDLLActUtlType64;
+//    m_ActUtl: TActUtlType;
+//    m_ActUtl :TDLLActUtlType64;
     m_ActUtl : TCommTCP;
     m_nStationNumber: Integer;
     m_bOpend: Boolean;

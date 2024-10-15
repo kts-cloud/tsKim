@@ -114,7 +114,7 @@ end;
 
 procedure TfrmLogIn.FormCreate(Sender: TObject);
 begin
-  SetBounds(200, 60, 446, 164);
+  SetBounds((Screen.Width - Width) div 2, (Screen.Height - Height) div 2, 446, 164);
   Common.SupervisorMode := false;
   //self.Height := 164;
   lblManFlag.Caption := 'Input Admin password (Số nhân viên)';

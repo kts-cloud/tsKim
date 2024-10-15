@@ -969,7 +969,8 @@ type
     procedure LockControl(Control: TWinControl);
 
     procedure UnlockControl(Control: TWinControl);
-//    procedure AddMLog(nCh : Integer; sLog: String; bSave: Boolean);
+    function RemoveControlCharacters(const Input: string): string;
+
 
 
   end;
@@ -2837,6 +2838,25 @@ procedure TCommon.UnlockControl(Control: TWinControl);
 begin
   SendMessage(Control.Handle, WM_SETREDRAW, WPARAM(True), 0);
   Control.Invalidate;
+end;
+
+function TCommon.RemoveControlCharacters(const Input: string): string;
+var
+  I: Integer;
+  ResultBuilder: TStringBuilder;
+begin
+  ResultBuilder := TStringBuilder.Create;
+  try
+    for I := 1 to Length(Input) do
+    begin
+      // 제어 문자의 범위는 ASCII 0-31
+      if not (Ord(Input[I]) in [0..31]) then
+        ResultBuilder.Append(Input[I]);
+    end;
+    Result := ResultBuilder.ToString;
+  finally
+    ResultBuilder.Free;
+  end;
 end;
 
 

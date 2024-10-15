@@ -87,7 +87,7 @@ begin
     Application.MainFormOnTaskbar := True;
     TStyleManager.TrySetStyle('Windows10');
     Application.CreateForm(TfrmMain_OC, frmMain_OC);
-  Application.Run;
+    Application.Run;
 
     CloseHandle(runOnceMutex);
 

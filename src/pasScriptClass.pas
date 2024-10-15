@@ -3449,11 +3449,12 @@ begin
         if Common.SystemInfo.OCType = DefCommon.OCType then begin
           if g_CommPLC <> nil then  begin
             if (g_CommPLC.GlassData[FPgNo].MateriID <> '') and ((Pos('TEST_CH',sSerialNumber) > 0) or (Pos('Contact_NG',sSerialNumber) > 0)) then begin
-              sSerialNumber := g_CommPLC.GlassData[FPgNo].MateriID;
-              m_sMateriID := g_CommPLC.GlassData[FPgNo].MateriID;
-              TestInfo.SerialNo := g_CommPLC.GlassData[FPgNo].MateriID;
+              sSerialNumber := Trim(Common.RemoveControlCharacters(g_CommPLC.GlassData[FPgNo].MateriID));
+              m_sMateriID := sSerialNumber;
+              TestInfo.SerialNo := sSerialNumber;
             end;
           end;
+
 
           SendTestGuiDisplay(DefCommon.MSG_MODE_IRTEMP,'IRTEM : Start','',1);   //Start
         end;
@@ -3478,12 +3479,14 @@ begin
     PG[Self.FPgNo].DP860_SendOcOnOff(0{end},2000,0); //2023-03-28 jhhwang (for T/T Test)
     PG[Self.FPgNo].SetCyclicTimer(False); //2023-03-28 jhhwang (for T/T Test)
 
-    case FPgNo of
-      0: wdRet := CSharpDll.MainOC_Stop_CH1(Self.FPgNo);
-      1: wdRet := CSharpDll.MainOC_Stop_CH2(Self.FPgNo);
-      2: wdRet := CSharpDll.MainOC_Stop_CH3(Self.FPgNo);
-      3: wdRet := CSharpDll.MainOC_Stop_CH4(Self.FPgNo);
-    end;
+//    case FPgNo of
+//      0: wdRet := CSharpDll.MainOC_Stop_CH1(Self.FPgNo);
+//      1: wdRet := CSharpDll.MainOC_Stop_CH2(Self.FPgNo);
+//      2: wdRet := CSharpDll.MainOC_Stop_CH3(Self.FPgNo);
+//      3: wdRet := CSharpDll.MainOC_Stop_CH4(Self.FPgNo);
+//    end;
+
+    CSharpDll.MainOC_Stop(Self.FPgNo);
 
     CSharpDll.m_bIsDLLWork[Self.FPgNo] := False;
     PG[Self.FPgNo].SetCyclicTimer(True); //2023-03-28 jhhwang (for T/T Test)
@@ -3519,18 +3522,22 @@ begin
 //        Common.MLog(self.FPgNo,format('OCThreadFlash_READ_Proc nStartAddr : %d nLength : %d ',[nStartAddr,nLength]));
         SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,format('OCThreadFlash_READ_Proc nStartAddr : %d nLength : %d ',[nStartAddr,nLength]));
         SetLength(SerialNoBuf,nLength);
-        wdRet :=  Pg[FPgNo].SendFlashRead(nStartAddr,nLength, @SerialNoBuf[0]);
+        wdRet :=  Pg[FPgNo].SendFlashRead(nStartAddr,nLength, @SerialNoBuf[0],5000,2);
         SetString(sAnsiStr, PAnsiChar(@SerialNoBuf[0]), nLength);
         sAnsiStr := Copy(sAnsiStr,1,nLength);
         sSerialNo := string(Trim(sAnsiStr));
         SetLength(SerialNoBuf,0);
 
-        {$IFDEF SIMULATOR_PG}
-          wdRet := 0;
-          sSerialNo := Format('PPPGU500011EEEEEEE000000ABNAA00000S00B12C00000000000000000003XA000000C43GQA0009R00000EL+3+T32LL1GM750D7R00000EN+1GJ6GLL0022B00000EPGJ6GPE0014M00000EQTHAGPG000MT00000EKF3111111112C1LY1GTS255720000273J1LLL3125AJY043010304T0MHU0S00ML341WL013L_%d',[FPgNo]);
-        {$ENDIF}
+//        {$IFDEF SIMULATOR_PG}
+//          wdRet := 0;
+//          sSerialNo := Format('PPPGU500011EEEEEEE000000ABNAA00000S00B12C00000000000000000003XA000000C43GQA0009R00000EL+3+T32LL1GM750D7R00000EN+1GJ6GLL0022B00000EPGJ6GPE0014M00000EQTHAGPG000MT00000EKF3111111112C1LY1GTS255720000273J1LLL3125AJY043010304T0MHU0S00ML341WL013L_%d',[FPgNo]);
+//          sSerialNo := 'GH3HA80055W000087KBXXXXXX3BXV9L1V3XXX30XXX9Q2G9L2G9M2G9G1G80XS5GXXB2473C09BX48GX1XXXXXXXXSXXXXC9KF0FH9N000JA0000157+A+130FFAH8RCB3C70';
+//          sSerialNo :=  sSerialNo  + '000158+AGJ6H7K0383S0000CE8GJ6H7400GJW000015ATHAH942P05U00007ZP8F2112221149EKSTH8L004240000PV1A310L41131H46J012720340M010100MB221AJ4293';
+//        {$ENDIF}
+
         sIsAlphaNumeric := Copy(sSerialNo,1,1);
         if not IsValidString(sIsAlphaNumeric) then begin
+
           sSerialNo := Format('TEST_CH%d',[Self.FPgNo]);
           SendTestGuiDisplay(defCommon.MSG_MODE_WORKING,format('Unable to convert characters CH : %d',[Self.FPgNo]));
         end;
@@ -4917,7 +4924,13 @@ begin
           wdRet := CheckSyncCmdAck(procedure begin         // PCHK 대기 시간 변경 (65000 -> MES 전송 대기 사항 갯수따라 가변)
             SendMainGuiDisplay(DefGmes.MES_PCHK,1);
             SendTestGuiDisplay(DefGmes.MES_PCHK, '','', 0);
-          end,(DongaGmes.MES_Queue_Cnt * 60000),2);
+          end,(DongaGmes.MES_Queue_Cnt * 65000),1);
+          if (m_nHostResult <> 0) or (wdRet <> WAIT_OBJECT_0) then begin
+            wdRet := CheckSyncCmdAck(procedure begin         // PCHK 대기 시간 변경 (65000 -> MES 전송 대기 사항 갯수따라 가변)
+              SendMainGuiDisplay(DefGmes.MES_PCHK,0);
+              SendTestGuiDisplay(DefGmes.MES_PCHK, '','', 0);
+            end,(DongaGmes.MES_Queue_Cnt * 65000),1);
+          end;
 
           if wdRet = WAIT_OBJECT_0 then begin
             wdRet :=  m_nHostResult;
@@ -4971,7 +4984,13 @@ begin
       wdRet := CheckSyncCmdAck(procedure begin
         SendMainGuiDisplay(DefGmes.MES_INS_PCHK, 1);
         SendTestGuiDisplay(DefGmes.MES_INS_PCHK, '','', 0);
-      end,(DongaGmes.MES_Queue_Cnt * 60000),2);
+      end,(DongaGmes.MES_Queue_Cnt * 65000),1);
+      if (m_nHostResult <> 0) or (wdRet <> WAIT_OBJECT_0) then begin
+        wdRet := CheckSyncCmdAck(procedure begin
+          SendMainGuiDisplay(DefGmes.MES_INS_PCHK, 0);
+          SendTestGuiDisplay(DefGmes.MES_INS_PCHK, '','', 0);
+        end,(DongaGmes.MES_Queue_Cnt * 65000),1);
+      end;
 
       if wdRet = WAIT_OBJECT_0 then  begin
         wdRet :=  m_nHostResult;

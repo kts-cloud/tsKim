@@ -54,7 +54,30 @@ type
   TCallBackTCONMultiSetReg  = function(nChannel,nType : Integer; Addr : PINT; data : PByte; nLength : Integer): Integer;
   TCallBackTCONSeqSetReg    = function(nChannel,nMode,nSeqIdx : Integer; Addr : PINT; data : PByte; nLength : Integer): Integer;
 
-type
+  TCallBackFlowDone = procedure (channel_Index : Integer);
+
+  TStartFunction = function(nDLLType, nCH: Integer; sParameter: PAnsiChar; nLength, nCheckSum: Integer): Integer; cdecl;
+  TStopFunction = procedure(nDLLType, nCH: Integer); cdecl;
+
+  TMyCB_TextChanged         = procedure(channel_Index : Integer; bClear : Boolean;  sAddedText : PAnsiChar);cdecl;
+  TMyCB_AllPowerOnOff       = function(nChannel,OnOff: Integer): Integer;
+  TMyCB_TCONSetReg          = function(nChannel,Addr : Integer; data : Byte): Integer;
+  TMyCB_TCONGetReg          = function(nChannel,Addr : Integer; var data : Byte): Integer;
+  TMyCB_TCONSetRegArray      = function(nChannel,Addr : Integer; const data : PByte; nLength : Integer): Integer;
+  TMyCB_TCONSetRegMultiWrite = function(nChannel,nType : Integer; Addr : PINT; const data : PByte; nLength : Integer): Integer;
+  TMyCB_TCONSetRegSeqWrite    = function(nChannel,nMode,nSeqIdx : Integer; Addr : PINT; const data : PByte; nLength : Integer): Integer;
+  TMyCB_TCONGetRegArray       = function(nChannel,Addr : Integer; data : PByte; nLength : Integer): Integer;
+  TMyCB_FlashWrite_File       = function(nChannel,StartSeg,EndSeg : Integer; filePath : PAnsiChar): Integer;
+  TMyCB_FlashWrite_Data      = function(nChannel,StartSeg,nLength : Integer; const data: PByte): Integer;
+  TMyCB_FlashRead_File       = function(nChannel,StartSeg,nLength : Integer; filePath : PAnsiChar): Integer;
+  TMyCB_FlashRead_Data       = function(nChannel,nStartSeg,nLength : Integer;  data: PByte): Integer;
+  TMyCB_FlashErase            = function(nChannel,nStartSeg,nLength : Integer): Integer;
+  TMyCB_measure_XYL          = function(nChannel:Integer; var dMeasureData : TArray<double>; var nLen : Integer): Integer;
+  TMyCB_GetWaveformData      = function(nChannel : Integer; var waveform_T: Pdouble; var  waveformData : Pdouble; nMeasureAmount : Integer): Double;
+  TMyCB_SetSync              = function(nChannel,CA_SyncMode,CA_Hz,channel_num : Integer): Integer ;
+  TMyCB_FlowDone              = procedure(nChannel : Integer);
+
+  type
   PProdutInfo = ^productInfo2;
   productInfo = packed record
     mes : Integer;
@@ -106,21 +129,35 @@ type
     m_Init2 : procedure ; cdecl;
     m_UnInit : procedure; cdecl;
 
-//    m_SetCallback  : procedure ( t8 : CallBackSample); cdecl;
-
+    StartFunctions             : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TStartFunction;
+    StopFunctions              : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TStopFunction;
+    MyCB_TextChanged           : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TMyCB_TextChanged;
+    MyCB_AllPowerOnOff         : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TMyCB_AllPowerOnOff;
+    MyCB_TCONSetReg            : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TMyCB_TCONSetReg;
+    MyCB_TCONGetReg            : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TMyCB_TCONGetReg;
+    MyCB_TCONSetRegArray       : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TMyCB_TCONSetRegArray;
+    MyCB_TCONSetRegMultiWrite  : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TMyCB_TCONSetRegMultiWrite;
+    MyCB_TCONSetRegSeqWrite    : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TMyCB_TCONSetRegSeqWrite;
+    MyCB_TCONGetRegArray       : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TMyCB_TCONGetRegArray;
+    MyCB_FlashWrite_File       : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TMyCB_FlashWrite_File;
+    MyCB_FlashWrite_Data       : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TMyCB_FlashWrite_Data;
+    MyCB_FlashRead_File        : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TMyCB_FlashRead_File;
+    MyCB_FlashRead_Data        : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TMyCB_FlashRead_Data;
+    MyCB_FlashErase            : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TMyCB_FlashErase;
+    MyCB_measure_XYL           : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TMyCB_measure_XYL;
+    MyCB_GetWaveformData       : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TMyCB_GetWaveformData;
+    MyCB_SetSync               : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TMyCB_SetSync;
+    MyCB_FlowDone              : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of TMyCB_FlowDone;
 
     m_MainOC_VerifyStart : function(nCH : Integer): Integer; cdecl;
     m_MainOC_ThreadStateCheck : function(nCH : Integer): Integer; cdecl;
 
-    m_SetCallback_measure_XYL : procedure (nChannel : Integer; CaallbackFunction : TCallBackMeasure_XYL); cdecl;
-    m_SetCallback_SetSync : procedure (nChannel : Integer; CaallbackFunction : TCallBackSetSync);cdecl;
-    m_SetCallback_GetWaveformData : procedure (nChannel : Integer; CaallbackFunction : TCallBackGetWaveformData);cdecl;
-
-    m_SetCallback_TextChanged : procedure (nChannel : integer; CaallbackFunction : TCallBackTextChanged);cdecl;
-
-
+    m_SetCallback_measure_XYL       : procedure (nChannel : Integer; CaallbackFunction : TCallBackMeasure_XYL); cdecl;
+    m_SetCallback_SetSync           : procedure (nChannel : Integer; CaallbackFunction : TCallBackSetSync);cdecl;
+    m_SetCallback_GetWaveformData   : procedure (nChannel : Integer; CaallbackFunction : TCallBackGetWaveformData);cdecl;
+    m_SetCallback_TextChanged       : procedure (nChannel : integer; CaallbackFunction : TCallBackTextChanged);cdecl;
+    m_SetCallback_FlowDone          : procedure (nChannel : integer; CaallbackFunction : TCallBackFlowDone);cdecl;
     m_SetCallBackAllPowerOnOff      : procedure (nChannel : Integer; CaallbackFunction : TCallBackAllPowerOnOff      );cdecl;
-
     m_SetCallBackTCONSetReg         : procedure (nChannel : Integer; CaallbackFunction : TCallBackTCONSetReg         );cdecl;
     m_SetCallBackTCONGetReg         : procedure (nChannel : Integer; CaallbackFunction : TCallBackTCONGetReg         );cdecl;
     m_SetCallBackTCONSetRegArray    : procedure (nChannel : Integer; CaallbackFunction : TCallBackTCONSetRegArray    );cdecl;
@@ -132,6 +169,7 @@ type
     m_SetCallBackFlashErase         : procedure (nChannel : Integer; CaallbackFunction : TCallBackFlashErase         );cdecl;
     m_SetCallBackTCONMultiSetReg    : procedure (nChannel : Integer; CaallbackFunction : TCallBackTCONMultiSetReg    );cdecl;
     m_SetCallBackTCONSeqSetReg      : procedure (nChannel : Integer; CaallbackFunction : TCallBackTCONSeqSetReg    );cdecl;
+
 
   private
     m_hDll  : HWND;
@@ -145,15 +183,6 @@ type
 
     m_GetOCConverterVersion : function : PAnsiChar; cdecl;
     m_GetDBVdata : function(nBand : Integer): Integer; cdecl;
-    m_MainOC_START_CH1 : function(nDLLType, nCH : Integer; sParameter : PAnsiChar; nLength,nCheckSum : Integer): Integer; cdecl;
-    m_MainOC_START_CH2 : function(nDLLType, nCH : Integer; sParameter : PAnsiChar; nLength,nCheckSum : Integer): Integer; cdecl;
-    m_MainOC_START_CH3 : function(nDLLType, nCH : Integer; sParameter : PAnsiChar; nLength,nCheckSum : Integer): Integer; cdecl;
-    m_MainOC_START_CH4 : function(nDLLType, nCH : Integer; sParameter : PAnsiChar; nLength,nCheckSum : Integer): Integer; cdecl;
-
-    m_MainOC_STOP_CH1 : procedure(nDLLType, nCH : Integer); cdecl;
-    m_MainOC_STOP_CH2 : procedure(nDLLType, nCH : Integer); cdecl;
-    m_MainOC_STOP_CH3 : procedure(nDLLType, nCH : Integer); cdecl;
-    m_MainOC_STOP_CH4 : procedure(nDLLType, nCH : Integer); cdecl;
 
     m_MainOC_Flash_Read : procedure (nCH : Integer); cdecl;
 
@@ -162,29 +191,30 @@ type
     m_MainOC_ChangeDLL : function(sDLLName : PAnsiChar): Integer;  cdecl;
 
     m_nFlagCount : array [DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of Integer;
-//    m_sFlagString : array [DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of string[255];
 
     m_sSerialNo : array [DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of string;
 
     m_CurrentTap : array [DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of integer;
 
-    CB_PowerOnOff           : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackAllPowerOnOff;
 
-    CB_TCONSetReg           : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackTCONSetReg;
-    CB_TCONGetReg           : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackTCONGetReg;
-    CB_TCONSetRegArray      : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackTCONSetRegArray;
-    CB_TCONGetRegArray      : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackTCONGetRegArray;
-    CB_FlashWrite_File      : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackFlashWrite_File;
-    CB_FlashWrite_Data      : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackFlashWrite_Data;
-    CB_FlashRead_File       : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackFlashRead_File;
-    CB_FlashRead_Data       : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackFlashRead_Data;
-    CB_FlashErase           : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackFlashErase;
-    CB_TCONMultiSetReg      : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackTCONMultiSetReg;
-    CB_TCONSeqSetReg        : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackTCONSeqSetReg;
-    CB_Measure_XYL          : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackMeasure_XYL;
-    CB_SetSync              : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackSetSync;
-    CB_GetWaveformData      : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackGetWaveformData;
-    CB_TextChanged          : array [DefCommon.CH1 .. DefCommon.MAX_CH] of  TCallBackTextChanged;
+    CB_PowerOnOff           : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH]   of  TCallBackAllPowerOnOff;
+    CB_TCONSetReg           : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH]   of  TCallBackTCONSetReg;
+    CB_TCONGetReg           : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH]   of  TCallBackTCONGetReg;
+    CB_TCONSetRegArray      : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH]   of  TCallBackTCONSetRegArray;
+    CB_TCONGetRegArray      : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH]   of  TCallBackTCONGetRegArray;
+    CB_FlashWrite_File      : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH]   of  TCallBackFlashWrite_File;
+    CB_FlashWrite_Data      : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH]   of  TCallBackFlashWrite_Data;
+    CB_FlashRead_File       : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH]   of  TCallBackFlashRead_File;
+    CB_FlashRead_Data       : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH]   of  TCallBackFlashRead_Data;
+    CB_FlashErase           : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH]   of  TCallBackFlashErase;
+    CB_TCONMultiSetReg      : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH]   of  TCallBackTCONMultiSetReg;
+    CB_TCONSeqSetReg        : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH]   of  TCallBackTCONSeqSetReg;
+    CB_Measure_XYL          : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH]   of  TCallBackMeasure_XYL;
+    CB_SetSync              : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH]   of  TCallBackSetSync;
+    CB_GetWaveformData      : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH]   of  TCallBackGetWaveformData;
+    CB_TextChanged          : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH]   of  TCallBackTextChanged;
+
+    CB_FlowDone          : array[DefCommon.CH1 .. DefCommon.MAX_JIG_CH]   of  TCallBackFlowDone;
 
     m_sGrayRGB :  array[DefCommon.CH1 .. DefCommon.MAX_CH,0..3] of string;
 
@@ -200,18 +230,11 @@ type
     procedure SetOnRevSwData(nCH : Integer; const Value: TCallBackTextChanged);
     procedure SendTestGuiDisplay(nCh,nGuiMode: Integer; sMsg: string = ''; nParam: Integer = 0);
     procedure SendMainGuiDisplay(nCh,nGuiMode: Integer; sMsg: string; nParam: Integer; nParam2: Integer = 0);
-    procedure OntmGetOCFlowIsAlive1(Sender : TObject);
-    procedure OntmGetOCFlowIsAlive2(Sender : TObject);
-    procedure OntmGetOCFlowIsAlive3(Sender : TObject);
-    procedure OntmGetOCFlowIsAlive4(Sender : TObject);
+    procedure OntmGetOCFlowIsAlive(Sender: TObject);
 
     procedure TconWriteAnalysis(nChannel,nAddr,nData : Integer);
     procedure GraySearch(nChannel,nAddr,nData : Integer);
     procedure SendHWCID(nCH : integer);
-    function MainOC_Start_CH1(nDLLType, nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
-    function MainOC_Start_CH2(nDLLType, nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
-    function MainOC_Start_CH3(nDLLType, nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
-    function MainOC_Start_CH4(nDLLType, nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
 
   public
 
@@ -223,7 +246,7 @@ type
     m_OCCkSerialNB : array [DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of Boolean;
     m_CurrentBand : array [DefCommon.CH1 .. DefCommon.MAX_JIG_CH] of integer;
     constructor Create(hMain,hTest: HWND;sDLLPath, sFileName: string);
-    procedure  Create_Test;
+    procedure  Create_CallBackFunction;
     destructor Destroy; override;
     procedure MLOG(nChannel_Index : Integer;bClear : Boolean; sMLOG : string);
 
@@ -231,10 +254,7 @@ type
     procedure FormDestroy;
 
     function MainOC_Start(nDLLType,nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
-    function MainOC_Stop_CH1(nCH : Integer): integer;
-    function MainOC_Stop_CH2(nCH : Integer): integer;
-    function MainOC_Stop_CH3(nCH : Integer): integer;
-    function MainOC_Stop_CH4(nCH : Integer): integer;
+    function MainOC_Stop(nCH : Integer): integer;
     function MainOC_Verify_Start(nCH : Integer): integer;
     function MainOC_ThreadStateCheck(nCH : Integer): integer;
     function MainOC_Flash_Read(nCH : Integer): integer;
@@ -244,95 +264,28 @@ type
 
     function MainOC_ChangeDLL(sDLLName : string): Integer;
 
-//    property OnRevSwData : TArray<TCallBackTextChanged> write CB_TextChangedTEST;
-//    property OnRevData : TCallBackTextChanged write SetOnRevSwData ;
     property NgMsg : string read FNgMsg write SetNgMsg;
 
   end;
 
+  procedure MyCB_TextChanged_Proc(channel_Index : Integer; bClear : Boolean;  sAddedText : PAnsiChar);cdecl;
+  procedure MyCB_FlowDone_Proc(channel_Index : Integer);
+  function MyCB_AllPowerOnOff_Proc(nChannel,OnOff: Integer): Integer;
+  function MyCB_TCONSetReg_Proc(nChannel,Addr : Integer; data : Byte): Integer;
+  function MyCB_TCONGetReg_Proc(nChannel,Addr : Integer; var data : Byte): Integer;
+  function MyCB_TCONSetRegArray_Proc(nChannel,Addr : Integer; const data : PByte; nLength : Integer): Integer;
+  function MyCB_TCONSetRegMultiWrite_Proc(nChannel,nType : Integer; Addr : PINT; const data : PByte; nLength : Integer): Integer;
+  function MyCB_TCONSetRegSeqWrite_Proc(nChannel,nMode,nSeqIdx : Integer; Addr : PINT; const data : PByte; nLength : Integer): Integer;
+  function MyCB_TCONGetRegArray_Proc(nChannel,Addr : Integer; data : PByte; nLength : Integer): Integer;
+  function MyCB_FlashWrite_File_Proc(nChannel,StartSeg,EndSeg : Integer; filePath : PAnsiChar): Integer;
+  function MyCB_FlashWrite_Data_Proc(nChannel,StartSeg,nLength : Integer; const data: PByte): Integer;
+  function MyCB_FlashRead_File_Proc(nChannel,StartSeg,nLength : Integer; filePath : PAnsiChar): Integer;
+  function MyCB_FlashRead_Data_Proc(nChannel,nStartSeg,nLength : Integer;  data: PByte): Integer;
+  function MyCB_FlashErase_Proc(nChannel,nStartSeg,nLength : Integer): Integer;
+  function MyCB_measure_XYL_Proc(nChannel:Integer; var dMeasureData : TArray<double>; var nLen : Integer): Integer;
+  function MyCB_GetWaveformData_Proc(nChannel : Integer; var waveform_T: Pdouble; var  waveformData : Pdouble; nMeasureAmount : Integer): Double;
+  function MyCB_SetSync_Proc(nChannel,CA_SyncMode,CA_Hz,channel_num : Integer): Integer ;
 
-  procedure MyCB_TextChanged_1(channel_Index : Integer; bClear : Boolean;  sAddedText : PAnsiChar);cdecl;
-  procedure MyCB_TextChanged_2(channel_Index : Integer; bClear : Boolean;  sAddedText : PAnsiChar);cdecl;
-  procedure MyCB_TextChanged_3(channel_Index : Integer; bClear : Boolean;  sAddedText : PAnsiChar);cdecl;
-  procedure MyCB_TextChanged_4(channel_Index : Integer; bClear : Boolean;  sAddedText : PAnsiChar);cdecl;
-
-
-  function MyCB_AllPowerOnOff_1(nChannel,OnOff: Integer): Integer;
-  function MyCB_AllPowerOnOff_2(nChannel,OnOff: Integer): Integer;
-  function MyCB_AllPowerOnOff_3(nChannel,OnOff: Integer): Integer;
-  function MyCB_AllPowerOnOff_4(nChannel,OnOff: Integer): Integer;
-
-  function MyCB_TCONSetReg_1(nChannel,Addr : Integer; data : Byte): Integer;
-  function MyCB_TCONSetReg_2(nChannel,Addr : Integer; data : Byte): Integer;
-  function MyCB_TCONSetReg_3(nChannel,Addr : Integer; data : Byte): Integer;
-  function MyCB_TCONSetReg_4(nChannel,Addr : Integer; data : Byte): Integer;
-
-  function MyCB_TCONGetReg_1(nChannel,Addr : Integer; var data : Byte): Integer;
-  function MyCB_TCONGetReg_2(nChannel,Addr : Integer; var data : Byte): Integer;
-  function MyCB_TCONGetReg_3(nChannel,Addr : Integer; var data : Byte): Integer;
-  function MyCB_TCONGetReg_4(nChannel,Addr : Integer; var data : Byte): Integer;
-
-  function MyCB_TCONSetRegArray_1(nChannel,Addr : Integer; const data : PByte; nLength : Integer): Integer;
-  function MyCB_TCONSetRegArray_2(nChannel,Addr : Integer; const data : PByte; nLength : Integer): Integer;
-  function MyCB_TCONSetRegArray_3(nChannel,Addr : Integer; const data : PByte; nLength : Integer): Integer;
-  function MyCB_TCONSetRegArray_4(nChannel,Addr : Integer; const data : PByte; nLength : Integer): Integer;
-
-  function MyCB_TCONSetRegMultiWrite_1(nChannel,nType : Integer; Addr : PINT; const data : PByte; nLength : Integer): Integer;
-  function MyCB_TCONSetRegMultiWrite_2(nChannel,nType : Integer; Addr : PINT; const data : PByte; nLength : Integer): Integer;
-  function MyCB_TCONSetRegMultiWrite_3(nChannel,nType : Integer; Addr : PINT; const data : PByte; nLength : Integer): Integer;
-  function MyCB_TCONSetRegMultiWrite_4(nChannel,nType : Integer; Addr : PINT; const data : PByte; nLength : Integer): Integer;
-
-  function MyCB_TCONSetRegSeqWrite_1(nChannel,nMode,nSeqIdx : Integer; Addr : PINT; const data : PByte; nLength : Integer): Integer;
-  function MyCB_TCONSetRegSeqWrite_2(nChannel,nMode,nSeqIdx : Integer; Addr : PINT; const data : PByte; nLength : Integer): Integer;
-  function MyCB_TCONSetRegSeqWrite_3(nChannel,nMode,nSeqIdx : Integer; Addr : PINT; const data : PByte; nLength : Integer): Integer;
-  function MyCB_TCONSetRegSeqWrite_4(nChannel,nMode,nSeqIdx : Integer; Addr : PINT; const data : PByte; nLength : Integer): Integer;
-
-
-  function MyCB_TCONGetRegArray_1(nChannel,Addr : Integer; data : PByte; nLength : Integer): Integer;
-  function MyCB_TCONGetRegArray_2(nChannel,Addr : Integer; data : PByte; nLength : Integer): Integer;
-  function MyCB_TCONGetRegArray_3(nChannel,Addr : Integer; data : PByte; nLength : Integer): Integer;
-  function MyCB_TCONGetRegArray_4(nChannel,Addr : Integer; data : PByte; nLength : Integer): Integer;
-
-  function MyCB_FlashWrite_File_1(nChannel,StartSeg,EndSeg : Integer; filePath : PAnsiChar): Integer;
-  function MyCB_FlashWrite_File_2(nChannel,StartSeg,EndSeg : Integer; filePath : PAnsiChar): Integer;
-  function MyCB_FlashWrite_File_3(nChannel,StartSeg,EndSeg : Integer; filePath : PAnsiChar): Integer;
-  function MyCB_FlashWrite_File_4(nChannel,StartSeg,EndSeg : Integer; filePath : PAnsiChar): Integer;
-
-  function MyCB_FlashWrite_Data_1(nChannel,StartSeg,nLength : Integer; const data: PByte): Integer;
-  function MyCB_FlashWrite_Data_2(nChannel,StartSeg,nLength : Integer; const data: PByte): Integer;
-  function MyCB_FlashWrite_Data_3(nChannel,StartSeg,nLength : Integer; const data: PByte): Integer;
-  function MyCB_FlashWrite_Data_4(nChannel,StartSeg,nLength : Integer; const data: PByte): Integer;
-
-  function MyCB_FlashRead_File_1(nChannel,StartSeg,nLength : Integer; filePath : PAnsiChar): Integer;
-  function MyCB_FlashRead_File_2(nChannel,StartSeg,nLength : Integer; filePath : PAnsiChar): Integer;
-  function MyCB_FlashRead_File_3(nChannel,StartSeg,nLength : Integer; filePath : PAnsiChar): Integer;
-  function MyCB_FlashRead_File_4(nChannel,StartSeg,nLength : Integer; filePath : PAnsiChar): Integer;
-
-  function MyCB_FlashRead_Data_1(nChannel,nStartSeg,nLength : Integer;  data: PByte): Integer;
-  function MyCB_FlashRead_Data_2(nChannel,nStartSeg,nLength : Integer;  data: PByte): Integer;
-  function MyCB_FlashRead_Data_3(nChannel,nStartSeg,nLength : Integer;  data: PByte): Integer;
-  function MyCB_FlashRead_Data_4(nChannel,nStartSeg,nLength : Integer;  data: PByte): Integer;
-
-
-  function MyCB_FlashErase_1(nChannel,nStartSeg,nLength : Integer): Integer;
-  function MyCB_FlashErase_2(nChannel,nStartSeg,nLength : Integer): Integer;
-  function MyCB_FlashErase_3(nChannel,nStartSeg,nLength : Integer): Integer;
-  function MyCB_FlashErase_4(nChannel,nStartSeg,nLength : Integer): Integer;
-
-  function MyCB_measure_XYL_1(nChannel:Integer; var dMeasureData : TArray<double>; var nLen : Integer): Integer;
-  function MyCB_measure_XYL_2(nChannel:Integer; var dMeasureData : TArray<double>; var nLen : Integer): Integer;
-  function MyCB_measure_XYL_3(nChannel:Integer; var dMeasureData : TArray<double>; var nLen : Integer): Integer;
-  function MyCB_measure_XYL_4(nChannel:Integer; var dMeasureData : TArray<double>; var nLen : Integer): Integer;
-
-  function MyCB_GetWaveformData_1(nChannel : Integer; var waveform_T: Pdouble; var  waveformData : Pdouble; nMeasureAmount : Integer): Double;
-  function MyCB_GetWaveformData_2(nChannel : Integer; var waveform_T: Pdouble; var  waveformData : Pdouble; nMeasureAmount : Integer): Double;
-  function MyCB_GetWaveformData_3(nChannel : Integer; var waveform_T: Pdouble; var  waveformData : Pdouble; nMeasureAmount : Integer): Double;
-  function MyCB_GetWaveformData_4(nChannel : Integer; var waveform_T: Pdouble; var  waveformData : Pdouble; nMeasureAmount : Integer): Double;
-
-  function MyCB_SetSync_1(nChannel,CA_SyncMode,CA_Hz,channel_num : Integer): Integer ;
-  function MyCB_SetSync_2(nChannel,CA_SyncMode,CA_Hz,channel_num : Integer): Integer ;
-  function MyCB_SetSync_3(nChannel,CA_SyncMode,CA_Hz,channel_num : Integer): Integer ;
-  function MyCB_SetSync_4(nChannel,CA_SyncMode,CA_Hz,channel_num : Integer): Integer ;
   var
   CSharpDll : TCSharpDll;
 
@@ -355,11 +308,9 @@ begin
 
   m_MainHandle := hMain;
   m_TestHandle := hTest;
-  SetLength(m_bIsProcessDone,4);
-  SetLength(m_bIsProcessUnloadDone,4);
-  SetLength(m_bIsDLLWork,4);
-
-
+  SetLength(m_bIsProcessDone,DefCommon.MAX_PG_CNT);
+  SetLength(m_bIsProcessUnloadDone,DefCommon.MAX_PG_CNT);
+  SetLength(m_bIsDLLWork,DefCommon.MAX_PG_CNT);
 
   for I := 0 to DefCommon.MAX_CH do begin
 
@@ -374,28 +325,12 @@ begin
     tmCheckOCAlive[i] := TTimer.Create(nil);
     tmCheckOCAlive[i].Interval := 1000;
     tmCheckOCAlive[i].Enabled := False;
-    case i of
-    DefCommon.CH1 :
-      begin
-        tmCheckOCAlive[i].OnTimer := OntmGetOCFlowIsAlive1;
-      end;
-    DefCommon.CH2 :
-      begin
-        tmCheckOCAlive[i].OnTimer := OntmGetOCFlowIsAlive2;
-      end;
-    DefCommon.CH3 :
-      begin
-        tmCheckOCAlive[i].OnTimer := OntmGetOCFlowIsAlive3;
-      end;
-    DefCommon.CH4 :
-      begin
-        tmCheckOCAlive[i].OnTimer := OntmGetOCFlowIsAlive4;
-      end;
-    end;
+    tmCheckOCAlive[I].Tag := I;
+
+    tmCheckOCAlive[i].OnTimer := OntmGetOCFlowIsAlive;
 
   end;
 
-  FNgMsg := '';
   FNgMsg := '';
   m_hDll := 0;
   if FileExists(sDllFile) then m_hDll := LoadLibrary(PChar(sDllFile))
@@ -407,266 +342,80 @@ begin
   Setfunction;
 
   m_Init(Common.StringToPAnsiChar(sDLLPath));
-
-
   SendMainGuiDisplay(0,MSG_TYPE_DLL,sFileName,3);
-
-//  SendTestGuiDisplay(MAX_SYSTEM_LOG,DefCommon.MSG_MODE_WORKING,'TCSharpDll.Create End');
 
 end;
 
-
-procedure TCSharpDll.OntmGetOCFlowIsAlive1(Sender: TObject);
+procedure TCSharpDll.OntmGetOCFlowIsAlive(Sender: TObject);
 var
  nPGCH : integer;
 begin
-  nPGCH := 0;
+  nPGCH := (Sender as TTimer).Tag;
   if (m_OCFlowStart[nPGCH]) and Pg[nPGCH].bIsReProgramming  then begin
     Pg[nPGCH].bIsReProgramming := False;
     common.MLog(nPGCH,'<SEQUENCE> ReProgramming - NG');
-//    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,'<SEQUENCE> ReProgramming - NG');
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',0);
-    PG[nPGCH].DP860_FTPDiscon;
-    CSharpDll.MainOC_Stop_CH1(nPGCH);
+//    PG[nPGCH].DP860_FTPDiscon;
+    MainOC_Stop(nPGCH);
   end;
   if (m_OCFlowStart[nPGCH]) and Pg[nPGCH].m_bChkShutdown_Fault  then begin
     common.MLog(nPGCH,'<SEQUENCE> Shutdown_Fault - NG');
-//    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,'<SEQUENCE> Shutdown_Fault - NG');
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',1);
-    PG[nPGCH].DP860_FTPDiscon;
-    CSharpDll.MainOC_Stop_CH1(nPGCH);
+//    PG[nPGCH].DP860_FTPDiscon;
+    MainOC_Stop(nPGCH);
   end;
 
   if (m_OCFlowStart[nPGCH]) and  m_OCCkSerialNB[nPGCH] then begin
     m_OCCkSerialNB[nPGCH] := False;
     common.MLog(nPGCH,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sSerialNo[nPGCH])]));
-//    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sSerialNo[nPGCH])]));
-    PG[nPGCH].DP860_FTPDiscon;
-    CSharpDll.MainOC_Stop_CH1(nPGCH);
+//    PG[nPGCH].DP860_FTPDiscon;
+    MainOC_Stop(nPGCH);
   end;
+  if @m_SetCallback_FlowDone = nil then begin
+    if (m_OCFlowStart[nPGCH]) and (MainOC_GetOCFlowIsAlive(nPGCH) = 0) then begin
+      m_OCFlowStart[nPGCH] := False;
+      tmCheckOCAlive[nPGCH].Enabled := false;
+      try
+        m_nFlagCount[nPGCH] := 0;
+  //      PG[nPGCH].DP860_FTPDiscon;
+        common.MLog(nPGCH,Format('<SEQUENCE> CountInspections : %d',[m_CountInspections[nPGCH]]));
+      finally
+        SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_WORK_DONE,'OKFLOW_END',0);
+      end;
 
-  if (m_OCFlowStart[nPGCH]) and (MainOC_GetOCFlowIsAlive(nPGCH) = 0) then begin
-    m_OCFlowStart[nPGCH] := False;
-    tmCheckOCAlive[nPGCH].Enabled := false;
-    m_nFlagCount[nPGCH] := 0;
-    PG[nPGCH].DP860_FTPDiscon;
-    common.MLog(nPGCH,Format('<SEQUENCE> CountInspections : %d',[m_CountInspections[nPGCH]]));
-//    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,Format('<SEQUENCE> CountInspections : %d',[m_CountInspections[nPGCH]]));
-    SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_WORK_DONE,'OKFLOW_END',0);
-  end;
-
-end;
-
-procedure TCSharpDll.OntmGetOCFlowIsAlive2(Sender: TObject);
-var
- nPGCH : integer;
-begin
-  nPGCH := 1;
-  if (m_OCFlowStart[nPGCH]) and Pg[nPGCH].bIsReProgramming then begin
-    Pg[nPGCH].bIsReProgramming := False;
-//    common.MLog(DefCommon.CH2,'<SEQUENCE> ReProgramming - NG');
-    common.MLog(nPGCH,'<SEQUENCE> ReProgramming - NG');
-//    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,'<SEQUENCE> ReProgramming - NG');
-    SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',0);
-    PG[nPGCH].DP860_FTPDiscon;
-    CSharpDll.MainOC_Stop_CH2(nPGCH);
-  end;
-  if (m_OCFlowStart[nPGCH]) and Pg[nPGCH].m_bChkShutdown_Fault  then begin
-    common.MLog(nPGCH,'<SEQUENCE> Shutdown_Fault - NG');
-//    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,'<SEQUENCE> Shutdown_Fault - NG');
-    SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',1);
-    PG[nPGCH].DP860_FTPDiscon;
-    CSharpDll.MainOC_Stop_CH2(nPGCH);
-  end;
-  if (m_OCFlowStart[nPGCH]) and  m_OCCkSerialNB[nPGCH] then begin
-    m_OCCkSerialNB[nPGCH] := False;
-    common.MLog(nPGCH,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sSerialNo[nPGCH])]));
-//    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sSerialNo[nPGCH])]));
-    PG[nPGCH].DP860_FTPDiscon;
-    CSharpDll.MainOC_Stop_CH2(nPGCH);
-  end;
-
-  if (m_OCFlowStart[nPGCH]) and (MainOC_GetOCFlowIsAlive(nPGCH) = 0) then begin
-    m_OCFlowStart[nPGCH] := False;
-    tmCheckOCAlive[nPGCH].Enabled := false;
-    m_nFlagCount[nPGCH] := 0;
-    PG[nPGCH].DP860_FTPDiscon;
-    common.MLog(nPGCH,Format('<SEQUENCE> CountInspections : %d',[m_CountInspections[nPGCH]]));
-//    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,Format('<SEQUENCE> CountInspections : %d',[m_CountInspections[nPGCH]]));
-    SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_WORK_DONE,'OKFLOW_END',0);
-
+    end;
   end;
 
 end;
 
-procedure TCSharpDll.OntmGetOCFlowIsAlive3(Sender: TObject);
-var
- nPGCH : integer;
-begin
-  nPGCH := 2;
-  if (m_OCFlowStart[nPGCH]) and Pg[nPGCH].bIsReProgramming then begin
-    Pg[nPGCH].bIsReProgramming := False;
-    common.MLog(nPGCH,'<SEQUENCE> ReProgramming - NG');
-//    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,'<SEQUENCE> ReProgramming - NG');
-    SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',0);
-    PG[nPGCH].DP860_FTPDiscon;
-    CSharpDll.MainOC_Stop_CH3(nPGCH);
-  end;
-  if (m_OCFlowStart[nPGCH]) and Pg[nPGCH].m_bChkShutdown_Fault  then begin
-    common.MLog(nPGCH,'<SEQUENCE> Shutdown_Fault - NG');
-//    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,'<SEQUENCE> Shutdown_Fault - NG');
-    SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',1);
-    PG[nPGCH].DP860_FTPDiscon;
-    CSharpDll.MainOC_Stop_CH3(nPGCH);
-  end;
-  if (m_OCFlowStart[nPGCH]) and  m_OCCkSerialNB[nPGCH] then begin
-    m_OCCkSerialNB[nPGCH] := False;
-    common.MLog(nPGCH,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sSerialNo[nPGCH])]));
-//    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sSerialNo[nPGCH])]));
-    PG[nPGCH].DP860_FTPDiscon;
-    CSharpDll.MainOC_Stop_CH3(nPGCH);
-  end;
-  if (m_OCFlowStart[nPGCH]) and (MainOC_GetOCFlowIsAlive(nPGCH) = 0) then begin
-    m_OCFlowStart[nPGCH] := False;
-    tmCheckOCAlive[nPGCH].Enabled := false;
-    m_nFlagCount[nPGCH] := 0;
-    PG[nPGCH].DP860_FTPDiscon;
-    common.MLog(nPGCH,Format('<SEQUENCE> CountInspections : %d',[m_CountInspections[nPGCH]]));
-//    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,Format('<SEQUENCE> CountInspections : %d',[m_CountInspections[nPGCH]]));
-    SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_WORK_DONE,'OKFLOW_END',0);
 
-  end;
-
-end;
-
-procedure TCSharpDll.OntmGetOCFlowIsAlive4(Sender: TObject);
-var
- nPGCH : integer;
-begin
-  nPGCH := 3;
-  if (m_OCFlowStart[nPGCH]) and Pg[nPGCH].bIsReProgramming then begin
-    Pg[nPGCH].bIsReProgramming := False;
-    common.MLog(nPGCH,'<SEQUENCE> ReProgramming - NG');
-//    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,'<SEQUENCE> ReProgramming - NG');
-    SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',0);
-    PG[nPGCH].DP860_FTPDiscon;
-    CSharpDll.MainOC_Stop_CH4(nPGCH);
-  end;
-  if (m_OCFlowStart[nPGCH]) and Pg[nPGCH].m_bChkShutdown_Fault  then begin
-    common.MLog(nPGCH,'<SEQUENCE> Shutdown_Fault - NG');
-//    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,'<SEQUENCE> Shutdown_Fault - NG');
-    SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',1);
-    PG[nPGCH].DP860_FTPDiscon;
-    CSharpDll.MainOC_Stop_CH4(nPGCH);
-  end;
-  if (m_OCFlowStart[nPGCH]) and  m_OCCkSerialNB[nPGCH] then begin
-    m_OCCkSerialNB[nPGCH] := False;
-    common.MLog(nPGCH,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sSerialNo[nPGCH])]));
-//    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sSerialNo[nPGCH])]));
-    PG[nPGCH].DP860_FTPDiscon;
-    CSharpDll.MainOC_Stop_CH4(nPGCH);
-  end;
-  if (m_OCFlowStart[nPGCH]) and (MainOC_GetOCFlowIsAlive(nPGCH) = 0) then begin
-    m_OCFlowStart[nPGCH] := False;
-    tmCheckOCAlive[nPGCH].Enabled := false;
-    m_nFlagCount[nPGCH] := 0;
-    PG[nPGCH].DP860_FTPDiscon;
-    common.MLog(nPGCH,Format('<SEQUENCE> CountInspections : %d',[m_CountInspections[nPGCH]]));
-//    SendTestGuiDisplay(nPGCH,DefCommon.MSG_MODE_WORKING,Format('<SEQUENCE> CountInspections : %d',[m_CountInspections[nPGCH]]));
-    SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_WORK_DONE,'OKFLOW_END',0);
-
-  end;
-
-end;
-
-procedure TCSharpDll.Create_Test;
+procedure TCSharpDll.Create_CallBackFunction;
 begin
   CreateCallBackFunction;
-
 end;
 
-function MyCB_AllPowerOnOff_1(nChannel,OnOff: Integer): Integer;
+function MyCB_AllPowerOnOff_Proc(nChannel,OnOff: Integer): Integer;
 var
 nWaitMS,nRetry,wdRet : Integer;
 PwrData : PPwrData;
 begin
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  nWaitMS := 3000;
-  nRetry  := 0;  // No Retry
-  {$IFDEF PG_AF9}
-  PGAF9Fpga[nChannel].AF9_AllPowerOnOff(OnOff);  //OFF
-  Result := WAIT_OBJECT_0;
-  {$ENDIF}
-  {$IFDEF PG_DP860}
-  Result := Pg[nChannel].SendPowerBistOn(OnOff,True,nWaitMS,nRetry); //TBD:DP860?
-  if OnOff = 1 then begin  // Power On 이후 Power 확인
-    wdRet   := Pg[nChannel].SendPowerMeasure(True{bWait});
+  if CSharpDll <> nil then begin
+    CSharpDll.m_nFlagCount[nChannel] := 0;
+    nWaitMS := 3000;
+    nRetry  := 0;  // No Retry
+    {$IFDEF PG_AF9}
+    PGAF9Fpga[nChannel].AF9_AllPowerOnOff(OnOff);  //OFF
+    Result := WAIT_OBJECT_0;
+    {$ENDIF}
+    {$IFDEF PG_DP860}
+    Result := Pg[nChannel].SendPowerBistOn(OnOff,True,nWaitMS,nRetry); //TBD:DP860?
+    if OnOff = 1 then begin  // Power On 이후 Power 확인
+      wdRet   := Pg[nChannel].SendPowerMeasure(True{bWait});
+    end;
+    {$ENDIF}
   end;
-//  Sleep(500); //2023-04-05
-  {$ENDIF}
 end;
 
-
-function MyCB_AllPowerOnOff_2(nChannel,OnOff: Integer): Integer;
-var
-nWaitMS,nRetry,wdRet : Integer;
-begin
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  nWaitMS := 3000;
-  nRetry  := 0;  // No Retry
-  {$IFDEF PG_AF9}
-  PGAF9Fpga[nChannel].AF9_AllPowerOnOff(OnOff);  //OFF
-  Result := WAIT_OBJECT_0;
-  {$ENDIF}
-  {$IFDEF PG_DP860}
-
-  Result := Pg[nChannel].SendPowerBistOn(OnOff,True,nWaitMS,nRetry); //TBD:DP860?
-  if OnOff = 1 then begin  // Power On 이후 Power 확인
-    wdRet   := Pg[nChannel].SendPowerMeasure(True{bWait});
-  end;
-//  Sleep(500); //2023-04-05
-  {$ENDIF}
-end;
-
-function MyCB_AllPowerOnOff_3(nChannel,OnOff: Integer): Integer;
-var
-nWaitMS,nRetry,wdRet : Integer;
-begin
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  nWaitMS := 3000;
-  nRetry  := 0;  // No Retry
-  {$IFDEF PG_AF9}
-  PGAF9Fpga[nChannel].AF9_AllPowerOnOff(OnOff);  //OFF
-  Result := WAIT_OBJECT_0;
-  {$ENDIF}
-  {$IFDEF PG_DP860}
-  Result := Pg[nChannel].SendPowerBistOn(OnOff,True,nWaitMS,nRetry); //TBD:DP860?
-  if OnOff = 1 then begin  // Power On 이후 Power 확인
-    wdRet   := Pg[nChannel].SendPowerMeasure(True{bWait});
-  end;
-//  Sleep(500); //2023-04-05
-  {$ENDIF}
-end;
-
-function MyCB_AllPowerOnOff_4(nChannel,OnOff: Integer): Integer;
-var
-nWaitMS,nRetry,wdRet : Integer;
-begin
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  nWaitMS := 3000;
-  nRetry  := 0;  // No Retry
-  {$IFDEF PG_AF9}
-  PGAF9Fpga[nChannel].AF9_AllPowerOnOff(OnOff);  //OFF
-  Result := WAIT_OBJECT_0;
-  {$ENDIF}
-  {$IFDEF PG_DP860}
-  Result := Pg[nChannel].SendPowerBistOn(OnOff,True,nWaitMS,nRetry); //TBD:DP860?
-  if OnOff = 1 then begin  // Power On 이후 Power 확인
-    wdRet   := Pg[nChannel].SendPowerMeasure(True{bWait});
-  end;
-//  Sleep(500); //2023-04-05
-  {$ENDIF}
-end;
 
 
 function BinaryToDecimal(binaryStr: string): Integer;
@@ -851,7 +600,7 @@ begin
   end;
 end;
 
-function MyCB_TCONSetReg_1(nChannel , Addr : Integer; data : Byte): Integer;
+function MyCB_TCONSetReg_Proc(nChannel , Addr : Integer; data : Byte): Integer;
 var
 nWaitMS,nRetry,nDataCnt : Integer;
 sDebug,sTxData : string;
@@ -859,340 +608,89 @@ arRData : TIdBytes;
 nResult,i,nRet,nDebugLog : integer;
 sGrayRGB : string;
 begin
-  Inc(PG[nChannel].TconRWCnt.TconWriteDllCall); //2023-03-28 jhhwang (for T/T Test)
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  nWaitMS := 1000; //2023-04-08 (3000->100->200->1000)
-  nRetry  := 2;   //2023-04-08 (0->3->0)
+  if CSharpDll <> nil then begin
+    Inc(PG[nChannel].TconRWCnt.TconWriteDllCall); //2023-03-28 jhhwang (for T/T Test)
+    CSharpDll.m_nFlagCount[nChannel] := 0;
+    nWaitMS := 1000; //2023-04-08 (3000->100->200->1000)
+    nRetry  := 2;   //2023-04-08 (0->3->0)
 
-  {$IFDEF PG_AF9}
-  PGAF9Fpga[nChannel].AF9_AllPowerOnOff(OnOff);  //OFF
-  Result := WAIT_OBJECT_0;
-  {$ENDIF}
-  {$IFDEF PG_DP860}
-  nDataCnt := 1;
-  SetLength(arRData,nDataCnt);
+    {$IFDEF PG_AF9}
+    PGAF9Fpga[nChannel].AF9_AllPowerOnOff(OnOff);  //OFF
+    Result := WAIT_OBJECT_0;
+    {$ENDIF}
+    {$IFDEF PG_DP860}
+    nDataCnt := 1;
+    SetLength(arRData,nDataCnt);
 
-  try
-    arrData[0] := data;
-    sTxData := Format(' 0x%0.2x',[arrData[0]]);
+    try
+      arrData[0] := data;
+      sTxData := Format(' 0x%0.2x',[arrData[0]]);
 
-    for I := 0 to nRetry do begin
-      if i <> 2 then  nDebugLog := 0
-      else nDebugLog := 1;
-
-      nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nDataCnt, arrData, nWaitMS,0,nDebugLog);
-      if nResult <> WAIT_OBJECT_0 then begin
-        Inc(PG[nChannel].TconRWCnt.TconRetryWriteCall);
-      end
-      else begin
-        Break;
-      end;
-    end;
-    if nResult <> WAIT_OBJECT_0 then begin
-  {$IFDEF SIMULATOR_PG}
-
-  {$ELSE}
-      sDebug := Format('TCONSetReg NG CH : %d',[nChannel]);
-      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-  //    CSharpDll.MainOC_Stop_CH1(nChannel);
-  {$ENDIF}
-
-    end;
-
-    Result := nResult;
-  finally
-    SetLength(arRData,0);
-  end;
-
-  {$ENDIF}
-end;
-
-
-function MyCB_TCONSetReg_2(nChannel , Addr : Integer; data : Byte): Integer;
-var
-nWaitMS,nRetry,nDataCnt : Integer;
-sDebug,sTxData,sGrayRGB : string;
-arRData : TIdBytes;
-nResult,i,nRet,nDebugLog: integer;
-begin
-  Inc(PG[nChannel].TconRWCnt.TconWriteDllCall); //2023-03-28 jhhwang (for T/T Test)
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  nWaitMS := 1000; //2023-04-08 (3000->100->200->1000)
-  nRetry  := 2;   //2023-04-08 (0->3->0)
-
-  {$IFDEF PG_AF9}
-  PGAF9Fpga[nChannel].AF9_AllPowerOnOff(OnOff);  //OFF
-  Result := WAIT_OBJECT_0;
-  {$ENDIF}
-  {$IFDEF PG_DP860}
-  nDataCnt := 1;
-  SetLength(arRData,nDataCnt);
-  try
-    arrData[0] := data;
-    sTxData := Format(' 0x%0.2x',[arrData[0]]);
-
-    for I := 0 to nRetry do begin
-      if i <> 2 then  nDebugLog := 0
+      for I := 0 to nRetry do begin
+        if i <> 2 then  nDebugLog := 0
         else nDebugLog := 1;
-      nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nDataCnt, arrData, nWaitMS,0,nDebugLog);
-      if nResult <> WAIT_OBJECT_0 then begin
-        Inc(PG[nChannel].TconRWCnt.TconRetryWriteCall);
-      end
-      else begin
-        Break;
-      end;
-    end;
-    if nResult <> WAIT_OBJECT_0 then begin
-  {$IFDEF SIMULATOR_PG}
 
-  {$ELSE}
-      sDebug := Format('TCONSetReg NG CH : %d',[nChannel]);
-      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-  //    CSharpDll.MainOC_Stop_CH2(nChannel);
-  {$ENDIF}
+        nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nDataCnt, arrData, nWaitMS,0,nDebugLog);
+        if nResult <> WAIT_OBJECT_0 then begin
+          Inc(PG[nChannel].TconRWCnt.TconRetryWriteCall);
+        end
+        else begin
+          Break;
+        end;
+      end;
+      if nResult <> WAIT_OBJECT_0 then begin
+    {$IFDEF SIMULATOR_PG}
+
+    {$ELSE}
+        sDebug := Format('TCONSetReg NG CH : %d',[nChannel]);
+        CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
+    {$ENDIF}
+      end;
+      Result := nResult;
+    finally
+      SetLength(arRData,0);
     end;
-    Result := nResult;
-  {$ENDIF}
-  finally
-    SetLength(arRData,0);
+
+    {$ENDIF}
   end;
 end;
 
 
-
-function MyCB_TCONSetReg_3(nChannel , Addr : Integer; data : Byte): Integer;
-var
-nWaitMS,nRetry,nDataCnt : Integer;
-sDebug,sTxData,sGrayRGB : string;
-arRData : TIdBytes;
-nResult,i,nRet,nDebugLog : integer;
-begin
-  Inc(PG[nChannel].TconRWCnt.TconWriteDllCall); //2023-03-28 jhhwang (for T/T Test)
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  nWaitMS := 1000; //2023-04-08 (3000->100->200->1000)
-  nRetry  := 2;   //2023-04-08 (0->3->0)
-
-  {$IFDEF PG_AF9}
-  PGAF9Fpga[nChannel].AF9_AllPowerOnOff(OnOff);  //OFF
-  Result := WAIT_OBJECT_0;
-  {$ENDIF}
-  {$IFDEF PG_DP860}
-
-  nDataCnt := 1;
-  SetLength(arRData,nDataCnt);
-  try
-    arrData[0] := data;
-    sTxData := Format(' 0x%0.2x',[arrData[0]]);
-
-    for I := 0 to nRetry do begin
-      if i <> 2 then  nDebugLog := 0
-      else nDebugLog := 1;
-      nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nDataCnt, arrData, nWaitMS,0,nDebugLog);
-      if nResult <> WAIT_OBJECT_0 then begin
-        Inc(PG[nChannel].TconRWCnt.TconRetryWriteCall);
-      end
-      else begin
-        Break;
-      end;
-    end;
-    if nResult <> WAIT_OBJECT_0 then begin
-  {$IFDEF SIMULATOR_PG}
-
-  {$ELSE}
-      sDebug := Format('TCONSetReg NG CH : %d',[nChannel]);
-      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-  //    CSharpDll.MainOC_Stop_CH3(nChannel);
-  {$ENDIF}
-    end;
-    Result := nResult;
-  {$ENDIF}
-  finally
-    SetLength(arRData,0);
-  end;
-end;
-
-
-function MyCB_TCONSetReg_4(nChannel , Addr : Integer; data : Byte): Integer;
-var
-nWaitMS,nRetry,nDataCnt : Integer;
-sDebug,sTxData,sGrayRGB : string;
-arRData : TIdBytes;
-nResult,i,nRet,nDebugLog: integer;
-begin
-  Inc(PG[nChannel].TconRWCnt.TconWriteDllCall); //2023-03-28 jhhwang (for T/T Test)
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  nWaitMS := 1000; //2023-04-08 (3000->100->200->1000)
-  nRetry  := 2;   //2023-04-08 (0->3->0)
-
-  {$IFDEF PG_AF9}
-  PGAF9Fpga[nChannel].AF9_AllPowerOnOff(OnOff);  //OFF
-  Result := WAIT_OBJECT_0;
-  {$ENDIF}
-  {$IFDEF PG_DP860}
-  nDataCnt := 1;
-  SetLength(arRData,nDataCnt);
-  try
-    arrData[0] := data;
-    sTxData := Format(' 0x%0.2x',[arrData[0]]);
-
-    for I := 0 to nRetry do begin
-      if i <> 2 then  nDebugLog := 0
-      else nDebugLog := 1;
-      nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nDataCnt, arrData, nWaitMS,0 ,nDebugLog);
-      if nResult <> WAIT_OBJECT_0 then begin
-        Inc(PG[nChannel].TconRWCnt.TconRetryWriteCall);
-      end
-      else begin
-        Break;
-      end;
-    end;
-    if nResult <> WAIT_OBJECT_0 then begin
-  {$IFDEF SIMULATOR_PG}
-
-  {$ELSE}
-      sDebug := Format('TCONSetReg NG CH : %d',[nChannel]);
-      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-  //    CSharpDll.MainOC_Stop_CH4(nChannel);
-  {$ENDIF}
-    end;
-
-  Result := nResult;
-  {$ENDIF}
-  finally
-    SetLength(arRData,0);
-  end;
-end;
-
-function MyCB_TCONSetRegArray_1(nChannel , Addr : Integer; const data : PByte; nLength : integer): Integer;
+function MyCB_TCONSetRegArray_Proc(nChannel , Addr : Integer; const data : PByte; nLength : integer): Integer;
 var
 nWaitMS,nRetry,nDataCnt : Integer;
 sDebug,sTxData : string;
 arRData : TIdBytes;
 nResult : integer;
 begin
-  Inc(PG[nChannel].TconRWCnt.TconWriteArrayDllCall); //2023-03-28 jhhwang (for T/T Test)
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  nWaitMS := 1000; //2023-04-08 (3000->100->200)
-  nRetry  := 0;   //2023-04-08 (0->3->0)
+  if CSharpDll <> nil then begin
+    Inc(PG[nChannel].TconRWCnt.TconWriteArrayDllCall); //2023-03-28 jhhwang (for T/T Test)
+    CSharpDll.m_nFlagCount[nChannel] := 0;
+    nWaitMS := 1000; //2023-04-08 (3000->100->200)
+    nRetry  := 0;   //2023-04-08 (0->3->0)
 
-  nDataCnt := nLength;
-  SetLength(arRData,nDataCnt);
-  try
-    Move(data^, arRData[0], nLength);
+    nDataCnt := nLength;
+    SetLength(arRData,nDataCnt);
+    try
+      Move(data^, arRData[0], nLength);
 
-    nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nLength, arRData, nWaitMS,nRetry);
-    if nResult <> WAIT_OBJECT_0  then  begin
       nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nLength, arRData, nWaitMS,nRetry);
-      if nResult <> WAIT_OBJECT_0 then begin
-        sDebug := Format('TCONSetRegArray NG CH : %d',[nChannel]);
-        CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-  //      CSharpDll.MainOC_Stop_CH1(nChannel);
+      if nResult <> WAIT_OBJECT_0  then  begin
+        nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nLength, arRData, nWaitMS,nRetry);
+        if nResult <> WAIT_OBJECT_0 then begin
+          sDebug := Format('TCONSetRegArray NG CH : %d',[nChannel]);
+          CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
+        end;
       end;
+      Result := nResult;
+    finally
+      SetLength(arRData,0);
     end;
-    Result := nResult;
-  finally
-    SetLength(arRData,0);
   end;
 
 end;
 
-function MyCB_TCONSetRegArray_2(nChannel , Addr : Integer; const data : PByte; nLength : integer): Integer;
-var
-nWaitMS,nRetry,nDataCnt : Integer;
-sDebug,sTxData : string;
-arRData : TIdBytes;
-nResult : integer;
-begin
-  Inc(PG[nChannel].TconRWCnt.TconWriteArrayDllCall); //2023-03-28 jhhwang (for T/T Test)
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  nWaitMS := 1000; //2023-04-08 (3000->100->200)
-  nRetry  := 0;   //2023-04-08 (0->3->0)
-
-  nDataCnt := nLength;
-  SetLength(arRData,nDataCnt);
-  try
-    Move(data^, arRData[0], nLength);
-
-    nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nLength, arRData, nWaitMS,nRetry);
-    if nResult <> WAIT_OBJECT_0  then  begin
-      nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nLength, arRData, nWaitMS,nRetry);
-      if nResult <> WAIT_OBJECT_0 then begin
-        sDebug := Format('TCONSetRegArray NG CH : %d',[nChannel]);
-        CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-  //      CSharpDll.MainOC_Stop_CH2(nChannel);
-      end;
-    end;
-    Result := nResult;
-  finally
-    SetLength(arRData,0);
-  end;
-end;
-
-function MyCB_TCONSetRegArray_3(nChannel , Addr : Integer; const  data : PByte; nLength : integer): Integer;
-var
-nWaitMS,nRetry,nDataCnt : Integer;
-sDebug,sTxData : string;
-arRData : TIdBytes;
-nResult : integer;
-begin
-  Inc(PG[nChannel].TconRWCnt.TconWriteArrayDllCall); //2023-03-28 jhhwang (for T/T Test)
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  nWaitMS := 1000; //2023-04-08 (3000->100->200)
-  nRetry  := 0;   //2023-04-08 (0->3->0)
-
-  nDataCnt := nLength;
-  SetLength(arRData,nDataCnt);
-  try
-    Move(data^, arRData[0], nLength);
-
-    nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nLength, arRData, nWaitMS,nRetry);
-    if nResult <> WAIT_OBJECT_0  then  begin
-      nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nLength, arRData, nWaitMS,nRetry);
-      if nResult <> WAIT_OBJECT_0 then begin
-        sDebug := Format('TCONSetRegArray NG CH : %d',[nChannel]);
-        CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-  //      CSharpDll.MainOC_Stop_CH3(nChannel);
-      end;
-    end;
-    Result := nResult;
-  finally
-    SetLength(arRData,0);
-  end;
-end;
-
-function MyCB_TCONSetRegArray_4(nChannel , Addr : Integer; const data : PByte; nLength : integer): Integer;
-var
-nWaitMS,nRetry,nDataCnt : Integer;
-sDebug,sTxData : string;
-arRData : TIdBytes;
-nResult : integer;
-begin
-  Inc(PG[nChannel].TconRWCnt.TconWriteArrayDllCall); //2023-03-28 jhhwang (for T/T Test)
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  nWaitMS := 1000; //2023-04-08 (3000->100->200)
-  nRetry  := 0;   //2023-04-08 (0->3->0)
-
-  nDataCnt := nLength;
-  SetLength(arRData,nDataCnt);
-  try
-    Move(data^, arRData[0],nLength);
-
-    nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nLength, arRData, nWaitMS,nRetry);
-    if nResult <> WAIT_OBJECT_0  then  begin
-      nResult := Pg[nChannel].SendI2CWrite(DEVICE_ADDRESS,Addr,nLength, arRData, nWaitMS,nRetry);
-      if nResult <> WAIT_OBJECT_0 then begin
-        sDebug := Format('TCONSetRegArray NG CH : %d',[nChannel]);
-        CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-  //      CSharpDll.MainOC_Stop_CH4(nChannel);
-      end;
-    end;
-    Result := nResult;
-  finally
-    SetLength(arRData,0);
-  end;
-end;
-
-function MyCB_TCONSetRegMultiWrite_1(nChannel,nType : Integer; Addr : PINT; const data : PByte; nLength : Integer): Integer;
+function MyCB_TCONSetRegMultiWrite_Proc(nChannel,nType : Integer; Addr : PINT; const data : PByte; nLength : Integer): Integer;
 var
 nWaitMS,nRetry,nDataCnt : Integer;
 sDebug,sTxData : string;
@@ -1200,150 +698,37 @@ arRData : TIdBytes;
 arRAddr : array of Integer;
 nResult : integer;
 begin
-  Inc(PG[nChannel].TconRWCnt.TconMultiWriteDllCall); //2023-03-28 jhhwang (for T/T Test)
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  nWaitMS := 1000; //2023-04-08 (3000->100->200)
-  nRetry  := 0;   //2023-04-08 (0->3->0)
+  if CSharpDll <> nil then begin
+    Inc(PG[nChannel].TconRWCnt.TconMultiWriteDllCall); //2023-03-28 jhhwang (for T/T Test)
+    CSharpDll.m_nFlagCount[nChannel] := 0;
+    nWaitMS := 1000; //2023-04-08 (3000->100->200)
+    nRetry  := 0;   //2023-04-08 (0->3->0)
 
-  nDataCnt := nLength;
-  SetLength(arRAddr,nDataCnt);
-  SetLength(arRData,nDataCnt);
-  try
-    Move(Addr^, arRAddr[0],nDataCnt * SizeOf(Integer));
-    Move(data^, arRData[0],nLength);
+    nDataCnt := nLength;
+    SetLength(arRAddr,nDataCnt);
+    SetLength(arRData,nDataCnt);
+    try
+      Move(Addr^, arRAddr[0],nDataCnt * SizeOf(Integer));
+      Move(data^, arRData[0],nLength);
 
-    nResult := Pg[nChannel].SendI2CMultiWrite(DEVICE_ADDRESS,nLength,arRAddr, arRData, nWaitMS,nRetry);
-    if nResult <> WAIT_OBJECT_0  then  begin
       nResult := Pg[nChannel].SendI2CMultiWrite(DEVICE_ADDRESS,nLength,arRAddr, arRData, nWaitMS,nRetry);
-      if nResult <> WAIT_OBJECT_0 then begin
-        sDebug := Format('TCONSetRegMultiWrite NG CH : %d',[nChannel]);
-        CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-  //      CSharpDll.MainOC_Stop_CH1(nChannel);
+      if nResult <> WAIT_OBJECT_0  then  begin
+        nResult := Pg[nChannel].SendI2CMultiWrite(DEVICE_ADDRESS,nLength,arRAddr, arRData, nWaitMS,nRetry);
+        if nResult <> WAIT_OBJECT_0 then begin
+          sDebug := Format('TCONSetRegMultiWrite NG CH : %d',[nChannel]);
+          CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
+        end;
       end;
+      Result := nResult;
+    finally
+      SetLength(arRAddr,0);
+      SetLength(arRData,0);
     end;
-  //  Sleep(50); //2023-0926
-    Result := nResult;
-  finally
-    SetLength(arRAddr,0);
-    SetLength(arRData,0);
   end;
 end;
 
 
-function MyCB_TCONSetRegMultiWrite_2(nChannel,nType : Integer; Addr : PINT; const data : PByte; nLength : Integer): Integer;
-var
-nWaitMS,nRetry,nDataCnt : Integer;
-sDebug,sTxData : string;
-arRData : TIdBytes;
-arRAddr : array of Integer;
-nResult : integer;
-begin
-  Inc(PG[nChannel].TconRWCnt.TconMultiWriteDllCall); //2023-03-28 jhhwang (for T/T Test)
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  nWaitMS := 1000; //2023-04-08 (3000->100->200)
-  nRetry  := 0;   //2023-04-08 (0->3->0)
-
-  nDataCnt := nLength;
-  SetLength(arRAddr,nDataCnt);
-  SetLength(arRData,nDataCnt);
-  try
-    Move(Addr^, arRAddr[0],nLength*  SizeOf(Integer));
-    Move(data^, arRData[0],nLength);
-
-    nResult := Pg[nChannel].SendI2CMultiWrite(DEVICE_ADDRESS,nLength,arRAddr, arRData, nWaitMS,nRetry);
-    if nResult <> WAIT_OBJECT_0  then  begin
-      nResult := Pg[nChannel].SendI2CMultiWrite(DEVICE_ADDRESS,nLength,arRAddr, arRData, nWaitMS,nRetry);
-      if nResult <> WAIT_OBJECT_0 then begin
-        sDebug := Format('TCONSetRegMultiWrite NG CH : %d',[nChannel]);
-        CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-  //      CSharpDll.MainOC_Stop_CH2(nChannel);
-      end;
-    end;
-  //  Sleep(50); //2023-0926
-    Result := nResult;
-  finally
-    SetLength(arRAddr,0);
-    SetLength(arRData,0);
-  end;
-end;
-
-
-function MyCB_TCONSetRegMultiWrite_3(nChannel,nType : Integer; Addr : PINT; const data : PByte; nLength : Integer): Integer;
-var
-nWaitMS,nRetry,nDataCnt : Integer;
-sDebug,sTxData : string;
-arRData : TIdBytes;
-arRAddr : array of Integer;
-nResult : integer;
-begin
-  Inc(PG[nChannel].TconRWCnt.TconMultiWriteDllCall); //2023-03-28 jhhwang (for T/T Test)
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  nWaitMS := 1000; //2023-04-08 (3000->100->200)
-  nRetry  := 0;   //2023-04-08 (0->3->0)
-
-  nDataCnt := nLength;
-  SetLength(arRAddr,nDataCnt);
-  SetLength(arRData,nDataCnt);
-  try
-    Move(Addr^, arRAddr[0],nLength*  SizeOf(Integer));
-    Move(data^, arRData[0],nLength);
-
-    nResult := Pg[nChannel].SendI2CMultiWrite(DEVICE_ADDRESS,nLength,arRAddr, arRData, nWaitMS,nRetry);
-    if nResult <> WAIT_OBJECT_0  then  begin
-      nResult := Pg[nChannel].SendI2CMultiWrite(DEVICE_ADDRESS,nLength,arRAddr, arRData, nWaitMS,nRetry);
-      if nResult <> WAIT_OBJECT_0 then begin
-        sDebug := Format('TCONSetRegMultiWrite NG CH : %d',[nChannel]);
-        CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-  //      CSharpDll.MainOC_Stop_CH3(nChannel);
-      end;
-    end;
-  //  Sleep(50); //2023-0926
-    Result := nResult;
-  finally
-    SetLength(arRAddr,0);
-    SetLength(arRData,0);
-  end;
-end;
-
-
-function MyCB_TCONSetRegMultiWrite_4(nChannel,nType : Integer; Addr : PINT; const data : PByte; nLength : Integer): Integer;
-var
-nWaitMS,nRetry,nDataCnt : Integer;
-sDebug,sTxData : string;
-arRData : TIdBytes;
-arRAddr : array of Integer;
-nResult : integer;
-begin
-  Inc(PG[nChannel].TconRWCnt.TconMultiWriteDllCall); //2023-03-28 jhhwang (for T/T Test)
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  nWaitMS := 1000; //2023-04-08 (3000->100->200)
-  nRetry  := 0;   //2023-04-08 (0->3->0)
-
-  nDataCnt := nLength;
-  SetLength(arRAddr,nDataCnt);
-  SetLength(arRData,nDataCnt);
-  try
-    Move(Addr^, arRAddr[0],nLength*  SizeOf(Integer));
-    Move(data^, arRData[0],nLength);
-
-    nResult := Pg[nChannel].SendI2CMultiWrite(DEVICE_ADDRESS,nLength,arRAddr, arRData, nWaitMS,nRetry);
-    if nResult <> WAIT_OBJECT_0  then  begin
-      nResult := Pg[nChannel].SendI2CMultiWrite(DEVICE_ADDRESS,nLength,arRAddr, arRData, nWaitMS,nRetry);
-      if nResult <> WAIT_OBJECT_0 then begin
-        sDebug := Format('TCONSetRegMultiWrite NG CH : %d',[nChannel]);
-        CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-  //      CSharpDll.MainOC_Stop_CH4(nChannel);
-      end;
-    end;
-  //  Sleep(50); //2023-0926
-    Result := nResult;
-  finally
-    SetLength(arRAddr,0);
-    SetLength(arRData,0);
-  end;
-end;
-
-function MyCB_TCONSetRegSeqWrite_1(nChannel,nMode,nSeqIdx : Integer; Addr : PINT; const data : PByte; nLength : Integer): Integer;
+function MyCB_TCONSetRegSeqWrite_Proc(nChannel,nMode,nSeqIdx : Integer; Addr : PINT; const data : PByte; nLength : Integer): Integer;
 var
 nWaitMS,nRetry,nDataCnt : Integer;
 sDebug,sTxData : string;
@@ -1352,185 +737,45 @@ arRAddr : array of Integer;
 nResult,nDebugLog : integer;
 i : Integer;
 begin
-  Inc(PG[nChannel].TconRWCnt.TconWriteDllCall);
+  if CSharpDll <> nil then begin
+    Inc(PG[nChannel].TconRWCnt.TconWriteDllCall);
 
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  nWaitMS := 3000; //2023-04-08 (3000->100->200)
-  nRetry  := 2;   //2023-04-08 (0->3->0)
+    CSharpDll.m_nFlagCount[nChannel] := 0;
+    nWaitMS := 3000; //2023-04-08 (3000->100->200)
+    nRetry  := 2;   //2023-04-08 (0->3->0)
 
-  nDataCnt := nLength;
-  SetLength(arRAddr,nDataCnt);
-  SetLength(arRData,nDataCnt);
-  try
-    Move(Addr^, arRAddr[0],nDataCnt * SizeOf(Integer));
-    Move(data^, arRData[0],nLength);
+    nDataCnt := nLength;
+    SetLength(arRAddr,nDataCnt);
+    SetLength(arRData,nDataCnt);
+    try
+      Move(Addr^, arRAddr[0],nDataCnt * SizeOf(Integer));
+      Move(data^, arRData[0],nLength);
 
-    for I := 0 to nRetry do begin
-      if i <> 2 then  nDebugLog := 0
-      else nDebugLog := 1;
-      nResult := Pg[nChannel].DP860_SendTconSeqWrite(nMode,nSeqIdx,nLength,arRAddr, arRData, nWaitMS,0,nDebugLog);
-      if nResult <> WAIT_OBJECT_0 then begin
-        Inc(PG[nChannel].TconRWCnt.TconRetryWriteCall);
-  //      sDebug := Format('TCONSetRegSeqWrite NG CH : %d Retry : %d',[nChannel,i + 1]);
-  //      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-      end
-      else begin
-        Break;
+      for I := 0 to nRetry do begin
+        if i <> 2 then  nDebugLog := 0
+        else nDebugLog := 1;
+        nResult := Pg[nChannel].DP860_SendTconSeqWrite(nMode,nSeqIdx,nLength,arRAddr, arRData, nWaitMS,0,nDebugLog);
+        if nResult <> WAIT_OBJECT_0 then begin
+          Inc(PG[nChannel].TconRWCnt.TconRetryWriteCall);
+        end
+        else begin
+          Break;
+        end;
       end;
-    end;
-    if nResult <> WAIT_OBJECT_0 then begin
-      sDebug := Format('TCONSetRegSeqWrite NG CH : %d',[nChannel]);
-      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-  //    CSharpDll.MainOC_Stop_CH1(nChannel);
-    end;
-
-    Result := nResult;
-  finally
-    SetLength(arRAddr,0);
-    SetLength(arRData,0);
-  end;
-end;
-
-function MyCB_TCONSetRegSeqWrite_2(nChannel,nMode,nSeqIdx : Integer; Addr : PINT; const data : PByte; nLength : Integer): Integer;
-var
-nWaitMS,nRetry,nDataCnt : Integer;
-sDebug,sTxData : string;
-arRData : TIdBytes;
-arRAddr : array of Integer;
-nResult,i,nDebugLog : integer;
-begin
-  Inc(PG[nChannel].TconRWCnt.TconWriteDllCall); //2023-03-28 jhhwang (for T/T Test)
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  nWaitMS := 3000; //2023-04-08 (3000->100->200)
-  nRetry  := 2;   //2023-04-08 (0->3->0)
-
-  nDataCnt := nLength;
-  SetLength(arRAddr,nDataCnt);
-  SetLength(arRData,nDataCnt);
-  try
-    Move(Addr^, arRAddr[0],nDataCnt * SizeOf(Integer));
-    Move(data^, arRData[0],nLength);
-
-    for I := 0 to nRetry do begin
-      if i <> 2 then  nDebugLog := 0
-      else nDebugLog := 1;
-      nResult := Pg[nChannel].DP860_SendTconSeqWrite(nMode,nSeqIdx,nLength,arRAddr, arRData, nWaitMS,0,nDebugLog);
       if nResult <> WAIT_OBJECT_0 then begin
-        Inc(PG[nChannel].TconRWCnt.TconRetryWriteCall);
-  //      sDebug := Format('TCONSetRegSeqWrite NG CH : %d Retry : %d',[nChannel,i + 1]);
-  //      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-      end
-      else begin
-        Break;
+        sDebug := Format('TCONSetRegSeqWrite NG CH : %d',[nChannel]);
+        CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
       end;
+      Result := nResult;
+    finally
+      SetLength(arRAddr,0);
+      SetLength(arRData,0);
     end;
-    if nResult <> WAIT_OBJECT_0 then begin
-      sDebug := Format('TCONSetRegSeqWrite NG CH : %d',[nChannel]);
-      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-  //    CSharpDll.MainOC_Stop_CH2(nChannel);
-    end;
-    Result := nResult;
-  finally
-    SetLength(arRAddr,0);
-    SetLength(arRData,0);
-  end;
-end;
-
-function MyCB_TCONSetRegSeqWrite_3(nChannel,nMode,nSeqIdx : Integer; Addr : PINT; const data : PByte; nLength : Integer): Integer;
-var
-nWaitMS,nRetry,nDataCnt : Integer;
-sDebug,sTxData : string;
-arRData : TIdBytes;
-arRAddr : array of Integer;
-nResult,i,nDebugLog : integer;
-begin
-  Inc(PG[nChannel].TconRWCnt.TconWriteDllCall); //2023-03-28 jhhwang (for T/T Test)
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  nWaitMS := 3000; //2023-04-08 (3000->100->200)
-  nRetry  := 2;   //2023-04-08 (0->3->0)
-
-  nDataCnt := nLength;
-  SetLength(arRAddr,nDataCnt);
-  SetLength(arRData,nDataCnt);
-  try
-    Move(Addr^, arRAddr[0],nDataCnt * SizeOf(Integer));
-    Move(data^, arRData[0],nLength);
-
-    for I := 0 to nRetry do begin
-      if i <> 2 then  nDebugLog := 0
-      else nDebugLog := 1;
-      nResult := Pg[nChannel].DP860_SendTconSeqWrite(nMode,nSeqIdx,nLength,arRAddr, arRData, nWaitMS,0,nDebugLog);
-      if nResult <> WAIT_OBJECT_0 then begin
-        Inc(PG[nChannel].TconRWCnt.TconRetryWriteCall);
-  //      sDebug := Format('TCONSetRegSeqWrite NG CH : %d Retry : %d',[nChannel,i + 1]);
-  //      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-      end
-      else begin
-        Break;
-      end;
-    end;
-    if nResult <> WAIT_OBJECT_0 then begin
-      sDebug := Format('TCONSetRegSeqWrite NG CH : %d',[nChannel]);
-      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-  //    CSharpDll.MainOC_Stop_CH3(nChannel);
-    end;
-    Result := nResult;
-  finally
-    SetLength(arRAddr,0);
-    SetLength(arRData,0);
-  end;
-end;
-
-function MyCB_TCONSetRegSeqWrite_4(nChannel,nMode,nSeqIdx : Integer; Addr : PINT; const data : PByte; nLength : Integer): Integer;
-var
-nWaitMS,nRetry,nDataCnt : Integer;
-sDebug,sTxData : string;
-arRData : TIdBytes;
-arRAddr : array of Integer;
-nResult,i,nDebugLog : integer;
-begin
-  Inc(PG[nChannel].TconRWCnt.TconWriteDllCall); //2023-03-28 jhhwang (for T/T Test)
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  nWaitMS := 3000; //2023-04-08 (3000->100->200)
-  nRetry  := 2;   //2023-04-08 (0->3->0)
-
-  nDataCnt := nLength;
-  SetLength(arRAddr,nDataCnt);
-  SetLength(arRData,nDataCnt);
-  try
-    Move(Addr^, arRAddr[0],nDataCnt * SizeOf(Integer));
-    Move(data^, arRData[0],nLength);
-
-    for I := 0 to nRetry do begin
-      if i <> 2 then  nDebugLog := 0
-      else nDebugLog := 1;
-      nResult := Pg[nChannel].DP860_SendTconSeqWrite(nMode,nSeqIdx,nLength,arRAddr, arRData, nWaitMS,0,nDebugLog);
-      if nResult <> WAIT_OBJECT_0 then begin
-        Inc(PG[nChannel].TconRWCnt.TconRetryWriteCall);
-  //      sDebug := Format('TCONSetRegSeqWrite NG CH : %d Retry : %d',[nChannel,i + 1]);
-  //      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-      end
-      else begin
-        Break;
-      end;
-    end;
-    if nResult <> WAIT_OBJECT_0 then begin
-      sDebug := Format('TCONSetRegSeqWrite NG CH : %d',[nChannel]);
-      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-  //    CSharpDll.MainOC_Stop_CH4(nChannel);
-    end;
-    Result := nResult;
-  finally
-    SetLength(arRAddr,0);
-    SetLength(arRData,0);
   end;
 end;
 
 
-
-
-
-function MyCB_TCONGetReg_1(nChannel , Addr : Integer; var data : Byte): Integer;
+function MyCB_TCONGetReg_Proc(nChannel , Addr : Integer; var data : Byte): Integer;
 var
 nWaitMS,nRetry,nDataCnt : Integer;
 sDebug,sTxData : string;
@@ -1538,364 +783,89 @@ arRData,arRData2 : TIdBytes;
 i : Integer;
 nResult,nResult2,nDebugLog : integer;
 begin
-  try
-    Inc(PG[nChannel].TconRWCnt.TconReadDllCall); //2023-03-28 jhhwang (for T/T Test)
-    CSharpDll.m_nFlagCount[nChannel] := 0;
-    nResult := 1;
-    nWaitMS := 500; //2023-03-28 jhhwang (for T/T Test) //2023-04-08 (500->100-> 1000)
-    nRetry  := 2;   //2023-03-28 jhhwang (for T/T Test) //2023-04-08 (1->2)
-    data := 0;
-    {$IFDEF PG_AF9}
-    PGAF9Fpga[nChannel].AF9_AllPowerOnOff(OnOff);  //OFF
-    Result := WAIT_OBJECT_0;
-    {$ENDIF}
-    {$IFDEF PG_DP860}
-  //Pg[nChannel].SetCyclicTimer(False{bEnable});
-    nDataCnt := 1;
-
-    SetLength(arRData,nDataCnt);
-    for i := 0 to nRetry do begin //2023-04-07 retry at here (RxParsingErr)
-      nResult := Pg[nChannel].SendI2CRead(DEVICE_ADDRESS,Addr,nDataCnt,arRData, nWaitMS,0{nRetry},1);
-      if nResult = WAIT_OBJECT_0 then break
-      else Inc(PG[nChannel].TconRWCnt.TconRetryReadCall);
-    end;
-
-
-    if nResult = WAIT_OBJECT_0 then
-      data := arRData[0]
-    else begin
+  if CSharpDll <> nil then begin
+    try
+      Inc(PG[nChannel].TconRWCnt.TconReadDllCall); //2023-03-28 jhhwang (for T/T Test)
+      CSharpDll.m_nFlagCount[nChannel] := 0;
+      nResult := 1;
+      nWaitMS := 500; //2023-03-28 jhhwang (for T/T Test) //2023-04-08 (500->100-> 1000)
+      nRetry  := 2;   //2023-03-28 jhhwang (for T/T Test) //2023-04-08 (1->2)
       data := 0;
+      {$IFDEF PG_AF9}
+      PGAF9Fpga[nChannel].AF9_AllPowerOnOff(OnOff);  //OFF
+      Result := WAIT_OBJECT_0;
+      {$ENDIF}
+      {$IFDEF PG_DP860}
+      nDataCnt := 1;
+
+      SetLength(arRData,nDataCnt);
+      for i := 0 to nRetry do begin //2023-04-07 retry at here (RxParsingErr)
+        nResult := Pg[nChannel].SendI2CRead(DEVICE_ADDRESS,Addr,nDataCnt,arRData, nWaitMS,0{nRetry},1);
+        if nResult = WAIT_OBJECT_0 then break
+        else Inc(PG[nChannel].TconRWCnt.TconRetryReadCall);
+      end;
+      if nResult = WAIT_OBJECT_0 then
+        data := arRData[0]
+      else begin
+        data := 0;
+      {$IFDEF SIMULATOR_PG}
+
+      {$ELSE}
+        sDebug := Format('TCONGetReg NG CH : %d',[nChannel]);
+        CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
+      {$ENDIF}
+      end;
+      Result := nResult;
+      {$ENDIF}
+    finally
+      SetLength(arRData,0);
+      SetLength(arRData2,0);
+    end;
+  end;
+end;
+
+
+function MyCB_TCONGetRegArray_Proc(nChannel,Addr : Integer; data : PByte; nLength : Integer): Integer;
+var
+nWaitMS,nRetry,nDataCnt : Integer;
+sDebug,sTxData : string;
+arRData : TIdBytes;
+i : Integer;
+nResult : integer;
+begin
+  Result := 0;
+  if CSharpDll <> nil then begin
+    Inc(PG[nChannel].TconRWCnt.TconReadArrayDllCall); //2023-03-28 jhhwang (for T/T Test)
+    CSharpDll.m_nFlagCount[nChannel] := 0;
+    nWaitMS := 100; //2023-03-28 jhhwang (for T/T Test) //2023-04-08 (500->100)
+    nRetry  := 2;   //2023-03-28 jhhwang (for T/T Test) //2023-04-08 (1->2)
+
+    nDataCnt := nLength;
+    SetLength(arRData,nDataCnt);
+    try
+      for i := 0 to nRetry do begin //2023-04-07 retry at here (RxParsingErr)
+        nResult := Pg[nChannel].SendI2CRead(DEVICE_ADDRESS,Addr,nDataCnt,arRData, nWaitMS,0{nRetry});
+        if nResult = WAIT_OBJECT_0 then break;
+      end;
+      if nResult = WAIT_OBJECT_0 then
+        CopyMemory(data,@arRData[0],nLength)
+      else begin
     {$IFDEF SIMULATOR_PG}
 
     {$ELSE}
-      sDebug := Format('TCONGetReg NG CH : %d',[nChannel]);
-      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-//      CSharpDll.MainOC_Stop_CH1(nChannel);
+        sDebug := Format('TCONGetRegArray NG CH : %d',[nChannel]);
+        CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
     {$ENDIF}
+      end;
+      Result := nResult;
+    finally
+      SetLength(arRData,0);
     end;
-    Result := nResult;
-    {$ENDIF}
-  finally
-    SetLength(arRData,0);
-    SetLength(arRData2,0);
   end;
 end;
 
 
-
-function MyCB_TCONGetReg_2(nChannel , Addr : Integer; var data : Byte): Integer;
-var
-nWaitMS,nRetry,nDataCnt : Integer;
-sDebug,sTxData : string;
-arRData,arRData2 : TIdBytes;
-i : Integer;
-nResult,nResult2,nDebugLog : integer;
-begin
-  try
-    Inc(PG[nChannel].TconRWCnt.TconReadDllCall); //2023-03-28 jhhwang (for T/T Test)
-    CSharpDll.m_nFlagCount[nChannel] := 0;
-    nWaitMS := 500; //2023-03-28 jhhwang (for T/T Test) //2023-04-08 (500->100)
-    nRetry  := 2;   //2023-03-28 jhhwang (for T/T Test) //2023-04-08 (1->2)
-    nResult := 1;
-    data := 0;
-    {$IFDEF PG_AF9}
-    PGAF9Fpga[nChannel].AF9_AllPowerOnOff(OnOff);  //OFF
-    Result := WAIT_OBJECT_0;
-    {$ENDIF}
-    {$IFDEF PG_DP860}
-  //Pg[nChannel].SetCyclicTimer(False{bEnable});
-    nDataCnt := 1;
-
-    SetLength(arRData,nDataCnt);
-    for i := 0 to nRetry do begin //2023-04-07 retry at here (RxParsingErr)
-      nResult := Pg[nChannel].SendI2CRead(DEVICE_ADDRESS,Addr,nDataCnt,arRData, nWaitMS,0{nRetry},1);
-      if nResult = WAIT_OBJECT_0 then break
-      else Inc(PG[nChannel].TconRWCnt.TconRetryReadCall);
-    end;
-
-    if nResult = WAIT_OBJECT_0 then
-      data := arRData[0]
-    else begin
-      data := 0;
-{$IFDEF SIMULATOR_PG}
-
-{$ELSE}
-      sDebug := Format('TCONGetReg NG CH : %d',[nChannel]);
-      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-//      CSharpDll.MainOC_Stop_CH2(nChannel);
-{$ENDIF}
-    end;
-  {$ENDIF}
-  Result := nResult;
-  finally
-    SetLength(arRData,0);
-    SetLength(arRData2,0);
-  end;
-end;
-
-
-
-function MyCB_TCONGetReg_3(nChannel , Addr : Integer; var data : Byte): Integer;
-var
-nWaitMS,nRetry,nDataCnt : Integer;
-sDebug,sTxData : string;
-arRData,arRData2 : TIdBytes;
-i : Integer;
-nResult,nResult2,nDebugLog : integer;
-begin
-  try
-    Inc(PG[nChannel].TconRWCnt.TconReadDllCall); //2023-03-28 jhhwang (for T/T Test)
-    CSharpDll.m_nFlagCount[nChannel] := 0;
-    nWaitMS := 500; //2023-03-28 jhhwang (for T/T Test) //2023-04-08 (500->100)
-    nRetry  := 2;   //2023-03-28 jhhwang (for T/T Test) //2023-04-08 (1->2)
-    nResult := 1;
-    data := 0;
-    {$IFDEF PG_AF9}
-    PGAF9Fpga[nChannel].AF9_AllPowerOnOff(OnOff);  //OFF
-    Result := WAIT_OBJECT_0;
-    {$ENDIF}
-    {$IFDEF PG_DP860}
-  //Pg[nChannel].SetCyclicTimer(False{bEnable});
-    nDataCnt := 1;
-
-    SetLength(arRData,nDataCnt);
-    for i := 0 to nRetry do begin //2023-04-07 retry at here (RxParsingErr)
-      nResult := Pg[nChannel].SendI2CRead(DEVICE_ADDRESS,Addr,nDataCnt,arRData, nWaitMS,0{nRetry},1);
-      if nResult = WAIT_OBJECT_0 then break
-      else Inc(PG[nChannel].TconRWCnt.TconRetryReadCall);
-    end;
-
-    if nResult = WAIT_OBJECT_0 then
-      data := arRData[0]
-    else begin
-      data := 0;
-{$IFDEF SIMULATOR_PG}
-
-{$ELSE}
-      sDebug := Format('TCONGetReg NG CH : %d',[nChannel]);
-      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-//      CSharpDll.MainOC_Stop_CH3(nChannel);
-{$ENDIF}
-    end;
-  {$ENDIF}
-  Result := nResult;
-  finally
-    SetLength(arRData,0);
-    SetLength(arRData2,0);
-  end;
-end;
-
-
-
-function MyCB_TCONGetReg_4(nChannel , Addr : Integer; var data : Byte): Integer;
-var
-nWaitMS,nRetry,nDataCnt : Integer;
-sDebug,sTxData : string;
-arRData,arRData2 : TIdBytes;
-i : Integer;
-nResult,nResult2,nDebugLog : integer;
-begin
-  try
-    Inc(PG[nChannel].TconRWCnt.TconReadDllCall); //2023-03-28 jhhwang (for T/T Test)
-    CSharpDll.m_nFlagCount[nChannel] := 0;
-    nWaitMS := 500; //2023-03-28 jhhwang (for T/T Test) //2023-04-08 (500->100)
-    nRetry  := 2;   //2023-03-28 jhhwang (for T/T Test) //2023-04-08 (1->2)
-    nResult := 1;
-    data := 0;
-
-    {$IFDEF PG_DP860}
-  //Pg[nChannel].SetCyclicTimer(False{bEnable});
-    nDataCnt := 1;
-
-    SetLength(arRData,nDataCnt);
-    for i := 0 to nRetry do begin //2023-04-07 retry at here (RxParsingErr)
-      nResult := Pg[nChannel].SendI2CRead(DEVICE_ADDRESS,Addr,nDataCnt,arRData, nWaitMS,0{nRetry},1);
-      if nResult = WAIT_OBJECT_0 then break
-      else Inc(PG[nChannel].TconRWCnt.TconRetryReadCall);
-    end;
-
-    if nResult = WAIT_OBJECT_0 then
-      data := arRData[0]
-    else begin
-      data := 0;
-{$IFDEF SIMULATOR_PG}
-
-{$ELSE}
-      sDebug := Format('TCONGetReg NG CH : %d',[nChannel]);
-      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-//      CSharpDll.MainOC_Stop_CH4(nChannel);
-{$ENDIF}
-    end;
-  {$ENDIF}
-  Result := nResult;
-  finally
-    SetLength(arRData,0);
-    SetLength(arRData2,0);
-  end;
-end;
-
-
-function MyCB_TCONGetRegArray_1(nChannel,Addr : Integer; data : PByte; nLength : Integer): Integer;
-var
-nWaitMS,nRetry,nDataCnt : Integer;
-sDebug,sTxData : string;
-arRData : TIdBytes;
-i : Integer;
-nResult : integer;
-begin
-  Result := 0;
-  Inc(PG[nChannel].TconRWCnt.TconReadArrayDllCall); //2023-03-28 jhhwang (for T/T Test)
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  nWaitMS := 100; //2023-03-28 jhhwang (for T/T Test) //2023-04-08 (500->100)
-  nRetry  := 2;   //2023-03-28 jhhwang (for T/T Test) //2023-04-08 (1->2)
-
-  nDataCnt := nLength;
-
-  SetLength(arRData,nDataCnt);
-  try
-    for i := 0 to nRetry do begin //2023-04-07 retry at here (RxParsingErr)
-      nResult := Pg[nChannel].SendI2CRead(DEVICE_ADDRESS,Addr,nDataCnt,arRData, nWaitMS,0{nRetry});
-      if nResult = WAIT_OBJECT_0 then break;
-    end;
-    if nResult = WAIT_OBJECT_0 then
-      CopyMemory(data,@arRData[0],nLength)
-    else begin
-  {$IFDEF SIMULATOR_PG}
-
-  {$ELSE}
-      sDebug := Format('TCONGetRegArray NG CH : %d',[nChannel]);
-      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-  //    CSharpDll.MainOC_Stop_CH1(nChannel);
-  {$ENDIF}
-
-    end;
-    Result := nResult;
-  finally
-    SetLength(arRData,0);
-  end;
-end;
-
-function MyCB_TCONGetRegArray_2(nChannel,Addr : Integer; data : PByte; nLength : Integer): Integer;
-var
-nWaitMS,nRetry,nDataCnt : Integer;
-sDebug,sTxData : string;
-arRData : TIdBytes;
-i : Integer;
-nResult : integer;
-begin
-  Result := 0;
-  Inc(PG[nChannel].TconRWCnt.TconReadArrayDllCall); //2023-03-28 jhhwang (for T/T Test)
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  nWaitMS := 100; //2023-03-28 jhhwang (for T/T Test) //2023-04-08 (500->100)
-  nRetry  := 2;   //2023-03-28 jhhwang (for T/T Test) //2023-04-08 (1->2)
-
-  nDataCnt := nLength;
-
-  SetLength(arRData,nDataCnt);
-  try
-    for i := 0 to nRetry do begin //2023-04-07 retry at here (RxParsingErr)
-      nResult := Pg[nChannel].SendI2CRead(DEVICE_ADDRESS,Addr,nDataCnt,arRData, nWaitMS,0{nRetry});
-      if nResult = WAIT_OBJECT_0 then break;
-    end;
-    if nResult = WAIT_OBJECT_0 then
-      CopyMemory(data,@arRData[0],nLength)
-    else begin
-  {$IFDEF SIMULATOR_PG}
-
-  {$ELSE}
-      sDebug := Format('TCONGetRegArray NG CH : %d',[nChannel]);
-      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-  //    CSharpDll.MainOC_Stop_CH2(nChannel);
-  {$ENDIF}
-    end;
-    Result := nResult;
-  finally
-    SetLength(arRData,0);
-  end;
-end;
-
-function MyCB_TCONGetRegArray_3(nChannel,Addr : Integer; data : PByte; nLength : Integer): Integer;
-var
-nWaitMS,nRetry,nDataCnt : Integer;
-sDebug,sTxData : string;
-arRData : TIdBytes;
-i : Integer;
-nResult : integer;
-begin
-  Result := 0;
-  Inc(PG[nChannel].TconRWCnt.TconReadArrayDllCall); //2023-03-28 jhhwang (for T/T Test)
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  nWaitMS := 100; //2023-03-28 jhhwang (for T/T Test) //2023-04-08 (500->100)
-  nRetry  := 2;   //2023-03-28 jhhwang (for T/T Test) //2023-04-08 (1->2)
-
-  nDataCnt := nLength;
-
-  SetLength(arRData,nDataCnt);
-  try
-    for i := 0 to nRetry do begin //2023-04-07 retry at here (RxParsingErr)
-      nResult := Pg[nChannel].SendI2CRead(DEVICE_ADDRESS,Addr,nDataCnt,arRData, nWaitMS,0{nRetry});
-      if nResult = WAIT_OBJECT_0 then break;
-    end;
-    if nResult = WAIT_OBJECT_0 then
-      CopyMemory(data,@arRData[0],nLength)
-    else begin
-  {$IFDEF SIMULATOR_PG}
-
-  {$ELSE}
-      sDebug := Format('TCONGetRegArray NG CH : %d',[nChannel]);
-      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-  //    CSharpDll.MainOC_Stop_CH3(nChannel);
-  {$ENDIF}
-    end;
-    Result := nResult;
-  finally
-    SetLength(arRData,0);
-  end;
-end;
-
-
-function MyCB_TCONGetRegArray_4(nChannel,Addr : Integer; data : PByte; nLength : Integer): Integer;
-var
-nWaitMS,nRetry,nDataCnt : Integer;
-sDebug,sTxData : string;
-arRData : TIdBytes;
-i : Integer;
-nResult : integer;
-begin
-  Result := 0;
-  Inc(PG[nChannel].TconRWCnt.TconReadArrayDllCall); //2023-03-28 jhhwang (for T/T Test)
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  nWaitMS := 100; //2023-03-28 jhhwang (for T/T Test) //2023-04-08 (500->100)
-  nRetry  := 2;   //2023-03-28 jhhwang (for T/T Test) //2023-04-08 (1->2)
-
-  nDataCnt := nLength;
-
-  SetLength(arRData,nDataCnt);
-  try
-    for i := 0 to nRetry do begin //2023-04-07 retry at here (RxParsingErr)
-      nResult := Pg[nChannel].SendI2CRead(DEVICE_ADDRESS,Addr,nDataCnt,arRData, nWaitMS,0{nRetry});
-      if nResult = WAIT_OBJECT_0 then break;
-    end;
-    if nResult = WAIT_OBJECT_0 then
-      CopyMemory(data,@arRData[0],nLength)
-    else begin
-  {$IFDEF SIMULATOR_PG}
-
-  {$ELSE}
-      sDebug := Format('TCONGetRegArray NG CH : %d',[nChannel]);
-      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-  //    CSharpDll.MainOC_Stop_CH4(nChannel);
-  {$ENDIF}
-    end;
-    Result := nResult;
-  finally
-    SetLength(arRData,0);
-  end;
-end;
-
-
-
-function MyCB_FlashWrite_File_1(nChannel,StartSeg,EndSeg : Integer; filePath : PAnsiChar): Integer;
+function MyCB_FlashWrite_File_Proc(nChannel,StartSeg,EndSeg : Integer; filePath : PAnsiChar): Integer;
 var
 nWaitMS,nRetry,nDataCnt : Integer;
 sDebug,sTxData : string;
@@ -1905,139 +875,28 @@ begin
   Result := 0;
 end;
 
-function MyCB_FlashWrite_File_2(nChannel,StartSeg,EndSeg : Integer; filePath : PAnsiChar): Integer;
-var
-nWaitMS,nRetry,nDataCnt : Integer;
-sDebug,sTxData : string;
-arRData : TIdBytes;
-begin
-  nDataCnt := 1;
-  Result := 0;
-end;
 
-function MyCB_FlashWrite_File_3(nChannel,StartSeg,EndSeg : Integer; filePath : PAnsiChar): Integer;
-var
-nWaitMS,nRetry,nDataCnt : Integer;
-sDebug,sTxData : string;
-arRData : TIdBytes;
-begin
-  nDataCnt := 1;
-  Result := 0;
-end;
-
-function MyCB_FlashWrite_File_4(nChannel,StartSeg,EndSeg : Integer; filePath : PAnsiChar): Integer;
-var
-nWaitMS,nRetry,nDataCnt : Integer;
-sDebug,sTxData : string;
-arRData : TIdBytes;
-begin
-  nDataCnt := 1;
-  Result := 0;
-end;
-
-function MyCB_FlashWrite_Data_1(nChannel,StartSeg,nLength : Integer; const data: PByte): Integer;
+function MyCB_FlashWrite_Data_Proc(nChannel,StartSeg,nLength : Integer; const data: PByte): Integer;
 var
  sDebug : string;
  nResult : integer;
 begin
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  nResult := Pg[nChannel].SendFlashWrite(StartSeg,nLength, data); //TBD:ITOLED?
-  if nResult <> WAIT_OBJECT_0 then begin
-    nResult := Pg[nChannel].SendFlashWrite(StartSeg,nLength, data);
+  if CSharpDll <> nil then begin
+    CSharpDll.m_nFlagCount[nChannel] := 0;
+    nResult := Pg[nChannel].SendFlashWrite(StartSeg,nLength, data); //TBD:ITOLED?
     if nResult <> WAIT_OBJECT_0 then begin
-      sDebug := Format('FlashWrite_Data NG CH : %d',[nChannel]);
-      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-//      CSharpDll.MainOC_Stop_CH1(nChannel);
+      nResult := Pg[nChannel].SendFlashWrite(StartSeg,nLength, data);
+      if nResult <> WAIT_OBJECT_0 then begin
+        sDebug := Format('FlashWrite_Data NG CH : %d',[nChannel]);
+        CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
+      end;
     end;
+    Result := nResult;
   end;
-  Result := nResult;
 end;
 
-function MyCB_FlashWrite_Data_2(nChannel,StartSeg,nLength : Integer; const data: PByte): Integer;
-var
- sDebug : string;
- nResult : integer;
-begin
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  nResult := Pg[nChannel].SendFlashWrite(StartSeg,nLength, data); //TBD:ITOLED?
-  if nResult <> WAIT_OBJECT_0 then begin
-    nResult := Pg[nChannel].SendFlashWrite(StartSeg,nLength, data);
-    if nResult <> WAIT_OBJECT_0 then begin
-      sDebug := Format('FlashWrite_Data NG CH : %d',[nChannel]);
-      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-//      CSharpDll.MainOC_Stop_CH2(nChannel);
-    end;
-  end;
-  Result := nResult;
-end;
 
-function MyCB_FlashWrite_Data_3(nChannel,StartSeg,nLength : Integer; const data: PByte): Integer;
-var
- sDebug : string;
- nResult : integer;
-begin
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  nResult := Pg[nChannel].SendFlashWrite(StartSeg,nLength, data); //TBD:ITOLED?
-  if nResult <> WAIT_OBJECT_0 then begin
-    nResult := Pg[nChannel].SendFlashWrite(StartSeg,nLength, data);
-    if nResult <> WAIT_OBJECT_0 then begin
-      sDebug := Format('FlashWrite_Data NG CH : %d',[nChannel]);
-      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-//      CSharpDll.MainOC_Stop_CH3(nChannel);
-    end;
-  end;
-  Result := nResult;
-end;
-
-function MyCB_FlashWrite_Data_4(nChannel,StartSeg,nLength : Integer; const data: PByte): Integer;
-var
- sDebug : string;
- nResult : integer;
-begin
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  nResult := Pg[nChannel].SendFlashWrite(StartSeg,nLength, data); //TBD:ITOLED?
-  if nResult <> WAIT_OBJECT_0 then begin
-    nResult := Pg[nChannel].SendFlashWrite(StartSeg,nLength, data);
-    if nResult <> WAIT_OBJECT_0 then begin
-      sDebug := Format('FlashWrite_Data NG CH : %d',[nChannel]);
-      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-//      CSharpDll.MainOC_Stop_CH4(nChannel);
-    end;
-  end;
-  Result := nResult;
-end;
-
-function MyCB_FlashRead_File_1(nChannel,StartSeg,nLength : Integer; filePath : PAnsiChar): Integer;
-var
-nWaitMS,nRetry,nDataCnt : Integer;
-sDebug,sTxData : string;
-arRData : TIdBytes;
-begin
-  nDataCnt := 1;
-  Result := 0;
-end;
-
-function MyCB_FlashRead_File_2(nChannel,StartSeg,nLength : Integer; filePath : PAnsiChar): Integer;
-var
-nWaitMS,nRetry,nDataCnt : Integer;
-sDebug,sTxData : string;
-arRData : TIdBytes;
-begin
-  nDataCnt := 1;
-  Result := 0;
-end;
-
-function MyCB_FlashRead_File_3(nChannel,StartSeg,nLength : Integer; filePath : PAnsiChar): Integer;
-var
-nWaitMS,nRetry,nDataCnt : Integer;
-sDebug,sTxData : string;
-arRData : TIdBytes;
-begin
-  nDataCnt := 1;
-  Result := 0;
-end;
-
-function MyCB_FlashRead_File_4(nChannel,StartSeg,nLength : Integer; filePath : PAnsiChar): Integer;
+function MyCB_FlashRead_File_Proc(nChannel,StartSeg,nLength : Integer; filePath : PAnsiChar): Integer;
 var
 nWaitMS,nRetry,nDataCnt : Integer;
 sDebug,sTxData : string;
@@ -2048,96 +907,28 @@ begin
 end;
 
 
-function MyCB_FlashRead_Data_1(nChannel,nStartSeg,nLength : Integer; data: PByte): Integer;
+function MyCB_FlashRead_Data_Proc(nChannel,nStartSeg,nLength : Integer; data: PByte): Integer;
 var
  sDebug : string;
  nResult : integer;
 begin
-//Pg[nChannel].SetCyclicTimer(False{bEnable});
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  nResult := Pg[nChannel].SendFlashRead(nStartSeg,nLength,@Logic[nChannel].m_FlashAllData.Data[0]);
-  if nResult <> WAIT_OBJECT_0 then begin
+  if CSharpDll <> nil then begin
+    CSharpDll.m_nFlagCount[nChannel] := 0;
     nResult := Pg[nChannel].SendFlashRead(nStartSeg,nLength,@Logic[nChannel].m_FlashAllData.Data[0]);
     if nResult <> WAIT_OBJECT_0 then begin
-      sDebug := Format('FlashRead_Data NG CH : %d',[nChannel]);
-      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-//      CSharpDll.MainOC_Stop_CH1(nChannel);
+      nResult := Pg[nChannel].SendFlashRead(nStartSeg,nLength,@Logic[nChannel].m_FlashAllData.Data[0]);
+      if nResult <> WAIT_OBJECT_0 then begin
+        sDebug := Format('FlashRead_Data NG CH : %d',[nChannel]);
+        CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
+      end;
     end;
+    CopyMemory(data,@Logic[nChannel].m_FlashAllData.Data[0],nLength);
+    Result := nResult;
   end;
-  CopyMemory(data,@Logic[nChannel].m_FlashAllData.Data[0],nLength);
-  Result := nResult;
-
-//Pg[nChannel].SetCyclicTimer(true{bEnable});
-end;
-
-function MyCB_FlashRead_Data_2(nChannel,nStartSeg,nLength  : Integer; data: PByte): Integer;
-var
- sDebug : string;
- nResult : integer;
-begin
-//Pg[nChannel].SetCyclicTimer(False{bEnable});
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  nResult := Pg[nChannel].SendFlashRead(nStartSeg,nLength,@Logic[nChannel].m_FlashAllData.Data[0]);
-  if nResult <> WAIT_OBJECT_0 then begin
-    nResult := Pg[nChannel].SendFlashRead(nStartSeg,nLength,@Logic[nChannel].m_FlashAllData.Data[0]);
-    if nResult <> WAIT_OBJECT_0 then begin
-      sDebug := Format('FlashRead_Data NG CH : %d',[nChannel]);
-      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-//      CSharpDll.MainOC_Stop_CH2(nChannel);
-    end;
-  end;
-  CopyMemory(data,@Logic[nChannel].m_FlashAllData.Data[0],nLength);
-  Result := nResult;
-
-//Pg[nChannel].SetCyclicTimer(true{bEnable});
-end;
-
-function MyCB_FlashRead_Data_3(nChannel,nStartSeg,nLength  : Integer; data: PByte): Integer;
-var
- sDebug : string;
- nResult : integer;
-begin
-//Pg[nChannel].SetCyclicTimer(False{bEnable});
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  nResult := Pg[nChannel].SendFlashRead(nStartSeg,nLength,@Logic[nChannel].m_FlashAllData.Data[0]);
-  if nResult <> WAIT_OBJECT_0 then begin
-    nResult := Pg[nChannel].SendFlashRead(nStartSeg,nLength,@Logic[nChannel].m_FlashAllData.Data[0]);
-    if nResult <> WAIT_OBJECT_0 then begin
-      sDebug := Format('FlashRead_Data NG CH : %d',[nChannel]);
-      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-//      CSharpDll.MainOC_Stop_CH3(nChannel);
-    end;
-  end;
-  CopyMemory(data,@Logic[nChannel].m_FlashAllData.Data[0],nLength);
-  Result := nResult;
-
-//Pg[nChannel].SetCyclicTimer(true{bEnable});
-end;
-
-function MyCB_FlashRead_Data_4(nChannel,nStartSeg,nLength  : Integer; data: PByte): Integer;
-var
- sDebug : string;
- nResult : integer;
-begin
-//Pg[nChannel].SetCyclicTimer(False{bEnable});
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  nResult := Pg[nChannel].SendFlashRead(nStartSeg,nLength,@Logic[nChannel].m_FlashAllData.Data[0]);
-  if nResult <> WAIT_OBJECT_0 then begin
-    nResult := Pg[nChannel].SendFlashRead(nStartSeg,nLength,@Logic[nChannel].m_FlashAllData.Data[0]);
-    if nResult <> WAIT_OBJECT_0 then begin
-      sDebug := Format('FlashRead_Data NG CH : %d',[nChannel]);
-      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-//      CSharpDll.MainOC_Stop_CH4(nChannel);
-    end;
-  end;
-  CopyMemory(data,@Logic[nChannel].m_FlashAllData.Data[0],nLength);
-  Result := nResult;
-
-//Pg[nChannel].SetCyclicTimer(true{bEnable});
 end;
 
 
-function MyCB_FlashErase_1(nChannel,nStartSeg,nLength : Integer): Integer;
+function MyCB_FlashErase_Proc(nChannel,nStartSeg,nLength : Integer): Integer;
 var
 nWaitMS,nRetry,nDataCnt : Integer;
 sDebug,sTxData : string;
@@ -2145,291 +936,75 @@ arRData : TIdBytes;
 begin
   nDataCnt := 1;
   sDebug := Format('Flash Erase:  StartSeg(0x%0.4x) Length(%d)',[nStartSeg,nLength]);
-//  Common.MLog(nChannel,sDebug);
   Result := Pg[nChannel].DP860_SendNvmErase(nStartSeg,nLength);
-
-end;
-
-function MyCB_FlashErase_2(nChannel,nStartSeg,nLength : Integer): Integer;
-var
-nWaitMS,nRetry,nDataCnt : Integer;
-sDebug,sTxData : string;
-arRData : TIdBytes;
-begin
-  nDataCnt := 1;
-  sDebug := Format('Flash Erase:  StartSeg(0x%0.4x) Length(%d)',[nStartSeg,nLength]);
-//  Common.MLog(nChannel,sDebug);
-  Result := Pg[nChannel].DP860_SendNvmErase(nStartSeg,nLength);
-
-end;
-
-function MyCB_FlashErase_3(nChannel,nStartSeg,nLength : Integer): Integer;
-var
-nWaitMS,nRetry,nDataCnt : Integer;
-sDebug,sTxData : string;
-arRData : TIdBytes;
-begin
-  nDataCnt := 1;
-  sDebug := Format('Flash Erase:  StartSeg(0x%0.4x) Length(%d)',[nStartSeg,nLength]);
-//  Common.MLog(nChannel,sDebug);
-  Result := Pg[nChannel].DP860_SendNvmErase(nStartSeg,nLength);
-
-end;
-
-function MyCB_FlashErase_4(nChannel,nStartSeg,nLength : Integer): Integer;
-var
-nWaitMS,nRetry,nDataCnt : Integer;
-sDebug,sTxData : string;
-arRData : TIdBytes;
-begin
-  nDataCnt := 1;
-  sDebug := Format('Flash Erase:  StartSeg(0x%0.4x) Length(%d)',[nStartSeg,nLength]);
-//  Common.MLog(nChannel,sDebug);
-  Result := Pg[nChannel].DP860_SendNvmErase(nStartSeg,nLength);
-
 end;
 
 
-
-function MyCB_GetWaveformData_1(nChannel : Integer; var waveform_T: Pdouble; var  waveformData : Pdouble; nMeasureAmount : Integer): Double;
+function MyCB_GetWaveformData_Proc(nChannel : Integer; var waveform_T: Pdouble; var  waveformData : Pdouble; nMeasureAmount : Integer): Double;
 var
 i,j : Integer;
 waveform,Data : array of Double;
 sDebug : string;
 begin
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  SetLength(waveform,nMeasureAmount);
-  SetLength(Data,nMeasureAmount);
-  try
-    result := CaSdk2.GetWaveformData(nChannel,@waveform[0],@Data[0] ,nMeasureAmount);
-    CopyMemory(waveform_T,@waveform[0],nMeasureAmount*sizeof(waveform[0]));
-    CopyMemory(waveformData,@Data[0],nMeasureAmount*sizeof(waveform[0]));
-  finally
-    SetLength(waveform,0);
-    SetLength(Data,0);
-  end;
-end;
-function MyCB_GetWaveformData_2(nChannel : Integer; var waveform_T: Pdouble; var  waveformData : Pdouble; nMeasureAmount : Integer): Double;
-var
-i,j : Integer;
-waveform,Data : array of Double;
-sDebug : string;
-begin
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  SetLength(waveform,nMeasureAmount);
-  SetLength(Data,nMeasureAmount);
-  try
-    result := CaSdk2.GetWaveformData(nChannel,@waveform[0],@Data[0] ,nMeasureAmount);
-    CopyMemory(waveform_T,@waveform[0],nMeasureAmount*sizeof(waveform[0]));
-    CopyMemory(waveformData,@Data[0],nMeasureAmount*sizeof(waveform[0]));
-  finally
-    SetLength(waveform,0);
-    SetLength(Data,0);
-  end;
-end;
-function MyCB_GetWaveformData_3(nChannel : Integer; var waveform_T: Pdouble; var  waveformData : Pdouble; nMeasureAmount : Integer): Double;
-var
-i,j : Integer;
-waveform,Data : array of Double;
-sDebug : string;
-begin
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  SetLength(waveform,nMeasureAmount);
-  SetLength(Data,nMeasureAmount);
-  try
-    result := CaSdk2.GetWaveformData(nChannel,@waveform[0],@Data[0] ,nMeasureAmount);
-    CopyMemory(waveform_T,@waveform[0],nMeasureAmount*sizeof(waveform[0]));
-    CopyMemory(waveformData,@Data[0],nMeasureAmount*sizeof(waveform[0]));
-  finally
-    SetLength(waveform,0);
-    SetLength(Data,0);
-  end;
-end;
-function MyCB_GetWaveformData_4(nChannel : Integer; var waveform_T: Pdouble; var  waveformData : Pdouble; nMeasureAmount : Integer): Double;
-var
-i,j : Integer;
-waveform,Data : array of Double;
-sDebug : string;
-begin
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  SetLength(waveform,nMeasureAmount);
-  SetLength(Data,nMeasureAmount);
-  try
-    result := CaSdk2.GetWaveformData(nChannel,@waveform[0],@Data[0] ,nMeasureAmount);
-    CopyMemory(waveform_T,@waveform[0],nMeasureAmount*sizeof(waveform[0]));
-    CopyMemory(waveformData,@Data[0],nMeasureAmount*sizeof(waveform[0]));
-  finally
-    SetLength(waveform,0);
-    SetLength(Data,0);
+  if CSharpDll <> nil then begin
+    CSharpDll.m_nFlagCount[nChannel] := 0;
+    SetLength(waveform,nMeasureAmount);
+    SetLength(Data,nMeasureAmount);
+    try
+      result := CaSdk2.GetWaveformData(nChannel,@waveform[0],@Data[0] ,nMeasureAmount);
+      CopyMemory(waveform_T,@waveform[0],nMeasureAmount*sizeof(waveform[0]));
+      CopyMemory(waveformData,@Data[0],nMeasureAmount*sizeof(waveform[0]));
+    finally
+      SetLength(waveform,0);
+      SetLength(Data,0);
+    end;
   end;
 end;
 
-function MyCB_measure_XYL_1(nChannel:Integer; var dMeasureData : TArray<double>; var nLen : Integer): Integer;
+
+
+function MyCB_measure_XYL_Proc(nChannel:Integer; var dMeasureData : TArray<double>; var nLen : Integer): Integer;
 var
 i,wdRet: Integer;
 m_Ca410Data  : TBrightValue;
 sDebug : string;
 begin
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  if Common.SystemInfo.PG_GpioReadHpdBeforeMeasure then begin //2023-03-30 jhhwang (for T/T Test)
-    PG[nChannel].DP860_SendGpioRead('HPD');
-  end;
-  PG[nChannel].TconRWCnt.ContTConOcWrite := 0; //2023-03-30 jhhwang (for T/T Test)
-
-  wdRet := CaSdk2.Measure(nChannel,m_Ca410Data);
-
-  if (Common.SystemInfo.PG_TconWriteLogDisplay) then begin
-    sDebug := format('<CA410> Measure_XYL : Ca410Data x : %0.4f y : %0.4f LV : %0.4f',[m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
-    CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-  end;
-  if wdRet <> WAIT_OBJECT_0 then begin
-{$IFDEF SIMULATOR_PG}
-
-{$ELSE}
-    sDebug := Format('CA410 measure NG CH : %d',[nChannel]);
-    CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-//    CSharpDll.MainOC_Stop_CH1(nChannel);
-{$ENDIF}
-
-  end;
-
-  dMeasureData[0] := m_Ca410Data.xVal;
-  dMeasureData[1] := m_Ca410Data.yVal;
-  dMeasureData[2] := m_Ca410Data.LvVal;
-  Result := wdRet;
-
-end;
-function MyCB_measure_XYL_2(nChannel:Integer; var dMeasureData : TArray<double>; var nLen : Integer): Integer;
-var
-i,wdRet: Integer;
-m_Ca410Data  : TBrightValue;
-sDebug : string;
-begin
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  if Common.SystemInfo.PG_GpioReadHpdBeforeMeasure then begin //2023-03-30 jhhwang (for T/T Test)
-    PG[nChannel].DP860_SendGpioRead('HPD');
-  end;
-  PG[nChannel].TconRWCnt.ContTConOcWrite := 0; //2023-03-30 jhhwang (for T/T Test)
-//  sDebug :='measure_XYL';
-//  Common.MLog(nChannel,sDebug);
-  wdRet := CaSdk2.Measure(nChannel,m_Ca410Data);
-
-  if (Common.SystemInfo.PG_TconWriteLogDisplay) then begin
-    sDebug := format('<CA410> Measure_XYL : Ca410Data x : %0.4f y : %0.4f LV : %0.4f',[m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
-    CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-  end;
-  if wdRet <> WAIT_OBJECT_0 then begin
-{$IFDEF SIMULATOR_PG}
-
-{$ELSE}
-    sDebug := Format('CA410 measure NG CH : %d',[nChannel]);
-    CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-//    CSharpDll.MainOC_Stop_CH2(nChannel);
-{$ENDIF}
-  end;
-
-
-  dMeasureData[0] := m_Ca410Data.xVal;
-  dMeasureData[1] := m_Ca410Data.yVal;
-  dMeasureData[2] := m_Ca410Data.LvVal;
-  Result := wdRet;
-end;
-
-function MyCB_measure_XYL_3(nChannel:Integer; var dMeasureData : TArray<double>; var nLen : Integer): Integer;
-var
-i,wdRet: Integer;
-m_Ca410Data  : TBrightValue;
-sDebug : string;
-begin
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  if Common.SystemInfo.PG_GpioReadHpdBeforeMeasure then begin //2023-03-30 jhhwang (for T/T Test)
-    PG[nChannel].DP860_SendGpioRead('HPD');
-  end;
-  PG[nChannel].TconRWCnt.ContTConOcWrite := 0; //2023-03-30 jhhwang (for T/T Test)
-
-  wdRet := CaSdk2.Measure(nChannel,m_Ca410Data);
-
-  if (Common.SystemInfo.PG_TconWriteLogDisplay) then begin
-    sDebug := format('<CA410> Measure_XYL : Ca410Data x : %0.4f y : %0.4f LV : %0.4f',[m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
-    CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-  end;
+  if CSharpDll <> nil then begin
+    CSharpDll.m_nFlagCount[nChannel] := 0;
+    if Common.SystemInfo.PG_GpioReadHpdBeforeMeasure then begin //2023-03-30 jhhwang (for T/T Test)
+      PG[nChannel].DP860_SendGpioRead('HPD');
+    end;
+    PG[nChannel].TconRWCnt.ContTConOcWrite := 0; //2023-03-30 jhhwang (for T/T Test)
+    wdRet := CaSdk2.Measure(nChannel,m_Ca410Data);
+    if (Common.SystemInfo.PG_TconWriteLogDisplay) then begin
+      sDebug := format('<CA410> Measure_XYL : Ca410Data x : %0.4f y : %0.4f LV : %0.4f',[m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
+      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
+    end;
     if wdRet <> WAIT_OBJECT_0 then begin
-{$IFDEF SIMULATOR_PG}
+  {$IFDEF SIMULATOR_PG}
 
-{$ELSE}
-    sDebug := Format('CA410 measure NG CH : %d',[nChannel]);
-    CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-//    CSharpDll.MainOC_Stop_CH3(nChannel);
-{$ENDIF}
+  {$ELSE}
+      sDebug := Format('CA410 measure NG CH : %d',[nChannel]);
+      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
+  {$ENDIF}
+    end;
+    dMeasureData[0] := m_Ca410Data.xVal;
+    dMeasureData[1] := m_Ca410Data.yVal;
+    dMeasureData[2] := m_Ca410Data.LvVal;
+    Result := wdRet;
   end;
 
-  dMeasureData[0] := m_Ca410Data.xVal;
-  dMeasureData[1] := m_Ca410Data.yVal;
-  dMeasureData[2] := m_Ca410Data.LvVal;
-  Result := wdRet;
 end;
 
-function MyCB_measure_XYL_4(nChannel:Integer; var dMeasureData : TArray<double>; var nLen : Integer): Integer;
-var
-i,wdRet: Integer;
-m_Ca410Data  : TBrightValue;
-sDebug : string;
-begin
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  if Common.SystemInfo.PG_GpioReadHpdBeforeMeasure then begin //2023-03-30 jhhwang (for T/T Test)
-    PG[nChannel].DP860_SendGpioRead('HPD');
-  end;
-  PG[nChannel].TconRWCnt.ContTConOcWrite := 0; //2023-03-30 jhhwang (for T/T Test)
 
-  wdRet := CaSdk2.Measure(nChannel,m_Ca410Data);
-
-  if (Common.SystemInfo.PG_TconWriteLogDisplay) then begin
-    sDebug := format('<CA410> Measure_XYL : Ca410Data x : %0.4f y : %0.4f LV : %0.4f',[m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
-    CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-  end;
-    if wdRet <> WAIT_OBJECT_0 then begin
-{$IFDEF SIMULATOR_PG}
-
-{$ELSE}
-    sDebug := Format('CA410 measure NG CH : %d',[nChannel]);
-    CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-//    CSharpDll.MainOC_Stop_CH4(nChannel);
-{$ENDIF}
-  end;
-
-  dMeasureData[0] := m_Ca410Data.xVal;
-  dMeasureData[1] := m_Ca410Data.yVal;
-  dMeasureData[2] := m_Ca410Data.LvVal;
-  Result := wdRet;
-end;
-
-function MyCB_SetSync_1(nChannel,CA_SyncMode,CA_Hz,channel_num : Integer): Integer ;
+function MyCB_SetSync_Proc(nChannel,CA_SyncMode,CA_Hz,channel_num : Integer): Integer ;
 var
 i : Integer;
 begin
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  Result := CaSdk2.SetSyncMode(nChannel,CA_SyncMode,CA_Hz,0);
-end;
-function MyCB_SetSync_2(nChannel,CA_SyncMode,CA_Hz,channel_num : Integer): Integer ;
-var
-i : Integer;
-begin
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  Result := CaSdk2.SetSyncMode(nChannel,CA_SyncMode,CA_Hz,0);
-end;
-function MyCB_SetSync_3(nChannel,CA_SyncMode,CA_Hz,channel_num : Integer): Integer ;
-var
-i : Integer;
-begin
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  Result := CaSdk2.SetSyncMode(nChannel,CA_SyncMode,CA_Hz,0);
-end;
-function MyCB_SetSync_4(nChannel,CA_SyncMode,CA_Hz,channel_num : Integer): Integer ;
-var
-i : Integer;
-begin
-  CSharpDll.m_nFlagCount[nChannel] := 0;
-  Result := CaSdk2.SetSyncMode(nChannel,CA_SyncMode,CA_Hz,0);
+  if CSharpDll <> nil then begin
+    CSharpDll.m_nFlagCount[nChannel] := 0;
+    Result := CaSdk2.SetSyncMode(nChannel,CA_SyncMode,CA_Hz,0);
+  end;
 end;
 
 procedure TCSharpDll.SendTestGuiDisplay(nCh,nGuiMode: Integer; sMsg: string; nParam: Integer);
@@ -2504,7 +1079,6 @@ begin
   else nParam := 0;
   if pos('Delay_Time',sMLOG) > 0 then begin
 //    sLog := ExtractNumbersFromString(sMLOG);
-
 //    SendTestGuiDisplay(nChannel_Index,defCommon.MSG_MODE_DELAY_TIME,sLog,nParam);
     Exit;
   end;
@@ -2520,25 +1094,27 @@ begin
   SendTestGuiDisplay(nChannel_Index,defCommon.MSG_MODE_WORKING,sMLOG,nParam);
 end;
 
-procedure MyCB_TextChanged_1(channel_Index : Integer; bClear : Boolean; sAddedText : PAnsiChar);cdecl;
+procedure MyCB_TextChanged_Proc(channel_Index : Integer; bClear : Boolean; sAddedText : PAnsiChar);cdecl;
 begin
-  CSharpDll.m_nFlagCount[channel_Index] := 0;
-  CSharpDll.MLOG(channel_Index,bClear,(PAnsiChar(sAddedText)));
+  if CSharpDll <> nil then begin
+    CSharpDll.m_nFlagCount[channel_Index] := 0;
+    CSharpDll.MLOG(channel_Index,bClear,(PAnsiChar(sAddedText)));
+  end;
 end;
-procedure MyCB_TextChanged_2(channel_Index : Integer; bClear : Boolean; sAddedText : PAnsiChar);cdecl;
+
+
+procedure MyCB_FlowDone_Proc(channel_Index : Integer);
 begin
-  CSharpDll.m_nFlagCount[channel_Index] := 0;
-  CSharpDll.MLOG(channel_Index,bClear,(PAnsiChar(sAddedText)));
-end;
-procedure MyCB_TextChanged_3(channel_Index : Integer; bClear : Boolean; sAddedText : PAnsiChar);cdecl;
-begin
-  CSharpDll.m_nFlagCount[channel_Index] := 0;
-  CSharpDll.MLOG(channel_Index,bClear,(PAnsiChar(sAddedText)));
-end;
-procedure MyCB_TextChanged_4(channel_Index : Integer; bClear : Boolean; sAddedText : PAnsiChar);cdecl;
-begin
-  CSharpDll.m_nFlagCount[channel_Index] := 0;
-  CSharpDll.MLOG(channel_Index,bClear,(PAnsiChar(sAddedText)));
+  if CSharpDll <> nil then begin
+    CSharpDll.tmCheckOCAlive[channel_Index].Enabled := false;
+    CSharpDll.m_OCFlowStart[channel_Index] := False;
+    try
+      CSharpDll.m_nFlagCount[channel_Index] := 0;
+      common.MLog(channel_Index,Format('<SEQUENCE> CountInspections : %d',[CSharpDll.m_CountInspections[channel_Index]]));
+    finally
+      CSharpDll.SendTestGuiDisplay(channel_Index,defCommon.MSG_MODE_WORK_DONE,'OKFLOW_END',0);
+    end;
+  end;
 end;
 
 procedure TCSharpDll.ThreadTask(Task: TProc);
@@ -2671,7 +1247,7 @@ hWnd : THandle;
 begin
   try
     nT1 := m_Initialize(DefCommon.MAX_CH + 1,PAnsiChar(AnsiString(sModelName)));
-    for I := 0 to 2 do  begin
+    for I := 0 to 2 do  begin           // AA mode 사용되는  DLL 3가지 호출
       sVer := PAnsiChar(m_GetOCversion(i)); // DLL Ver 정보 API 함수 호출
       SendMainGuiDisplay(0,MSG_TYPE_DLL,sVer,1,i); // DLL Ver 정보 MAIN 전달
     end;
@@ -2685,12 +1261,9 @@ begin
 
     for I := DefCommon.CH1 to DefCommon.MAX_CH do begin
       m_SetCallback_TextChanged(i,CB_TextChanged[i]);
-
       m_SetCallback_measure_XYL(i,CB_measure_XYL[i]);
       m_SetCallback_SetSync(i,CB_SetSync[i]);
       m_SetCallback_GetWaveformData(i,CB_GetWaveformData[i]);
-
-
       m_SetCallBackAllPowerOnOff    (i,CB_PowerOnOff[i]);
       m_SetCallBackTCONSetReg       (i,CB_TCONSetReg[i]);
       m_SetCallBackTCONGetReg       (i,CB_TCONGetReg[i]);
@@ -2699,13 +1272,15 @@ begin
       m_SetCallBackFlashRead_File   (i,CB_FlashRead_File[i]);
       m_SetCallBackFlashRead_Data   (i,CB_FlashRead_Data[i]);
       m_SetCallBackFlashErase       (i,CB_FlashErase[i]);
-
       m_SetCallBackTCONSetRegArray       (i,CB_TCONSetRegArray[i]);
       m_SetCallBackTCONGetRegArray       (i,CB_TCONGetRegArray[i]);
       if @m_SetCallBackTCONMultiSetReg <> nil then
         m_SetCallBackTCONMultiSetReg(i,CB_TCONMultiSetReg[i]);
       if @m_SetCallBackTCONSeqSetReg <> nil then
         m_SetCallBackTCONSeqSetReg(i,CB_TCONSeqSetReg[i]);
+
+      if @m_SetCallback_FlowDone <> nil then
+        m_SetCallback_FlowDone(i,CB_FlowDone[i]);
 
     end;
   finally
@@ -2759,8 +1334,7 @@ begin
 end;
 
 
-
-function TCSharpDll.MainOC_Start_CH1(nDLLType, nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
+function TCSharpDll.MainOC_Start(nDLLType,nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
 var
 sParameter : string;
 sHWCID,sDebug : string;
@@ -2779,7 +1353,7 @@ begin
     m_CurrentTap[nCH] := 0;
     m_CountInspections[nCH] := 0; //검사 횟수 초기화
     dCheckSum := Common.crc16(sParameter,Length(sParameter)-1);
-    if m_MainOC_START_CH1(nDLLType,nCH,Common.StringToPAnsiChar(sParameter),Length(sParameter)-1,dCheckSum) <> 0 then
+    if StartFunctions[nCH](nDLLType,nCH,Common.StringToPAnsiChar(sParameter),Length(sParameter)-1,dCheckSum) <> 0 then
       Exit(2);
     m_OCFlowStart[nCH] := true;
     tmCheckOCAlive[nCH].Enabled := True;
@@ -2787,109 +1361,18 @@ begin
   except
     Result := 2;
   end;
-
 end;
 
-function TCSharpDll.MainOC_Start_CH2(nDLLType,nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
-var
-sParameter,sHWCID,sDebug : string;
-sCrcData   : AnsiString;
-dCheckSum: dword;
+function TCSharpDll.MainOC_Stop(nCH : Integer): integer;
 begin
   try
-    m_nDLLType[nCH] := nDLLType;
-    sParameter := sPID + ',' + sSerialNumber + ',' + sUser_ID +',' + sEquipment + #0;
-    sDebug := sParameter + #13#10 +'Memory usage : ' + Format('%0.2f%%', [Common.GetMemoryUsagePercentage]);
-    SendTestGuiDisplay(nCH,defCommon.MSG_MODE_WORKING,sDebug,0);
-    SendHWCID(nCH);
-    m_bIsProcessDone[nCH] := False;
-    m_sSerialNo[nCH] := sSerialNumber;
-    m_CurrentBand[nCH] := 0;
-    m_CurrentTap[nCH] := 0;
-    m_CountInspections[nCH] := 0; //검사 횟수 초기화
-    dCheckSum := Common.crc16(sParameter,Length(sParameter)-1);
-    if m_MainOC_START_CH2(nDLLType,nCH,Common.StringToPAnsiChar(sParameter),Length(sParameter)-1,dCheckSum) <> 0 then
-      Exit(2);
-    m_OCFlowStart[nCH] := true;
-    tmCheckOCAlive[nCH].Enabled := True;
+    StopFunctions[nCH](m_nDLLType[nCH],nCH);
+  finally
     Result := 0;
-  except
-    Result := 2;
   end;
 end;
 
-function TCSharpDll.MainOC_Start_CH3(nDLLType, nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
-var
-sParameter,sHWCID,sDebug : string;
-sCrcData   : AnsiString;
-dCheckSum: dword;
-begin
-  try
-    m_nDLLType[nCH] := nDLLType;
-    sParameter := sPID + ',' + sSerialNumber + ',' + sUser_ID +',' + sEquipment + #0;
-    sDebug := sParameter + #13#10 +'Memory usage : ' + Format('%0.2f%%', [Common.GetMemoryUsagePercentage]);
-    SendTestGuiDisplay(nCH,defCommon.MSG_MODE_WORKING,sDebug,0);
-    SendHWCID(nCH);
-    m_bIsProcessDone[nCH] := False;
-    m_sSerialNo[nCH] := sSerialNumber;
-    m_CurrentBand[nCH] := 0;
-    m_CurrentTap[nCH] := 0;
-    m_CountInspections[nCH] := 0; //검사 횟수 초기화
-    dCheckSum := Common.crc16(sParameter,Length(sParameter)-1);
-    if m_MainOC_START_CH3(nDLLType,nCH,Common.StringToPAnsiChar(sParameter),Length(sParameter)-1,dCheckSum) <> 0 then
-      Exit(2);
-    m_OCFlowStart[nCH] := true;
-    tmCheckOCAlive[nCH].Enabled := True;
-    Result := 0;
-  except
-    Result := 2;
-  end;
-end;
 
-function TCSharpDll.MainOC_Start_CH4(nDLLType, nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
-var
-sParameter,sHWCID,sDebug : string;
-sCrcData   : AnsiString;
-dCheckSum : dword;
-begin
-  try
-    m_nDLLType[nCH] := nDLLType;
-    sParameter := sPID + ',' + sSerialNumber + ',' + sUser_ID +',' + sEquipment + #0;
-    sDebug := sParameter + #13#10 +'Memory usage : ' + Format('%0.2f%%', [Common.GetMemoryUsagePercentage]);
-    SendTestGuiDisplay(nCH,defCommon.MSG_MODE_WORKING,sDebug,0);
-    SendHWCID(nCH);
-    m_bIsProcessDone[nCH] := False;
-    m_sSerialNo[nCH] := sSerialNumber;
-    m_CurrentBand[nCH] := 0;
-    m_CurrentTap[nCH] := 0;
-    m_CountInspections[nCH] := 0; //검사 횟수 초기화
-    dCheckSum := Common.crc16(sParameter,Length(sParameter)-1);
-    if m_MainOC_START_CH4(nDLLType,nCH,Common.StringToPAnsiChar(sParameter),Length(sParameter)-1,dCheckSum) <> 0 then
-      Exit(2);
-    m_OCFlowStart[nCH] := true;
-    tmCheckOCAlive[nCH].Enabled := True;
-    Result := 0;
-  except
-    Result := 2;
-  end;
-end;
-
-function TCSharpDll.MainOC_Start(nDLLType,nCH : Integer; sPID,sSerialNumber,sUser_ID,sEquipment : string): Integer;
-begin
-  Result := 2;
-  case nCH of
-    0:         Result := MainOC_Start_CH1(nDLLType,nCH,sPID,sSerialNumber,sUser_ID,sEquipment);
-    1:         Result := MainOC_Start_CH2(nDLLType,nCH,sPID,sSerialNumber,sUser_ID,sEquipment);
-    2:         Result := MainOC_Start_CH3(nDLLType,nCH,sPID,sSerialNumber,sUser_ID,sEquipment);
-    3:         Result := MainOC_Start_CH4(nDLLType,nCH,sPID,sSerialNumber,sUser_ID,sEquipment);
-  end;
-end;
-
-function TCSharpDll.MainOC_Stop_CH1(nCH : Integer): integer;
-begin
-   m_MainOC_STOP_CH1(m_nDLLType[nCH],nCH);
-   Result := 0;
-end;
 
 function TCSharpDll.MainOC_Flash_Read(nCH : Integer): integer;
 begin
@@ -2897,23 +1380,6 @@ begin
 end;
 
 
-function TCSharpDll.MainOC_Stop_CH2(nCH : Integer): integer;
-begin
-  m_MainOC_STOP_CH2(m_nDLLType[nCH],nCH);
-  Result := 0;
-end;
-
-function TCSharpDll.MainOC_Stop_CH3(nCH : Integer): integer;
-begin
-  m_MainOC_STOP_CH3(m_nDLLType[nCH],nCH);
-  Result := 0;
-end;
-
-function TCSharpDll.MainOC_Stop_CH4(nCH : Integer): integer;
-begin
-  m_MainOC_STOP_CH4(m_nDLLType[nCH],nCH);
-  Result := 0;
-end;
 
 function TCSharpDll.MainOC_ThreadStateCheck(nCH : Integer): integer;
 begin
@@ -2946,6 +1412,7 @@ begin
   SetLength(m_bIsProcessDone,0);
   SetLength(m_bIsProcessUnloadDone,0);
   SetLength(m_bIsDLLWork,0);
+
   if tmrCycle <> nil then  begin
     tmrCycle.Free;
     tmrCycle := nil;
@@ -2963,103 +1430,37 @@ var
   i : integer;
 begin
   for I := DefCommon.CH1 to DefCommon.MAX_CH do begin
-    case i of
-      DefCommon.CH1 : begin
-        @CB_PowerOnOff[i] := @MyCB_AllPowerOnOff_1;
-        @CB_TCONSetReg[i] := @MyCB_TCONSetReg_1;
-        @CB_TCONGetReg[i] := @MyCB_TCONGetReg_1;
-        @CB_FlashWrite_File[i] := @MyCB_FlashWrite_File_1;
-        @CB_FlashWrite_Data[i] := @MyCB_FlashWrite_Data_1;
-        @CB_FlashRead_File[i] := @MyCB_FlashRead_File_1;
-        @CB_FlashRead_Data[i] := @MyCB_FlashRead_Data_1;
-        @CB_FlashErase[i] := @MyCB_FlashErase_1;
+    @CB_PowerOnOff[i] := @MyCB_AllPowerOnOff[i];
+    @CB_TCONSetReg[i] := @MyCB_TCONSetReg[i];
+    @CB_TCONGetReg[i] := @MyCB_TCONGetReg[i];
+    @CB_FlashWrite_File[i] := @MyCB_FlashWrite_File[i];
+    @CB_FlashWrite_Data[i] := @MyCB_FlashWrite_Data[i];
+    @CB_FlashRead_File[i] := @MyCB_FlashRead_File[i];
+    @CB_FlashRead_Data[i] := @MyCB_FlashRead_Data[i];
+    @CB_FlashErase[i] := @MyCB_FlashErase[i];
 
-        @CB_TCONSetRegArray[i] := @MyCB_TCONSetRegArray_1;
-        @CB_TCONGetRegArray[i] := @MyCB_TCONGetRegArray_1;
+    @CB_TCONSetRegArray[i] := @MyCB_TCONSetRegArray[i];
+    @CB_TCONGetRegArray[i] := @MyCB_TCONGetRegArray[i];
 
-        @CB_TCONMultiSetReg[i] := @MyCB_TCONSetRegMultiWrite_1;
-        @CB_TCONSeqSetReg[i] := @MyCB_TCONSetRegSeqWrite_1;
-        @CB_Measure_XYL[i] := @MyCB_measure_XYL_1;
-        @CB_SetSync[i] := @MyCB_SetSync_1;
-        @CB_GetWaveformData[i] := @MyCB_GetWaveformData_1;
-        @CB_TextChanged[i] := @MyCB_TextChanged_1;
+    @CB_TCONMultiSetReg[i] := @MyCB_TCONSetRegMultiWrite[i];
+    @CB_TCONSeqSetReg[i] := @MyCB_TCONSetRegSeqWrite[i];
+    @CB_Measure_XYL[i] := @MyCB_measure_XYL[i];
+    @CB_SetSync[i] := @MyCB_SetSync[i];
+    @CB_GetWaveformData[i] := @MyCB_GetWaveformData[i];
+    @CB_TextChanged[i] := @MyCB_TextChanged[i];
 
-      end;
-      DefCommon.CH2 : begin
-        @CB_PowerOnOff[i] := @MyCB_AllPowerOnOff_2;
-        @CB_TCONSetReg[i] := @MyCB_TCONSetReg_2;
-        @CB_TCONGetReg[i] := @MyCB_TCONGetReg_2;
-        @CB_FlashWrite_File[i] := @MyCB_FlashWrite_File_2;
-        @CB_FlashWrite_Data[i] := @MyCB_FlashWrite_Data_2;
-        @CB_FlashRead_File[i] := @MyCB_FlashRead_File_2;
-        @CB_FlashRead_Data[i] := @MyCB_FlashRead_Data_2;
-        @CB_FlashErase[i] := @MyCB_FlashErase_2;
-
-        @CB_TCONSetRegArray[i] := @MyCB_TCONSetRegArray_2;
-        @CB_TCONGetRegArray[i] := @MyCB_TCONGetRegArray_2;
-
-        @CB_TCONMultiSetReg[i] := @MyCB_TCONSetRegMultiWrite_2;
-        @CB_TCONSeqSetReg[i] := @MyCB_TCONSetRegSeqWrite_2;
-        @CB_Measure_XYL[i] := @MyCB_measure_XYL_2;
-        @CB_SetSync[i] := @MyCB_SetSync_2;
-        @CB_GetWaveformData[i] := @MyCB_GetWaveformData_2;
-        @CB_TextChanged[i] := @MyCB_TextChanged_2;
-
-      end;
-      DefCommon.CH3 : begin
-        @CB_PowerOnOff[i] := @MyCB_AllPowerOnOff_3;
-
-        @CB_TCONSetReg[i] := @MyCB_TCONSetReg_3;
-        @CB_TCONGetReg[i] := @MyCB_TCONGetReg_3;
-        @CB_FlashWrite_File[i] := @MyCB_FlashWrite_File_3;
-        @CB_FlashWrite_Data[i] := @MyCB_FlashWrite_Data_3;
-        @CB_FlashRead_File[i] := @MyCB_FlashRead_File_3;
-        @CB_FlashRead_Data[i] := @MyCB_FlashRead_Data_3;
-        @CB_FlashErase[i] := @MyCB_FlashErase_3;
-
-        @CB_TCONSetRegArray[i] := @MyCB_TCONSetRegArray_3;
-        @CB_TCONGetRegArray[i] := @MyCB_TCONGetRegArray_3;
-
-        @CB_TCONMultiSetReg[i] := @MyCB_TCONSetRegMultiWrite_3;
-        @CB_TCONSeqSetReg[i] := @MyCB_TCONSetRegSeqWrite_3;
-        @CB_Measure_XYL[i] := @MyCB_measure_XYL_3;
-        @CB_SetSync[i] := @MyCB_SetSync_3;
-        @CB_GetWaveformData[i] := @MyCB_GetWaveformData_3;
-        @CB_TextChanged[i] := @MyCB_TextChanged_3;
-
-      end;
-      DefCommon.CH4 : begin
-        @CB_PowerOnOff[i] := @MyCB_AllPowerOnOff_4;
-
-        @CB_TCONSetReg[i] := @MyCB_TCONSetReg_4;
-        @CB_TCONGetReg[i] := @MyCB_TCONGetReg_4;
-        @CB_FlashWrite_File[i] := @MyCB_FlashWrite_File_4;
-        @CB_FlashWrite_Data[i] := @MyCB_FlashWrite_Data_4;
-        @CB_FlashRead_File[i] := @MyCB_FlashRead_File_4;
-        @CB_FlashRead_Data[i] := @MyCB_FlashRead_Data_4;
-        @CB_FlashErase[i] := @MyCB_FlashErase_4;
-
-        @CB_TCONSetRegArray[i] := @MyCB_TCONSetRegArray_4;
-        @CB_TCONGetRegArray[i] := @MyCB_TCONGetRegArray_4;
-
-        @CB_TCONMultiSetReg[i] := @MyCB_TCONSetRegMultiWrite_4;
-        @CB_TCONSeqSetReg[i] := @MyCB_TCONSetRegSeqWrite_4;
-        @CB_Measure_XYL[i] := @MyCB_measure_XYL_4;
-        @CB_SetSync[i] := @MyCB_SetSync_4;
-        @CB_GetWaveformData[i] := @MyCB_GetWaveformData_4;
-        @CB_TextChanged[i] := @MyCB_TextChanged_4;
-
-      end;
-    end;
-
+    @CB_FlowDone[i] := @MyCB_FlowDone[i];
   end;
-//  CsharpDll.Initialize_TEST;
 end;
 
 
 
 
 procedure TCSharpDll.Setfunction;
+var
+  I: Integer;
+  StartFuncPtr: FARPROC;
+  StopFuncPtr: FARPROC;
 begin
   @m_Initialize      := GetProcAddress(m_hDll, 'Initialize');
   @m_FormDestroy     := GetProcAddress(m_hDll, 'FormDestroy');
@@ -3083,14 +1484,37 @@ begin
 
   @m_GetSummaryLogData_New := GetProcAddress(m_hDll,'GetSummaryLogData_New');
 
-  @m_MainOC_START_CH1 :=  GetProcAddress(m_hDll,'MainOC_START_CH1');
-  @m_MainOC_START_CH2 :=  GetProcAddress(m_hDll,'MainOC_START_CH2');
-  @m_MainOC_START_CH3 :=  GetProcAddress(m_hDll,'MainOC_START_CH3');
-  @m_MainOC_START_CH4 :=  GetProcAddress(m_hDll,'MainOC_START_CH4');
-  @m_MainOC_STOP_CH1 :=  GetProcAddress(m_hDll,'MainOC_STOP_CH1');
-  @m_MainOC_STOP_CH2 :=  GetProcAddress(m_hDll,'MainOC_STOP_CH2');
-  @m_MainOC_STOP_CH3 :=  GetProcAddress(m_hDll,'MainOC_STOP_CH3');
-  @m_MainOC_STOP_CH4 :=  GetProcAddress(m_hDll,'MainOC_STOP_CH4');
+  for I := DefCommon.CH1 to DefCommon.CH4 do
+  begin
+    StartFuncPtr := GetProcAddress(m_hDll, PAnsiChar(AnsiString(Format('MainOC_START_CH%d', [I+1]))));
+    StopFuncPtr := GetProcAddress(m_hDll, PAnsiChar(AnsiString(Format('MainOC_STOP_CH%d', [I+1]))));
+
+    if Assigned(StartFuncPtr) then
+      StartFunctions[I] := TStartFunction(StartFuncPtr);
+
+    if Assigned(StopFuncPtr) then
+      StopFunctions[I] := TStopFunction(StopFuncPtr);
+
+    MyCB_TextChanged[i] := MyCB_TextChanged_Proc;
+    MyCB_AllPowerOnOff[i] := MyCB_AllPowerOnOff_Proc;
+
+    MyCB_TCONSetReg[i]            :=      MyCB_TCONSetReg_Proc;
+    MyCB_TCONGetReg[i]            :=      MyCB_TCONGetReg_Proc;
+    MyCB_TCONSetRegArray[i]       :=      MyCB_TCONSetRegArray_Proc;
+    MyCB_TCONSetRegMultiWrite[i]  :=      MyCB_TCONSetRegMultiWrite_Proc;
+    MyCB_TCONSetRegSeqWrite[i]    :=      MyCB_TCONSetRegSeqWrite_Proc;
+    MyCB_TCONGetRegArray[i]       :=      MyCB_TCONGetRegArray_Proc;
+    MyCB_FlashWrite_File[i]       :=      MyCB_FlashWrite_File_Proc;
+    MyCB_FlashWrite_Data[i]       :=      MyCB_FlashWrite_Data_Proc;
+    MyCB_FlashRead_File[i]        :=      MyCB_FlashRead_File_Proc;
+    MyCB_FlashRead_Data[i]        :=      MyCB_FlashRead_Data_Proc;
+    MyCB_FlashErase[i]            :=      MyCB_FlashErase_Proc;
+    MyCB_measure_XYL[i]           :=      MyCB_measure_XYL_Proc;
+    MyCB_GetWaveformData[i]       :=      MyCB_GetWaveformData_Proc;
+    MyCB_SetSync[i]               :=      MyCB_SetSync_Proc;
+    MyCB_FlowDone[i]              :=       MyCB_FlowDone_Proc;
+  end;
+
   @m_MainOC_VerifyStart :=  GetProcAddress(m_hDll,'Verify_Start');
   @m_MainOC_ThreadStateCheck := GetProcAddress(m_hDll,'ThreadStateCheck');
 
@@ -3110,6 +1534,8 @@ begin
 
   @m_SetCallBackTCONMultiSetReg    := GetProcAddress(m_hDll,'Callback_TCONSetRegMultiwrite');
   @m_SetCallBackTCONSeqSetReg    := GetProcAddress(m_hDll,'Callback_TCONSetRegSeqWrite');
+
+  @m_SetCallback_FlowDone    := GetProcAddress(m_hDll,'Callback_FlowDone');
 
 end;
 

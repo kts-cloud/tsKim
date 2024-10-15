@@ -5,7 +5,7 @@ interface
 
 uses
   System.Classes, System.SysUtils, System.Threading,
-  Winapi.Windows, Winapi.Messages, Winapi.WinSock,
+  Winapi.Windows, Winapi.Messages, Winapi.WinSock,System.Diagnostics,
   IdGlobal,
 	{$IFDEF PG_DP860}
   IdSocketHandle, IdUDPClient, IdUDPServer, FTPClient,
@@ -124,6 +124,7 @@ type
     SimAPSRegData : array[0..SIM_APSREG_SIZE] of Byte;
     {$ENDIF}
     sPreviousCommand : string;
+    procedure SendMsg(sMsg : string);
 	public
     //================================================================= COMMON
     //------------------------------------------------------ GUI Handle
@@ -966,7 +967,7 @@ begin
   FIdUDPClient.Port    := PG_IPPORT;
   FIdUDPClient.Active  := True;
   //
-  FFTPClient := TFTPClient.Create(PG_IPADDR, DefPG.DP860_FTP_USERNAME, DefPG.DP860_FTP_PASSWORD);
+  FFTPClient := TFTPClient.Create(PG_IPADDR, DefPG.DP860_FTP_USERNAME, DefPG.DP860_FTP_PASSWORD,SendMsg);
   //
   m_ABinding      := nil;
 	//
@@ -4848,9 +4849,12 @@ begin
       FFTPClient.Disconnect;      // Added by KTS 2023-04-04 오전 10:06:24
       Exit;
     end;
-	end;
-//  sDebug := sFunc + ': FTP Connect';
-//  ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
+	end
+  else begin
+    sDebug := sFunc + ': FTP Connecting';
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
+  end;
+
 
 	// Change Local Dir
 	// Change Remote Dir
@@ -4909,8 +4913,8 @@ begin
 	// Connect
 	if not FFTPClient.FFTP.Connected then begin
     sDebug :=  '<PG> FTP Connect';
-    if (Common.SystemInfo.DebugLogLevelConfig > 0) then
-      ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_NG, sDebug);
+//    if (Common.SystemInfo.DebugLogLevelConfig > 0) then
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
     sErrMsg := FFTPClient.Connect;
   	if sErrMsg <> '' then begin
     	sDebug := sFunc + ': FTP Connect NG(' + sErrMsg + ')';
@@ -4918,7 +4922,11 @@ begin
       FFTPClient.Disconnect; // Added by KTS 2023-04-04 오전 10:06:03
       Exit;
     end;
-	end;
+	end
+  else begin
+    sDebug := sFunc + ': FTP Connecting';
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
+  end;
   //sDebug := sFunc + ': FTP Connect';
   //ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
 
@@ -4958,19 +4966,28 @@ begin
 	Result := WAIT_OBJECT_0;
 end;
 
+
+
+
 function TCommPG.DP860_FTPDiscon: DWORD;
 var
  sDebug : string;
 begin
 	Result  := WAIT_FAILED;
-  if FFTPClient = nil then Exit(WAIT_OBJECT_0);
-  if not FFTPClient.FFTP.Connected  then Exit(WAIT_OBJECT_0)
-  else begin
-    FFTPClient.Disconnect;
-    sDebug := '<PG> FTP Disconnect';
-    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
+  try
+    if FFTPClient = nil then Exit(WAIT_OBJECT_0);
+    if not FFTPClient.FFTP.Connected  then Exit(WAIT_OBJECT_0)
+    else begin
+      FFTPClient.Disconnect;
+      sDebug := '<PG> FTP Disconnect';
+      ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
+    end;
+    Result := WAIT_OBJECT_0;
+  except
+    on E: Exception do
+    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, e.Message);
   end;
-  Result := WAIT_OBJECT_0;
+
 end;
 
 {$ENDIF} //FEATURE_FLASH_ACCESS
@@ -6187,18 +6204,15 @@ begin
 	end;
 
  	SetLength(btaData, nDataCnt);
-	case PG_TYPE of
 
-		DefPG.PG_TYPE_DP860 : begin //-------------- DP860
-      {$IF Defined(INSPECTOR_OC) or Defined(INSPECTOR_PreOC)} //2023-03-28 jhhwang (for OC T/T)
-      if Common.SystemInfo.PG_TconWriteCmdType = 0 then Sleep(Common.SystemInfo.PG_TconReadBeforeDelayMsec); //2023-04-24 jhhwang (for T/T Test) (if oc.write)
-  		{$ENDIF}
+  {$IF Defined(INSPECTOR_OC) or Defined(INSPECTOR_PreOC)} //2023-03-28 jhhwang (for OC T/T)
+  if Common.SystemInfo.PG_TconWriteCmdType = 0 then Sleep(Common.SystemInfo.PG_TconReadBeforeDelayMsec); //2023-04-24 jhhwang (for T/T Test) (if oc.write)
+  {$ENDIF}
 
-      Result := DP860_SendI2CRead(nDevAddr,nRegAddr,nDataCnt,btaData, nWaitMS,nRetry,nDebugLog);
+  Result := DP860_SendI2CRead(nDevAddr,nRegAddr,nDataCnt,btaData, nWaitMS,nRetry,nDebugLog);
+  if Result <> WAIT_OBJECT_0 then
+    Result := DP860_SendI2CRead(nDevAddr,nRegAddr,nDataCnt,btaData, nWaitMS,nRetry,nDebugLog);
 
-		end;
-
-	end;
   //
   if Result = WAIT_OBJECT_0 then begin
     FTxRxPG.RxDataLen := nDataCnt;
@@ -6363,6 +6377,11 @@ begin
 		end;
 		{$ENDIF}
 	end;
+end;
+
+procedure TCommPG.SendMsg(sMsg: string);
+begin
+  ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sMsg);
 end;
 
 function TCommPG.SendI2CMultiWrite(nDevAddr,nDataCnt: Integer; arRegAddr : array of Integer; arDataW: TIdBytes; nWaitMS: Integer=2000; nRetry: Integer=0): DWORD;
@@ -6538,8 +6557,14 @@ begin
               sLocalFullName := Trim(Common.Path.FLASH + Format('CH%d_', [m_nPG + 1]) + sRemoteFile);
               Result := DP860_FileGetPG2PC('/home/upload', sRemoteFile, sLocalFullName, False, False);
 
-              if Result <> WAIT_OBJECT_0 then
-                Break;
+              if Result <> WAIT_OBJECT_0 then begin
+                sDebug :=  '<PG> FTP Disconnect';
+                ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
+                FFTPClient.Disconnect;
+                Result := DP860_FileGetPG2PC('/home/upload', sRemoteFile, sLocalFullName, False, False);
+                if Result <> WAIT_OBJECT_0 then
+                    Break;
+              end;
 
               mtData := TMemoryStream.Create;
               try
@@ -6626,8 +6651,12 @@ begin
 
       // FTP Put to PG
       Result := DP860_FilePutPC2PG(sLocalFullName, sRemotePath, sRemoteFile, True, False);
-      if Result <> WAIT_OBJECT_0 then
-        Break;
+      if Result <> WAIT_OBJECT_0 then begin
+        FFTPClient.Disconnect;
+        Result := DP860_FilePutPC2PG(sLocalFullName, sRemotePath, sRemoteFile, True, False);
+        if Result <> WAIT_OBJECT_0 then
+          Break;
+      end;
 
       // Send flash.write2file
       bVerifyPG := True; //TBD:DP860?

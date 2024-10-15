@@ -159,6 +159,10 @@ type
     Button2: TButton;
     Button3: TButton;
     Button4: TButton;
+    RzPanel26: TRzPanel;
+    pnlAAMode: TRzPanel;
+    ledAAMode: ThhALed;
+    TimerLogUpdate: TTimer;
     procedure FormCreate(Sender: TObject);
     procedure MyExceptionHandler(Sender : TObject; E : Exception );
     procedure btnInitClick(Sender: TObject);
@@ -199,6 +203,8 @@ type
     procedure Button3Click(Sender: TObject);
     procedure Button4Click(Sender: TObject);
     procedure RzgrpDFSDblClick(Sender: TObject);
+    procedure TimerLogUpdateTimer(Sender: TObject);
+
   private
     { Private declarations }
     // DIO
@@ -209,6 +215,8 @@ type
     m_sNgMsg : string;
     m_bSaveEnergy, m_bSaveEnergyChnage : Boolean;
     m_csWriteCsvLog: TCriticalSection;
+
+    FLogBuffer: TStringList;  // 로그를 임시 저장할 리스트
 
     function CheckAdminPasswd : boolean;
     procedure initform;
@@ -1237,6 +1245,17 @@ begin
   InitForm;
 
 
+  ledAAMode.TrueColor  := clLime;
+  ledAAMode.FalseColor := clRed;
+  if Common.SystemInfo.UseInLine_AAMode then begin
+    ledAAMode.Value   := True;
+    pnlAAMode.Caption := 'ON';
+  end
+  else begin
+    ledAAMode.Value   := False;
+    pnlAAMode.Caption := 'OFF';
+  end;
+
 
   pnlStationNo.Caption := Common.SystemInfo.EQPId;
   case Common.SystemInfo.EQPId_Type of
@@ -1613,6 +1632,10 @@ begin
   end;
   {$ENDIF}
 
+  FLogBuffer := TStringList.Create;
+  TimerLogUpdate.Interval := 1000;  // 1초마다 실행
+  TimerLogUpdate.Enabled := True;
+
 
   Common.UpdateSystemInfo_Runtime;
   pnlUserId.Caption := Common.m_sUserId;
@@ -1683,9 +1706,13 @@ end;
 
 procedure TfrmMain_OC.FormDestroy(Sender: TObject);
 begin
+  TimerLogUpdate.Enabled := False;
+  FLogBuffer.Free;
   m_csWriteCsvLog.Free;
   modDB.Free;
 end;
+
+
 
 procedure TfrmMain_OC.GetBcrConnStatus( bConnected: Boolean; sMsg: string);
 begin
@@ -5022,7 +5049,7 @@ begin
     if bAuto then begin
       if Common.StatusInfo.AutoMode then Exit;
       g_CommPLC.IgnoreConnect:= False;
-
+      Common.SupervisorMode := False;
       if not CheckPG_Connect(DefCommon.MAX_PG_CNT) then begin
         ShowSysLog('Do not Auto Start - PG Disconnected');
         Exit;
@@ -5219,7 +5246,8 @@ begin
     if mmoSysLog = nil then exit;
     sDebug := FormatDateTime('[HH:MM:SS.zzz] ',now) + sMsg;
     Common.MLog(DefCommon.MAX_SYSTEM_LOG, sMsg);
-    Common.LockControl(mmoSysLog);
+    FLogBuffer.Add(sDebug);
+//    Common.LockControl(mmoSysLog);
 //    mmoSysLog.DisableAlign;
 //    if mmoSysLog.Lines.Count > 1000 then begin
 //      mmoSysLog.Clear;
@@ -5246,25 +5274,25 @@ begin
 //        mmoSysLog.SelAttributes.Style := [];
 //      end;
 //    end;
-
-    try
-      mmoSysLog.Lines.BeginUpdate;
-      try
-        mmoSysLog.Lines.Add(sDebug);
-        mmoSysLog.Perform(WM_VSCROLL, SB_BOTTOM, 0);
-
-      finally
-        mmoSysLog.Lines.EndUpdate;
-      end;
-
-    except
-      //유효하지 않은 문자열일 경우 오류(madException) 방지: RichEdit line insertion error.
-      on E: Exception do  begin
-        Sleep(10); //MLog 충돌 방지 딜레이
-      end;
-    end;
+//
+//    try
+//      mmoSysLog.Lines.BeginUpdate;
+//      try
+//        mmoSysLog.Lines.Add(sDebug);
+//        mmoSysLog.Perform(WM_VSCROLL, SB_BOTTOM, 0);
+//
+//      finally
+//        mmoSysLog.Lines.EndUpdate;
+//      end;
+//
+//    except
+//      //유효하지 않은 문자열일 경우 오류(madException) 방지: RichEdit line insertion error.
+//      on E: Exception do  begin
+//        Sleep(10); //MLog 충돌 방지 딜레이
+//      end;
+//    end;
   finally
-    Common.UnlockControl(mmoSysLog);
+//    Common.UnlockControl(mmoSysLog);
 //    mmoSysLog.EnableAlign;
   end;
 
@@ -5343,6 +5371,11 @@ begin
           else Robot_Request_Load(CH4);
         end
         else if nRet = mrNo then begin
+          if  (not CheckAdminPasswd) or (not Common.SupervisorMode) then begin
+            ShowSysLog('StartAutoProcess Carrier Detected. Password is wrong');
+            Set_AutoMode(False);
+            Exit;
+          end;
           if MessageDlg('Do you really want to proceed with  Unload??', mtConfirmation, [mbYes, mbNo], 0) = mrNo then
             Exit;
           ShowSysLog('StartAutoProcess Carrier Detected. Request Exchange A');
@@ -5400,7 +5433,16 @@ begin
           Exit;
         end;
         if nRetCH12 = mrNo then begin
+          if not Common.SupervisorMode then begin
+            if  (not CheckAdminPasswd) or (not Common.SupervisorMode) then begin
+              frmSelectDetect.Free;
+              ShowSysLog('StartAutoProcess Carrier Detected. Password is wrong');
+              Set_AutoMode(False);
+              Exit;
+            end;
+          end;
           if MessageDlg('Do you really want to proceed with the CH1,2 Unload??', mtConfirmation, [mbYes, mbNo], 0) = mrNo then begin
+            frmSelectDetect.Free;
             ShowSysLog('StartAutoProcess Carrier Detected. User CH1,2 UnLoad');
             Set_AutoMode(False);
             Exit;
@@ -5417,6 +5459,14 @@ begin
           Exit;
         end;
         if nRetCH34 = mrNo then begin
+          if not Common.SupervisorMode then begin
+            if  (not CheckAdminPasswd) or (not Common.SupervisorMode) then begin
+              frmSelectDetect.Free;
+              ShowSysLog('StartAutoProcess Carrier Detected. Password is wrong');
+              Set_AutoMode(False);
+              Exit;
+            end;
+          end;
           if MessageDlg('Do you really want to proceed with the CH3,4 Unload??', mtConfirmation, [mbYes, mbNo], 0) = mrNo then begin
             frmSelectDetect.Free;
             ShowSysLog('StartAutoProcess Carrier Detected. User CH3,4 UnLoad');
@@ -5446,6 +5496,7 @@ begin
           ShowSysLog('StartAutoProcess Carrier Detected. Request Exchange CH 1,2');
           g_CommPLC.ECS_Unit_Status(COMMPLC_UNIT_STATE_RUN, 0);
 //          Common.StatusInfo.StageStep[JIG_A]:= STAGE_STEP_LOADING;
+
           if ControlDio.IsDetected(CH1) or  ControlDio.IsDetected(CH2) then begin
             if ControlDio.IsDetected(CH1)then
               Robot_Request_UnLoad(CH1);
@@ -5479,6 +5530,7 @@ begin
           ShowSysLog('StartAutoProcess Carrier Detected. Request Exchange CH 3,4');
           g_CommPLC.ECS_Unit_Status(COMMPLC_UNIT_STATE_RUN, 0);
 //          Common.StatusInfo.StageStep[JIG_A]:= STAGE_STEP_LOADING;
+
           if ControlDio.IsDetected(CH3) or  ControlDio.IsDetected(CH4) then begin
             if ControlDio.IsDetected(CH3)then
               Robot_Request_UnLoad(CH3);
@@ -5528,8 +5580,16 @@ begin
             Exit;
           end;
           if nRetCH12 = mrNo then begin
+            if not Common.SupervisorMode then begin
+              if  (not CheckAdminPasswd) or (not Common.SupervisorMode) then begin
+                frmSelectDetect.Free;
+                ShowSysLog('StartAutoProcess Carrier Detected. Password is wrong');
+                Set_AutoMode(False);
+                Exit;
+              end;
+            end;
             if not (PasScr[DefCommon.CH1].TestInfo.CanSendApdr and PasScr[DefCommon.CH2].TestInfo.CanSendApdr)  then begin
-              if MessageDlg('Do you really want to proceed with the CH1,2 unload??', mtConfirmation, [mbYes, mbNo], 0) = mrNo then begin
+                if MessageDlg('Do you really want to proceed with the CH1,2 unload??', mtConfirmation, [mbYes, mbNo], 0) = mrNo then begin
                 frmSelectDetect.Free;
                 ShowSysLog('StartAutoProcess Carrier Detected. User CH1,2 UnLoad');
                 Set_AutoMode(False);
@@ -5548,6 +5608,14 @@ begin
             Exit;
           end;
           if nRetCH34 = mrNo then begin
+            if not Common.SupervisorMode then begin
+              if  (not CheckAdminPasswd) or (not Common.SupervisorMode) then begin
+                frmSelectDetect.Free;
+                ShowSysLog('StartAutoProcess Carrier Detected. Password is wrong');
+                Set_AutoMode(False);
+                Exit;
+              end;
+            end;
             if not (PasScr[DefCommon.CH3].TestInfo.CanSendApdr and PasScr[DefCommon.CH4].TestInfo.CanSendApdr)  then begin
               if MessageDlg('Do you really want to proceed with the CH3,4 unload??', mtConfirmation, [mbYes, mbNo], 0) = mrNo then begin
                 frmSelectDetect.Free;
@@ -5633,6 +5701,26 @@ begin
   TThread.CreateAnonymousThread(
     Task
   ).Start;
+end;
+
+procedure TfrmMain_OC.TimerLogUpdateTimer(Sender: TObject);
+begin
+  if FLogBuffer.Count > 0 then
+  begin
+    Common.LockControl(mmoSysLog);
+    try
+      mmoSysLog.Lines.BeginUpdate;
+      try
+        mmoSysLog.Lines.AddStrings(FLogBuffer);
+        mmoSysLog.Perform(WM_VSCROLL, SB_BOTTOM, 0);
+        FLogBuffer.Clear;  // 로그 버퍼 비우기
+      finally
+        mmoSysLog.Lines.EndUpdate;
+      end;
+    finally
+      Common.UnlockControl(mmoSysLog);
+    end;
+  end;
 end;
 
 procedure TfrmMain_OC.tmAlarmMsgTimer(Sender: TObject);

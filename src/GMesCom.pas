@@ -43,6 +43,7 @@ type
     Tact: String;
     SendData: String;
     LCM_ID: String; //PCHK 응답 코드
+    RetryCnt : Integer;
     //Return
     Ack: Integer; //0=OK, other NG
     EventHandle: HWND;
@@ -768,6 +769,7 @@ begin
   MesData[nPgNo].PchkRtnSerialNo := FMesSerialNo;  // PCHK_R.RTN_SERIAL_NO
   MesData[nPgNo].PchkRtnPID := FMesRtnPID;  // PCHK_R.RTN_PID
   MesData[nPgNo].PchkRtnZig_ID := FMesZig_ID;  // Zig  ID 추카
+
 
 
   // LH588WF1-SD02
@@ -1801,6 +1803,7 @@ begin
   item.SerialNo:=   sConvertSerial;
   item.Tact:=   MesData[nPg].Tact;
   item.MESCode:=    MesData[nPg].Rwk;
+  item.RetryCnt := 0;
 //  item.ApdrData:=     MesData[nPg].ApdrData;
   item.State := MES_UNKNOWN;
   m_Queue.Enqueue(item);
@@ -1825,6 +1828,7 @@ begin
   item.Tact:=   MesData[nPg].Tact;
   item.MESCode:=    MesData[nPg].Rwk;
   item.ApdrData:=     MesData[nPg].ApdrData;
+  item.RetryCnt := 0;
   m_Queue.Enqueue(item);
   tmGmesChMsg.Enabled:= True;
 end;
@@ -1870,6 +1874,7 @@ begin
   item.Tact:=       MesData[nPg].Tact;
   item.MESCode :=    MesData[nPg].Rwk;
   item.ErrCode :=   MesData[nPg].ErrCode;
+  item.RetryCnt := 0;
   //item.ApdrData:=     MesData[nPg].ApdrData;
   m_Queue.Enqueue(item);
   tmGmesChMsg.Enabled:= True;
@@ -1895,6 +1900,7 @@ begin
   item.Kind:=         MES_EIJR;
   item.Timeout:=      60000;
   item.SerialNo:=     sConvertSerial;
+  item.RetryCnt := 0;
   m_Queue.Enqueue(item);
   tmGmesChMsg.Enabled:= True;
 
@@ -1948,6 +1954,7 @@ begin
   item.Timeout:=      60000;
   item.SerialNo:=     sConvertSerial;
   item.CarrierID:=    sConvertJig;
+  item.RetryCnt := 0;
   m_Queue.Enqueue(item);
   tmGmesChMsg.Enabled:= True;
 end;
@@ -1968,6 +1975,7 @@ begin
   item.Kind:=         MES_LPIR;
   item.Timeout:=      3000;
   item.SerialNo:=     sConvertSerial;
+  item.RetryCnt := 0;
   m_Queue.Enqueue(item);
   tmGmesChMsg.Enabled:= True;
 end;
@@ -1992,6 +2000,7 @@ begin
   item.Timeout:=      60000;
   item.SerialNo:=     sConvertSerial;
   item.CarrierID:=    sConvertJig;
+  item.RetryCnt := 0;
   m_Queue.Enqueue(item);
   tmGmesChMsg.Enabled:= True;
 end;
@@ -2085,6 +2094,7 @@ begin
   item.SerialNo:=     sConvertSerial;
   item.CarrierID:=    sConvertJig;
   item.MESCode  :=    MesData[nPg].Rwk;
+  item.RetryCnt := 0;
   m_Queue.Enqueue(item);
   tmGmesChMsg.Enabled:= True;
 end;
@@ -3217,6 +3227,7 @@ begin
       if m_MESItem.Kind in [MES_EAYT, MES_EDTI, MES_EQCC, MES_FLDR, MES_UCHK] then begin
         OnGmsEvent(m_MESItem.Kind, 0, True, 'Timeout');
       end else begin
+        MesData[m_MESItem.Channel].MesSentMsg := MES_UNKNOWN;
         ReturnDataToTestForm(m_MESItem.Kind, m_MESItem.Channel, True, 'Timeout');
       end;
       m_MESItem.State:= MES_UNKNOWN;

@@ -1688,7 +1688,7 @@ object frmLogIn: TfrmLogIn
     SmallFont.Height = -9
     SmallFont.Name = 'Tahoma'
     SmallFont.Style = []
-    Version = '1.8.5.1'
+    Version = '1.9.3.0'
     Font.Charset = ANSI_CHARSET
     Font.Color = clWindowText
     Font.Height = -11

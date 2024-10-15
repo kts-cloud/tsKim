@@ -1782,4 +1782,9 @@ object frmTest4ChOC: TfrmTest4ChOC
     Left = 416
     Top = 46
   end
+  object TimerLogUpdate: TTimer
+    OnTimer = TimerLogUpdateTimer
+    Left = 920
+    Top = 288
+  end
 end

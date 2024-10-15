@@ -669,11 +669,20 @@ object frmMain_OC: TfrmMain_OC
       Left = 1
       Top = 400
       Width = 245
-      Height = 126
+      Height = 150
       Align = alTop
       Caption = ' Script Information.'
       GroupStyle = gsUnderline
       TabOrder = 3
+      object ledAAMode: ThhALed
+        Left = 75
+        Top = 102
+        Width = 22
+        Height = 22
+        FalseColor = clGray
+        Blink = False
+        LEDStyle = LEDSqLarge
+      end
       object pnlPsuVer: TRzPanel
         Left = 78
         Top = 81
@@ -778,7 +787,7 @@ object frmMain_OC: TfrmMain_OC
         Visible = False
       end
       object pnlOC_ConDLLName: TRzPanel
-        Left = 78
+        Left = 75
         Top = 102
         Width = 165
         Height = 22
@@ -787,10 +796,28 @@ object frmMain_OC: TfrmMain_OC
         TabOrder = 11
         Visible = False
       end
+      object RzPanel26: TRzPanel
+        Left = -1
+        Top = 102
+        Width = 78
+        Height = 22
+        BorderOuter = fsFlat
+        Caption = 'AA Mode'
+        TabOrder = 12
+      end
+      object pnlAAMode: TRzPanel
+        Left = 104
+        Top = 103
+        Width = 128
+        Height = 20
+        BorderOuter = fsFlat
+        Caption = 'Disconnected'
+        TabOrder = 13
+      end
     end
     object grpDIO: TRzGroupBox
       Left = 1
-      Top = 526
+      Top = 550
       Width = 245
       Height = 303
       Align = alTop
@@ -807,7 +834,7 @@ object frmMain_OC: TfrmMain_OC
     end
     object grpPwrInfo: TRzGroupBox
       Left = 1
-      Top = 829
+      Top = 853
       Width = 245
       Height = 20
       Align = alClient
@@ -897,8 +924,8 @@ object frmMain_OC: TfrmMain_OC
       Visible = False
       OnDblClick = RzgrpDFSDblClick
       object ledDfs: ThhALed
-        Left = 78
-        Top = 16
+        Left = 75
+        Top = 15
         Width = 22
         Height = 22
         FalseColor = clGray
@@ -1316,8 +1343,8 @@ object frmMain_OC: TfrmMain_OC
       end
     end
     object chkAutoReStart: TCheckBox
-      Left = 65
-      Top = 458
+      Left = 4
+      Top = 556
       Width = 97
       Height = 17
       Caption = 'AUTO Restart'
@@ -1619,7 +1646,7 @@ object frmMain_OC: TfrmMain_OC
   end
   object Button1: TButton
     Left = 33
-    Top = 553
+    Top = 645
     Width = 75
     Height = 25
     Caption = 'Button1'
@@ -1628,8 +1655,8 @@ object frmMain_OC: TfrmMain_OC
     OnClick = Button1Click
   end
   object Edit1: TEdit
-    Left = 138
-    Top = 590
+    Left = 114
+    Top = 638
     Width = 121
     Height = 21
     TabOrder = 5
@@ -1637,8 +1664,8 @@ object frmMain_OC: TfrmMain_OC
     Visible = False
   end
   object Button2: TButton
-    Left = 135
-    Top = 553
+    Left = 128
+    Top = 645
     Width = 75
     Height = 25
     Caption = 'Button2'
@@ -4514,6 +4541,11 @@ object frmMain_OC: TfrmMain_OC
     Enabled = False
     OnTimer = tmSaveEnergyTimer
     Left = 424
+    Top = 248
+  end
+  object TimerLogUpdate: TTimer
+    OnTimer = TimerLogUpdateTimer
+    Left = 504
     Top = 248
   end
 end
