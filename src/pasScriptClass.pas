@@ -2292,6 +2292,7 @@ begin
     DongaGmes.MesData[Self.FPgNo].ApdrRtnCode := '';
     DongaGmes.MesData[Self.FPgNo].ApdrData    := '';
     DongaGmes.MesData[Self.FPgNo].ApdrRtnSerialNo := '';
+    DongaGmes.MesData[Self.FPgNo].Option := 0;
   end;
   sDebug := '[INSPECTION START] Test Model : ' + ' ------------------------------------------------- ' ;
   sDebug := sDebug +Common.SystemInfo.TestModel+' ------------------------------------------------- ';
@@ -3528,12 +3529,16 @@ begin
         sSerialNo := string(Trim(sAnsiStr));
         SetLength(SerialNoBuf,0);
 
-//        {$IFDEF SIMULATOR_PG}
-//          wdRet := 0;
-//          sSerialNo := Format('PPPGU500011EEEEEEE000000ABNAA00000S00B12C00000000000000000003XA000000C43GQA0009R00000EL+3+T32LL1GM750D7R00000EN+1GJ6GLL0022B00000EPGJ6GPE0014M00000EQTHAGPG000MT00000EKF3111111112C1LY1GTS255720000273J1LLL3125AJY043010304T0MHU0S00ML341WL013L_%d',[FPgNo]);
-//          sSerialNo := 'GH3HA80055W000087KBXXXXXX3BXV9L1V3XXX30XXX9Q2G9L2G9M2G9G1G80XS5GXXB2473C09BX48GX1XXXXXXXXSXXXXC9KF0FH9N000JA0000157+A+130FFAH8RCB3C70';
-//          sSerialNo :=  sSerialNo  + '000158+AGJ6H7K0383S0000CE8GJ6H7400GJW000015ATHAH942P05U00007ZP8F2112221149EKSTH8L004240000PV1A310L41131H46J012720340M010100MB221AJ4293';
-//        {$ENDIF}
+        {$IFDEF SIMULATOR_PG}
+          wdRet := 0;
+          sSerialNo := Format('PPPGU500011EEEEEEE000000ABNAA00000S00B12C00000000000000000003XA000000C43GQA0009R00000EL+3+T32LL1GM750D7R00000EN+1GJ6GLL0022B00000EPGJ6GPE0014M00000EQTHAGPG000MT00000EKF3111111112C1LY1GTS255720000273J1LLL3125AJY043010304T0MHU0S00ML341WL013L_%d',[FPgNo]);
+          sSerialNo := 'GH3HA80055W000087KBXXXXXX3BXV9L1V3XXX30XXX9Q2G9L2G9M2G9G1G80XS5GXXB2473C09BX48GX1XXXXXXXXSXXXXC9KF0FH9N000JA0000157+A+130FFAH8RCB3C70';
+          sSerialNo :=  sSerialNo  + '000158+AGJ6H7K0383S0000CE8GJ6H7400GJW000015ATHAH942P05U00007ZP8F2112221149EKSTH8L004240000PV1A310L41131H46J012720340M010100MB221AJ4293';
+        {$ENDIF}
+//        sSerialNo := 'GH3HA80055W000087KBXXXXXX3BXV9L1V3XXX30XXX9Q2G9L2G9M2G9G1G80XS5GXXB2473C09BX48GX1XXXXXXXXSXXXXC9KF0FH9N000JA0000157+A+130FFAH8RCB3C70';
+//        sSerialNo :=  sSerialNo  + '000158+AGJ6H7K0383S0000CE8GJ6H7400GJW000015ATHAH942P05U00007ZP8F2112221149EKSTH8L004240000PV1A310L41131H46J012720340M010100MB221AJ4293';
+
+
 
         sIsAlphaNumeric := Copy(sSerialNo,1,1);
         if not IsValidString(sIsAlphaNumeric) then begin
@@ -4737,6 +4742,7 @@ begin
         if DongaGmes is TGmes then begin
           DongaGmes.MesData[Self.FPgNo].Rwk := Common.GmesInfo[nResult].MES_Code;
           DongaGmes.MesData[Self.FPgNo].ErrCode := Common.GmesInfo[nResult].sErrCode;
+          DongaGmes.MesData[Self.FPgNo].Option := Common.GmesInfo[nResult].Option;
           //EICR용 Tact 계산
           nTactSec:= SecondsBetween(TestInfo.EndTime, TestInfo.PreEndTime); //완공시간 - 이전 완공 시간
           if nTactSec > 3600 then nTactSec:= 3600;  //너무 큰 경우 방지
@@ -5154,7 +5160,7 @@ begin
 //      end;
 
       if (not Common.SystemInfo.Use_GIB) and (Common.SystemInfo.OCType = DefCommon.PreOCType) then  begin
-        if (Common.GmesInfo[nNgCode].sErrCode <> 'AXXX') then begin
+        if (Common.GmesInfo[nNgCode].Option = 0) then begin
           SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,format('Pre OC Change Error Code:  %d -> 0',[nNgCode]));
           nNgCode := 0;
         end;

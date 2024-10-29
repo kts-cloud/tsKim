@@ -65,6 +65,7 @@ type
     Tact      : String;
     DefectPat : string;
     GDDefectCode : string;
+    Option : integer;
     MesPendingMsg : Integer;  // JHHWANG-GMES: 2018-06-20
     MesSentMsg    : Integer;  // JHHWANG-GMES: 2018-06-20
     MesSendRcvWaitTick : Integer;  // JHHWANG-GMES 2018-06-26
@@ -2492,7 +2493,7 @@ begin
       sGDDefectCode := '';
       // PF가 없는 경우가 있어 방어 코드.
       if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
-        if  MesData[nPg].ErrCode = 'AXXX' then begin
+        if  MesData[nPg].Option = 1 then begin
           if MesData[nPg].Rwk = '' then MesData[nPg].Pf := 'P'
           else                             MesData[nPg].Pf := 'F'
         end

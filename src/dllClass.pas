@@ -1240,13 +1240,13 @@ end;
 
 procedure TCSharpDll.Initialize(sModelName : string);
 var
-nT1,i : Integer;
+i : Integer;
 
 sVer : string;
 hWnd : THandle;
 begin
   try
-    nT1 := m_Initialize(DefCommon.MAX_CH + 1,PAnsiChar(AnsiString(sModelName)));
+    m_Initialize(DefCommon.MAX_CH + 1,PAnsiChar(AnsiString(sModelName)));
     for I := 0 to 2 do  begin           // AA mode 사용되는  DLL 3가지 호출
       sVer := PAnsiChar(m_GetOCversion(i)); // DLL Ver 정보 API 함수 호출
       SendMainGuiDisplay(0,MSG_TYPE_DLL,sVer,1,i); // DLL Ver 정보 MAIN 전달

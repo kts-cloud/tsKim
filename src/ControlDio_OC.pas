@@ -1349,7 +1349,7 @@ begin
 
    end;
 
-   SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'MoveProbe backward Finish CH = '+ IntToStr(nCh));
+  SendMsgMain(COMMDIO_MSG_LOG, 0, 0, 'MoveProbe backward Finish CH = '+ IntToStr(nCh));
   Result := 0;
 end;
 

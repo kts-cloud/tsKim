@@ -397,6 +397,7 @@ type
     sErrCode : string;    // OD01
     sErrMsg  : string;    // EEPROM Read Fail.
     MES_Code : string;    // A06-B01-G78
+    Option : Integer;   // Pre OC 내 MES/ ECS 전송 여부
   end;
 
   TAAMode = packed record
@@ -970,6 +971,7 @@ type
 
     procedure UnlockControl(Control: TWinControl);
     function RemoveControlCharacters(const Input: string): string;
+    function IsFileOpenInExcel(const SrcFileName: string): string;
 
 
 
@@ -3276,13 +3278,20 @@ begin
   m_Ver.MES_CSV := '';
   sCrcData := '';
   m_nGmesInfoCnt := 0;
-  sFileName := Path.Ini + 'MES_CODE.csv';
+  sFileName := Path.Ini + 'MES_CODE';
+
+  sFileName := Common.IsFileOpenInExcel(sFileName);   // 해당 파일 엑셀 실행 여부 확인
+
+  sFileName := sFileName + '.csv';
+
   if (not FileExists(sFileName)) or (sFileName = '') then begin
     sErrMsg := #13#10 + 'Input Error! MES CODE File [' + sFileName + '] cannot be loaded!';
     MessageDlg(sErrMsg, mtError, [mbOk], 0);
     m_bModelInfoNg := True;
     Exit;
   end;
+
+
   if IOResult = 0 then begin
     AssignFile(txtF, sFileName);
     try
@@ -3347,6 +3356,10 @@ begin
           end;
           GmesInfo[nRow].MES_Code := sErrCode;
 
+          if nDataCount > 6 then
+            GmesInfo[nRow].Option := StrToIntDef(Trim(lstTemp[6]),0) //
+          else
+            GmesInfo[nRow].Option := 0;
           Inc(nRow);
         end;
       finally
@@ -3521,6 +3534,7 @@ begin
             sErrCode := sErrCode + lstErrCode.Strings[2] + '---------------------------';
           end;
           GmesInfo[nRow].MES_Code := sErrCode;
+
 
           Inc(nRow);
         end;
@@ -6044,6 +6058,141 @@ begin
     end;
   end;
   Result := True;
+end;
+
+
+function IsFileLocked(const FileName: string): Boolean;
+var
+  FileHandle: THandle;
+begin
+  // 파일을 읽기/쓰기 모드로 열려고 시도
+  FileHandle := FileOpen(FileName, fmOpenReadWrite or fmShareExclusive);
+
+  // 파일 핸들이 INVALID_HANDLE_VALUE인 경우, 파일이 잠겨 있음을 의미
+  if FileHandle = THandle(-1) then
+    Result := True  // 파일이 잠겨 있음
+  else
+  begin
+    // 파일 핸들이 유효하면 파일이 열려 있지 않음. 파일을 닫아줌.
+    FileClose(FileHandle);
+    Result := False;  // 파일이 열려 있지 않음
+  end;
+end;
+
+//function TCommon.IsFileOpenInExcel(const SrcFileName: string): string;
+//var
+//  DestFileName: string;
+//begin
+//  try
+//    Result := SrcFileName;
+//    // 파일 잠금 여부 확인 (네트워크 및 로컬 포함)
+//    if IsFileLocked(SrcFileName + '.CSV') then
+//    begin
+//      DestFileName := ChangeFileExt(SrcFileName, '_copy');
+//      if not CopyFile(PChar(SrcFileName + '.CSV'), PChar(DestFileName + '.CSV'), False) then
+//      begin
+//        Exit;
+//      end
+//      else  Result := DestFileName;
+//    end;
+//  except
+//    on E: Exception do
+//  end;
+//end;
+
+
+function GetFileModificationTime(const FileName: string): TDateTime;
+var
+  FileHandle: THandle;
+  FileData: TWin32FindData;
+  LocalFileTime: TFileTime;
+  SystemTime: TSystemTime;
+begin
+  // Set the default Result value (e.g., 0, Now, or any other default time)
+  Result := 0; // or Now, depending on your requirement
+
+  // Check if the file exists
+  if not FileExists(FileName) then
+    Exit; // Return the default value without raising an exception
+
+  FileHandle := FindFirstFile(PChar(FileName), FileData);
+  if FileHandle <> INVALID_HANDLE_VALUE then
+  begin
+    Winapi.Windows.FindClose(FileHandle);
+    // Convert the last write time to local file time
+    FileTimeToLocalFileTime(FileData.ftLastWriteTime, LocalFileTime);
+
+    // Convert the local file time to system time
+    FileTimeToSystemTime(LocalFileTime, SystemTime);
+
+    // Convert the system time to TDateTime
+    Result := SystemTimeToDateTime(SystemTime);
+  end;
+end;
+
+
+function TCommon.IsFileOpenInExcel(const SrcFileName: string): string;
+var
+  DestFileName, BackupFileName, OriginalFileName, CopyFileName: string;
+  OriginalTime, CopyTime: TDateTime;
+begin
+  try
+    Result := SrcFileName;
+
+    // Ensure that SrcFileName has the .csv extension
+    if not SameText(ExtractFileExt(SrcFileName), '.csv') then
+      OriginalFileName := SrcFileName + '.csv'
+    else
+      OriginalFileName := SrcFileName;
+
+    // Construct the _copy file name similarly
+    CopyFileName := ChangeFileExt(OriginalFileName, '_copy.csv');
+
+    // Check if the file is locked (both network and local)
+    if IsFileLocked(OriginalFileName) then
+    begin
+      DestFileName := CopyFileName;
+      if not CopyFile(PChar(OriginalFileName), PChar(DestFileName), False) then
+      begin
+        Exit;
+      end
+      else
+        Result := DestFileName;
+    end
+    else
+    begin
+      // Compare modification times of the original and _copy files
+      OriginalTime := GetFileModificationTime(OriginalFileName);
+      CopyTime := GetFileModificationTime(CopyFileName);
+
+      if CompareDateTime(CopyTime, OriginalTime) > 0 then
+      begin
+        // If the _copy file is newer, back up the original file and replace it with the _copy file
+
+        // Create backup file name (add .bak extension to the original file)
+        BackupFileName := ChangeFileExt(OriginalFileName, '.bak');
+
+        // Back up the original file
+        if not CopyFile(PChar(OriginalFileName), PChar(BackupFileName), False) then
+        begin
+          MLog(DefCommon.MAX_SYSTEM_LOG,'Unable to back up original file: ' + OriginalFileName);
+          Exit;
+        end;
+
+        // Replace the original file with the _copy file
+        if not CopyFile(PChar(CopyFileName), PChar(OriginalFileName), False) then
+        begin
+          MLog(DefCommon.MAX_SYSTEM_LOG,'Unable to replace original file with _copy: ' + CopyFileName);
+          Exit;
+        end;
+
+        Result := OriginalFileName; // Return the updated path to the original file
+      end;
+    end;
+  except
+    on E: Exception do
+      MLog(DefCommon.MAX_SYSTEM_LOG,'Error occurred: ' + E.Message);
+  end;
 end;
 
 

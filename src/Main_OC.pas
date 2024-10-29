@@ -4837,6 +4837,7 @@ begin
   if Common.CheckDir(sFilePath) then
     Exit;
 
+//  sFileName := Common.IsFileOpenInExcel(sFileName);   // 해당 파일 엑셀 실행 여부 확인
   try
     FileSetReadOnly(sFileName,False);
     AssignFile(txtF, sFileName);

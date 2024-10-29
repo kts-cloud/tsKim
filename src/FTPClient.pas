@@ -4,12 +4,12 @@ interface
 {$I Common.inc}
 
 uses
-  Winapi.Windows, Winapi.Messages,
+  Winapi.Windows, Winapi.Messages,SyncObjs,
   System.Classes, System.SysUtils, System.Variants,
   DateUtils, IOUtils, StrUtils, System.Diagnostics,
 
   IdFTP, IdFTPCommon, IdFTPListParseWindowsNT, IdFTPList,
-  DefCommon, CommonClass,
+  DefCommon, CommonClass,System.Threading, Vcl.ExtCtrls,
   UserUtils, CodeSiteLogging;
 
 const
@@ -37,11 +37,17 @@ type
     FOnConnected: InFtpConnEvnt;
     FOnErrMsg: InFtpErrMsg;
     FIsConnectCheck: Boolean;
+    MonitorTask: ITask;
+    FIsTerminating : boolean;
+    FTPMutex: TMutex;
+    FMonitorTask: ITask;
     procedure SetIsConnected(const Value: Boolean);
     procedure SetOnConnected(const Value: InFtpConnEvnt);
     procedure SetOnErrMsg(const Value: InFtpErrMsg);
     procedure SetIsConnectCheck(const Value: Boolean);
     procedure HandleException(const E: Exception; const Action: string);
+    function IsFtpStillConnected: Boolean;
+    procedure MonitorTimerEvent;
   public
     FFTP : TIdFTP;
     m_WorkDir : string;
@@ -64,6 +70,8 @@ type
     function Put(sSourceFile, sDestFile: string): string;
     function RetrieveCurrentDir(var sPath: string): string;
     function Size(sFileName: string; var nSize: integer): string;
+    procedure StartMonitorTask;
+    procedure StopMonitorTask;
   end;
 
 implementation
@@ -72,20 +80,79 @@ implementation
 
 constructor TFTPClient.Create(sHost, sUserName, sPassword: string);
 begin
+  FTPMutex := TMutex.Create;
   FFTP := TIdFTP.Create(nil);
+
   with FFTP do begin
     Host     := sHost;
     Port     := 21;
     Username := sUserName;
     Password := sPassword;
     AutoIssueFEAT := True;
-    ReadTimeout   := 30000;
-    ConnectTimeout := 15000;
+    ReadTimeout   := 60000;
+    ConnectTimeout := 30000;
     Passive       := True;
     TransferType  := ftBinary;
     OnAfterClientLogin := FTPConnection;
     OnDisconnected     := FTPDisConnection;
   end;
+  FIsTerminating := False;
+end;
+
+
+procedure TFTPClient.MonitorTimerEvent;
+begin
+  try
+    if not IsFtpStillConnected then
+    begin
+      Connect;
+    end;
+  except
+    on E: Exception do
+    begin
+      HandleException(E, 'MonitorTimerEvent');
+    end;
+  end;
+end;
+
+procedure TFTPClient.StartMonitorTask;
+begin
+  if Assigned(FMonitorTask) and (FMonitorTask.Status = TTaskStatus.Running) then
+    Exit;
+
+  FMonitorTask := TTask.Run(procedure
+  begin
+    while not FIsTerminating do
+    begin
+      MonitorTimerEvent;
+      Sleep(5000); // 5초 간격
+    end;
+  end);
+end;
+
+procedure TFTPClient.StopMonitorTask;
+var
+  MaxWaitTime: Integer;
+  Stopwatch: TStopwatch;
+begin
+  FIsTerminating := True;
+  MaxWaitTime := 5000;
+  Stopwatch := TStopwatch.StartNew;
+
+  if Assigned(FMonitorTask) then
+  begin
+    while (FMonitorTask.Status = TTaskStatus.Running) and (Stopwatch.ElapsedMilliseconds < MaxWaitTime) do
+    begin
+      Sleep(100);
+    end;
+
+    if FMonitorTask.Status <> TTaskStatus.Running then
+      FMonitorTask := nil
+    else
+      CodeSite.Send('#FTP# StopMonitorTask timeout exceeded. Task could not be stopped gracefully.');
+  end;
+
+  Stopwatch.Stop;
 end;
 
 constructor TFTPClient.Create(sHost, sUserName, sPassword: string; OnError: InFtpErrMsg);
@@ -96,10 +163,13 @@ end;
 
 destructor TFTPClient.Destroy;
 begin
+  FIsTerminating := True;
+  StopMonitorTask;
   if FFTP <> nil then begin
     if FFTP.Connected then Disconnect;
     FreeAndNil(FFTP);
   end;
+  FreeAndNil(FTPMutex);
   inherited;
 end;
 
@@ -141,6 +211,30 @@ begin
   if Assigned(OnErrMsg) then
     OnErrMsg(Format('<FTP> %s Error! E.Message=%s', [Action, E.Message]));
 //  Disconnect;
+end;
+
+function TFTPClient.IsFtpStillConnected: Boolean;
+begin
+  Result := False;
+  FTPMutex.Acquire; // 뮤텍스 잠금
+
+  try
+    if (FFTP.Connected) then
+    begin
+      try
+        FFTP.Noop;  // 서버에 응답 요청
+        Result := True;
+      except
+        on E: Exception do
+        begin
+          HandleException(E, 'IsFtpStillConnected');
+          Disconnect;
+        end;
+      end;
+    end;
+  finally
+    FTPMutex.Release; // 뮤텍스 해제
+  end;
 end;
 
 function TFTPClient.Connect: string;
@@ -284,6 +378,7 @@ var
 begin
   sErrMsg := '';
   FileList := TStringList.Create;
+  FTPMutex.Acquire; // 뮤텍스 잠금
   try
     try
       // 파일 목록을 가져와서 파일이 있는지 확인
@@ -305,6 +400,7 @@ begin
       end;
     end;
   finally
+    FTPMutex.Release; // 뮤텍스 해제
     FileList.Free;
   end;
 

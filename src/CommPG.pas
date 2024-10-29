@@ -835,11 +835,11 @@ begin
   sRemote    := Format('%d',[nPeerPort]);
   if (Common.m_nDebugLogLevelActive >= nDebugMsgType) then
 		Common.DebugLog(nPg, nDebugMsgType, 'TX', sLocal,sRemote, sData);
-    {$IFDEF PG_DP860}
-    if PG[nPg].FIsMainter and Assigned(PG[nPg].OnTxMaintEventPG) and (nDebugMsgType = DEBUG_LOG_MSGTYPE_INSPECT) then begin
-      PG[nPg].OnTxMaintEventPG(nPg, sLocal,sRemote, sData);
-    end;
-    {$ENDIF}
+  {$IFDEF PG_DP860}
+  if PG[nPg].FIsMainter and Assigned(PG[nPg].OnTxMaintEventPG) and (nDebugMsgType = DEBUG_LOG_MSGTYPE_INSPECT) then begin
+    PG[nPg].OnTxMaintEventPG(nPg, sLocal,sRemote, sData);
+  end;
+  {$ENDIF}
 
   try
     udpSvr.Bindings[nBindIdx].SendTo(PG[nPg].PG_IPADDR,PG[nPg].PG_IPPORT, sData);
@@ -968,6 +968,8 @@ begin
   FIdUDPClient.Active  := True;
   //
   FFTPClient := TFTPClient.Create(PG_IPADDR, DefPG.DP860_FTP_USERNAME, DefPG.DP860_FTP_PASSWORD,SendMsg);
+
+  FFTPClient.StartMonitorTask;  //
   //
   m_ABinding      := nil;
 	//
@@ -1035,6 +1037,10 @@ begin
     end;
   end;
 {$ENDIF}
+  if FFTPClient <> nil then begin
+    FFTPClient.Free;
+    FFTPClient := nil;
+  end;
 
 	//
   if tmConnCheck <> nil then begin
@@ -4833,6 +4839,8 @@ begin
 //  sDebug := sFunc + ': Start';
 //  ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
 
+
+
 	// Create Class
   if FFTPClient = nil then begin
   	FFTPClient := TFTPClient.Create(PG_IPADDR, DefPG.DP860_FTP_USERNAME, DefPG.DP860_FTP_PASSWORD);
@@ -4852,7 +4860,7 @@ begin
 	end
   else begin
     sDebug := sFunc + ': FTP Connecting';
-    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
+//    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
   end;
 
 
@@ -4925,7 +4933,7 @@ begin
 	end
   else begin
     sDebug := sFunc + ': FTP Connecting';
-    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
+//    ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
   end;
   //sDebug := sFunc + ': FTP Connect';
   //ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
@@ -6526,7 +6534,7 @@ begin
 
   try
     FIsOnFlashAccess := True;
-
+    FFTPClient.StopMonitorTask;
     for nTry := 0 to nRetry do
     begin
       case PG_TYPE of
@@ -6558,9 +6566,12 @@ begin
               Result := DP860_FileGetPG2PC('/home/upload', sRemoteFile, sLocalFullName, False, False);
 
               if Result <> WAIT_OBJECT_0 then begin
+                FFTPClient.Disconnect;
                 sDebug :=  '<PG> FTP Disconnect';
                 ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
-                FFTPClient.Disconnect;
+                FFTPClient.Connect;
+                sDebug :=  '<PG> FTP Connect';
+                ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
                 Result := DP860_FileGetPG2PC('/home/upload', sRemoteFile, sLocalFullName, False, False);
                 if Result <> WAIT_OBJECT_0 then
                     Break;
@@ -6597,6 +6608,7 @@ begin
 
   finally
     FIsOnFlashAccess := False;
+    FFTPClient.StartMonitorTask;
   end;
 
   if Result <> WAIT_OBJECT_0 then
@@ -6628,6 +6640,7 @@ begin
 
   try
     FIsOnFlashAccess := True;
+    FFTPClient.StopMonitorTask;
 
     for nTry := 0 to nRetry do
     begin
@@ -6668,6 +6681,7 @@ begin
 
   finally
     FIsOnFlashAccess := False;
+    FFTPClient.StartMonitorTask;
   end;
 
   // Free the memory allocated for arData explicitly
