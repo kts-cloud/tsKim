@@ -9,7 +9,7 @@ uses
   System.IniFiles,  CodeSiteLogging, StrUtils,  DefCommon, system.zip,DefPG, TLHelp32, ComObj, Variants,PdhExample,
 
   System.Threading, {FlexCel.Core, FlexCel.XlsAdapter,}System.Diagnostics,System.TimeSpan,RegularExpressions,
-  Controls,
+  Controls,CommLog,
   Graphics,  IdSocketHandle, DateUtils, Winapi.ActiveX, System.Generics.Collections,
   Winapi.Messages,DongaPattern,Registry, SyncObjs,Vcl.Imaging.pngimage, Vcl.Imaging.jpeg,Math; //, AdvGrid, AdvObj, AdvGridWorkbook, , ScrMemo; //, DefScript;
 {$I Common.inc}
@@ -774,6 +774,12 @@ type
     m_bModelInfoNg : Boolean;
     m_bBackupLGDDLLSummaryLog : Boolean;
 
+    TerminationEvent : TEvent; // 이벤트 생성
+
+    PerformanceFrequency: Int64;
+    BaseCounter: Int64;
+
+
     m_sFileName : array [DefCommon.CH1..MAX_PG_CNT] of string;
     m_slLog : array [DefCommon.CH1..MAX_PG_CNT] of TStringList;
     m_dtSaveLog :array [DefCommon.CH1..MAX_PG_CNT] of TDateTime;
@@ -895,7 +901,7 @@ type
     procedure SaveModelInfoDLL(fName: String);
     procedure SaveModelInfo2(fName: String);
 //    procedure MLog(nCh : Integer;const Msg : String);
-    procedure MLog(nCh : Integer; const sLog: String; bSave: Boolean = False);
+//    procedure MLog(nCh : Integer; const sLog: String; bSave: Boolean = False);
 
 
     procedure R2RLog(nCh: Integer; const Msg: String);
@@ -973,7 +979,10 @@ type
     function RemoveControlCharacters(const Input: string): string;
     function IsFileOpenInExcel(const SrcFileName: string): string;
 
+    procedure InitPerformanceCounter;
+    function GetMicroTime: Int64;
 
+    procedure CenterGroupBox(AGroupBox: TGroupBox; AParent: TWinControl);
 
   end;
 
@@ -1175,7 +1184,11 @@ end;
 //  end;
 //end;
 
-
+procedure TCommon.CenterGroupBox(AGroupBox: TGroupBox; AParent: TWinControl);
+begin
+  AGroupBox.Left := (AParent.ClientWidth - AGroupBox.Width) div 2;
+  AGroupBox.Top := (AParent.ClientHeight - AGroupBox.Height) div 2;
+end;
 
 function TCommon.GetDrawPosPG(sPos: string): word;
 var
@@ -1560,6 +1573,8 @@ begin
   _lcid := GetUserDefaultLCID;
   loadAllPat    := TDongaPat.Create(nil);
   scrSequnce      := TStringList.Create;
+
+  TerminationEvent := TEvent.Create; // 이벤트 생성
   LoadBaseData;
 
   for I := 0 to DefCommon.MAX_PG_CNT do begin
@@ -1746,6 +1761,8 @@ var
   I: Integer;
 begin
 
+  TerminationEvent.SetEvent; // 작업이 중지되도록 이벤트 설정
+
   SetLength(m_OcParam.OcParam,0);
   SetLength(m_OcParam.OcVerify,0);
   SetLength(SystemInfo.ConfigVer,0);
@@ -1755,44 +1772,38 @@ begin
   SetLength(GmesInfo,0);
   SetLength(GAAModeInfo,0);
 
-  FLogThread.Terminate;
-  FLogThread.WaitFor;
-  FLogThread.Free;
+  if FLogThread <> nil then  begin
+    FLogThread.Terminate;
+    FLogThread.WaitFor;
+    FreeAndNil(FLogThread);
+  end;
 
   for i := 0 to DefCommon.MAX_PG_CNT do begin
     m_csLog[i].Enter;
     SaveMLog(i, Now);
     m_csLog[i].Leave;
-    m_slLog[i].Free;
-    m_csLog[i].Free;
+    if m_slLog[i] <> nil then
+      FreeAndNil(m_slLog[i]);
+    if m_csLog[i] <> nil then
+      FreeAndNil(m_csLog[i]);
   end;
-//  FLogQueue.Free;
-
-//  for I := 0 to 5 do begin
-//    FLogThread[i].Terminate;
-//    FLogThread[i].WaitFor;
-//    FLogThread[i].Free;
-//    FLogQueue[i].Free;
-//  end;
 
 
   m_Ver.psu_Date := '';
   m_Ver.psu_Crc  := '';
   m_Ver.isu_Date := '';
   m_bStopWork := True;
-  m_csReadCsvLog.Free;
-  m_csWriteCsvLog.Free;
-  Delay(100);  // back ground ÀÛ¾÷½Ã Ãë¼ÒÇÏ´Â ½Ã°£ ÂüÁ¶.
+  if m_csReadCsvLog <> nil then
+    FreeAndNil(m_csReadCsvLog);
+  if m_csWriteCsvLog <> nil then
+    FreeAndNil(m_csWriteCsvLog);
+  FreeAndNil(TerminationEvent); // 이벤트 해제
 
-  if loadAllPat <> nil then  begin
-    loadAllPat.Free;
-    loadAllPat := nil;
-  end;
-  if scrSequnce <> nil then begin
-    scrSequnce.Free;
-    scrSequnce := nil;
+  if loadAllPat <> nil then
+    FreeAndNil(loadAllPat);
 
-  end;
+  if scrSequnce <> nil then
+    FreeAndNil(scrSequnce);
   inherited;
 end;
 
@@ -2893,8 +2904,9 @@ begin
 
   sIniFile := Path.CombiCode + OnLineInterlockInfo.sINIFileName;
   if not FileExists(sIniFile) then Exit;
-
-  MLog(nCH,'Load RCP '+sIniFile);
+  if LogCommon <> nil then
+    LogCommon.mlog(nCH,'Load RCP '+sIniFile);
+//  MLog(nCH,'Load RCP '+sIniFile);
   try
     fSys := TIniFile.Create(sIniFile);
     try
@@ -2911,7 +2923,8 @@ begin
     sLog := sLog + format('[GET] LGD_DLL : %s  ',[OnLineInterlockInfo.Version_LGDDLL]) + #13#10;
     sLog := sLog + format('[GET] OC_DLL : %s  ',[OnLineInterlockInfo.Version_DLL]) + #13#10;
     sLog := sLog + format('[GET] Script_Ver : %s  ',[OnLineInterlockInfo.Version_Script]) + #13#10;
-    MLog(nCH,sLog);
+    if LogCommon <> nil then
+      LogCommon.mlog(nCH,sLog);
   finally
     fSys.Free;
     fSys := nil;
@@ -2958,7 +2971,8 @@ begin
 
   sIniFile := Path.CombiCode + CombiCodeData.sINIFileName;
   if not FileExists(sIniFile) then Exit;
-  MLog(DefCommon.MAX_SYSTEM_LOG,'Load Combi '+sIniFile);
+  if LogCommon <> nil then
+    LogCommon.mlog(DefCommon.MAX_SYSTEM_LOG,'Load Combi '+sIniFile);
   try
     fSys := TIniFile.Create(sIniFile);
     try
@@ -3031,7 +3045,8 @@ begin
           sValue := fSys.ReadString(sModelInfo, sModel, '');
           //MLog(DefCommon.MAX_SYSTEM_LOG,'Load Combi '+sModelInfo +','+sValue);
           sTemp:= format('ModelInfo:%s, Value:%s', [sModel, sValue]);
-          MLog(DefCommon.MAX_SYSTEM_LOG,'Load Combi: '+ sTemp);
+          if LogCommon <> nil then
+            LogCommon.mlog(DefCommon.MAX_SYSTEM_LOG,'Load Combi: '+ sTemp);
           if sValue <> '' then begin
             ExtractStrings(['/'],[], PWideChar(sValue), sList2);
             if sList2.Count > 0 then begin
@@ -3055,7 +3070,8 @@ begin
               end;
               sTemp:= format('nRouterNo:%d, sRcpName:%s, nOrigin:%d, sProcessNo:%s',
                 [CombiCodeData.nRouterNo, CombiCodeData.sRcpName, CombiCodeData.nOrigin, CombiCodeData.sProcessNo]);
-              MLog(DefCommon.MAX_SYSTEM_LOG,'Load Combi: '+ sTemp);
+              if LogCommon <> nil then
+                LogCommon.mlog(DefCommon.MAX_SYSTEM_LOG,'Load Combi: '+ sTemp);
             end;
           end;
         end;
@@ -3254,7 +3270,8 @@ begin
         Inc(nRow);
       end; //while eof(txtFile) do begin
       m_DLLReProgrammingCRC := GetStringCrc(sCrcData);
-      MLog(DefCommon.MAX_SYSTEM_LOG,format('Get_DLLReProgrammingData Done Data Length : %d CRC : %s ',[nRow,m_DLLReProgrammingCRC]));
+      if LogCommon <> nil then
+        LogCommon.mlog(DefCommon.MAX_SYSTEM_LOG,format('Get_DLLReProgrammingData Done Data Length : %d CRC : %s ',[nRow,m_DLLReProgrammingCRC]));
     finally
       CloseFile(txtFile);
     end;
@@ -3643,10 +3660,12 @@ begin
     // 폴더 삭제
     TDirectory.Delete(sourceFolder, True);
 
-    MLog(DefCommon.MAX_SYSTEM_LOG,'Compressed and deleted folders.');
+    if LogCommon <> nil then
+      LogCommon.mlog(DefCommon.MAX_SYSTEM_LOG,'Compressed and deleted folders.');
   except
     on E: Exception do
-      MLog(DefCommon.MAX_SYSTEM_LOG,'Error Occurrence : '+ E.Message);
+      if LogCommon <> nil then
+        LogCommon.mlog(DefCommon.MAX_SYSTEM_LOG,'Error Occurrence : '+ E.Message);
   end;
 end;
 
@@ -3689,8 +3708,8 @@ begin
 //  Result := False;
   Path.MODEL_CUR := Path.MODEL + fName + '\';
   CheckDir(Path.MODEL_CUR);
-  Path.ModelCode := Path.MODEL_CUR + 'compiled\';
-  CheckDir(Path.ModelCode);
+//  Path.ModelCode := Path.MODEL_CUR + 'compiled\';
+//  CheckDir(Path.ModelCode);
   fn := Path.MODEL_CUR + fName + '.mcf';
 //  DebugMessage(Format('[LoadModelInfo] File=%s',[fn]));
 
@@ -4921,7 +4940,8 @@ begin
           m_csLog[nCh].Leave;
         end;
       end;
-      Sleep(1000);
+      if TerminationEvent.WaitFor(1000) = wrSignaled then
+        Break; // 종료 이벤트가 설정되면 루프 종료
     finally
     end;
   end;
@@ -4936,82 +4956,97 @@ begin
 
 end;
 
-procedure TCommon.SaveMLog(nCh : Integer; dtSave: TDateTime);
+procedure TCommon.SaveMLog(nCh: Integer; dtSave: TDateTime);
 var
-  sDate, sFilePath, sFileName,sFileDate: String;
-  sDir: String;
-  logFile: TextFile;
+  logWriter: TStreamWriter;
+  sDate, sFilePath, sFileName, sFileDate: String;
 begin
   if m_slLog[nCh].Count = 0 then Exit;
- 
+
   sDate := FormatDateTime('yyyymmdd', dtSave);
   sFilePath := Path.MLOG + sDate + '\';
   ForceDirectories(sFilePath);
 
   sFileDate := FormatDateTime('yyyymmdd_AM/PM', dtSave);
- 
+
   case nCh of
-    DefCommon.MAX_SYSTEM_LOG  : sFileName := sFilePath + Format('SystemLog_%s_%s.txt',[systemInfo.EQPId,sFileDate]);
-    DefCommon.MAX_PLC_LOG     : sFileName := sFilePath + Format('PLC_%s_%s.txt',[systemInfo.EQPId,sFileDate])
-    else begin
-      sFileName := sFilePath + Format('MLog_%s_%s_Ch%d.txt',[systemInfo.EQPId,sFileDate,nCh + 1]);
-    end;
+    DefCommon.MAX_SYSTEM_LOG: sFileName := sFilePath + Format('SystemLog_%s_%s.txt', [systemInfo.EQPId, sFileDate]);
+    DefCommon.MAX_PLC_LOG: sFileName := sFilePath + Format('PLC_%s_%s.txt', [systemInfo.EQPId, sFileDate]);
+    else
+      sFileName := sFilePath + Format('MLog_%s_%s_Ch%d.txt', [systemInfo.EQPId, sFileDate, nCh + 1]);
   end;
- 
-  AssignFile(logFile, sFileName);
+
+  if FileExists(sFileName) then
+    logWriter := TStreamWriter.Create(sFileName, True, TEncoding.UTF8) // Append 모드로 파일을 엽니다.
+  else
+    logWriter := TStreamWriter.Create(sFileName, False, TEncoding.UTF8); // 새 파일을 생성합니다.
+
   try
-    try
-      {$I-}
-      if FileExists(sFileName) then Append(logFile) else Rewrite(logFile);
- 
-      WriteLn(logFile, Trim(m_slLog[nCh].Text));
- 
-      m_slLog[nCh].Clear;
-      m_dtSaveLog[nCh]:= Now; //dtSave;
-      {$I+}
-    except
-      on E: Exception do  begin
-        Sleep(10); //MLog 충돌 방지- IO 103
-        if nCh <> MAX_SYSTEM_LOG then begin
-          MLog(MAX_SYSTEM_LOG, format('Exception On SaveMLog Ch=%d, Err=%s', [nCh, E.Message]));
-        end;
-      end;
-    end;
+    logWriter.WriteLine(Trim(m_slLog[nCh].Text));
+    m_slLog[nCh].Clear;
+    m_dtSaveLog[nCh] := Now;
   finally
-    CloseFile(logFile);
+    logWriter.Free;
   end;
 end;
 
-procedure TCommon.MLog(nCh : Integer; const sLog: String; bSave: Boolean);
-var
-  dtNow: TDateTime;
+//procedure TCommon.SaveMLog(nCh : Integer; dtSave: TDateTime);
+//var
+//  logFile: TFileStream;
+//  logData: UTF8String;
+//  sDate, sFilePath, sFileName,sFileDate: String;
+//  sDir: String;
+//begin
+//  if m_slLog[nCh].Count = 0 then Exit;
+//
+//  sDate := FormatDateTime('yyyymmdd', dtSave);
+//  sFilePath := Path.MLOG + sDate + '\';
+//  ForceDirectories(sFilePath);
+//
+//  sFileDate := FormatDateTime('yyyymmdd_AM/PM', dtSave);
+//
+//  case nCh of
+//    DefCommon.MAX_SYSTEM_LOG  : sFileName := sFilePath + Format('SystemLog_%s_%s.txt', [systemInfo.EQPId, sFileDate]);
+//    DefCommon.MAX_PLC_LOG     : sFileName := sFilePath + Format('PLC_%s_%s.txt', [systemInfo.EQPId, sFileDate])
+//    else
+//      sFileName := sFilePath + Format('MLog_%s_%s_Ch%d.txt', [systemInfo.EQPId, sFileDate, nCh + 1]);
+//  end;
+//
+//  if FileExists(sFileName) then
+//    logFile := TFileStream.Create(sFileName, fmOpenReadWrite or fmShareDenyWrite)
+//  else
+//    logFile := TFileStream.Create(sFileName, fmCreate or fmShareDenyWrite);
+//
+//  try
+//    logFile.Seek(0, soEnd); // 파일의 끝으로 이동
+//    logData := UTF8String(Trim(m_slLog[nCh].Text) + sLineBreak);
+//    logFile.WriteBuffer(Pointer(logData)^, Length(logData));
+//    m_slLog[nCh].Clear;
+//    m_dtSaveLog[nCh] := Now;
+//  finally
+//    logFile.Free;
+//  end;
+//end;
+
+
+procedure TCommon.InitPerformanceCounter;
 begin
-  if (nCh < DefCommon.CH1) or (nCh > DefCommon.MAX_PG_CNT) then nCh := DefCommon.MAX_SYSTEM_LOG;
-
-  dtNow:= Now;
-  m_csLog[nCh].Enter;
-  try
-    if (m_slLog[nCh].Count > 0) and (DayOf(m_dtSaveLog[nCh]) <> DayOf(dtNow)) then begin
-      SaveMLog(nCh, m_dtSaveLog[nCh]); //날짜가 변경된 경우 이전 File로 저장
-    end;
-
-    if bSave and (sLog = '') then begin
-      //단순 저장 요청 - 프로그램 종료 시나 즉시 저장이 필요할 경우
-      //SaveMLog(nCh, dtNow);
-    end
-    else begin
-      //저장 요청이 아닌 경우Log 추가
-      m_slLog[nCh].Add(FormatDateTime('HH:NN:SS.ZZZ ', dtNow) + IntToHex(TThread.CurrentThread.ThreadID, 4) + '=> ' + sLog);
-    end;
-
-    //로그 라인수가 누적 라인수 초과이거나누적시간(초) 초과인 경우File로 저장
-    if bSave or (m_slLog[nCh].Count > LogAccumulateCount) or (SecondsBetween(dtNow, m_dtSaveLog[nCh]) > LogAccumulateSecond) then begin
-      SaveMLog(nCh, dtNow);
-    end;
-  finally
-    m_csLog[nCh].Leave;
-  end;
+  // 고해상도 타이머의 주파수 확인
+  QueryPerformanceFrequency(PerformanceFrequency);
+  // 기준 시간으로 사용할 초기 카운터 값을 저장
+  QueryPerformanceCounter(BaseCounter);
 end;
+
+function TCommon.GetMicroTime: Int64;
+var
+  CurrentCounter: Int64;
+begin
+  // 현재 카운터 값을 가져옴
+  QueryPerformanceCounter(CurrentCounter);
+  // 기준 카운터와의 차이를 마이크로초 단위로 변환
+  Result := ((CurrentCounter - BaseCounter) * 1000000) div PerformanceFrequency;
+end;
+
 
 //procedure TCommon.MLog(nCh : Integer; const sLog: String; bSave: Boolean);
 //var
@@ -5021,199 +5056,29 @@ end;
 //
 //  dtNow:= Now;
 //  m_csLog[nCh].Enter;
-//  if (m_slLog[nCh].Count > 0) and (DayOf(m_dtSaveLog[nCh]) <> DayOf(dtNow)) then begin
-//    SaveMLog(nCh, m_dtSaveLog[nCh]); //날짜가 변경된 경우 이전 File로 저장
-//  end;
-//
-//  if bSave and (sLog = '') then begin
-//    //단순 저장 요청 - 프로그램 종료 시나 즉시 저장이 필요할 경우
-//    SaveMLog(nCh, dtNow);
-//  end
-//  else begin
-//    //저장 요청이 아닌 경우Log 추가
-//    m_slLog[nCh].Add(FormatDateTime('HH:NN:SS.ZZZ => ', dtNow) + sLog);
-//  end;
-//
-//  //로그 라인수가 누적 라인수 초과이거나누적시간(초) 초과인 경우File로 저장
-//  if (m_slLog[nCh].Count > LogAccumulateCount) or (SecondsBetween(dtNow, m_dtSaveLog[nCh]) > LogAccumulateSecond) or bSave then begin
-//    SaveMLog(nCh, dtNow);
-//  end;
-//  m_csLog[nCh].Leave;
-//
-//end;
-
-//procedure TCommon.MLog(nCh: Integer; const Msg: String);
-//var
-//  sDate,sFilePath,sFileDate,sFileName : string;
-//begin
 //  try
-//
-//    if (nCh < DefCommon.CH1) or (nCh > MAX_PLC_LOG) then  nCh := DefCommon.MAX_SYSTEM_LOG;
-//
-//    if CheckDir(Path.MLOG) then
-//      Exit;
-//
-//    sDate := FormatDateTime('yyyymmdd', Now);
-//    sFilePath := Path.MLOG + sDate + '\';
-//
-//    sFileDate := FormatDateTime('yyyymmdd_AM/PM', Now);
-//
-//    if CheckDir(sFilePath) then
-//      Exit;
-//
-//    case nCh of
-//      DefCommon.MAX_SYSTEM_LOG: sFileName := sFilePath + Format('SystemLog_%s_%s.txt',[systemInfo.EQPId,sFileDate]);
-//      DefCommon.MAX_PLC_LOG: sFileName :=  sFilePath + Format('PLC_%s_%s.txt',[systemInfo.EQPId,sFileDate])
-//      else
-//        sFileName := sFilePath + Format('MLog_%s_%s_Ch%d.txt',[systemInfo.EQPId,sFileDate,nCh + 1]);
+//    if (m_slLog[nCh].Count > 0) and (DayOf(m_dtSaveLog[nCh]) <> DayOf(dtNow)) then begin
+//      SaveMLog(nCh, m_dtSaveLog[nCh]); //날짜가 변경된 경우 이전 File로 저장
 //    end;
-//    m_sFileName[nCh] := sFileName;
-//    m_slLog[nCh].Add(FormatDateTime('(hh:mm:ss.zzz) : ', Now) + Msg);
-//  except
-//    // Handle exceptions as needed
+//
+//    if bSave and (sLog = '') then begin
+//      //단순 저장 요청 - 프로그램 종료 시나 즉시 저장이 필요할 경우
+//      //SaveMLog(nCh, dtNow);
+//    end
+//    else begin
+//      //저장 요청이 아닌 경우Log 추가
+//      m_slLog[nCh].Add(FormatDateTime('HH:NN:SS.ZZZ ', dtNow) + IntToHex(TThread.CurrentThread.ThreadID, 4) + '=> ' + sLog);
+//    end;
+//
+//    //로그 라인수가 누적 라인수 초과이거나누적시간(초) 초과인 경우File로 저장
+//    if bSave or (m_slLog[nCh].Count > LogAccumulateCount) or (SecondsBetween(dtNow, m_dtSaveLog[nCh]) > LogAccumulateSecond) then begin
+//      SaveMLog(nCh, dtNow);
+//    end;
+//  finally
+//    m_csLog[nCh].Leave;
 //  end;
 //end;
 
-
-//procedure TCommon.MLog(nCh: Integer; const Msg: String);
-//var
-//  LogItem: TLogItem;
-//  sDate,sFilePath,sFileDate : string;
-//begin
-//  try
-//    // Enqueue log item for asynchronous processing
-//
-////    AddMLog(nCh,Msg,True);
-////    Exit;
-//
-//    if (nCh < DefCommon.CH1) or (nCh > MAX_PLC_LOG) then  nCh := DefCommon.MAX_SYSTEM_LOG;
-//
-//    if CheckDir(Path.MLOG) then
-//      Exit;
-//
-//    sDate := FormatDateTime('yyyymmdd', Now);
-//    sFilePath := Path.MLOG + sDate + '\';
-//
-//    sFileDate := FormatDateTime('yyyymmdd_AM/PM', Now);
-//
-//    if CheckDir(sFilePath) then
-//      Exit;
-//
-//    case nCh of
-//      DefCommon.MAX_SYSTEM_LOG: LogItem.FileName := sFilePath + Format('SystemLog_%s_%s.txt',[systemInfo.EQPId,sFileDate]);
-//      DefCommon.MAX_PLC_LOG: LogItem.FileName :=  sFilePath + Format('PLC_%s_%s.txt',[systemInfo.EQPId,sFileDate])
-//      else
-//        LogItem.FileName := sFilePath + Format('MLog_%s_%s_Ch%d.txt',[systemInfo.EQPId,sFileDate,nCh + 1]);
-//    end;
-//    LogItem.Msg :=FormatDateTime('(hh:mm:ss.zzz) : ', Now) + Msg;
-//    FLogQueue.Enqueue(LogItem);
-//  except
-//    // Handle exceptions as needed
-//  end;
-//end;
-
-
-// MLog 함수 개선
-//procedure TCommon.MLog(nCh: Integer; const Msg: String);
-//var
-//  _infile: TextFile;
-//  sInputData, sFileName, sDate, sFilePath,sFileDate: String;
-//  MyClass: TComponent;
-//begin
-//
-//  try
-//    if CheckDir(Path.MLOG) then
-//      Exit;
-//
-//    sDate := FormatDateTime('yyyymmdd', Now);
-//    sFilePath := Path.MLOG + sDate + '\';
-//
-//    sFileDate := FormatDateTime('yyyymmdd_AM/PM', Now);
-//
-//    if CheckDir(sFilePath) then
-//      Exit;
-//
-//    case nCh of
-//      DefCommon.MAX_SYSTEM_LOG: sFileName := sFilePath + Format('SystemLog_%s_%s.txt',[systemInfo.EQPId,sFileDate]);
-//      DefCommon.MAX_PLC_LOG: sFileName :=  sFilePath + Format('PLC_%s_%s.txt',[systemInfo.EQPId,sFileDate])
-//      else
-//        sFileName := sFilePath + Format('MLog_%s_%s_Ch%d.txt',[systemInfo.EQPId,sFileDate,nCh + 1]);
-//    end;
-//
-//    AssignFile(_infile, sFileName);
-//
-//    try
-//      if not FileExists(sFileName) then
-//        Rewrite(_infile)
-//      else
-//        Append(_infile);
-//
-//      sInputData := FormatDateTime('(hh:mm:ss.zzz) : ', Now) + Msg;
-//      WriteLn(_infile, sInputData);
-//    finally
-//      CloseFile(_infile);
-//    end;
-//
-//  except
-//    on E: Exception do
-//    begin
-//      Sleep(10); //MLog 충돌 방지- IO 103
-//    end;
-//  end;
-//
-//end;
-
-//procedure TCommon.MLog(nCh : Integer;const Msg: String);
-//var
-//  _infile : TextFile;
-//  sInputData, sFileName, sDate,sFileDate, sFilePath: String;
-////  nCurTime, nFreq : Int64;
-////	dElapse : Double;
-//begin
-////  try
-//
-//    if CheckDir(Path.MLOG) then begin
-//      Exit;
-//    end;
-//    sDate := FormatDateTime('yyyymmdd', Now);
-//    sFileDate := FormatDateTime('yyyymmdd_AM/PM', Now);
-//
-//    sFilePath := Path.MLOG + sDate + '\';
-//    if CheckDir(sFilePath) then begin
-//      Exit;
-//    end;
-//    case nCh of
-//      DefCommon.MAX_SYSTEM_LOG  : sFileName := sFilePath + Format('SystemLog_%s_%s.txt',[systemInfo.EQPId,sFileDate]);
-//      DefCommon.MAX_PLC_LOG     : sFileName := sFilePath + Format('PLC_%s_%s.txt',[systemInfo.EQPId,sFileDate])
-//      else begin
-//        sFileName := sFilePath + Format('MLog_%s_%s_Ch%d.txt',[systemInfo.EQPId,sFileDate,nCh + 1]);
-//      end;
-//    end;
-//
-//    try
-//      sInputData := FormatDateTime('(hh:mm:ss.zzz) : ', Now) + Msg + #13#10;
-//      TFile.AppendAllText(sFileName, sInputData, TEncoding.UTF8);
-//    except
-//    end;
-//
-////    try
-////      AssignFile(_infile, sFileName);
-////      if not FileExists(sFileName) then
-////        Rewrite(_infile)
-////      else
-////        Append(_infile);
-////      sInputData := FormatDateTime('(hh:mm:ss.zzz) : ', Now) + Msg;
-////      WriteLn(_infile, sInputData);
-////    except
-////      on E: Exception do  begin
-////        Sleep(10); //MLog 충돌 방지- IO 103
-////        end;
-////      end;
-////    end;
-////  finally
-////    CloseFile(_infile);
-////  end;
-//end;
 
 procedure TCommon.HWCIDLogLog(nCh : Integer;const sPID,sSN, sData: String);
 var
@@ -5393,7 +5258,8 @@ begin
       on E: Exception do  begin
         Sleep(10); //MLog 충돌 방지- IO 103
         if nCh <> MAX_SYSTEM_LOG then begin
-          MLog(MAX_SYSTEM_LOG, format('Exception On Mlog Ch=%d, Err=%s', [nCh, E.Message]));
+        if LogCommon <> nil then
+          LogCommon.mlog(MAX_SYSTEM_LOG, format('Exception On Mlog Ch=%d, Err=%s', [nCh, E.Message]));
         end;
       end;
     end;
@@ -5650,6 +5516,8 @@ var
   sw : TStopwatch;
   slData : TStringList;
   bFound : Boolean;
+
+  nBarcodeIndex, nSerialNumberIndex, nChannelIndex: Integer;
 begin
   try
     Result := '';
@@ -5659,7 +5527,8 @@ begin
     if not FileExists(sFileName) then
       Exit;
 
-    Common.MLog(nCh,format('ReadLGDDLLSummaryLog_New : Start!!look for File Name : %s PID : %s S/N : %s',[sFileName,sPid,Copy(sSn,1,50)]));
+    if LogCommon <> nil then
+      LogCommon.mlog(nCh,format('ReadLGDDLLSummaryLog_New : Start!!look for File Name : %s PID : %s S/N : %s',[sFileName,sPid,Copy(sSn,1,50)]));
     // 해당 Data 찾기
     sw := TStopwatch.StartNew;
     slData := TStringList.Create;
@@ -5667,28 +5536,55 @@ begin
     try
       slData.LoadFromFile(sFileName);
 
-      Common.MLog(nCh,Format('Number of data : %d',[slData.Count]));
+      if LogCommon <> nil then
+        LogCommon.mlog(nCh,Format('Number of data : %d',[slData.Count]));
       asSummaryGroupHeader := slData.Strings[0].Split([',']);
       asSummaryHeader := slData.Strings[1].Split([',']);
+
+            // BARCODE, SERIALNUMBER, CHANNEL의 위치 찾기
+      nBarcodeIndex := -1;
+      nSerialNumberIndex := -1;
+      nChannelIndex := -1;
+      for i := 0 to High(asSummaryHeader) do
+      begin
+        if asSummaryHeader[i] = 'BARCODE' then
+          nBarcodeIndex := i
+        else if asSummaryHeader[i] = 'SERIALNUMBER' then
+          nSerialNumberIndex := i
+        else if asSummaryHeader[i] = 'CHANNEL' then
+          nChannelIndex := i;
+
+        if (nBarcodeIndex <> -1) and (nSerialNumberIndex <> -1) and (nChannelIndex <> -1) then
+          Break;
+      end;
+      if (nBarcodeIndex = -1) or (nSerialNumberIndex = -1) or (nChannelIndex = -1) then begin    // 못 찾은 경우 종료
+        if LogCommon <> nil then
+          LogCommon.mlog(nCh, 'Required fields not found in the header: BARCODE, SERIALNUMBER, or CHANNEL');
+        Exit;
+      end;
+
+
       for i:= Pred(slData.Count) downto 2 do begin
         asSummaryAPDRData := slData.Strings[i].Split([',']);
         if Length(asSummaryAPDRData) < 10  then Continue;
-        if (IntToStr(nCh + 1) <> asSummaryAPDRData[9]) then Continue;
+        if (IntToStr(nCh + 1) <> Trim(asSummaryAPDRData[nChannelIndex])) then Continue;
 
-        if (sPid = asSummaryAPDRData[4]) or (sSn = asSummaryAPDRData[5]) then begin
+        if (sPid = asSummaryAPDRData[nBarcodeIndex]) or (sSn = asSummaryAPDRData[nSerialNumberIndex]) then begin
           bFound := True;
           Break;
         end;
       end;
     finally
       sw.Stop;
-      MLog(nCh, 'ReadLGDDLLSummaryLog msec : ' + sw.ElapsedMilliseconds.ToString);
+      if LogCommon <> nil then
+        LogCommon.mlog(nCh, 'ReadLGDDLLSummaryLog msec : ' + sw.ElapsedMilliseconds.ToString);
       slData.Free;
     end;
 
 
     if not bFound then begin    // 못 찾은 경우 종료
-      MLog(nCh,format('APDR data not found : PID : %s S/N : %s',[sPid,Copy(sSn,1,50)]));
+      if LogCommon <> nil then
+        LogCommon.mlog(nCh,format('APDR data not found : PID : %s S/N : %s',[sPid,Copy(sSn,1,50)]));
       Result := 'DEFECT_DESCRIPTION:DEFECT_DESCRIPTION:APDR data not found';
       Exit;
     end;
@@ -5697,7 +5593,8 @@ begin
 
     if (System.Length(asSummaryGroupHeader) <> System.Length(asSummaryAPDRData)) or
     (System.Length(asSummaryHeader) <> System.Length(asSummaryAPDRData)) then begin
-      MLog(nCh,format('The number of data is different from that of the header : PID : %s S/N : %s',[sPid,Copy(sSn,1,50)]));
+      if LogCommon <> nil then
+        LogCommon.mlog(nCh,format('The number of data is different from that of the header : PID : %s S/N : %s',[sPid,Copy(sSn,1,50)]));
       nDataCnt := System.Length(asSummaryAPDRData) - System.Length(asSummaryGroupHeader);
       SetLength(asSummaryGroupHeader, Length(asSummaryGroupHeader) + nDataCnt);
       nDataCnt := System.Length(asSummaryAPDRData) - System.Length(asSummaryHeader);
@@ -5713,8 +5610,8 @@ begin
         begin
           if Common.SystemInfo.OCType = DefCommon.PreOCType then
           begin
-            if System.Length(asSummaryGroupHeader[i]) = 0 then
-              asSummaryGroupHeader[i] := 'OC';
+
+            asSummaryGroupHeader[i] := 'POC';
 
             Append(asSummaryGroupHeader[i])
               .Append(':')
@@ -5743,118 +5640,12 @@ begin
         Free;
       end;
     end;
-    Common.MLog(nCh,'ReadLGDDLLSummaryLog_New : Finish!!');
+    if LogCommon <> nil then
+      LogCommon.mlog(nCh,'ReadLGDDLLSummaryLog_New : Finish!!');
   finally
     Result := sResult;
   end;
 end;
-
-
-
-//function TCommon.ReadLGDDLLSummaryLog_New(sPid, sSn, sDate: string; nCh: Integer): string;
-//var
-//  asSummaryHeader, asSummaryGroupHeader, asSummaryAPDRData, asSummaryData: TArray<String>;
-//  sFileName, sCopyFileName: String;
-//  sLine, sResult: String;
-//  txtFile: TEXTFILE;
-//  i, nlineCount: Integer;
-//  sw : TStopwatch;
-//begin
-//  try
-//    Result := '';
-//    sResult := '';
-//    sFileName := Common.Path.LGDDLL + format('Oclog\SummaryLog\%s_Summary_Log_', [Common.SystemInfo.EQPId]) + sDate + '.csv';
-//
-//    if not FileExists(sFileName) then
-//      Exit;
-//
-//    try
-//      sCopyFileName := Common.Path.LGDDLL + format('Oclog\SummaryLog\%s_Summary_Log_%s_%d.csv', [Common.SystemInfo.EQPId, sDate, nCh]);
-//      CopyFile(PChar(sFileName), Pchar(sCopyFileName), False);
-//
-//      if not FileExists(sCopyFileName) then
-//        Exit;
-//
-//      AssignFile(txtFile, sCopyFileName);
-//      sw := TStopwatch.StartNew;
-//      Reset(txtFile);
-//      nlineCount := 0;
-//
-//      // 초기화를 한번만 수행하도록 수정
-//      asSummaryAPDRData := nil;
-//
-//      while not Eof(txtFile) do
-//      begin
-//        ReadLn(txtFile, sLine);
-//        asSummaryData := sLine.Split([',']);
-//        Inc(nlineCount);
-//
-//        if asSummaryData[0] = 'BIN_VER' then
-//          asSummaryHeader := sLine.Split([','])
-//        else if asSummaryData[0] = 'BIN' then
-//          asSummaryGroupHeader := sLine.Split([','])
-//        else if (sPid = asSummaryData[4]) or (sSn = asSummaryData[5]) then
-//          asSummaryAPDRData := sLine.Split([',']);
-//      end;
-//    finally
-//      CloseFile(txtFile);
-//      if FileExists(sCopyFileName) then
-//        DeleteFile(sCopyFileName);
-//      sw.Stop;
-//      MLog(nCh, 'ReadLGDDLLSummaryLog msec : ' + sw.ElapsedMilliseconds.ToString,True);
-//    end;
-//
-//
-//    if Length(asSummaryAPDRData) = 0 then
-//      Exit;
-//
-//    // StringBuilder 사용
-//    with TStringBuilder.Create do
-//    begin
-//      try
-//        for i := 0 to System.Length(asSummaryAPDRData) -1 do
-//        begin
-//          if Common.SystemInfo.OCType = DefCommon.PreOCType then
-//          begin
-//            if System.Length(asSummaryGroupHeader[i]) = 0 then
-//              asSummaryGroupHeader[i] := 'OC';
-//
-//            Append(asSummaryGroupHeader[i])
-//              .Append(':')
-//              .Append(asSummaryHeader[i])
-//              .Append(':')
-//              .Append(asSummaryAPDRData[i]);
-//
-//          end
-//          else
-//          begin
-//            asSummaryGroupHeader[i] := 'OC';
-//
-//            if asSummaryAPDRData = nil then
-//              Exit;
-//
-//            Append(asSummaryGroupHeader[i])
-//              .Append(':')
-//              .Append(asSummaryHeader[i])
-//              .Append(':')
-//              .Append(asSummaryAPDRData[i]);
-//          end;
-//
-//          if i < System.Length(asSummaryAPDRData) - 1 then
-//            Append(',');
-//        end;
-//
-//        sResult := ToString;
-//      finally
-//        Free;
-//      end;
-//    end;
-//  finally
-//    Result := sResult;
-//  end;
-//end;
-
-
 
 
 
@@ -6175,14 +5966,16 @@ begin
         // Back up the original file
         if not CopyFile(PChar(OriginalFileName), PChar(BackupFileName), False) then
         begin
-          MLog(DefCommon.MAX_SYSTEM_LOG,'Unable to back up original file: ' + OriginalFileName);
+          if LogCommon <> nil then
+            LogCommon.mlog(DefCommon.MAX_SYSTEM_LOG,'Unable to back up original file: ' + OriginalFileName);
           Exit;
         end;
 
         // Replace the original file with the _copy file
         if not CopyFile(PChar(CopyFileName), PChar(OriginalFileName), False) then
         begin
-          MLog(DefCommon.MAX_SYSTEM_LOG,'Unable to replace original file with _copy: ' + CopyFileName);
+          if LogCommon <> nil then
+            LogCommon.mlog(DefCommon.MAX_SYSTEM_LOG,'Unable to replace original file with _copy: ' + CopyFileName);
           Exit;
         end;
 
@@ -6191,7 +5984,8 @@ begin
     end;
   except
     on E: Exception do
-      MLog(DefCommon.MAX_SYSTEM_LOG,'Error occurred: ' + E.Message);
+      if LogCommon <> nil then
+        LogCommon.mlog(DefCommon.MAX_SYSTEM_LOG,'Error occurred: ' + E.Message);
   end;
 end;
 

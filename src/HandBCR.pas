@@ -3,7 +3,7 @@ unit HandBCR;
 interface
 uses
   System.SysUtils,  System.Classes, VaComm, Vcl.Dialogs, {CodeSiteLogging,} Winapi.Windows,
-  DefRs232, CommonClass, DefCommon;
+  DefRs232, CommonClass, DefCommon,CommLog;
 type
 
   InBcrEvnt = procedure(sGetData : String) of object;
@@ -92,10 +92,10 @@ var
   sData : string;
 begin
   sData := comHandBcr.ReadText;
-  Common.MLog(DefCommon.MAX_SYSTEM_LOG, '<HAND-BCR> Event Start Raw Data ' + sData);
+  if LogCommon <> nil then LogCommon.MLog(DefCommon.MAX_SYSTEM_LOG, '<HAND-BCR> Event Start Raw Data ' + sData);
   if Assigned(OnRevBcrData) then OnRevBcrData(sData);
 //  if Assigned(OnRevBcrDataMaint) then OnRevBcrDataMaint(sData);   // Maint 창에서 BCR SCAN 시 Access violation 생성하여 삭제
-  Common.MLog(DefCommon.MAX_SYSTEM_LOG, '<HAND-BCR> Event End ' + sData);
+  if LogCommon <> nil then LogCommon.MLog(DefCommon.MAX_SYSTEM_LOG, '<HAND-BCR> Event End ' + sData);
 end;
 
 procedure TSerialBcr.SetOnRevBcrConn(const Value: InBcrConn);

@@ -5,7 +5,7 @@ unit CommCameraRadiant;
 interface
 uses
   Winapi.Windows, Winapi.Messages, System.Classes, System.SysUtils, System.SyncObjs, Winapi.WinSock,
-  IdGlobal, IdContext, IdSync, IdComponent, IdTCPServer, IdSocketHandle, Vcl.ExtCtrls,
+  IdGlobal, IdContext, IdSync, IdComponent, IdTCPServer, IdSocketHandle, Vcl.ExtCtrls,CommLog,
   CommLightNaratech, DefCam,
 {$IFDEF  COMMPG_A19}
   CommPG_A19,
@@ -546,7 +546,7 @@ begin
       end;
       sRecvData := sRecvData + Char(AReadBuffer[i]);
     end;
-    Common.MLog(nPgNo, 'NULL=' + IntToStr(nNullPos) + ', RecvData:' + sRecvData);
+    if LogCommon <> nil then LogCommon.Mlog(nPgNo, 'NULL=' + IntToStr(nNullPos) + ', RecvData:' + sRecvData);
   end
   else begin
     sRecvData:= '';
@@ -564,7 +564,7 @@ begin
   if nNullPos < 0 then begin
     //문자열 종료(0x00)이 없으면 명령어 다 받지 못함
     //명령어 문자열 이어받기 필요
-    Common.MLog(nPgNo, 'NeedMoreCommand RecvData:' + sRecvData);
+    if LogCommon <> nil then LogCommon.Mlog(nPgNo, 'NeedMoreCommand RecvData:' + sRecvData);
     CommandData[nCh].NeedMoreCommand:= True;
     Exit;
   end;
@@ -987,14 +987,14 @@ begin
   end //else if sCommand = 'NAK' then begin
   else begin
     //Unknown Command
-    Common.MLog(nPgNo, format('Unknown Command: %s', [sCommand]));
+    if LogCommon <> nil then LogCommon.Mlog(nPgNo, format('Unknown Command: %s', [sCommand]));
     SendData(nCh, 'NAK', AContext);
   end;
 
   //잔여 데이터 처리
   if nReadBufferLen > pHeader.Size then begin
     nLen:= nReadBufferLen - pHeader.Size;
-    Common.MLog(nPgNo, format('Remain RecvSize(%d) - DataSize(%d) = %d', [nReadBufferLen, pHeader.Size, nLen]));
+    if LogCommon <> nil then LogCommon.Mlog(nPgNo, format('Remain RecvSize(%d) - DataSize(%d) = %d', [nReadBufferLen, pHeader.Size, nLen]));
     SetLength(RemainBuffer, nLen);
     CopyMemory(@RemainBuffer[0], @AReadBuffer[nNullPos+1], nLen);
     ProcessData(nCh, nLen, RemainBuffer, AContext);
@@ -1034,7 +1034,7 @@ begin
   end;
 
   nPgNo:= nCh + JigNo*4;
-  Common.MLog(nPgNo, format('SaveCameraData: %s', [sFileName]));
+  if LogCommon <> nil then LogCommon.Mlog(nPgNo, format('SaveCameraData: %s', [sFileName]));
   fs:= TFileStream.Create(sFileName, fmCreate);
   try
     fs.Write(ACameraData.Data[0], ACameraData.Size);
@@ -1196,7 +1196,7 @@ begin
     end
     else if dwRet = WAIT_TIMEOUT then begin
       if CommandData[nCh].NeedMoreCommand then begin
-        Common.MLog(nCh, 'MoreCommand:' + CommandData[nCh].RecvData);
+        if LogCommon <> nil then LogCommon.Mlog(nCh, 'MoreCommand:' + CommandData[nCh].RecvData);
       end;
 
       CommandData[nCh].ErrorMsg:= 'Camera Command: Time out ' + sCmd;

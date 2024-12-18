@@ -45,6 +45,8 @@
 
   {$DEFINE PG_DP860}             //YES
   {$UNDEF PG_AF9}               //-
+//  {$UNDEF PG_DP860}             //-
+//  {$DEFINE PG_AF9}               //YES
 
   {$DEFINE AF9API_1CH}           //-
   {$UNDEF  AF9API_MULTI}         //YES

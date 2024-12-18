@@ -2098,16 +2098,11 @@ end;
 
 destructor TControlDio.Destroy;
 begin
-
-  tmrCycle.Free;
-  tmrCycle := nil;
-
+  if tmrCycle <> nil then
+    FreeAndNil(tmrCycle);
 //  SetLength(CommDaeDIO.DeviceInfo.Version,0);
-
-  CommDaeDIO.Free;
-  CommDaeDIO := nil;
-
-
+  if CommDaeDIO <> nil then
+    FreeAndNil(CommDaeDIO);
   inherited;
 end;
 

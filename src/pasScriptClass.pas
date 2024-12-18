@@ -8,7 +8,7 @@ uses
   System.Generics.Collections, ControlDio_OC, CommPLC_ECS,UserUtils,CommThermometerMulti,
   DefCommon, {UdpServerClient,}CommPG, DefScript, uSystemLibrary, IdGlobal, Vcl.Forms,
   CommonClass, DefPG, GMesCom, DefGmes, {LogicVh,} DefDio, System.Math,System.SyncObjs
-  , CommCameraRadiant,dllClass,AF9_FPGA,RegularExpressions , CommDIO_DAE, CommIonizer,LogicVh
+  , CommCameraRadiant,dllClass,AF9_FPGA,RegularExpressions , CommDIO_DAE, CommIonizer,LogicVh,CommLog
 {$IFDEF CA410_USE}
     , CA_SDK2
 {$ENDIF}
@@ -187,6 +187,7 @@ type
     nPwrVIN : Integer;
     nPwrVDD3 : Integer;
     Temp_Sensor : array [0..5] of Integer;
+    IDLEMode : Boolean;
     function Get_MeasureTime: Integer;
     property MeasureTime: Integer read Get_MeasureTime;
   end;
@@ -584,6 +585,7 @@ type
     /// - Main 스크립터가 아니라 별개의 스크립터로 실행.
     /// - 스크립트 자체 전역변수 공유 안됨.
     ///</summary>
+    function GetRoutineInfo(sFuncName: string): TatRoutineInfo;
     function ExecExtraFunction(sScriptFunc: string): string;
     function ExecExtraFunction2(sScriptFunc: string): string;
     procedure HostEvntConfirm(nRet: Integer);
@@ -657,6 +659,7 @@ begin
   TestInfo.nPwrVIN := Common.TestModelInfoPG.PgPwrData.PWR_VOL[DefPG.PWR_VIN];
   TestInfo.nPwrVDD3 := Common.TestModelInfoPG.PgPwrData.PWR_VOL[DefPG.PWR_VDD3];
   TestInfo.StartTime := Now;
+  TestInfo.IDLEMode := False;
 
   SetLength(m_InspectResult,Common.m_nGmesInfoCnt);
 
@@ -967,7 +970,7 @@ begin
 
   SetPaScript.AddVariable('c_UseCheckReProgramming',Common.TestModelInfoFLOW.UseCheckReProgramming);
 
-  SetPaScript.AddVariable('c_bIDLE',m_bIDLE);
+  SetPaScript.AddVariable('c_bIDLE',Common.TestModelInfoFLOW.IDLEMode);
 
   SetPaScript.AddVariable('c_bCEL_Stop',m_bCEL_Stop);
 
@@ -1010,9 +1013,9 @@ end;
 destructor TScrCls.Destroy;
 begin
   TerminateScript;
-  sleep(1000);
+
   if atPasScrpt.Running then begin
-      atPasScrpt.Halt;
+    atPasScrpt.Halt;
   end;
 
 
@@ -1181,22 +1184,50 @@ end;
 //        sDebug := Format('NG, Set:%d, Select:%d', [nSet, nSelect]);
 //      end;
 //
-//      //if common.SystemInfo.DebugLog then Common.MLog(self.FPgNo,'[Source Code] Enable VoltSet ' + sDebug);
+//      //if common.SystemInfo.DebugLog then if LogCommon <> nil then LogCommon.Mlog(self.FPgNo,'[Source Code] Enable VoltSet ' + sDebug);
 //    end;
 //    ReturnOutputArg(dwRet);
 //  end;
 //end;
 
+function TScrCls.GetRoutineInfo(sFuncName: string): TatRoutineInfo;
+var
+  ScriptInfo: TatScriptInfo;
+  sl: TStringList;
+  i, nInx: Integer;
+begin
+  Result:= nil;
+  sl:= TStringList.Create;
+  try
+    ScriptInfo:= atPasScrpt.ScriptInfo;
+    ScriptInfo.Routines.GetNames(sl);
+    nInx:= -1;
+    for i := 0 to Pred(sl.Count) do begin
+      //제외 함수
+      if sFuncName = sl.Strings[i] then begin
+        nInx:= i;
+        Break;
+      end;
+    end;
+    if nInx < 0 then Exit;
+    Result:= ScriptInfo.Routines.Items[nInx];
+  finally
+    sl.Free;
+  end;
+end;
+
 function TScrCls.ExecExtraFunction(sScriptFunc: string): string;
 var
-  sl: TStringList;
   sFuncName: string;
   sParam: string;
   nPos: Integer;
+  sType, sValue: string;
+  saParam: TArray<string>;
   vaParams: array of Variant;
   i: Integer;
   vResult: Variant;
-  AStream: TMemoryStream;
+  RoutineInfo: TatRoutineInfo;
+  //AStream: TMemoryStream;
 begin
   //if atPasScrptMaint.Running then Exit('');
 
@@ -1214,7 +1245,6 @@ begin
     FreeAndNil(AStream);
   end;
 *)
-  VarClear(vResult);
 
   nPos:= Pos(' ', sScriptFunc);
   if nPos > 0 then begin
@@ -1226,39 +1256,72 @@ begin
     sParam:= '';
   end;
 
-  if sParam <> '' then begin
-    sl:= TStringList.Create;
+  RoutineInfo:= GetRoutineInfo(sFuncName);
+  if RoutineInfo = nil then begin
+    //함수를 찾을 수 없음
+    SendTestGuiDisplay(defCommon.MSG_MODE_WORKING,format('Runtime Error ExecExtraFunction %s Unknown function - not exists  ', [sFuncName]),'',0);
+    Exit;
+  end;
+
+  VarClear(vResult);
+  if RoutineInfo.ArgCount > 0 then begin
     try
-      ExtractStrings([','], [], PWideChar(sParam), sl);
-      try
-        if (sl.Count > 0) then begin
-          SetLength(vaParams, sl.Count);
-          for i := 0 to Pred(sl.Count) do  begin
-            vaParams[i]:= sl.Strings[i];
+      SetLength(vaParams, RoutineInfo.ArgCount);
+      saParam:= sParam.Split([',']);
+      for i := 0 to Pred(RoutineInfo.Variables.Count) do begin
+        if RoutineInfo.Variables.Items[i].ArgIndex >= 0 then begin
+          //파라미터 타입 - 파라미터는 ArgIndex 0부터 시작. < 0 인경우 Local
+          sType:= RoutineInfo.Variables.Items[i].TypeDecl.ToLower;
+          //sType:= LowerCase(sType);
+
+          if i < Length(saParam) then begin
+            sValue:= saParam[i];
+          end
+          else begin
+            sValue:= '0';
           end;
-          //VarArrayOf([1,5])
-          //vResult:= atPasScrptMaint.ExecuteSubroutine(sFuncName, vaParams);
-          vResult:= atPasScrpt.ExecuteSubroutine(sFuncName, vaParams);
 
-        end
+          if sType = 'integer' then begin
+            vaParams[i]:= StrToIntDef(sValue, 0);
+          end
+          else if sType = 'float' then begin
+            vaParams[i]:= StrToFloatDef(sValue, 0.0);
+          end
+          else if sType = 'double' then begin
+            vaParams[i]:= StrToFloatDef(sValue, 0.0);
+          end
+          else if sType = 'boolean' then begin
+            if sValue = '0' then begin
+              vaParams[i]:= False;
+            end
+            else begin
+              vaParams[i]:= True;
+            end;
+          end
+          else if sType = 'variant' then begin
+            //string으로 처리
+            vaParams[i]:= sValue;
+          end
+          else begin
+            //string으로 처리
+            vaParams[i]:= sValue;
+          end;
+        end //if RoutineInfo.Variables.Items[i].ArgIndex >= 0 then begin
         else begin
-          //vResult:= atPasScrptMaint.ExecuteSubroutine(sFuncName);
-          vResult:= atPasScrpt.ExecuteSubroutine(sFuncName);
+          Break; // ArgIndex < 0 이면 Local 변수
         end;
-      except
-        on E: Exception do begin
-          SendTestGuiDisplay(defCommon.MSG_MODE_WORKING,format('Runtime Error ExecExtraFunction "%s": %s ', [sFuncName, E.Message]),'',0);
-          vResult:= '';
-        end
+      end; //for i := 0 to Pred(RoutineInfo.Variables.Count) do begin
 
-      end;
-    finally
-      FreeAndNil(sl);
+      vResult:= atPasScrpt.ExecuteSubroutine(sFuncName, vaParams);
+    except
+      on E: Exception do begin
+        SendTestGuiDisplay(defCommon.MSG_MODE_WORKING,format('Runtime Error ExecExtraFunction "%s": %s ', [sFuncName, E.Message]),'',0);
+        vResult:= '';
+      end
     end;
-  end
+  end //if RoutineInfo.ArgCount > 0 then begin
   else begin
     try
-      //vResult:= atPasScrptMaint.ExecuteSubroutine(sFuncName);
       vResult:= atPasScrpt.ExecuteSubroutine(sFuncName);
     except
       on E: Exception do begin
@@ -1275,6 +1338,95 @@ begin
     Result:= VarToStr(vResult);
   end;
 end;
+
+//function TScrCls.ExecExtraFunction(sScriptFunc: string): string;
+//var
+//  sl: TStringList;
+//  sFuncName: string;
+//  sParam: string;
+//  nPos: Integer;
+//  vaParams: array of Variant;
+//  i: Integer;
+//  vResult: Variant;
+//  AStream: TMemoryStream;
+//begin
+//  //if atPasScrptMaint.Running then Exit('');
+//
+//  if not atPasScrpt.Compiled then begin
+//    Result:= ''; //Not Compiled;
+//    Exit;
+//  end;
+//(*
+//  AStream:= TMemoryStream.Create;
+//  try
+//    atPasScrpt.SaveCodeToStream(AStream);
+//    AStream.Position:= 0;
+//    atPasScrptMaint.LoadCodeFromStream(AStream);
+//  finally
+//    FreeAndNil(AStream);
+//  end;
+//*)
+//  VarClear(vResult);
+//
+//  nPos:= Pos(' ', sScriptFunc);
+//  if nPos > 0 then begin
+//    sFuncName:= Copy(sScriptFunc, 1, nPos-1);
+//    sParam:= Copy(sScriptFunc, nPos+1, Length(sScriptFunc));
+//  end
+//  else begin
+//    sFuncName:= sScriptFunc;
+//    sParam:= '';
+//  end;
+//
+//  if sParam <> '' then begin
+//    sl:= TStringList.Create;
+//    try
+//      ExtractStrings([','], [], PWideChar(sParam), sl);
+//      try
+//        if (sl.Count > 0) then begin
+//          SetLength(vaParams, sl.Count);
+//          for i := 0 to Pred(sl.Count) do  begin
+//            vaParams[i]:= sl.Strings[i];
+//          end;
+//          //VarArrayOf([1,5])
+//          //vResult:= atPasScrptMaint.ExecuteSubroutine(sFuncName, vaParams);
+//          vResult:= atPasScrpt.ExecuteSubroutine(sFuncName, vaParams);
+//
+//        end
+//        else begin
+//          //vResult:= atPasScrptMaint.ExecuteSubroutine(sFuncName);
+//          vResult:= atPasScrpt.ExecuteSubroutine(sFuncName);
+//        end;
+//      except
+//        on E: Exception do begin
+//          SendTestGuiDisplay(defCommon.MSG_MODE_WORKING,format('Runtime Error ExecExtraFunction "%s": %s ', [sFuncName, E.Message]),'',0);
+//          vResult:= '';
+//        end
+//
+//      end;
+//    finally
+//      FreeAndNil(sl);
+//    end;
+//  end
+//  else begin
+//    try
+//      //vResult:= atPasScrptMaint.ExecuteSubroutine(sFuncName);
+//      vResult:= atPasScrpt.ExecuteSubroutine(sFuncName);
+//    except
+//      on E: Exception do begin
+//        SendTestGuiDisplay(defCommon.MSG_MODE_WORKING,format('Runtime Error ExecExtraFunction "%s": %s ', [sFuncName, E.Message]),'',0);
+//        vResult:= '';
+//      end
+//    end;
+//  end;
+//
+//  if (VarType(vResult) = varEmpty) or (VarType(vResult) = varNull) then begin
+//    Result:= '';  //Return 없음
+//  end
+//  else begin
+//    Result:= VarToStr(vResult);
+//  end;
+//end;
 
 
 function TScrCls.ExecExtraFunction2(sScriptFunc: string): string;
@@ -2110,10 +2262,10 @@ end;
 //        lstTemp.Free;
 //      end;
 //      sDebug := 'Send Cmd : ' + sDebug;
-////      Common.MLog(self.FPgNo,sDebug);
+////      if LogCommon <> nil then LogCommon.Mlog(self.FPgNo,sDebug);
 //      wdRet := Pg[Self.FPgNo].SendI2CRead(buff,nLen, nWait);
 ////      sDebug := Format('Read I2C_Data : Ret(%0.2x), Len - %d',[wdRet,Pg[FPgNo].FRxData.DataLen]);
-////      Common.MLog(self.FPgNo,sDebug);
+////      if LogCommon <> nil then LogCommon.Mlog(self.FPgNo,sDebug);
 //      if wdRet = WAIT_OBJECT_0 then begin
 //        nDataType := GetInputArgAsInteger(2);
 ////        nDataType := 1;
@@ -2141,11 +2293,11 @@ end;
 //            end;
 //          end;
 //        end;
-////        Common.MLog(self.FPgNo,sDebug);
+////        if LogCommon <> nil then LogCommon.Mlog(self.FPgNo,sDebug);
 //        SetInputArg(1,getV);
 //      end
 //      else begin
-//        Common.MLog(self.FPgNo,'wdRet <> WAIT_OBJECT_0');
+//        if LogCommon <> nil then LogCommon.Mlog(self.FPgNo,'wdRet <> WAIT_OBJECT_0');
 //      end;
 //    end;
 //    ReturnOutputArg(wdRet);
@@ -2185,7 +2337,7 @@ begin
     bDataLog := True;
 //    sDebug := Format('I2C WRITE: RegAddr(0x%0.4x) DataCnt(%d), Data(0x%0.4x) WaitMS(%d) Retry(%d) ',[nRegAddr,nDataCnt,nWriteData, nWaitSec,nRetry]);
 //    if bDataLog then SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,sDebug,'',DefCommon.LOG_TYPE_INFO)
-//    else             Common.MLog(FPgNo,sDebug);
+//    else             if LogCommon <> nil then LogCommon.Mlog(FPgNo,sDebug);
 //{$IFNDEF SIMULATOR_PANEL}
     wdRet := Pg[Self.FPgNo].SendI2CWrite(TCON_REG_DEVICE,nRegAddr,nDataCnt,arrData, nWaitSec,nRetry);
 //{$ELSE}
@@ -2200,7 +2352,7 @@ begin
       else          sDebug := 'I2C WRITE NG (Etc)';
     end;
 //    if bDataLog then SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,sDebug,'',TernaryOp((wdRet=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG))
-//    else             Common.MLog(FPgNo,sDebug);
+//    else             if LogCommon <> nil then LogCommon.Mlog(FPgNo,sDebug);
     ReturnOutputArg(wdRet);
   end;
 end;
@@ -2296,7 +2448,7 @@ begin
   end;
   sDebug := '[INSPECTION START] Test Model : ' + ' ------------------------------------------------- ' ;
   sDebug := sDebug +Common.SystemInfo.TestModel+' ------------------------------------------------- ';
-//  Common.MLog(FPgNo,sDebug);
+//  if LogCommon <> nil then LogCommon.Mlog(FPgNo,sDebug);
   SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,sDebug);
   // Version for MLog.
 //  sPgVer := Trim(Copy(PG[FPgNo].m_PgVer,2,4));
@@ -2312,7 +2464,7 @@ begin
   //sDebug := sDebug + Format(', Psu(%s/%s), Oc_Param(%s)',[Common.m_Ver.psu_Date,Common.m_Ver.psu_Crc,Common.m_Ver.OcParam]);
   //sDebug := sDebug + Format(', Oc_Verify(%s), Otp_Table(%s)',[Common.m_Ver.OcVerify,Common.m_Ver.OtpTable]);
   //sDebug := sDebug + Format(', Oc_Offset(%s), MES_CODE(%s)',[Common.m_Ver.OcOffSet,Common.m_Ver.MES_CSV]);
-//  Common.MLog(FPgNo,sDebug);
+//  if LogCommon <> nil then LogCommon.Mlog(FPgNo,sDebug);
 
   SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,sDebug);
 
@@ -2320,7 +2472,7 @@ begin
   sDebug := sDebug + Format(', PG_TconOcWriteDelayMsec(%d), PG_TconOcWriteDelayMicroSec(%d)',[Common.SystemInfo.PG_TconOcWriteDelayMsec,Common.SystemInfo.PG_TconOcWriteDelayMicroSec]);
   sDebug := sDebug + Format(', PGResetTotalConut(%d), PGResetDelayTime(%d)',[Common.SystemInfo.PGResetTotalConut,Common.SystemInfo.PGResetDelayTime]);
 
-//  Common.MLog(FPgNo,sDebug);
+//  if LogCommon <> nil then LogCommon.Mlog(FPgNo,sDebug);
   SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,sDebug);
 
   TestInfo.SW_Ver:= Common.ExeVersion; // Common.GetVersionDate;
@@ -2349,6 +2501,7 @@ begin
   TestInfo.SIM_Use_CAM:= Common.SimulateInfo.Use_CAM;
   TestInfo.OC_Con_Ver := Common.SystemInfo.OC_Converter_Name;
   TestInfo.DLL_Ver := Common.SystemInfo.LGD_DLLVER_Name;
+  TestInfo.IDLEMode := Common.TestModelInfoFLOW.IDLEMode;
 
   if (Common.PLCInfo.EQP_ID - 6) = 1 then
       nEQP_ID := 1
@@ -2487,7 +2640,7 @@ begin
         end;
       except
         on E: Exception do begin
-//          Common.MLog(self.FPgNo, 'Runtime Error Convert_VariantToAscii: ' + E.Message);
+//          if LogCommon <> nil then LogCommon.Mlog(self.FPgNo, 'Runtime Error Convert_VariantToAscii: ' + E.Message);
           SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'Runtime Error Convert_VariantToAscii: ' + E.Message);
         end;
       end;
@@ -2523,7 +2676,7 @@ begin
         end;
       except
         on E: Exception do begin
-//          Common.MLog(self.FPgNo, 'Runtime Error Convert_VariantToHex: ' + E.Message);
+//          if LogCommon <> nil then LogCommon.Mlog(self.FPgNo, 'Runtime Error Convert_VariantToHex: ' + E.Message);
           SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'Runtime Error Convert_VariantToAscii: ' + E.Message);
         end;
       end;
@@ -2617,7 +2770,7 @@ begin
   With AMachine do begin
 		Case InputArgCount of
       1..2 : begin
-//        Common.MLog(Self.FPgNo,GetInputArgAsString(0));
+//        if LogCommon <> nil then LogCommon.Mlog(Self.FPgNo,GetInputArgAsString(0));
         if InputArgCount = 1 then nOption := 0
         else begin
           nOption := GetInputArgAsInteger(1);
@@ -2862,7 +3015,7 @@ begin
 //    nWait := 3000;
 //    if InputArgCount in [2,3] then begin
 //      sSendCmd := Trim(GetInputArgAsString(0));
-//      if Common.SystemInfo.MIPILog then Common.MLog(self.FPgNo,'[Source Code] MIPI READ CMD : '+sSendCmd);
+//      if Common.SystemInfo.MIPILog then if LogCommon <> nil then LogCommon.Mlog(self.FPgNo,'[Source Code] MIPI READ CMD : '+sSendCmd);
 //      getV := GetInputArg(1);
 //      if InputArgCount = 3 then nWait := GetInputArgAsInteger(2);
 //      //sSendCmd := StringReplace(sSendCmd, '0x', '$', [rfReplaceAll]);
@@ -2884,19 +3037,19 @@ begin
 //        for i := 0 to Pred(Pg[FPgNo].FRxData.DataLen) do begin
 //          if nLen < i then  //주어진 배열보다 클경우오류 방지
 //          begin
-//             Common.MLog(self.FPgNo,Format('[Source Code] MIPI READ Data Oversize %d:%d' , [nLen, Pg[FPgNo].FRxData.DataLen]));
+//             if LogCommon <> nil then LogCommon.Mlog(self.FPgNo,Format('[Source Code] MIPI READ Data Oversize %d:%d' , [nLen, Pg[FPgNo].FRxData.DataLen]));
 //             break;
 //          end;
 //          // byte로 데이터 입력 받음.
-////          Common.MLog(FPgNo, 'Data' + IntToStr(i) +' : ' + IntToStr(Pg[FPgNo].FRxData.Data[i]));
+////          if LogCommon <> nil then LogCommon.Mlog(FPgNo, 'Data' + IntToStr(i) +' : ' + IntToStr(Pg[FPgNo].FRxData.Data[i]));
 //          getV[i] := Integer(Pg[FPgNo].FRxData.Data[i]);
 //          sDebug := sDebug + Format(' 0x%0.2x',[Pg[FPgNo].FRxData.Data[i]]);
 //        end;
-//        if Common.SystemInfo.MIPILog then Common.MLog(self.FPgNo,'[Source Code] MIPI READ DATA :'+sDebug);
+//        if Common.SystemInfo.MIPILog then if LogCommon <> nil then LogCommon.Mlog(self.FPgNo,'[Source Code] MIPI READ DATA :'+sDebug);
 //      end
 //      else begin
 //        sDebug := Format('MIPI READ NG Code : %d - DataLength (%d)',[wdRet, Pg[FPgNo].FRxData.DataLen ]);
-//        Common.MLog(self.FPgNo, sDebug);
+//        if LogCommon <> nil then LogCommon.Mlog(self.FPgNo, sDebug);
 //      end;
 //
 //      SetInputArg(1,getV);
@@ -3018,7 +3171,7 @@ begin
 //        lstTemp.Free;
 //      end;
 //      wdRet := Pg[Self.FPgNo].SendMIPIWriteHS(buff,nLen, nWait);
-//      if Common.SystemInfo.MIPILog then Common.MLog(self.FPgNo,'[Source Code] MIPI WriteHS '+sDebug);
+//      if Common.SystemInfo.MIPILog then if LogCommon <> nil then LogCommon.Mlog(self.FPgNo,'[Source Code] MIPI WriteHS '+sDebug);
 //      ReturnOutputArg(wdRet);
 //    end;
   end;
@@ -3065,7 +3218,7 @@ begin
 //        lstTemp.Free;
 //      end;
 //      wdRet := Pg[Self.FPgNo].SendMIPI_ICWrite(buff,nLen, nWait);
-//      if Common.SystemInfo.MIPILog then Common.MLog(self.FPgNo,'[Source Code] MIPI IC Write '+sDebug);
+//      if Common.SystemInfo.MIPILog then if LogCommon <> nil then LogCommon.Mlog(self.FPgNo,'[Source Code] MIPI IC Write '+sDebug);
 //      ReturnOutputArg(wdRet);
 //    end;
   end;
@@ -3111,7 +3264,7 @@ begin
   With AMachine do begin
     try
       if Common.TestModelInfoFLOW.UseCkNVMWriteSequence = 0 then begin
-//        Common.MLog(self.FPgNo, 'NVM Verify Sequence - SKIP');
+//        if LogCommon <> nil then LogCommon.Mlog(self.FPgNo, 'NVM Verify Sequence - SKIP');
         SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING, 'NVM Verify Sequence - SKIP');
         dwRtn := 0;
         Exit;
@@ -3247,7 +3400,7 @@ begin
     try
       dwRtn := 1;
 //      if Common.TestModelInfoFLOW.UseCkNVMWriteSequence = 0 then begin
-////        Common.MLog(self.FPgNo, 'NVM Write Sequence - SKIP');
+////        if LogCommon <> nil then LogCommon.Mlog(self.FPgNo, 'NVM Write Sequence - SKIP');
 //        SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING, 'NVM Write Sequence - SKIP');
 //        dwRtn := 0;
 //        Exit;
@@ -3441,8 +3594,10 @@ begin
           end;
         end
         else begin
-          if DongaGmes <> nil then
+          if DongaGmes <> nil then begin
             sPID := DongaGmes.MesData[FPgNo].PchkRtnPID;
+            TestInfo.RTN_PID := sPID;
+          end;
         end;
 
         if Length(sPID) = 0 then sPID := Copy(sSerialNumber,1,3);
@@ -3455,7 +3610,6 @@ begin
               TestInfo.SerialNo := sSerialNumber;
             end;
           end;
-
 
           SendTestGuiDisplay(DefCommon.MSG_MODE_IRTEMP,'IRTEM : Start','',1);   //Start
         end;
@@ -3520,14 +3674,17 @@ begin
         wdRet := 1;
         nStartAddr := Common.TestModelInfoFLOW.SerialNoFlashInfo.nAddr;
         nLength :=  Common.TestModelInfoFLOW.SerialNoFlashInfo.nLength;
-//        Common.MLog(self.FPgNo,format('OCThreadFlash_READ_Proc nStartAddr : %d nLength : %d ',[nStartAddr,nLength]));
+//        if LogCommon <> nil then LogCommon.Mlog(self.FPgNo,format('OCThreadFlash_READ_Proc nStartAddr : %d nLength : %d ',[nStartAddr,nLength]));
         SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,format('OCThreadFlash_READ_Proc nStartAddr : %d nLength : %d ',[nStartAddr,nLength]));
-        SetLength(SerialNoBuf,nLength);
-        wdRet :=  Pg[FPgNo].SendFlashRead(nStartAddr,nLength, @SerialNoBuf[0],5000,2);
-        SetString(sAnsiStr, PAnsiChar(@SerialNoBuf[0]), nLength);
-        sAnsiStr := Copy(sAnsiStr,1,nLength);
-        sSerialNo := string(Trim(sAnsiStr));
-        SetLength(SerialNoBuf,0);
+        try
+          SetLength(SerialNoBuf,nLength);
+          wdRet :=  Pg[FPgNo].SendFlashRead(nStartAddr,nLength, @SerialNoBuf[0],5000,2);
+          SetString(sAnsiStr, PAnsiChar(@SerialNoBuf[0]), nLength);
+          sAnsiStr := Copy(sAnsiStr,1,nLength);
+          sSerialNo := string(Trim(sAnsiStr));
+        finally
+          SetLength(SerialNoBuf,0);
+        end;
 
         {$IFDEF SIMULATOR_PG}
           wdRet := 0;
@@ -3535,11 +3692,6 @@ begin
           sSerialNo := 'GH3HA80055W000087KBXXXXXX3BXV9L1V3XXX30XXX9Q2G9L2G9M2G9G1G80XS5GXXB2473C09BX48GX1XXXXXXXXSXXXXC9KF0FH9N000JA0000157+A+130FFAH8RCB3C70';
           sSerialNo :=  sSerialNo  + '000158+AGJ6H7K0383S0000CE8GJ6H7400GJW000015ATHAH942P05U00007ZP8F2112221149EKSTH8L004240000PV1A310L41131H46J012720340M010100MB221AJ4293';
         {$ENDIF}
-//        sSerialNo := 'GH3HA80055W000087KBXXXXXX3BXV9L1V3XXX30XXX9Q2G9L2G9M2G9G1G80XS5GXXB2473C09BX48GX1XXXXXXXXSXXXXC9KF0FH9N000JA0000157+A+130FFAH8RCB3C70';
-//        sSerialNo :=  sSerialNo  + '000158+AGJ6H7K0383S0000CE8GJ6H7400GJW000015ATHAH942P05U00007ZP8F2112221149EKSTH8L004240000PV1A310L41131H46J012720340M010100MB221AJ4293';
-
-
-
         sIsAlphaNumeric := Copy(sSerialNo,1,1);
         if not IsValidString(sIsAlphaNumeric) then begin
 
@@ -3547,7 +3699,7 @@ begin
           SendTestGuiDisplay(defCommon.MSG_MODE_WORKING,format('Unable to convert characters CH : %d',[Self.FPgNo]));
         end;
         TestInfo.SerialNo := sSerialNo;
-//        Common.MLog(self.FPgNo,format('OCThreadFlash_READ_Proc SerialNo : %s ',[sSerialNo]));
+//        if LogCommon <> nil then LogCommon.Mlog(self.FPgNo,format('OCThreadFlash_READ_Proc SerialNo : %s ',[sSerialNo]));
         SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,format('OCThreadFlash_READ_Proc SerialNo : %s ',[sSerialNo]));
       end;
     end;
@@ -3563,7 +3715,6 @@ SerialNoBuf : TIdBytes;
 sLog : string;
 begin
   With AMachine do begin
-//    wdRet := CSharpDll.MainOC_Flash_Read(Self.FPgNo);
     case InputArgCount of
     1:
       begin
@@ -3573,7 +3724,7 @@ begin
           nLength :=  Common.TestModelInfoFLOW.SerialNoFlashInfo.nLength;
           sLog := format('OCThreadFlash_WRITE_Proc nStartAddr : 0x%x nLength : %d ',[nStartAddr,nLength]);
           sLog := sLog + Format(' SerialNo : %s',[PasScr[FPgNo].TestInfo.SerialNo]);
-//          Common.MLog(FPgNo,sLog);
+//          if LogCommon <> nil then LogCommon.Mlog(FPgNo,sLog);
           SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,sLog);
 
           SerialNoBuf := Common.StringToIdBytes(PasScr[FPgNo].TestInfo.SerialNo);
@@ -3629,10 +3780,10 @@ begin
       // Sleep(10);
       // end;
       // SendTestGuiDisplay(DefCommon.MSG_MODE_CA310_MEASURE,'','',1);
-      // Common.MLog(Self.FPgNo,'CA410 Measure ');
+      // if LogCommon <> nil then LogCommon.Mlog(Self.FPgNo,'CA410 Measure ');
       wdRet := CaSdk2.Measure(Self.FPgNo, m_Ca410Data);
       // sDebug := format('CA410 Measure %d  %0.4f, %0.4f, %0.2f',[wdRet, m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
-      // Common.MLog(Self.FPgNo,sDebug);
+      // if LogCommon <> nil then LogCommon.Mlog(Self.FPgNo,sDebug);
       // SendTestGuiDisplay(DefCommon.MSG_MODE_CA310_MEASURE,'','',0);
       // 해당 값으로 넘겨 준다.
       SetInputArg(0, m_Ca410Data.xVal);
@@ -4001,7 +4152,7 @@ begin
         sDebug := Format('PowerSet NG, Set:%d', [nSet]);
       end;
 
-      //if common.SystemInfo.DebugLog then Common.MLog(self.FPgNo,'[Source Code] ' + sDebug);
+      //if common.SystemInfo.DebugLog then if LogCommon <> nil then LogCommon.Mlog(self.FPgNo,'[Source Code] ' + sDebug);
 
     end;
     ReturnOutputArg(dwRet);
@@ -4031,7 +4182,7 @@ begin
         sDebug := Format('PowerSet NG, Set:%d', [nSet]);
       end;
 
-      //if common.SystemInfo.DebugLog then Common.MLog(self.FPgNo,'[Source Code] ' + sDebug);
+      //if common.SystemInfo.DebugLog then if LogCommon <> nil then LogCommon.Mlog(self.FPgNo,'[Source Code] ' + sDebug);
 
     end;
     ReturnOutputArg(dwRet);
@@ -4073,7 +4224,7 @@ begin
     bDataLog := True;
     sDebug := Format('ProgrammingWrite: RegAddr(0x%0.4x) DataCnt(%d), CRCData(%s) WaitMS(%d) Retry(%d) ',[nRegAddr,nDataCnt,Common.m_DLLReProgrammingCRC, nWaitSec,nRetry]);
     if bDataLog then SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,sDebug,'',DefCommon.LOG_TYPE_INFO)
-    else             Common.MLog(FPgNo,sDebug);
+    else             if LogCommon <> nil then LogCommon.Mlog(FPgNo,sDebug);
     wdRet := Pg[Self.FPgNo].SendReProgramming(PROGRAMING_DEVICE,nRegAddr,nDataCnt,arrData, nWaitSec,nRetry);
 
     case wdRet of
@@ -4085,7 +4236,7 @@ begin
       else          sDebug := 'Programming WRITE NG (Etc)';
     end;
     if bDataLog then SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,sDebug,'',TernaryOp((wdRet=WAIT_OBJECT_0),DefCommon.LOG_TYPE_OK,DefCommon.LOG_TYPE_NG))
-    else             Common.MLog(FPgNo,sDebug);
+    else             if LogCommon <> nil then LogCommon.Mlog(FPgNo,sDebug);
     ReturnOutputArg(wdRet);
   end;
 end;
@@ -4499,10 +4650,10 @@ begin
       m_bTheadIsTerminated := True;
       m_bLockThread := True;
       try
-//        Common.MLog(Self.FPgNo,'[PSU Start]');
+//        if LogCommon <> nil then LogCommon.Mlog(Self.FPgNo,'[PSU Start]');
         m_bIsScriptWork := True;
         atPasScrpt.ExecuteSubroutine(sScriptFunc,nFirstParam);
-//        Common.MLog(Self.FPgNo,'[PSU END]');
+//        if LogCommon <> nil then LogCommon.Mlog(Self.FPgNo,'[PSU END]');
 
       except
         on E:Exception do begin
@@ -4526,13 +4677,13 @@ end;
 
 procedure TScrCls.ScriptThreadIsDone(Sender: TObject);
 begin
-  Common.MLog(self.FPgNo,'ScriptThreadIsDone',True);
+  if LogCommon <> nil then LogCommon.Mlog(self.FPgNo,'ScriptThreadIsDone',True);
   //실행 함수에 따른 분기 필요
   m_bTheadIsTerminated := False;
   m_bIsScriptWork := False;
   if m_bIsSyncSeq then begin
     SendTestGuiDisplay(DefCommon.MSG_MODE_SYNC_WORK,'','', nSyncMode, 0);
-//    Common.MLog(self.FPgNo,Format('inside -- %d',[Integer(m_InsStatus)]));
+//    if LogCommon <> nil then LogCommon.Mlog(self.FPgNo,Format('inside -- %d',[Integer(m_InsStatus)]));
     if m_InsStatus = isStop then begin
       m_bIsSyncSeq := False;
     end;
@@ -4551,7 +4702,7 @@ begin
     end;
   end;
 
-  if ((CurrentSEQ in [SEQ_KEY_9]) or (CurrentSEQ in [SEQ_KEY_START])) and m_bIDLE then begin
+  if ((CurrentSEQ in [SEQ_KEY_9]) or (CurrentSEQ in [SEQ_KEY_START])) and TestInfo.IDLEMode then begin
     SendTestGuiDisplay(defCommon.MSG_TYPE_DLL,defCommon.MSG_MODE_WORK_DONE,'OKFLOW_END');
   end;
 
@@ -4563,7 +4714,7 @@ begin
         SendTestGuiDisplay(DefCommon.MSG_MODE_SYNC_WORK,'','', 3, CurrentSEQ);
       end
       else begin
-//        Common.MLog(self.FPgNo, 'SEQ_UNLOAD_ZONE Done - PreOcReStart');
+//        if LogCommon <> nil then LogCommon.Mlog(self.FPgNo, 'SEQ_UNLOAD_ZONE Done - PreOcReStart');
         SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'SEQ_UNLOAD_ZONE Done - PreOcReStart');
       end;
     end;
@@ -4617,12 +4768,12 @@ begin
           TestInfo.ApdrData := MakeApdrData;
 
           if not Common.StatusInfo.LogIn then begin
-//            Common.MLog(self.FPgNo, 'APDR SKIP - OFF');
+//            if LogCommon <> nil then LogCommon.Mlog(self.FPgNo, 'APDR SKIP - OFF');
             SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'APDR SKIP - OFF');
             ReturnOutputArg(0);
             Exit;
           end;
-          //Common.MLog(Self.FPgNo,TestInfo.ApdrData);
+          //if LogCommon <> nil then LogCommon.Mlog(Self.FPgNo,TestInfo.ApdrData);
           if DongaGmes <> nil then begin
 //            wdRet := CheckSyncCmdAck(procedure begin
 //              SendMainGuiDisplay(DefGmes.MES_APDR);
@@ -4665,12 +4816,12 @@ begin
             Exit;
           end;
           if not Common.StatusInfo.LogIn then begin
-//            Common.MLog(self.FPgNo, 'APDR_EAS SKIP - OFF');
+//            if LogCommon <> nil then LogCommon.Mlog(self.FPgNo, 'APDR_EAS SKIP - OFF');
             SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'APDR_EAS SKIP - OFF');
             wdRet := -1;
             Exit;
           end;
-          Common.MLog(FPgNo,'SendApdr_EAS_Proc : Start!!');
+          if LogCommon <> nil then LogCommon.Mlog(FPgNo,'SendApdr_EAS_Proc : Start!!');
           if DongaGmes <> nil then begin
             //EAS ADPR은 응답을 기다리지 않는다.
             SendMainGuiDisplay(DefGmes.EAS_APDR);
@@ -4680,7 +4831,7 @@ begin
           else begin
             wdRet := -1;
           end;
-          Common.MLog(FPgNo,'SendApdr_EAS_Proc : Finish!!');
+          if LogCommon <> nil then LogCommon.Mlog(FPgNo,'SendApdr_EAS_Proc : Finish!!');
         end;
       End;
       ReturnOutputArg(wdRet);
@@ -4731,14 +4882,14 @@ begin
         sTemp := sTemp + Trim(TestInfo.CarrierId);
 
         if not Common.StatusInfo.LogIn then begin
-//          Common.MLog(self.FPgNo, 'EICR SKIP - OFF');
+//          if LogCommon <> nil then LogCommon.Mlog(self.FPgNo, 'EICR SKIP - OFF');
           SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'EICR SKIP - OFF');
           ReturnOutputArg(-1);
           Exit;
         end;
 
 //        SendTestGuiDisplay(DefCommon.MSG_MODE_SHOW_SERIAL_NUMBER,TestInfo.CarrierId +' / '+TestInfo.SerialNo);
-        Common.MLog(FPgNo,'SendEICR_Proc : Start!!');
+        if LogCommon <> nil then LogCommon.Mlog(FPgNo,'SendEICR_Proc : Start!!');
         if DongaGmes is TGmes then begin
           DongaGmes.MesData[Self.FPgNo].Rwk := Common.GmesInfo[nResult].MES_Code;
           DongaGmes.MesData[Self.FPgNo].ErrCode := Common.GmesInfo[nResult].sErrCode;
@@ -4761,7 +4912,7 @@ begin
         else begin
           wdRet := WAIT_OBJECT_0;
         end;
-        Common.MLog(FPgNo,'SendEICR_Proc : Done!!');
+        if LogCommon <> nil then LogCommon.Mlog(FPgNo,'SendEICR_Proc : Done!!');
       end;
     End;
     ReturnOutputArg( wdRet);
@@ -4784,7 +4935,7 @@ begin
         nRet := GetInputArgAsInteger(0);
 
         if not Common.StatusInfo.LogIn then begin
-//          Common.MLog(self.FPgNo, 'EIJR SKIP - OFF');
+//          if LogCommon <> nil then LogCommon.Mlog(self.FPgNo, 'EIJR SKIP - OFF');
           SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'EIJR SKIP - OFF');
           ReturnOutputArg(-1);
           Exit;
@@ -4799,13 +4950,13 @@ begin
               else nEQP_ID := 2;
               if nEQP_ID = 1 then begin
                 if nValue and $7 = 0 then begin
-//                  Common.MLog(self.FPgNo, 'AABMode - A Mode- EIJR SKIP');
+//                  if LogCommon <> nil then LogCommon.Mlog(self.FPgNo, 'AABMode - A Mode- EIJR SKIP');
                   SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'ECS AA Mode - A Mode- EIJR SKIP');
                   wdRet := -1;
                   Exit;
                 end;
 //                if nValue and $38 = 0 then  begin
-////                  Common.MLog(self.FPgNo, 'AABMode - AA Mode EIJR SKIP');
+////                  if LogCommon <> nil then LogCommon.Mlog(self.FPgNo, 'AABMode - AA Mode EIJR SKIP');
 //                  SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'AABMode - AA Mode EIJR SKIP');
 //                  Exit;
 //                end;
@@ -4813,13 +4964,13 @@ begin
               else begin
 
                 if nValue and $1C00 = 0 then begin
-//                  Common.MLog(self.FPgNo, 'AABMode - A Mode- EIJR SKIP');
+//                  if LogCommon <> nil then LogCommon.Mlog(self.FPgNo, 'AABMode - A Mode- EIJR SKIP');
                   SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'ECS AA Mode - A Mode- EIJR SKIP');
                   wdRet := -1;
                   Exit;
                 end;
 //                if nValue and $E000 = 0 then  begin
-////                  Common.MLog(self.FPgNo, 'AABMode - AA Mode EIJR SKIP');
+////                  if LogCommon <> nil then LogCommon.Mlog(self.FPgNo, 'AABMode - AA Mode EIJR SKIP');
 //                  SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'AABMode - AA Mode EIJR SKIP');
 //                  Exit;
 //                end;
@@ -4833,8 +4984,10 @@ begin
 
 //        SendTestGuiDisplay(DefCommon.MSG_MODE_SHOW_SERIAL_NUMBER,TestInfo.SerialNo);
         if DongaGmes is TGmes then begin
-          Common.MLog(FPgNo,'SendEIJR_Proc : Start!!');
+          if LogCommon <> nil then LogCommon.Mlog(FPgNo,'SendEIJR_Proc : Start!!');
           DongaGmes.MesData[Self.FPgNo].Rwk := Common.GmesInfo[nRet].MES_Code;
+          DongaGmes.MesData[Self.FPgNo].ErrCode := Common.GmesInfo[nRet].sErrCode;
+          DongaGmes.MesData[Self.FPgNo].Option := Common.GmesInfo[nRet].Option;
 
           //EICR용 Tact 계산
           nTactSec:= SecondsBetween(TestInfo.EndTime, TestInfo.PreEndTime); //완공시간 - 이전 완공 시간
@@ -4850,7 +5003,7 @@ begin
             wdRet :=  m_nHostResult;
             if m_nHostResult = 0 then  TestInfo.CanSendApdr := True;
           end;
-          Common.MLog(FPgNo,'SendEIJR_Proc : Done!!');
+          if LogCommon <> nil then LogCommon.Mlog(FPgNo,'SendEIJR_Proc : Done!!');
         end
         else begin
           wdRet := WAIT_OBJECT_0;
@@ -4917,7 +5070,7 @@ begin
 //        end;
 //        sTemp := sTemp + Trim(TestInfo.CarrierId);
         if not Common.StatusInfo.LogIn then begin
-//          Common.MLog(self.FPgNo, 'PCHK SKIP - OFF');
+//          if LogCommon <> nil then LogCommon.Mlog(self.FPgNo, 'PCHK SKIP - OFF');
           SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'PCHK SKIP - OFF');
           ReturnOutputArg(0);
           Exit;
@@ -4925,7 +5078,7 @@ begin
 
         m_bMesPMMode := True;
         if DongaGmes <> nil then begin
-          Common.MLog(FPgNo,'SendPCHK_Proc : Start!!');
+          if LogCommon <> nil then LogCommon.Mlog(FPgNo,'SendPCHK_Proc : Start!!');
           m_bMesPMMode := False;
           wdRet := CheckSyncCmdAck(procedure begin         // PCHK 대기 시간 변경 (65000 -> MES 전송 대기 사항 갯수따라 가변)
             SendMainGuiDisplay(DefGmes.MES_PCHK,1);
@@ -4947,7 +5100,7 @@ begin
             if m_nHostResult = 0 then  TestInfo.bPchkResult := True;
           end;
 
-          Common.MLog(FPgNo,'SendPCHK_Proc : Done!!');
+          if LogCommon <> nil then LogCommon.Mlog(FPgNo,'SendPCHK_Proc : Done!!');
         end
         else begin
           wdRet := WAIT_OBJECT_0;
@@ -4977,7 +5130,7 @@ begin
     SendTestGuiDisplay(DefCommon.MSG_MODE_SHOW_SERIAL_NUMBER, TestInfo.SerialNo);
 
     if not Common.StatusInfo.LogIn then begin
-//      Common.MLog(self.FPgNo, 'INSPCHK SKIP - OFF');
+//      if LogCommon <> nil then LogCommon.Mlog(self.FPgNo, 'INSPCHK SKIP - OFF');
       SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'INSPCHK SKIP - OFF');
       ReturnOutputArg(0);
       Exit;
@@ -4985,7 +5138,7 @@ begin
 
     m_bMesPMMode := True;
     if DongaGmes <> nil then begin
-      Common.MLog(FPgNo,'SendINSPCHK_Proc : Start!!');
+      if LogCommon <> nil then LogCommon.Mlog(FPgNo,'SendINSPCHK_Proc : Start!!');
       m_bMesPMMode := False;
       wdRet := CheckSyncCmdAck(procedure begin
         SendMainGuiDisplay(DefGmes.MES_INS_PCHK, 1);
@@ -5006,7 +5159,7 @@ begin
         if m_nHostResult = 0 then  TestInfo.bPchkResult := True;
       end;
 
-      Common.MLog(FPgNo,'SendINSPCHK_Proc : Done!!');
+      if LogCommon <> nil then LogCommon.Mlog(FPgNo,'SendINSPCHK_Proc : Done!!');
     end
     else begin
       wdRet := WAIT_OBJECT_0;
@@ -5080,7 +5233,7 @@ begin
         SendTestGuiDisplay(DefCommon.MSG_MODE_SHOW_SERIAL_NUMBER,TestInfo.CarrierId +' / '+TestInfo.SerialNo);
 
         if not Common.StatusInfo.LogIn then begin
-//          Common.MLog(self.FPgNo, 'ECS_PCHK SKIP - OFF');
+//          if LogCommon <> nil then LogCommon.Mlog(self.FPgNo, 'ECS_PCHK SKIP - OFF');
           SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'ECS_PCHK SKIP - OFF');
           ReturnOutputArg(0);
           Exit;
@@ -5103,7 +5256,7 @@ begin
           WAIT_OBJECT_0 : begin
             //OK
             if m_MESItemValue.Ack = 0 then begin
-//              Common.MLog(self.FPgNo, 'ECS_PCHK OK');
+//              if LogCommon <> nil then LogCommon.Mlog(self.FPgNo, 'ECS_PCHK OK');
               SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'ECS_PCHK OK');
               //TestInfo.CarrierId:= Trim(g_CommPLC.ECS_GlassData[FPgNo].CarrierID);
               TestInfo.RTN_PID:= Trim(g_CommPLC.ECS_GlassData[FPgNo].GlassID);
@@ -5114,14 +5267,14 @@ begin
             else begin
               nRet:= m_MESItemValue.Ack;
               SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,format('ECS_PCHK NG %d ', [m_MESItemValue.Ack]));
-//              Common.MLog(self.FPgNo, format('ECS_PCHK NG %d ', [m_MESItemValue.Ack]));
+//              if LogCommon <> nil then LogCommon.Mlog(self.FPgNo, format('ECS_PCHK NG %d ', [m_MESItemValue.Ack]));
             end;
           end;
           WAIT_TIMEOUT  : begin
-            Common.MLog(self.FPgNo, 'ECS_PCHK Timeout');
+            if LogCommon <> nil then LogCommon.Mlog(self.FPgNo, 'ECS_PCHK Timeout');
           end
           else begin
-            Common.MLog(self.FPgNo, format('ECS_PCHK Fail Ret:%d ', [nRet]));
+            if LogCommon <> nil then LogCommon.Mlog(self.FPgNo, format('ECS_PCHK Fail Ret:%d ', [nRet]));
           end;
         end;
       end;
@@ -5146,7 +5299,7 @@ begin
         Exit;
       end;
       nNgCode := GetInputArgAsInteger(0);
-//      Common.MLog(self.FPgNo, 'ECS_SetGlassData NgCode=' + IntToStr(nNgCode),True);
+//      if LogCommon <> nil then LogCommon.Mlog(self.FPgNo, 'ECS_SetGlassData NgCode=' + IntToStr(nNgCode),True);
       SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'ECS_SetGlassData NgCode=' + IntToStr(nNgCode));
       if (Common.PLCInfo.InlineGIB) and (Common.SystemInfo.OCType = DefCommon.OCType) then begin
         SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'SetGlassData_CheckRLogistics NgCode=' + IntToStr(nNgCode));
@@ -5221,7 +5374,7 @@ begin
           g_CommPLC.SetGlassData_Previous_Unit_Processing(g_CommPLC.GlassData[FPgNo], g_CommPLC.EQP_ID-13);
       end;
       wdRet := 0;
-      //Common.MLog(self.FPgNo,format('SetGlassData : Finish %d',[FPgNo]),True);
+      //if LogCommon <> nil then LogCommon.Mlog(self.FPgNo,format('SetGlassData : Finish %d',[FPgNo]),True);
 //      SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,format('SetGlassData : 3 %d',[FPgNo]),'',10);
 //      g_CommPLC.SaveGlassData_CH(FPgNo,Common.Path.Ini + format('GlassData_CH%d.dat',[FPgNo +1]));
 //      SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,format('SetGlassData : 4 %d',[FPgNo]),'',10);
@@ -5249,7 +5402,7 @@ begin
           TestInfo.SerialNo  := GetInputArgAsString(0);
 
           if not Common.StatusInfo.LogIn then begin
-            Common.MLog(self.FPgNo, 'ECS_EICR SKIP - OFF');
+            if LogCommon <> nil then LogCommon.Mlog(self.FPgNo, 'ECS_EICR SKIP - OFF');
             ReturnOutputArg(0);
             Exit;
           end;
@@ -5276,22 +5429,22 @@ begin
               //OK
               if m_MESItemValue.Ack = 0 then begin
                 //TestInfo.NG_EICR:= False;
-                Common.MLog(self.FPgNo, 'ECS_EICR OK');
+                if LogCommon <> nil then LogCommon.Mlog(self.FPgNo, 'ECS_EICR OK');
               end
               else begin
-                Common.MLog(self.FPgNo, format('ECS_EICR NG %d ', [m_MESItemValue.Ack]));
+                if LogCommon <> nil then LogCommon.Mlog(self.FPgNo, format('ECS_EICR NG %d ', [m_MESItemValue.Ack]));
                 nRet:= m_MESItemValue.Ack;
               end;
             end;
             WAIT_TIMEOUT  : begin
-              Common.MLog(self.FPgNo, 'ECS_EICR Timeout');
+              if LogCommon <> nil then LogCommon.Mlog(self.FPgNo, 'ECS_EICR Timeout');
             end
             else begin
-              Common.MLog(self.FPgNo, format('ECS_EICR Fail Ret:%d ', [nRet]));
+              if LogCommon <> nil then LogCommon.Mlog(self.FPgNo, format('ECS_EICR Fail Ret:%d ', [nRet]));
             end;
           end;
         except on E : Exception do begin
-            Common.MLog(Self.FPgNo,'ECS_EICR Exception: ' + E.Message);
+            if LogCommon <> nil then LogCommon.Mlog(Self.FPgNo,'ECS_EICR Exception: ' + E.Message);
             nRet := 1;
           end
         end;
@@ -5324,7 +5477,7 @@ begin
         //TestInfo.ApdrData := ExecExtraFunction('MakeApdrData');
 
          if not Common.StatusInfo.LogIn then begin
-          Common.MLog(self.FPgNo, 'ECS_APDR SKIP - OFF');
+          if LogCommon <> nil then LogCommon.Mlog(self.FPgNo, 'ECS_APDR SKIP - OFF');
           ReturnOutputArg(0);
           Exit;
         end;
@@ -5351,18 +5504,18 @@ begin
           WAIT_OBJECT_0 : begin
             //OK
             if m_MESItemValue.Ack = 0 then begin
-              Common.MLog(self.FPgNo, 'ECS_APDR OK');
+              if LogCommon <> nil then LogCommon.Mlog(self.FPgNo, 'ECS_APDR OK');
             end
             else begin
-              Common.MLog(self.FPgNo, format('ECS_APDR NG %d ', [m_MESItemValue.Ack]));
+              if LogCommon <> nil then LogCommon.Mlog(self.FPgNo, format('ECS_APDR NG %d ', [m_MESItemValue.Ack]));
               nRet:= m_MESItemValue.Ack;
             end;
           end;
           WAIT_TIMEOUT  : begin
-            Common.MLog(self.FPgNo, 'ECS_APDR Timeout');
+            if LogCommon <> nil then LogCommon.Mlog(self.FPgNo, 'ECS_APDR Timeout');
           end
           else begin
-            Common.MLog(self.FPgNo, format('ECS_APDR Fail Ret:%d ', [nRet]));
+            if LogCommon <> nil then LogCommon.Mlog(self.FPgNo, format('ECS_APDR Fail Ret:%d ', [nRet]));
           end;
         end;
         *)
@@ -5574,7 +5727,7 @@ begin
       nJig := Self.FPgNo div 4;
       DongaCa310[nJig].SetMemCh(nMemCh);
       sDebug := Format('Set CA310 Memory Channel as %d',[nMemCh]);
-      common.MLog(self.FPgNo,sDebug);
+      if LogCommon <> nil then LogCommon.Mlog(self.FPgNo,sDebug);
     end;
 {$ENDIF}
     ReturnOutputArg( Integer(wdRet));
@@ -5769,7 +5922,7 @@ begin
         SendTestGuiDisplay(DefCommon.MSG_MODE_SHOW_SERIAL_NUMBER,TestInfo.SerialNo);
 
         if not Common.StatusInfo.LogIn then begin
-//          Common.MLog(self.FPgNo, 'LPIR SKIP - OFF');
+//          if LogCommon <> nil then LogCommon.Mlog(self.FPgNo, 'LPIR SKIP - OFF');
           SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,'LPIR SKIP - OFF');
           ReturnOutputArg(0);
           Exit;
@@ -6089,6 +6242,7 @@ var
   i: Integer;
 begin
   m_bIsSyncSeq := False;
+  CurrentSEQ := SEQ_STOP;
   if m_bCallTerminate then begin
     ScriptThread('Seq_Terminate',0);
   end;

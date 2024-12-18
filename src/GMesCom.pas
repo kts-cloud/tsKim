@@ -12,7 +12,7 @@ uses
 {$ENDIF}
 
 
-  Winapi.WinSock, DefCommon, IdFTPCommon,
+  Winapi.WinSock, DefCommon, IdFTPCommon, CommLog,
   Vcl.OleServer, Vcl.ExtCtrls, DefGmes, IdFTPList, IdFTP, System.SysUtils, Winapi.Messages, CommonClass;
 {$I Common.inc}  // JHHWANG-GMES: 2018-06-20
 
@@ -379,7 +379,7 @@ begin
   for nCh := DefCommon.CH1 to DefCommon.MAX_CH do begin
     MesData[nCh].MesPendingMsg := MES_UNKNOWN;
   end;
-//  Common.MLog(DefCommon.MAX_SYSTEM_LOG,'<HOST> HOST_Initial!');
+//  if LogCommon <> nil then LogCommon.Mlog(DefCommon.MAX_SYSTEM_LOG,'<HOST> HOST_Initial!');
   // 전역변수는 Send할때 쓰임
   Result := FCanUseHost;
 end;
@@ -419,7 +419,7 @@ begin
     else begin
       sDebug := sDebug + sMsg;
     end;
-    Common.MLog(nPgNo,sDebug);
+    if LogCommon <> nil then LogCommon.Mlog(nPgNo,sDebug);
 //    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPgNo,sDebug);
   end;
   if bMes then begin
@@ -472,7 +472,7 @@ procedure TGmes.parse_EDTI;
 begin
   // Error 처리 할것.
   if FMesRtnCd = '0' then begin
-//    Common.Mlog('<HOST> HOST Server Connected Successfully!');
+//    if LogCommon <> nil then LogCommon.Mlog('<HOST> HOST Server Connected Successfully!');
 //    CheckFLDRProcess;
     if FCanUseR2R then begin
       if not fR2REAYT then SEND_MESG2HOST(DefGmes.R2R_EAYT);
@@ -511,7 +511,7 @@ begin
   MesData[nPgNo].MesPendingMsg := MES_UNKNOWN;   //JHHWANG-GMES: 2018-06-20
   MesData[nPgNo].EicrRtnCode := FMesRtnCd;   // EICR_R.RTN_CD
   if nPgNo in [DefCommon.CH1 .. DefCommon.MAX_CH] then begin
-    Common.MLog(nPgNo,'MES REV : ' + sMsg,True);
+    if LogCommon <> nil then LogCommon.Mlog(nPgNo,'MES REV : ' + sMsg,True);
 //    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPgNo,'MES REV : ' + sMsg);
   end;
 
@@ -555,7 +555,7 @@ begin
   FEiJRSend := False;
 
   if nPgNo in [DefCommon.CH1 .. DefCommon.MAX_CH] then begin
-    Common.MLog(nPgNo,sMsg);
+    if LogCommon <> nil then LogCommon.Mlog(nPgNo,sMsg);
 //    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPgNo,sMsg);
   end;
 
@@ -624,7 +624,7 @@ begin
 //    end;
 //  end;
   if nPgNo in [DefCommon.CH1 .. DefCommon.MAX_CH] then begin
-    Common.MLog(nPgNo,'MES REV : ' + sMsg);
+    if LogCommon <> nil then LogCommon.Mlog(nPgNo,'MES REV : ' + sMsg);
 //    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPgNo,'MES REV : ' + sMsg);
   end;
   MesData[nPgNo].MesPendingMsg := MES_UNKNOWN;   //JHHWANG-COMMON: 2018-06-20
@@ -693,7 +693,7 @@ begin
   end;
 
   if nPgNo in [DefCommon.CH1 .. DefCommon.MAX_CH] then begin
-    Common.MLog(nPgNo,'MES REV : ' + sMsg);
+    if LogCommon <> nil then LogCommon.Mlog(nPgNo,'MES REV : ' + sMsg);
 //    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPgNo,'MES REV : ' + sMsg);
   end;
   MesData[nPgNo].MesPendingMsg := MES_UNKNOWN;   //
@@ -762,7 +762,7 @@ begin
   end;
 
   if nPgNo in [DefCommon.CH1 .. DefCommon.MAX_CH] then begin
-    Common.MLog(nPgNo,'MES REV : ' + sMsg);
+    if LogCommon <> nil then LogCommon.Mlog(nPgNo,'MES REV : ' + sMsg);
 //    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPgNo,'MES REV : ' + sMsg);
   end;
   MesData[nPgNo].MesPendingMsg := MES_UNKNOWN;   //JHHWANG-COMMON: 2018-06-20
@@ -822,7 +822,7 @@ begin
   end;
 
   if nPgNo in [DefCommon.CH1 .. DefCommon.MAX_CH] then begin
-    Common.MLog(nPgNo,'MES REV : ' + sMsg);
+    if LogCommon <> nil then LogCommon.Mlog(nPgNo,'MES REV : ' + sMsg);
 //    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPgNo,'MES REV : ' + sMsg);
   end;
   MesData[nPgNo].MesPendingMsg := MES_UNKNOWN;
@@ -872,7 +872,7 @@ begin
   end;
 
   if nPgNo in [DefCommon.CH1 .. DefCommon.MAX_CH] then begin
-    Common.MLog(nPgNo,'MES REV : '+sMsg);
+    if LogCommon <> nil then LogCommon.Mlog(nPgNo,'MES REV : '+sMsg);
 //    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPgNo,'MES REV : ' + sMsg);
   end;
   FEiJRSend := False;
@@ -992,12 +992,12 @@ var
   sDebug  : string;
   nCh     : Integer;
 begin
-  Common.Mlog(DefCommon.MAX_SYSTEM_LOG, Format('[EAS] RECV ThreadID:%4x', [TThread.CurrentThread.ThreadID]));
+  if LogCommon <> nil then LogCommon.Mlog(DefCommon.MAX_SYSTEM_LOG, Format('[EAS] RECV ThreadID:%4x', [TThread.CurrentThread.ThreadID]));
 (*
   sMsg:= UTF8ToString(sMessage);
   if Length(sMsg) < 6 then Exit;
   sMode := Copy(sMsg,1,6);
-  Common.Mlog(DefCommon.MAX_SYSTEM_LOG, Format('[EAS] RECV ThreadID:%4x sMode: %s', [TThread.CurrentThread.ThreadID,  sMode]));
+  if LogCommon <> nil then LogCommon.Mlog(DefCommon.MAX_SYSTEM_LOG, Format('[EAS] RECV ThreadID:%4x sMode: %s', [TThread.CurrentThread.ThreadID,  sMode]));
 *)
 
 //  SeperateData(sMsg,nCh);
@@ -1005,10 +1005,10 @@ begin
 //  sDebug := StringReplace(sMsg,#$0a, #$24, [rfReplaceAll]);
 //  sDebug := StringReplace(sDebug,#$0d, #$25, [rfReplaceAll]);
 //  if (sMode = 'APDR_R') then begin
-//    Common.Mlog(Format('[HOST] Recv Msg: %s PG : %d', [sDebug, FMesPg]));
+//    if LogCommon <> nil then LogCommon.Mlog(Format('[HOST] Recv Msg: %s PG : %d', [sDebug, FMesPg]));
 //  end
 //  else begin
-//    Common.Mlog(Format('[HOST] Recv Msg: %s PG : %d', [sDebug, FMesPg]));
+//    if LogCommon <> nil then LogCommon.Mlog(Format('[HOST] Recv Msg: %s PG : %d', [sDebug, FMesPg]));
 //  end;
 
 //  if CompareStr(sMode,'APDR_R') = 0 then parse_APDR(nCh,sMsg,False);
@@ -1643,18 +1643,18 @@ begin
 
     sDebug := StringReplace(sMsg,#$0a, #$24, [rfReplaceAll]);
     sDebug := StringReplace(sDebug,#$0d, #$25, [rfReplaceAll]);
-    Common.Mlog(StrToIntdef(FR2RUnit,1)-1,Format('[R2R] Recv Msg: %s PG : %d', [sDebug, StrToIntdef(FR2RUnit,1)-1]));
+    if LogCommon <> nil then LogCommon.Mlog(StrToIntdef(FR2RUnit,1)-1,Format('[R2R] Recv Msg: %s PG : %d', [sDebug, StrToIntdef(FR2RUnit,1)-1]));
 
-//    Common.Mlog(StrToIntdef(FR2RUnit,1)-1,sMsg);
+//    if LogCommon <> nil then LogCommon.Mlog(StrToIntdef(FR2RUnit,1)-1,sMsg);
 //    SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,StrToIntdef(FR2RUnit,1)-1,sMsg);
     Common.R2RLog(StrToIntdef(FR2RUnit,1)-1,sMsg);
 //    SendTestGuiDisplay(DefGmes.R2R_LOG,StrToIntdef(FR2RUnit,1)-1,sMsg);
     SeperateR2RData(StrToIntdef(FR2RUnit,1)-1,FR2RDatainfo);
     ReturnDataToTestForm(DefGmes.R2R_EODS, StrToIntdef(FR2RUnit,1)-1, False, 'R2R_DATA');
     m_bDoneEODS[StrToIntdef(FR2RUnit,1)-1] := True;
-    Common.Mlog(StrToIntdef(FR2RUnit,1)-1,'Send EODS_R Start');
+    if LogCommon <> nil then LogCommon.Mlog(StrToIntdef(FR2RUnit,1)-1,'Send EODS_R Start');
     parse_EODS(StrToIntdef(FR2RUnit,1)-1);
-    Common.Mlog(StrToIntdef(FR2RUnit,1)-1,'Send EODS_R Done');
+    if LogCommon <> nil then LogCommon.Mlog(StrToIntdef(FR2RUnit,1)-1,'Send EODS_R Done');
     ReturnDataToTestForm(DefGmes.R2R_EODA, StrToIntdef(FR2RUnit,1)-1, False, 'R2R_DATA');
     m_MESItem.State:= MES_UNKNOWN; //아이템 작업 완료
   end;
@@ -1673,10 +1673,10 @@ begin
 //  sDebug := StringReplace(sMsg,#$0a, #$24, [rfReplaceAll]);
 //  sDebug := StringReplace(sDebug,#$0d, #$25, [rfReplaceAll]);
 //  if (sMode = 'APDR_R') then begin
-//    Common.Mlog(Format('[HOST] Recv Msg: %s PG : %d', [sDebug, FMesPg]));
+//    if LogCommon <> nil then LogCommon.Mlog(Format('[HOST] Recv Msg: %s PG : %d', [sDebug, FMesPg]));
 //  end
 //  else begin
-//    Common.Mlog(Format('[HOST] Recv Msg: %s PG : %d', [sDebug, FMesPg]));
+//    if LogCommon <> nil then LogCommon.Mlog(Format('[HOST] Recv Msg: %s PG : %d', [sDebug, FMesPg]));
 //  end;
 
 //  if CompareStr(sMode,'APDR_R') = 0 then parse_APDR(nCh,sMsg,False);
@@ -1793,7 +1793,7 @@ var
   item: TQueItemValue;
 begin
   FMesApdrPg  := nPg;
-  Common.MLog(nPg,Format('procedure SendEasApdr Start!! PID: %s',[sSerialNo]));
+  if LogCommon <> nil then LogCommon.Mlog(nPg,Format('procedure SendEasApdr Start!! PID: %s',[sSerialNo]));
   sConvertSerial := StringReplace(sSerialNo,#$24, #$0a, [rfReplaceAll]);
   sConvertSerial := StringReplace(sConvertSerial,#$25,#$0d , [rfReplaceAll]);
 
@@ -1809,7 +1809,7 @@ begin
   item.State := MES_UNKNOWN;
   m_Queue.Enqueue(item);
   tmGmesChMsg.Enabled:= True;
-  Common.MLog(nPg,'procedure SendEasApdr Done!!');
+  if LogCommon <> nil then LogCommon.Mlog(nPg,'procedure SendEasApdr Done!!');
 end;
 
 procedure TGmes.SendHostApdr(sSerialNo : string; nPg : Integer; bIsDelayed : Boolean = False);
@@ -2023,7 +2023,7 @@ begin
     ShowMessage('[HOST initialization failure - Confirm HOST environment setup]');
   end
   else begin
-//    Common.MLog(DefCommon.MAX_SYSTEM_LOG,'<HOST> FCanUseHost is True!');
+//    if LogCommon <> nil then LogCommon.Mlog(DefCommon.MAX_SYSTEM_LOG,'<HOST> FCanUseHost is True!');
     if not fEAYT then SEND_MESG2HOST(DefGmes.MES_EAYT)
     else              SEND_MESG2HOST(DefGmes.MES_UCHK);
 
@@ -2038,7 +2038,7 @@ begin
     ShowMessage('[HOST initialization failure - Confirm HOST environment setup]');
   end
   else begin
-//    Common.MLog(DefCommon.MAX_SYSTEM_LOG,'<HOST> FCanUseHost is True!');
+//    if LogCommon <> nil then LogCommon.Mlog(DefCommon.MAX_SYSTEM_LOG,'<HOST> FCanUseHost is True!');
     if not fR2REAYT then SEND_MESG2HOST(DefGmes.R2R_EAYT);
 
 
@@ -2166,7 +2166,7 @@ var
 
   bIsChMsg : Boolean;     //JHHWANG-GMES: 2018-06-20
 begin
-  //Common.Mlog(nPg, Format('[HOST] MsgType: %d, PG : %d, Serial: %s', [nMsgType, nPg, sSerialNo]));
+  //if LogCommon <> nil then LogCommon.Mlog(nPg, Format('[HOST] MsgType: %d, PG : %d, Serial: %s', [nMsgType, nPg, sSerialNo]));
   bIsChMsg := False;   //JHHWANG-GMES: 2018-06-20
   case nMsgType of
     DefGmes.MES_PCHK : begin
@@ -2286,22 +2286,22 @@ begin
       sSendMsg := 'INS_PCHK';
       sSendMsg := sSendMsg  + ' ADDR=' + m_sLocal + ',' + m_sLocal;
       if Common.PLCInfo.InlineGIB then begin
-//        Common.MLog(nPg,format('LpirProcessCode : %s EQPId_MGIB : %s EQPId_PGIB : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_PGIB]));
+//        if LogCommon <> nil then LogCommon.Mlog(nPg,format('LpirProcessCode : %s EQPId_MGIB : %s EQPId_PGIB : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_PGIB]));
         if MesData[nPg].LpirProcessCode = Common.SystemInfo.EQPId_MGIB_Process_Code then begin
 //          SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPg,format('LpirProcessCode : %s EQPId_MGIB : %s MGIB_Process_Code : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_MGIB_Process_Code]));
-          Common.MLog(nPg,format('LpirProcessCode : %s EQPId_MGIB : %s MGIB_Process_Code : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_MGIB_Process_Code]));
+          if LogCommon <> nil then LogCommon.Mlog(nPg,format('LpirProcessCode : %s EQPId_MGIB : %s MGIB_Process_Code : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_MGIB_Process_Code]));
           sSendMsg := sSendMsg  + ' EQP=' + Common.SystemInfo.EQPId_MGIB;
           PasScr[nPg].TestInfo.EQPId := Common.SystemInfo.EQPId_MGIB;
         end
         else if MesData[nPg].LpirProcessCode = Common.SystemInfo.EQPId_PGIB_Process_Code then begin
 //          SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPg,format('LpirProcessCode : %s EQPId_PGIB : %s PGIB_Process_Code : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_PGIB,Common.SystemInfo.EQPId_PGIB_Process_Code]));
-          Common.MLog(nPg,format('LpirProcessCode : %s EQPId_PGIB : %s PGIB_Process_Code : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_PGIB,Common.SystemInfo.EQPId_PGIB_Process_Code]));
+          if LogCommon <> nil then LogCommon.Mlog(nPg,format('LpirProcessCode : %s EQPId_PGIB : %s PGIB_Process_Code : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_PGIB,Common.SystemInfo.EQPId_PGIB_Process_Code]));
           sSendMsg := sSendMsg  + ' EQP=' + Common.SystemInfo.EQPId_PGIB;
           PasScr[nPg].TestInfo.EQPId := Common.SystemInfo.EQPId_PGIB;
         end
         else begin
 //          SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPg,format('Mismatch !! - LpirProcessCode : %s MGIB_Process_Code : %s PGIB_Process_Code : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB_Process_Code,Common.SystemInfo.EQPId_PGIB_Process_Code]));
-          Common.MLog(nPg,format('Mismatch !! - LpirProcessCode : %s MGIB_Process_Code : %s PGIB_Process_Code : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB_Process_Code,Common.SystemInfo.EQPId_PGIB_Process_Code]));
+          if LogCommon <> nil then LogCommon.Mlog(nPg,format('Mismatch !! - LpirProcessCode : %s MGIB_Process_Code : %s PGIB_Process_Code : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB_Process_Code,Common.SystemInfo.EQPId_PGIB_Process_Code]));
           sSendMsg := sSendMsg  + ' EQP=' + FSystemNo;
           PasScr[nPg].TestInfo.EQPId := FSystemNo;
         end;
@@ -2455,7 +2455,7 @@ begin
 //06:16:38.454 [RECV] EICR_R ADDR=HM.G3.EQP.MOD.10.119.205.78,HM.G3.EQP.MOD.10.119.205.78  EQP=HMAMAL23KA01 PID= FOG_ID=6HE83DD15DACG-503S45V223 SERIAL_NO= CGID= BLID=[] JIG_ID=[VH2FH0303394_5] LOT= PF=P RWK_CD= PPALLET= EXPECTED_RWK= PATTERN_INFO=[] DEFECT_PATTERN= OVERHAUL_FALG= MODE=AUTO CLIENT_DATE=20180523061638 USER_ID=602462 COMMENT=[] RTN_CD=0 ERR_MSG_LOC=[] ERR_MSG_ENG=[] HOST_DATE=20180523061639  RTN_BOX_ID= BOX_MAX_QTY=0 BOX_IN_QTY=0 CLOSE_FLAG= LABEL_PRT_CODE=[] USD=[]
 //06:16:38.454 [SEND]
     DefGmes.MES_EICR : begin
-      //Common.Mlog(nPg, Format('[HOST] EICR MsgType: %d, PG : %d, Serial: %s', [nMsgType, nPg, sSerialNo]));
+      //if LogCommon <> nil then LogCommon.Mlog(nPg, Format('[HOST] EICR MsgType: %d, PG : %d, Serial: %s', [nMsgType, nPg, sSerialNo]));
       sSendMsg := 'EICR';
       sSendMsg := sSendMsg  + ' ADDR=' + m_sLocal + ',' + m_sLocal;
       sSendMsg := sSendMsg  + ' EQP=' + FSystemNo;
@@ -2533,7 +2533,7 @@ begin
       sSendMsg := 'EIJR';
 			sSendMsg := sSendMsg  + ' ADDR=' + m_sLocal + ',' + m_sLocal;
       if Common.PLCInfo.InlineGIB then begin
-        Common.MLog(nPg,format('LpirProcessCode : %s EQPId_MGIB : %s EQPId_PGIB : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_PGIB]));
+        if LogCommon <> nil then LogCommon.Mlog(nPg,format('LpirProcessCode : %s EQPId_MGIB : %s EQPId_PGIB : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_PGIB]));
 //        SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPg,format('LpirProcessCode : %s EQPId_MGIB : %s EQPId_PGIB : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_PGIB]));
         if MesData[nPg].LpirProcessCode = Common.SystemInfo.EQPId_MGIB_Process_Code then
           sSendMsg := sSendMsg  + ' EQP=' + Common.SystemInfo.EQPId_MGIB
@@ -2586,11 +2586,11 @@ begin
       bIsChMsg := True;   //JHHWANG-GMES: 2018-06-20
     end;
     DefGmes.MES_RPR_EIJR : begin
-//      Common.MLog(nPg,'SEND_MESG2HOST2 : ' + sSerialNo);
+//      if LogCommon <> nil then LogCommon.Mlog(nPg,'SEND_MESG2HOST2 : ' + sSerialNo);
       sSendMsg := 'RPR_EIJR';
 			sSendMsg := sSendMsg  + ' ADDR=' + m_sLocal + ',' + m_sLocal;
       if Common.PLCInfo.InlineGIB then begin
-        Common.MLog(nPg,format('LpirProcessCode : %s EQPId_MGIB : %s EQPId_PGIB : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_PGIB]));
+        if LogCommon <> nil then LogCommon.Mlog(nPg,format('LpirProcessCode : %s EQPId_MGIB : %s EQPId_PGIB : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_PGIB]));
 //        SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPg,format('LpirProcessCode : %s EQPId_MGIB : %s EQPId_PGIB : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_PGIB]));
 
         if MesData[nPg].LpirProcessCode = Common.SystemInfo.EQPId_MGIB_Process_Code then begin
@@ -2661,7 +2661,7 @@ begin
       sSendMsg := sSendMsg  + ' DEFECT_COMMENT_CODE=IPA';
 			sSendMsg := sSendMsg  + ' COMMENT=[]';
       bIsChMsg := True;
-//      Common.MLog(nPg,'SEND_MESG2HOST2 : Send Msg :  ' + sSendMsg);
+//      if LogCommon <> nil then LogCommon.Mlog(nPg,'SEND_MESG2HOST2 : Send Msg :  ' + sSendMsg);
     end;
     DefGmes.MES_ZSET : begin
       sSendMsg := 'ZSET';
@@ -2692,13 +2692,13 @@ begin
       sSendMsg := sSendMsg  + ' CLIENT_DATE='+FormatDateTime('yyyymmddhhnnss', Now);
       sSendMsg := sSendMsg  + ' COMMENT=[]';
       bIsChMsg := True;
-//      Common.MLog(nPg,'SEND_MESG2HOST2 : Send Msg :  ' + sSendMsg);
+//      if LogCommon <> nil then LogCommon.Mlog(nPg,'SEND_MESG2HOST2 : Send Msg :  ' + sSendMsg);
     end;
     DefGmes.EAS_APDR : begin
       sSendMsg := 'APDR';
       sSendMsg := sSendMsg  + ' ADDR=' + m_sEasLocal + ',' + m_sEasLocal;
       if Common.PLCInfo.InlineGIB then begin
-        Common.MLog(nPg,format('LpirProcessCode : %s EQPId_MGIB : %s EQPId_PGIB : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_PGIB]));
+        if LogCommon <> nil then LogCommon.Mlog(nPg,format('LpirProcessCode : %s EQPId_MGIB : %s EQPId_PGIB : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_PGIB]));
 //        SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPg,format('LpirProcessCode : %s EQPId_MGIB : %s EQPId_PGIB : %s  ',[MesData[nPg].LpirProcessCode,Common.SystemInfo.EQPId_MGIB,Common.SystemInfo.EQPId_PGIB]));
 
         if MesData[nPg].LpirProcessCode = Common.SystemInfo.EQPId_MGIB_Process_Code then
@@ -2814,7 +2814,7 @@ begin
       if not tmGmesChMsg.Enabled then begin
         tmGmesChMsg.Enabled := True;
       end;
-      //sDebug := Format('TGmes.OnGmesChMsgTimer:PG(%d): ...sent',[nPg]); Common.MLog(DefCommon.MAX_SYSTEM_LOG,sDebug); //IMSI
+      //sDebug := Format('TGmes.OnGmesChMsgTimer:PG(%d): ...sent',[nPg]); if LogCommon <> nil then LogCommon.Mlog(DefCommon.MAX_SYSTEM_LOG,sDebug); //IMSI
     end;
     if nMsgType <> DefGmes.EAS_APDR then begin
       bRtn := mesCommTibRv.MessageSend(sSendMsg, m_sRemote);
@@ -2834,7 +2834,7 @@ begin
         DefGmes.EAS_APDR : sDebug := 'EAS SEND :  ' + sDebug
         else               sDebug := 'MES SEND :  ' + sDebug;
       end;
-      Common.MLog(nPg,sDebug);
+      if LogCommon <> nil then LogCommon.Mlog(nPg,sDebug);
 //      SendTestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPg,sDebug);
 
     end;
@@ -2859,7 +2859,7 @@ begin
       if not tmGmesChMsg.Enabled then begin
         tmGmesChMsg.Enabled := True;
       end;
-      //sDebug := Format('TGmes.OnGmesChMsgTimer:PG(%d): ...sent',[nPg]); Common.MLog(DefCommon.MAX_SYSTEM_LOG,sDebug); //IMSI
+      //sDebug := Format('TGmes.OnGmesChMsgTimer:PG(%d): ...sent',[nPg]); if LogCommon <> nil then LogCommon.Mlog(DefCommon.MAX_SYSTEM_LOG,sDebug); //IMSI
     end;
 
 //    sSendMsg:= sSendMsg + #00;  //문자열 종료 명시
@@ -2870,10 +2870,10 @@ begin
     end
     else begin
       //임시 테스트 실처리 보고 전송 안함
-      //Common.MLog(nPg,'[TEST] Skip APDR SendData');
-      Common.MLog(nPg,'CommTibRv.Send_Data Start!!');
+      //if LogCommon <> nil then LogCommon.Mlog(nPg,'[TEST] Skip APDR SendData');
+      if LogCommon <> nil then LogCommon.Mlog(nPg,'CommTibRv.Send_Data Start!!');
       bRtn := CommTibRv.Send_Data(TIBServer_EAS,sSendMsg);
-      Common.MLog(nPg,'CommTibRv.Send_Data Finish!!');
+      if LogCommon <> nil then LogCommon.Mlog(nPg,'CommTibRv.Send_Data Finish!!');
     end;
 
     if bIsChMsg then begin
@@ -2891,7 +2891,7 @@ begin
         DefGmes.R2R_EODS_R .. DefGmes.R2R_EODA : sDebug := 'R2R SEND :  ' + sDebug;
         else               sDebug := 'MES SEND :  ' + sDebug;
       end;
-      Common.MLog(nPg,sDebug,True);
+      if LogCommon <> nil then LogCommon.Mlog(nPg,sDebug,True);
     end;
 {$ENDIF}
 {$ENDREGION 'WIN64'}
@@ -2921,7 +2921,7 @@ begin
 //    end;
   end
   else begin
-    Common.Mlog(nPg, Format('[HOST] Can not USE Host MsgType: %d, PG : %d, Serial: %s', [nMsgType, nPg, sSerialNo]));
+    if LogCommon <> nil then LogCommon.Mlog(nPg, Format('[HOST] Can not USE Host MsgType: %d, PG : %d, Serial: %s', [nMsgType, nPg, sSerialNo]));
 //    TestGuiDisplay(DefCommon.MSG_MODE_WORKING,nPg,Format('[HOST] Can not USE Host MsgType: %d, PG : %d, Serial: %s', [nMsgType, nPg, sSerialNo]));
     bRtn := False;
   end;
@@ -2929,10 +2929,10 @@ begin
 (*
   sDebug := StringReplace(sSendMsg,#$0a, #$24, [rfReplaceAll]);
   sDebug := StringReplace(sDebug,#$0d, #$25, [rfReplaceAll]);
-  Common.Mlog(nPg, Format('[HOST] Send Msg: %s PG : %d', [sDebug, FMesPg]));
+  if LogCommon <> nil then LogCommon.Mlog(nPg, Format('[HOST] Send Msg: %s PG : %d', [sDebug, FMesPg]));
 *)
 
-//  Common.Mlog(Format('[HOST] Send Msg: %s PG : %d', [sDebug, FMesPg]));
+//  if LogCommon <> nil then LogCommon.Mlog(Format('[HOST] Send Msg: %s PG : %d', [sDebug, FMesPg]));
 //
 (*
   if not bRtn then begin
@@ -2941,7 +2941,7 @@ begin
       tmGmesChMsg.Enabled := True;
     end;
 
-//    Common.Mlog('<HOST> CommTibRv.MessageSend MSG... ERROR!');
+//    if LogCommon <> nil then LogCommon.Mlog('<HOST> CommTibRv.MessageSend MSG... ERROR!');
   end;
 *)
 end;
@@ -3244,7 +3244,7 @@ begin
     if m_Queue.Count > 0 then begin
       m_MESItem:= m_Queue.Dequeue;
       if (m_MESItem.Kind = EAS_APDR) then begin
-        Common.MLog(m_MESItem.Channel, Format('OnGmesChMsgTimer Start!! CH %d SerialNo : %s ',[m_MESItem.Channel,m_MESItem.SerialNo]));
+        if LogCommon <> nil then LogCommon.Mlog(m_MESItem.Channel, Format('OnGmesChMsgTimer Start!! CH %d SerialNo : %s ',[m_MESItem.Channel,m_MESItem.SerialNo]));
       end;
       if (m_MESItem.Kind = EAS_APDR) or (m_MESItem.Kind = R2R_EODS_R) or (m_MESItem.Kind = R2R_EODA) then  //EAS_APDR 제외
       else
@@ -3264,7 +3264,7 @@ begin
       SEND_MESG2HOST(m_MESItem.Kind, m_MESItem.SerialNo, m_MESItem.CarrierID, m_MESItem.Channel);
 
       if (m_MESItem.Kind = EAS_APDR) then begin
-        Common.MLog(m_MESItem.Channel, Format('OnGmesChMsgTimer END CH %d SerialNo : %s ',[m_MESItem.Channel,m_MESItem.SerialNo]));
+        if LogCommon <> nil then LogCommon.Mlog(m_MESItem.Channel, Format('OnGmesChMsgTimer END CH %d SerialNo : %s ',[m_MESItem.Channel,m_MESItem.SerialNo]));
         MesData[m_MESItem.Channel].ApdrData := '';
       end;
 
@@ -3303,7 +3303,7 @@ begin
 //        MesData[nPg].MesSendRcvWaitTick:= 0;
 //        MesData[nPg].MesPendingMsg := MES_UNKNOWN;  //here!!!
 //        MesData[nPg].MesSentMsg    := MES_UNKNOWN;  //here!!!
-//        //sDebug := Format('TGmes.OnGmesChMsgTimer: PG(%d) timeout ...TBD',[nPG]); Common.MLog(DefCommon.MAX_SYSTEM_LOG,sDebug);
+//        //sDebug := Format('TGmes.OnGmesChMsgTimer: PG(%d) timeout ...TBD',[nPG]); if LogCommon <> nil then LogCommon.Mlog(DefCommon.MAX_SYSTEM_LOG,sDebug);
 //        Continue;
 //      end;
 //    end;
@@ -3312,7 +3312,7 @@ begin
 //      bWaitResponse := True;
 //  end;
 //  if bWaitResponse then begin
-//    //Common.MLog(DefCommon.MAX_SYSTEM_LOG,'TGmes.OnGmesChMsgTimer: WaitResponse ...Exit');
+//    //if LogCommon <> nil then LogCommon.Mlog(DefCommon.MAX_SYSTEM_LOG,'TGmes.OnGmesChMsgTimer: WaitResponse ...Exit');
 //    Exit;
 //  end;
 //
@@ -3360,7 +3360,7 @@ begin
 //  end;
 //  if bStopTimer then begin
 //    tmGmesChMsg.Enabled := False;
-//    //Common.MLog(DefCommon.MAX_SYSTEM_LOG,'TGmes.OnGmesChMsgTimer: STOP TImer');
+//    //if LogCommon <> nil then LogCommon.Mlog(DefCommon.MAX_SYSTEM_LOG,'TGmes.OnGmesChMsgTimer: STOP TImer');
 //  end;
 end;
 

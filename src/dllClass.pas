@@ -5,7 +5,7 @@ interface
 
 uses Winapi.Windows, System.Classes, System.SysUtils,  IdGlobal,Vcl.ExtCtrls,Forms,
    Messages, Vcl.Dialogs,CA_SDK2,DefCommon,DefPG,CommPG,LogicVh,CommonClass,RegularExpressions,
-   System.Variants,Vcl.Controls, Vcl.StdCtrls,Math
+   System.Variants,Vcl.Controls, Vcl.StdCtrls,Math,CommLog
 {$IFDEF OC_TT_TEST}
     ,System.Generics.Collections
 {$ENDIF}
@@ -119,7 +119,6 @@ type
 
     m_MainHandle : HWND;
     m_TestHandle : HWND;
-    tmrCycle : TTimer;
     // for DLL.
     m_Initialize : function (channelCount : Integer; sModelName : PAnsiChar) : Integer ; cdecl;
     m_FormDestroy : procedure ; cdecl;
@@ -222,7 +221,6 @@ type
 
     m_rTG2VControl : array[DefCommon.CH1 .. DefCommon.MAX_CH] of TG2VControl;
     procedure CloseMessageBoxWithButton(ButtonCaption: string);
-    procedure tmrCycleTimer(Sender : TObject);
     procedure CreateCallBackFunction;
     procedure Setfunction;
     procedure SetNgMsg(const Value: string);
@@ -232,13 +230,11 @@ type
     procedure SendMainGuiDisplay(nCh,nGuiMode: Integer; sMsg: string; nParam: Integer; nParam2: Integer = 0);
     procedure OntmGetOCFlowIsAlive(Sender: TObject);
 
-    procedure TconWriteAnalysis(nChannel,nAddr,nData : Integer);
-    procedure GraySearch(nChannel,nAddr,nData : Integer);
     procedure SendHWCID(nCH : integer);
 
   public
 
-    m_bIsDLLWork :array of Boolean; // Added by KTS 2022-12-27 오전 9:00:40 현재 DLL 작업중 확ㅇ인
+    m_bIsDLLWork :array of Boolean; // Added by KTS 2022-12-27 오전 9:00:40 현재 DLL 작업중 확인
     m_bIsProcessDone : array of Boolean;
     m_bIsProcessUnloadDone : array of Boolean;
     m_GetOCversion : function(nDLLType : Integer) : PAnsiChar; cdecl;
@@ -353,13 +349,13 @@ begin
   nPGCH := (Sender as TTimer).Tag;
   if (m_OCFlowStart[nPGCH]) and Pg[nPGCH].bIsReProgramming  then begin
     Pg[nPGCH].bIsReProgramming := False;
-    common.MLog(nPGCH,'<SEQUENCE> ReProgramming - NG');
+    if LogCommon <> nil then LogCommon.MLog(nPGCH,'<SEQUENCE> ReProgramming - NG');
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',0);
 //    PG[nPGCH].DP860_FTPDiscon;
     MainOC_Stop(nPGCH);
   end;
   if (m_OCFlowStart[nPGCH]) and Pg[nPGCH].m_bChkShutdown_Fault  then begin
-    common.MLog(nPGCH,'<SEQUENCE> Shutdown_Fault - NG');
+    if LogCommon <> nil then LogCommon.MLog(nPGCH,'<SEQUENCE> Shutdown_Fault - NG');
     SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_LOG_REPGM,'',1);
 //    PG[nPGCH].DP860_FTPDiscon;
     MainOC_Stop(nPGCH);
@@ -367,7 +363,7 @@ begin
 
   if (m_OCFlowStart[nPGCH]) and  m_OCCkSerialNB[nPGCH] then begin
     m_OCCkSerialNB[nPGCH] := False;
-    common.MLog(nPGCH,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sSerialNo[nPGCH])]));
+    if LogCommon <> nil then LogCommon.MLog(nPGCH,Format('<SEQUENCE> S/N Matching ERR(%d) - NG',[Length(m_sSerialNo[nPGCH])]));
 //    PG[nPGCH].DP860_FTPDiscon;
     MainOC_Stop(nPGCH);
   end;
@@ -378,7 +374,7 @@ begin
       try
         m_nFlagCount[nPGCH] := 0;
   //      PG[nPGCH].DP860_FTPDiscon;
-        common.MLog(nPGCH,Format('<SEQUENCE> CountInspections : %d',[m_CountInspections[nPGCH]]));
+        if LogCommon <> nil then LogCommon.MLog(nPGCH,Format('<SEQUENCE> CountInspections : %d',[m_CountInspections[nPGCH]]));
       finally
         SendTestGuiDisplay(nPGCH,defCommon.MSG_MODE_WORK_DONE,'OKFLOW_END',0);
       end;
@@ -410,7 +406,7 @@ begin
     {$IFDEF PG_DP860}
     Result := Pg[nChannel].SendPowerBistOn(OnOff,True,nWaitMS,nRetry); //TBD:DP860?
     if OnOff = 1 then begin  // Power On 이후 Power 확인
-      wdRet   := Pg[nChannel].SendPowerMeasure(True{bWait});
+      Result   := Pg[nChannel].SendPowerMeasure(True{bWait});
     end;
     {$ENDIF}
   end;
@@ -464,141 +460,6 @@ begin
     Result := '0' + Result;
 end;
 
-procedure TCSharpDll.GraySearch(nChannel,nAddr,nData : Integer);
-var
-sGrayRGB,sDebug : string;
-GrayR,GrayG,GrayB,i : Integer;
-begin
-  case nAddr of
-    1684 : begin
-      m_sGrayRGB[nChannel,0] := DecimalToBinary(nData,8);
-    end;
-    1685 : begin
-      m_sGrayRGB[nChannel,1] := DecimalToBinary(nData,8);
-    end;
-    1686 : begin
-      m_sGrayRGB[nChannel,2] := DecimalToBinary(nData,8);
-    end;
-    1687 : begin
-      m_sGrayRGB[nChannel,3] := DecimalToBinary(nData,8);
-      sGrayRGB := m_sGrayRGB[nChannel,3] + m_sGrayRGB[nChannel,2] + m_sGrayRGB[nChannel,1] + m_sGrayRGB[nChannel,0];
-      GrayR := BinaryToDecimal(Copy(sGrayRGB,3,9));
-      GrayG := BinaryToDecimal(Copy(sGrayRGB,13,9));
-      GrayB := BinaryToDecimal(Copy(sGrayRGB,23,9));
-      sDebug := Format('sGrayRGB R : %d G : %d B : %d',[BinaryToDecimal(Copy(sGrayRGB,3,9)),BinaryToDecimal(Copy(sGrayRGB,13,9)),BinaryToDecimal(Copy(sGrayRGB,23,9))]);
-      SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,10);
-
-      if m_CurrentBand[nChannel] > 0 then
-      begin
-        for I := 0 to Length(Common.DGMA_Para[m_CurrentBand[nChannel]-1])-1 do begin
-          if  Common.DGMA_Para[m_CurrentBand[nChannel]-1][i].Gray = GrayR then  begin
-            m_CurrentTap[nChannel] := i -1;
-            sDebug := Format('m_CurrentBand : %d m_CurrentTap : %d - Start ',[m_CurrentBand[nChannel],m_CurrentTap[nChannel]]);
-            SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,10);
-            exit;
-          end;
-        end;
-        Inc(m_CurrentTap[nChannel]);
-        sDebug := Format('m_CurrentBand : %d m_CurrentTap : %d - Start ',[m_CurrentBand[nChannel],m_CurrentTap[nChannel]]);
-        SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,10);
-      end;
-
-    end;
-
-  end;
-
-end;
-
-procedure TCSharpDll.TconWriteAnalysis (nChannel,nAddr,nData : Integer);
-var
-sGrayRGB,sDebug,sDBV,sG2VControl: string;
-begin
-  case nAddr of
-    1684 : begin
-      CSharpDll.m_sGrayRGB[nChannel,0] := DecimalToBinary(nData,8);
-    end;
-    1685 : begin
-      CSharpDll.m_sGrayRGB[nChannel,1] := DecimalToBinary(nData,8);
-    end;
-    1686 : begin
-      CSharpDll.m_sGrayRGB[nChannel,2] := DecimalToBinary(nData,8);
-    end;
-    1687 : begin
-      CSharpDll.m_sGrayRGB[nChannel,3] := DecimalToBinary(nData,8);
-      sGrayRGB := CSharpDll.m_sGrayRGB[nChannel,3] + CSharpDll.m_sGrayRGB[nChannel,2] + CSharpDll.m_sGrayRGB[nChannel,1] + CSharpDll.m_sGrayRGB[nChannel,0];
-      sDebug := Format('sGrayRGB R : %d G : %d B : %d',[BinaryToDecimal(Copy(sGrayRGB,3,9)),BinaryToDecimal(Copy(sGrayRGB,13,9)),BinaryToDecimal(Copy(sGrayRGB,23,9))]);
-      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,10);
-    end;
-
-    1726 : begin
-      CSharpDll.m_sDBV[nChannel,0] := DecimalToBinary(nData,8);
-    end;
-    1727 : begin
-      CSharpDll.m_sDBV[nChannel,1] := DecimalToBinary(nData,8);
-      sDBV :=  CSharpDll.m_sDBV[nChannel,1] +  CSharpDll.m_sDBV[nChannel,0];
-      sDebug := Format('sSet_DBV : %d',[BinaryToDecimal(Copy(sDBV,3,11))]);
-      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,10);
-    end;
-
-    61571 : begin
-      if nData = 64 then m_rTG2VControl[nChannel].RGB := 'R';
-      if nData = 128 then m_rTG2VControl[nChannel].RGB := 'G';
-      if nData = 192 then m_rTG2VControl[nChannel].RGB := 'B';
-    end;
-
-    61568 : begin
-      m_rTG2VControl[nChannel].Addr[0] := DecimalToBinary(nData,8);
-    end;
-    61569 : begin
-      m_rTG2VControl[nChannel].Addr[1] := DecimalToBinary(nData,8);
-    end;
-    61616 : begin
-      m_rTG2VControl[nChannel].Data1[0] := DecimalToBinary(nData,8);
-    end;
-    61617 : begin
-      m_rTG2VControl[nChannel].Data1[1] := DecimalToBinary(nData,8);
-    end;
-    61618 : begin
-      m_rTG2VControl[nChannel].Data2[0] := DecimalToBinary(nData,8);
-    end;
-    61619 : begin
-      m_rTG2VControl[nChannel].Data2[1] := DecimalToBinary(nData,8);
-    end;
-    61620 : begin
-      m_rTG2VControl[nChannel].Data3[0] := DecimalToBinary(nData,8);
-    end;
-    61621 : begin
-      m_rTG2VControl[nChannel].Data3[1] := DecimalToBinary(nData,8);
-    end;
-    61622 : begin
-      m_rTG2VControl[nChannel].Data4[0] := DecimalToBinary(nData,8);
-    end;
-    61623 : begin
-      m_rTG2VControl[nChannel].Data4[1] := DecimalToBinary(nData,8);
-
-      sDebug := Format('SetG2VControl RGB : %s ',[m_rTG2VControl[nChannel].RGB]);
-
-      sG2VControl := m_rTG2VControl[nChannel].Addr[1] + m_rTG2VControl[nChannel].Addr[0];
-      sDebug := sDebug + Format('SetG2VControl Addr : %d ',[BinaryToDecimal(Copy(sG2VControl,6,8))]);
-
-      sG2VControl := m_rTG2VControl[nChannel].Data1[1] + m_rTG2VControl[nChannel].Data1[0];
-      sDebug := sDebug + Format('SetG2VControl Data1 : %d ',[BinaryToDecimal(Copy(sG2VControl,1,12))]);
-
-      sG2VControl := m_rTG2VControl[nChannel].Data2[1] + m_rTG2VControl[nChannel].Data2[0];
-      sDebug := sDebug + Format('SetG2VControl Data2 : %d ',[BinaryToDecimal(Copy(sG2VControl,2,12))]);
-
-      sG2VControl := m_rTG2VControl[nChannel].Data3[1] + m_rTG2VControl[nChannel].Data3[0];
-      sDebug := sDebug + Format('SetG2VControl Data3 : %d ',[BinaryToDecimal(Copy(sG2VControl,3,12))]);
-
-      sG2VControl := m_rTG2VControl[nChannel].Data4[1] + m_rTG2VControl[nChannel].Data4[0];
-      sDebug := sDebug + Format('SetG2VControl Data4 : %d ',[BinaryToDecimal(Copy(sG2VControl,4,12))]);
-
-      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,10);
-    end;
-
-
-  end;
-end;
 
 function MyCB_TCONSetReg_Proc(nChannel , Addr : Integer; data : Byte): Integer;
 var
@@ -866,12 +727,7 @@ end;
 
 
 function MyCB_FlashWrite_File_Proc(nChannel,StartSeg,EndSeg : Integer; filePath : PAnsiChar): Integer;
-var
-nWaitMS,nRetry,nDataCnt : Integer;
-sDebug,sTxData : string;
-arRData : TIdBytes;
 begin
-  nDataCnt := EndSeg - StartSeg;
   Result := 0;
 end;
 
@@ -897,12 +753,7 @@ end;
 
 
 function MyCB_FlashRead_File_Proc(nChannel,StartSeg,nLength : Integer; filePath : PAnsiChar): Integer;
-var
-nWaitMS,nRetry,nDataCnt : Integer;
-sDebug,sTxData : string;
-arRData : TIdBytes;
 begin
-  nDataCnt := 1;
   Result := 0;
 end;
 
@@ -970,28 +821,35 @@ m_Ca410Data  : TBrightValue;
 sDebug : string;
 begin
   if CSharpDll <> nil then begin
-    CSharpDll.m_nFlagCount[nChannel] := 0;
-    if Common.SystemInfo.PG_GpioReadHpdBeforeMeasure then begin //2023-03-30 jhhwang (for T/T Test)
-      PG[nChannel].DP860_SendGpioRead('HPD');
-    end;
-    PG[nChannel].TconRWCnt.ContTConOcWrite := 0; //2023-03-30 jhhwang (for T/T Test)
-    wdRet := CaSdk2.Measure(nChannel,m_Ca410Data);
-    if (Common.SystemInfo.PG_TconWriteLogDisplay) then begin
-      sDebug := format('<CA410> Measure_XYL : Ca410Data x : %0.4f y : %0.4f LV : %0.4f',[m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
-      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-    end;
-    if wdRet <> WAIT_OBJECT_0 then begin
-  {$IFDEF SIMULATOR_PG}
+    try
+      CSharpDll.m_nFlagCount[nChannel] := 0;
+      if Common.SystemInfo.PG_GpioReadHpdBeforeMeasure then begin //2023-03-30 jhhwang (for T/T Test)
+        PG[nChannel].DP860_SendGpioRead('HPD');
+      end;
+      PG[nChannel].TconRWCnt.ContTConOcWrite := 0; //2023-03-30 jhhwang (for T/T Test)
+      wdRet := CaSdk2.Measure(nChannel,m_Ca410Data);
+      if (Common.SystemInfo.PG_TconWriteLogDisplay) then begin
+        sDebug := format('<CA410> Measure_XYL : Ca410Data x : %0.4f y : %0.4f LV : %0.4f',[m_Ca410Data.xVal,m_Ca410Data.yVal,m_Ca410Data.LvVal]);
+        CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
+      end;
+      if wdRet <> WAIT_OBJECT_0 then begin
+    {$IFDEF SIMULATOR_PG}
 
-  {$ELSE}
-      sDebug := Format('CA410 measure NG CH : %d',[nChannel]);
-      CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
-  {$ENDIF}
+    {$ELSE}
+        sDebug := Format('CA410 measure NG CH : %d',[nChannel]);
+        CSharpDll.SendTestGuiDisplay(nChannel,defCommon.MSG_MODE_WORKING,sDebug,0);
+    {$ENDIF}
+      end;
+      dMeasureData[0] := m_Ca410Data.xVal;
+      dMeasureData[1] := m_Ca410Data.yVal;
+      dMeasureData[2] := m_Ca410Data.LvVal;
+      Result := wdRet;
+    except
+      dMeasureData[0] := 0;
+      dMeasureData[1] := 0;
+      dMeasureData[2] := 0;
+      Result := 1;
     end;
-    dMeasureData[0] := m_Ca410Data.xVal;
-    dMeasureData[1] := m_Ca410Data.yVal;
-    dMeasureData[2] := m_Ca410Data.LvVal;
-    Result := wdRet;
   end;
 
 end;
@@ -1077,19 +935,7 @@ var
 begin
   if bClear then nParam := 10
   else nParam := 0;
-  if pos('Delay_Time',sMLOG) > 0 then begin
-//    sLog := ExtractNumbersFromString(sMLOG);
-//    SendTestGuiDisplay(nChannel_Index,defCommon.MSG_MODE_DELAY_TIME,sLog,nParam);
-    Exit;
-  end;
-
-  if (Pos('Band',sMLOG) > 0) and (pos('Search',sMLOG) > 0)  then begin
-    arStr := sMLOG.Split([' ']);
-    if Length(arStr) > 2 then begin
-      sBand := ExtractNumbersFromString(arStr[1]);
-      m_CurrentBand[nChannel_Index] := StrToIntDef(sBand,-1);
-    end;
-  end;
+  if Pos('Delay_Time',sMLOG) > 0 then Exit;
 
   SendTestGuiDisplay(nChannel_Index,defCommon.MSG_MODE_WORKING,sMLOG,nParam);
 end;
@@ -1110,7 +956,7 @@ begin
     CSharpDll.m_OCFlowStart[channel_Index] := False;
     try
       CSharpDll.m_nFlagCount[channel_Index] := 0;
-      common.MLog(channel_Index,Format('<SEQUENCE> CountInspections : %d',[CSharpDll.m_CountInspections[channel_Index]]));
+      if LogCommon <> nil then LogCommon.MLog(channel_Index,Format('<SEQUENCE> CountInspections : %d',[CSharpDll.m_CountInspections[channel_Index]]));
     finally
       CSharpDll.SendTestGuiDisplay(channel_Index,defCommon.MSG_MODE_WORK_DONE,'OKFLOW_END',0);
     end;
@@ -1199,37 +1045,6 @@ begin
   end;
 end;
 
-procedure TCSharpDll.tmrCycleTimer(Sender : TObject);
-var
-nResult : THandle;
-hWnd,hMessageBox : THandle;
-
-begin
-  tmrCycle.Enabled := false;
-  try
-    if Common.StatusInfo.AutoMode then
-//      CloseMessageBoxWithButton('확인');
-
-//      FindAndCloseMsgBoxWithText('Place the CA410');
-
-//     hWnd := 0;
-//     hWnd := FindWindow('#32770',nil);
-//     if hWnd > 0 then begin
-//       hMessageBox := FindWindowEx(hWnd,0, 'Static','Place the CA410 probe to center position!');
-//       if hMessageBox > 0 then
-//         PostMessage(hWnd, WM_CLOSE, 0, 0);
-//
-//
-//       hMessageBox := FindWindowEx(hWnd,0, 'Static','CH1 Switch OFF, ON,  Display ON');
-//       if hMessageBox > 0 then begin
-//
-//
-//       end;
-//     endcr
-  finally
-     tmrCycle.Enabled := true;
-  end;
-end;
 
 
 procedure TCSharpDll.FormDestroy;
@@ -1315,7 +1130,7 @@ begin
       Result := PAnsiChar(m_GetSummaryLogData(m_nDLLType[nCH],nCH,Common.StringToPAnsiChar(sParameter)));
     end;
   except
-    Common.MLog(nCH,'GetSummaryLogData Error Occurrence!!');
+    if LogCommon <> nil then LogCommon.MLog(nCH,'GetSummaryLogData Error Occurrence!!');
     Result := PAnsiChar(m_GetSummaryLogData(m_nDLLType[nCH],nCH,Common.StringToPAnsiChar(sParameter)));
   end;
 end;
@@ -1413,11 +1228,6 @@ begin
   SetLength(m_bIsProcessUnloadDone,0);
   SetLength(m_bIsDLLWork,0);
 
-  if tmrCycle <> nil then  begin
-    tmrCycle.Free;
-    tmrCycle := nil;
-
-  end;
   FreeLibrary(m_hDll);
   m_hDll := 0;
   inherited;

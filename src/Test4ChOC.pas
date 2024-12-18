@@ -4,10 +4,10 @@ interface
 {$I Common.inc}
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,DateUtils,UserUtils,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, RzPanel, ALed, RzButton, Vcl.ExtCtrls, RzRadChk, CommDIO_DAE,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, RzPanel, ALed, RzButton, Vcl.ExtCtrls, RzRadChk, CommDIO_DAE,System.Diagnostics,
   Vcl.StdCtrls, Vcl.Grids, AdvObj, BaseGrid, AdvGrid, RzCommon, SwitchBtn, JigControl, Vcl.Mask, RzEdit, AdvPanel,
   {UdpServerClient,} CommonClass, ScriptClass, DefScript, DefPG, DefCommon, ControlDio_OC, //PlcTcpPocb, defPlc,
-  CodeSiteLogging, Vcl.ComCtrls, AdvListV, DongaPattern, RzGrids, AdvUtil, RzLine,LibCa410Option,NgMsg,
+  CodeSiteLogging, Vcl.ComCtrls, AdvListV, DongaPattern, RzGrids, AdvUtil, RzLine,LibCa410Option,NgMsg,CommLog,
   HandBCR, GMesCom, pasScriptClass, AdvGlassButton, DefGmes, CommCameraRadiant, TILed, DefDio, CommPLC_ECS,DBModule
   ,CA_SDK2,dllClass,CommPG,LogicVh,VirtualBcrForm,CommIonizer,ECSRequestForm,System.SyncObjs, System.StrUtils;
 const
@@ -90,7 +90,6 @@ type
     procedure WMCopyData(var Msg : TMessage); message WM_COPYDATA;
     procedure WMCopyData_LOGIC(var WmMsg: TMessage);
     procedure WMCopyData_PG(var CopyMsg: TMessage);
-    procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure btnErrorDisplayClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure btnCh2Click(Sender: TObject);
@@ -380,7 +379,7 @@ var
 begin
   if Common.StatusInfo.Closing then Exit;
   if (nCh > DefCommon.CH4) or (nCh < DefCommon.CH1) then Exit;
-  Common.MLog(nCh, sMsg);
+  if LogCommon <> nil then LogCommon.MLog(nCh, sMsg);
 
   case nType of
     10: Exit;
@@ -396,53 +395,6 @@ begin
 
   FLogBuffer[nCh].Add(sLog);
 
-//  try
-//    Common.LockControl(mmChannelLog[nCh]);
-////    mmChannelLog[nCh].DisableAlign;
-//    case nType of
-//      10: begin
-//        //저장만 한다.
-//        Exit;
-//      end
-//      else begin
-////        if Common.SystemInfo.UIType = DefCommon.UI_WIN10_BLACK then begin
-////           mmChannelLog[nCh].SelAttributes.Color := clWhite;
-////        end
-////        else begin
-////          mmChannelLog[nCh].SelAttributes.Color := clBlack;
-////        end;
-////        mmChannelLog[nCh].SelAttributes.Style := [];
-//      end;
-//    end;
-//    try
-//      if Length(sMsg) > 600 then begin
-//        sLog := FormatDateTime('[HH:MM:SS.zzz] ',now) + Copy(sMsg,1,600);
-//      end
-//      else begin
-//        sLog := FormatDateTime('[HH:MM:SS.zzz] ',now) + sMsg
-//      end;
-//
-//      mmChannelLog[nCh].Lines.BeginUpdate;
-//      try
-//        mmChannelLog[nCh].Lines.Add(sLog);
-//        mmChannelLog[nCh].Perform(WM_VSCROLL, SB_BOTTOM, 0);
-//
-//      finally
-//        mmChannelLog[nCh].Lines.EndUpdate;
-//      end;
-//
-//    except
-//      //유효하지 않은 문자열일 경우 오류(madException) 방지: RichEdit line insertion error.
-//      on E: Exception do  begin
-//        Sleep(10); //MLog 충돌 방지 딜레이
-//  //      Common.MLog(DefCommon.MAX_SYSTEM_LOG, 'MLog Exception:' + E.Message + #13#10 + sMsg);
-//      end;
-//    end;
-//
-//  finally
-//    Common.UnlockControl(mmChannelLog[nCh]);
-////    mmChannelLog[nCh].EnableAlign;
-//  end;
 
 end;
 
@@ -3047,17 +2999,6 @@ begin
   Common.StatusInfo.UseChannel[nCh]:= Common.SystemInfo.UseCh[nCh];
 end;
 
-procedure TfrmTest4ChOC.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
-begin
-
-
-//  if tmUnitTactTime <> nil then begin
-//    tmUnitTactTime.Enabled := False;
-//    tmUnitTactTime.Free;
-//    tmUnitTactTime := nil;
-//  end;
-end;
-
 procedure TfrmTest4ChOC.FormCreate(Sender: TObject);
 var
   i: Integer;
@@ -3087,81 +3028,64 @@ end;
 procedure TfrmTest4ChOC.FormDestroy(Sender: TObject);
 var
   i,j : Integer;
+  Stopwatch: TStopwatch;
+
+  procedure MeasureTimeAndLog(const LogMessage: string; CodeBlock: TProc);
+  begin
+    Stopwatch := TStopwatch.StartNew;
+    CodeBlock(); // 전달된 코드 블록 실행
+    Stopwatch.Stop;
+    if LogCommon <> nil then LogCommon.MLog(4,format('%s : %d ms', [LogMessage, Stopwatch.ElapsedMilliseconds]));
+  end;
 begin
-  m_csBcrRead.Free;
 
   TimerLogUpdate.Enabled := False;
 
   for I := 0 to DefCommon.MAX_CH do begin
     if tmTotalTactTime[i] <> nil then begin
       tmTotalTactTime[i].Enabled := False;
-      tmTotalTactTime[i].Free;
-      tmTotalTactTime[i] := nil;
+      FreeAndNil(tmTotalTactTime[i]);
     end;
     if tmUnitTactTime[i] <> nil then begin
       tmUnitTactTime[i].Enabled := False;
-      tmUnitTactTime[i].Free;
-      tmUnitTactTime[i] := nil;
+      FreeAndNil(tmUnitTactTime[i]);
     end;
     if tmCheckIRTemp[i] <> nil then begin
       tmCheckIRTemp[i].Enabled := False;
-      tmCheckIRTemp[i].Free;
-      tmCheckIRTemp[i] := nil;
+      FreeAndNil(tmCheckIRTemp[i]);
     end;
-    FLogBuffer[i].Free;
+    if FLogBuffer[i] <> nil then
+      FreeAndNil(FLogBuffer[i]);
     for j := 0 to 5 do
      setlength(m_aTempIr[i][j],0);
   end;
-
-//  VirtualBcr.Free;
-//  VirtualBcr := nil;
-
   if CtrlCa410 <> nil then begin
-    CtrlCa410.Free;
-    CtrlCa410 := nil;
+    FreeAndNil(CtrlCa410);
   end;
-
-
-
+  if m_csBcrRead <> nil then begin
+    FreeAndNil(m_csBcrRead);
+  end;
   for i := DefCommon.CH1 to DefCommon.MAX_JIG_CH do begin
-
-//    if gridPWRPGs[i] <> nil then begin
-//      for j := 0 to Pred(gridPWRPGs[i].ColCount) do begin
-//        gridPWRPGs[i].Cols[j].Clear;
-//      end;
-//      gridPWRPGs[i].RowCount := 1;
-//
-//      gridPWRPGs[i].Free;
-//      gridPWRPGs[i] := nil;
-//    end;
     for j := 0 to m_NGAlarmCount -1 do begin
       if pnlPrevResult[i][j] <> nil then begin
-        pnlPrevResult[i][j].free;
-        pnlPrevResult[i][j] := nil;
+        FreeAndNil(pnlPrevResult[i][j]);
       end;
     end;
-
     if mmChannelLog[i] <> nil then begin
-      mmChannelLog[i].Free;
-      mmChannelLog[i] := nil;
+      FreeAndNil(mmChannelLog[i]);
     end;
   end;
+
   if CaSdk2 <> nil then begin
-    CaSdk2.Free;
-    CaSdk2 := nil;
+    FreeAndNil(CaSdk2);
   end;
-
   if CsharpDll <> nil then begin
-    CsharpDll.Free;
-    CsharpDll := nil;
+    FreeAndNil(CsharpDll);
   end;
-
-
-
   if JigLogic[Self.Tag] <> nil then begin
-    JigLogic[Self.Tag].Free;
-    JigLogic[Self.Tag] := nil;
+    FreeAndNil(JigLogic[Self.Tag]);
   end;
+
 end;
 
 procedure TfrmTest4ChOC.getBcrData(sScanData: string);
@@ -3174,16 +3098,16 @@ begin
   try
     m_csBcrRead.Acquire; // Hand Bcr Thread event UI 컨트롤 방지
 //    AddLog( '<HAND-BCR> Read Data ' + sScanData,DefCommon.MAX_SYSTEM_LOG,0);
-    Common.MLog(DefCommon.MAX_SYSTEM_LOG, '<HAND-BCR> Read Data ' + sScanData);
+    if LogCommon <> nil then LogCommon.MLog(DefCommon.MAX_SYSTEM_LOG, '<HAND-BCR> Read Data ' + sScanData);
     sRemoveCr := StringReplace(sScanData,#$0a,'',[rfReplaceAll]);
     sRemoveCr := StringReplace(sRemoveCr,#$0d,'',[rfReplaceAll]);
 //    AddLog(  '<HAND-BCR> Converting Read Data ' + sRemoveCr,DefCommon.MAX_SYSTEM_LOG,0);
-    Common.MLog(DefCommon.MAX_SYSTEM_LOG, '<HAND-BCR> Converting Read Data ' + sRemoveCr);
+    if LogCommon <> nil then LogCommon.MLog(DefCommon.MAX_SYSTEM_LOG, '<HAND-BCR> Converting Read Data ' + sRemoveCr);
     for i := Defcommon.CH1 to DefCommon.MAX_CH do begin // 중복 채널 사전 검사 해서 빼기
       if pnlSerials[i].Caption = sRemoveCr then begin
         sDebug := Format('<HAND-BCR> Same Data Exsit skip(Ch:%d) data(%s)',[i + 1, sRemoveCr]);
 //        AddLog(sDebug,DefCommon.MAX_SYSTEM_LOG,0);
-        Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+        if LogCommon <> nil then LogCommon.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
         if PasScr[i] <> nil then begin // 혹시 모르니까 한번더
           PasScr[i].m_First_Process_DONE := True;
           PasScr[i].g_bIsBcrReady := True;
@@ -3316,7 +3240,7 @@ begin
     if nJigCh = 4 then begin
       sDebug := Format('<HAND-BCR> NO have to Any Ready Ch BcrData:%s Exit',[sRemoveCr]);
 //      AddLog(sDebug,DefCommon.MAX_SYSTEM_LOG,0);
-      Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+      if LogCommon <> nil then LogCommon.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
       m_csBcrRead.Release;
       Exit;
     end
@@ -3337,7 +3261,7 @@ begin
     end;
     sDebug := Format('<HAND-BCR> Bcr Data input pasScr Ch:%d BcrData:%s',[nJigCh + 1 ,sRemoveCr]);
 //    AddLog(sDebug,DefCommon.MAX_SYSTEM_LOG,0);
-    Common.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
+    if LogCommon <> nil then LogCommon.MLog(DefCommon.MAX_SYSTEM_LOG, sDebug);
   finally
     m_csBcrRead.Release;
   end;
@@ -3353,7 +3277,7 @@ begin
     sRemoveCr := StringReplace(sScanData,#$0a,'',[rfReplaceAll]);
     sRemoveCr := StringReplace(sRemoveCr,#$0d,'',[rfReplaceAll]);
 //    AddLog('<HAND-BCR> Converting Read Data ' + sRemoveCr,DefCommon.MAX_SYSTEM_LOG,0);
-    Common.MLog(DefCommon.MAX_SYSTEM_LOG, '<HAND-BCR> Read Data ' + sScanData);
+    if LogCommon <> nil then LogCommon.MLog(DefCommon.MAX_SYSTEM_LOG, '<HAND-BCR> Read Data ' + sScanData);
   // 중복 채널 사전 검사 해서 빼기
     for i := Defcommon.CH1 to DefCommon.MAX_CH do begin
       if pnlSerials[i].Caption = sRemoveCr then begin
@@ -3440,7 +3364,7 @@ begin
         break; //Exit;
       end;
     end;
-    Common.MLog(DefCommon.MAX_SYSTEM_LOG, '<HAND-BCR> Finish');
+    if LogCommon <> nil then LogCommon.MLog(DefCommon.MAX_SYSTEM_LOG, '<HAND-BCR> Finish');
 //    AddLog('<HAND-BCR> Finish',DefCommon.MAX_SYSTEM_LOG,0);
   except
     on E: Exception do begin
@@ -3665,7 +3589,7 @@ var
 begin
   nPgNo := Self.Tag*4 + nCh;
 //  AddLog(Format('MakeUserEvent %d',[nPgNo]),nPgNo,0);
-  common.MLog(nPgNo,Format('MakeUserEvent %d',[nPgNo]));
+  if LogCommon <> nil then LogCommon.MLog(nPgNo,Format('MakeUserEvent %d',[nPgNo]));
   PasScr[nPgNo].MakeTEndEvt(nIdxErr,sErrMessage);
 end;
 
@@ -3675,7 +3599,7 @@ var
 begin
   nPgNo := self.Tag*4 + nCh;
 //  AddLog(Format('MakeUserEvent %d',[nPgNo]),nPgNo,0);
-  common.MLog(nPgNo,Format('MakeUserEvent %d',[nPgNo]));
+  if LogCommon <> nil then LogCommon.MLog(nPgNo,Format('MakeUserEvent %d',[nPgNo]));
   PasScr[nPgNo].MakeTEndEvt(nIdxErr,sErrMessage);
 end;
 
@@ -3883,7 +3807,7 @@ var
   i: Integer;
 begin
 //  AddLog(Format('AutoLogicStart CH : %d',[nCH]),DefCommon.MAX_SYSTEM_LOG,0);
-  Common.MLog(DefCommon.MAX_SYSTEM_LOG,Format('AutoLogicStart CH : %d',[nCH]));
+  if LogCommon <> nil then LogCommon.MLog(DefCommon.MAX_SYSTEM_LOG,Format('AutoLogicStart CH : %d',[nCH]));
 
   if (Common.PLCInfo.InlineGIB) then begin
     if Common.SystemInfo.OCType = DefCommon.OCType then begin
@@ -4356,7 +4280,7 @@ begin
     end;
   end;
   sDebug := Format('bRet(%d)',[Integer(bRet)]) + sDebug;
-  Common.MLog(DefCommon.MAX_SYSTEM_LOG,sDebug);
+  if LogCommon <> nil then LogCommon.MLog(DefCommon.MAX_SYSTEM_LOG,sDebug);
 
   if bRet then begin
     sDebug := 'RUN : ';
@@ -4367,7 +4291,7 @@ begin
       sDebug := sDebug + Format('Ch%d Start, ',[i+1+self.Tag*4]);
 
     end;
-    Common.MLog(DefCommon.MAX_SYSTEM_LOG,sDebug);
+    if LogCommon <> nil then LogCommon.MLog(DefCommon.MAX_SYSTEM_LOG,sDebug);
   end;
 end;
 
@@ -4411,7 +4335,7 @@ begin
     end;
   end;
   sDebug := Format('bRet(%d)',[Integer(bRet)]) + sDebug;
-  Common.MLog(DefCommon.MAX_SYSTEM_LOG,sDebug);
+  if LogCommon <> nil then LogCommon.MLog(DefCommon.MAX_SYSTEM_LOG,sDebug);
 
   if bRet then begin
     sDebug := 'RUN : ';
@@ -4421,7 +4345,7 @@ begin
       sDebug := sDebug + Format('Ch%d Start, ',[i+1+self.Tag*4]);
 
     end;
-    Common.MLog(DefCommon.MAX_SYSTEM_LOG,sDebug);
+    if LogCommon <> nil then LogCommon.MLog(DefCommon.MAX_SYSTEM_LOG,sDebug);
   end;
 end;
 
@@ -4566,14 +4490,14 @@ begin
         mmChannelLog[nCh].Lines.Add(sDebug);
         CalcLogScroll(nCh, Length(sDebug));
 //        mmChannelLog[nCh].EnableAlign;
-        Common.MLog(nCh + self.Tag * 4, sMsg);
+        if LogCommon <> nil then LogCommon.MLog(nCh + self.Tag * 4, sMsg);
       except
       end;
 
     end;
 
     else begin
-      Common.MLog(nCh,'<TestCh> CH'+IntToStr(nCh+1)+': TYPE_LOGIC, UnknownMODE('+IntToStr(nMode)+')');
+      if LogCommon <> nil then LogCommon.MLog(nCh,'<TestCh> CH'+IntToStr(nCh+1)+': TYPE_LOGIC, UnknownMODE('+IntToStr(nMode)+')');
     end;
   end;
 end;
@@ -4714,8 +4638,12 @@ function GetTimeDiffSec(StartTimne,EndTime: TDateTime): Integer;
 var
   diffmsec : Integer;
 begin
-  diffmsec := SecondsBetween(StartTimne,EndTime);
-  RESULT := diffmsec;
+  try
+    diffmsec := SecondsBetween(StartTimne,EndTime);
+    RESULT := diffmsec;
+  except
+    RESULT := 0;
+  end;
 end;
 
 
@@ -4740,13 +4668,13 @@ begin
         DefCommon.MSG_MODE_ADDLOG_CHANNEL : begin
           sMsg := Trim(PGUIMessage(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
           if nTemp = 10 then begin
-            Common.MLog(nCh+self.Tag*4,sMsg);
+            if LogCommon <> nil then LogCommon.MLog(nCh+self.Tag*4,sMsg);
             Exit;
           end;
           if nCh < DefCommon.MAX_SYSTEM_LOG then
             AddLog('[MAIN] ' + sMsg, nCh, nTemp)
           else
-            Common.MLog(nCh,sMsg);
+            if LogCommon <> nil then LogCommon.MLog(nCh,sMsg);
         end;
 
         DefCommon.MSG_MODE_DISPLAY : begin
@@ -4790,37 +4718,39 @@ begin
           Common.HWCIDLogLog(nCh,sPID,sSerialNumber,sMsg);
         end;
 
-//        DefCommon.MSG_MODE_DELAY_TIME : begin
-//          pnlNowDelayTimes[nCh].Caption := Trim(PGuiDLL(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg)
-//        end;
 
         DefCommon.MSG_MODE_WORK_DONE : begin
-          if Pg[nCh].m_bChkShutdown_Fault then begin
-            sTemp := 'PXXG';
-            PasScr[nCh].m_nNgCode:= GetNGCode_ByErroCode(sTemp);
-            Pg[nCh].m_bChkShutdown_Fault := False;
+          if Common.TestModelInfoFLOW.IDLEMode then  begin
+            PasScr[nCh].m_nNgCode:= 0;
           end
           else begin
-            sTemp := CSharpDll.MainOC_GetSummaryLogData(nCh,'DEFECT_CODE');   // ERROR CODE 불러오기
-          end;
-
-          PG[nCH].DP860_SendOcOnOff(0{end},2000,0); //2023-03-28 jhhwang (for T/T Test)
-          if 'XXXX' <> sTemp then begin
-            PasScr[nCh].m_nNgCode:= GetNGCode_ByErroCode(sTemp);
-            if Common.SystemInfo.UseInLine_AAMode and (Common.SystemInfo.OCType = DefCommon.OCType)  then begin        // AA mode 실행
-              AddLog(format('AA MODE : GetSummaryLogData : %s',[sTemp]),nCh);
-              if InlineOCReStart(nCh,sTemp) = 0 then exit;       // AA Mode 진행
-            end;
-          end
-          else PasScr[nCh].m_nNgCode:= 0;
-          AddLog(format('GetSummaryLogData : %s GetNGCode_ByErroCode: %d',[sTemp,PasScr[nCh].m_nNgCode]),nCh);
-
-          if DongaGmes <> nil then begin
-            if DongaGmes.m_bDoneEODS[nCH] then begin   // R2R Data Down 확인 후
-              DongaGmes.SendR2REoda(nCh,WriteR2RData(nCH));
+            if Pg[nCh].m_bChkShutdown_Fault then begin
+              sTemp := 'PXXG';
+              PasScr[nCh].m_nNgCode:= GetNGCode_ByErroCode(sTemp);
+              Pg[nCh].m_bChkShutdown_Fault := False;
             end
             else begin
-              Common.MLog(nCh,'R2R m_bDoneEODS : OFF');
+              sTemp := CSharpDll.MainOC_GetSummaryLogData(nCh,'DEFECT_CODE');   // ERROR CODE 불러오기
+            end;
+            PG[nCH].DP860_SendOcOnOff(0{end},2000,0); //2023-03-28 jhhwang (for T/T Test)
+            if 'XXXX' <> sTemp then begin
+              PasScr[nCh].m_nNgCode:= GetNGCode_ByErroCode(sTemp);
+
+              if Common.SystemInfo.UseInLine_AAMode and (Common.SystemInfo.OCType = DefCommon.OCType) then begin        // AA mode 실행
+                AddLog(format('AA MODE : GetSummaryLogData : %s',[sTemp]),nCh);
+                if InlineOCReStart(nCh,sTemp) = 0 then exit;       // AA Mode 진행
+              end;
+            end
+            else PasScr[nCh].m_nNgCode:= 0;
+            AddLog(format('GetSummaryLogData : %s GetNGCode_ByErroCode: %d, Option : %d',[sTemp,PasScr[nCh].m_nNgCode,Common.GmesInfo[PasScr[nCh].m_nNgCode].Option]),nCh);
+
+            if DongaGmes <> nil then begin
+              if DongaGmes.m_bDoneEODS[nCH] then begin   // R2R Data Down 확인 후
+                DongaGmes.SendR2REoda(nCh,WriteR2RData(nCH));
+              end
+              else begin
+                if LogCommon <> nil then LogCommon.MLog(nCh,'R2R m_bDoneEODS : OFF');
+              end;
             end;
           end;
 
@@ -4835,89 +4765,31 @@ begin
 
           ControlIRTemp(nCh,0); //IRTemp 기록 종료
 
-//          DisplayPGStatuses(nCh,PasScr[nCh].m_nNgCode); // 종료 시 바로 결과 Display
 
-//          PGPowerReset(nCH); //종료 후 PG Reset 진행
-
-
-          case nCH of
-            0,1 :
-            begin
-              if (Common.PLCInfo.InlineGIB)  then begin
-                SendMessageMain(STAGE_MODE_UNLOAD,nCH, 2,0, 'OC Flow Process_Finish',nil);
-                if Common.SystemInfo.OCType = DefCommon.OCType then
-                  CSharpDll.m_bIsProcessDone[nCH] := false;
-              end
-              else begin
-                for I := DefCommon.CH1 to DefCommon.CH2 do  begin
-                  if not PasScr[i].m_bUse then CSharpDll.m_bIsProcessDone[i] := true;
-                  if not PasScr[i].TestInfo.bPchkResult then CSharpDll.m_bIsProcessDone[i] := true;
-                end;
-                if CSharpDll.m_bIsProcessDone[DefCommon.CH1] and CSharpDll.m_bIsProcessDone[DefCommon.CH2] then  begin
-
-                  SendMessageMain(STAGE_MODE_UNLOAD,0, 2,0, 'OC Flow Process_Finish',nil);
-
-                  CSharpDll.m_bIsProcessDone[DefCommon.CH1] := false;
-                  CSharpDll.m_bIsProcessDone[DefCommon.CH2] := false;
-                end;
-                if COmmon.SystemInfo.OCType = DefCommon.PreOCType then begin
-                  if (nCh mod 2) = 0 then begin
-                    nPair:= nCh + 1;
-                  end
-                  else begin
-                    nPair:= nCh - 1;
-                  end;
-                  if not PasScr[nPair].TestInfo.OCDllCall then begin
-                    SendMessageMain(STAGE_MODE_UNLOAD,0, 2,0, 'OC Flow Process_Finish(2)',nil);
-                    CSharpDll.m_bIsProcessDone[nCh] := false;
-                    CSharpDll.m_bIsProcessDone[nPair] := false;
-                  end;
-                end;
-              end;
-
+          if (Common.PLCInfo.InlineGIB)  then begin
+            SendMessageMain(STAGE_MODE_UNLOAD,nCH, 2,0, 'OC Flow Process_Finish',nil);
+            if Common.SystemInfo.OCType = DefCommon.OCType then
+              CSharpDll.m_bIsProcessDone[nCH] := false;
+          end
+          else begin
+            for I := ((nCh div 2) * 2) to ((nCh div 2) *2 +1) do  begin
+              if not PasScr[i].m_bUse then CSharpDll.m_bIsProcessDone[i] := true;
+              if not PasScr[i].TestInfo.bPchkResult then CSharpDll.m_bIsProcessDone[i] := true;
             end;
-            2,3 :
-            begin
-              if (Common.PLCInfo.InlineGIB) then begin
-                SendMessageMain(STAGE_MODE_UNLOAD, nCH, 2,0, 'OC Flow Process_Finish',nil);
-                if Common.SystemInfo.OCType = DefCommon.OCType then
-                  CSharpDll.m_bIsProcessDone[nCH] := false;
-              end
-              else begin
-                for I := DefCommon.CH3 to DefCommon.CH4 do  begin
-                  if not PasScr[i].m_bUse then CSharpDll.m_bIsProcessDone[i] := true;
-                  if not PasScr[i].TestInfo.bPchkResult then CSharpDll.m_bIsProcessDone[i] := true;
-                end;
-                if CSharpDll.m_bIsProcessDone[DefCommon.CH3] and CSharpDll.m_bIsProcessDone[DefCommon.CH4] then begin
-                  SendMessageMain(STAGE_MODE_UNLOAD, 1, 2,0, 'OC Flow Process_Finish',nil);
+            if CSharpDll.m_bIsProcessDone[(nCh div 2) * 2] and CSharpDll.m_bIsProcessDone[(nCh div 2) * 2 +1] then  begin
 
-                  CSharpDll.m_bIsProcessDone[DefCommon.CH3] := false;
-                  CSharpDll.m_bIsProcessDone[DefCommon.CH4] := false;
-                end;
-                if COmmon.SystemInfo.OCType = DefCommon.PreOCType then begin
-                  if (nCh mod 2) = 0 then begin
-                    nPair:= nCh + 1;
-                  end
-                  else begin
-                    nPair:= nCh - 1;
-                  end;
-                  if not PasScr[nPair].TestInfo.OCDllCall then begin
-                    SendMessageMain(STAGE_MODE_UNLOAD,1, 2,0, 'OC Flow Process_Finish(2)',nil);
-                    CSharpDll.m_bIsProcessDone[nCh] := false;
-                    CSharpDll.m_bIsProcessDone[nPair] := false;
-                  end;
-                end;
-              end;
+              SendMessageMain(STAGE_MODE_UNLOAD,(nCh div 2), 2,0, 'OC Flow Process_Finish',nil);
+
+              CSharpDll.m_bIsProcessDone[(nCh div 2) * 2] := false;
+              CSharpDll.m_bIsProcessDone[(nCh div 2) * 2+1] := false;
             end;
-
           end;
-
         end;
 
         DefCommon.MSG_MODE_WORKING : begin
           sMsg := Trim(PGuiDLL(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
           if nTemp = 10 then begin
-            Common.MLog(nCh+self.Tag*4,sMsg);
+            if LogCommon <> nil then LogCommon.MLog(nCh+self.Tag*4,sMsg);
             Exit;
           end;
 
@@ -4986,14 +4858,14 @@ begin
 
         DefCommon.MSG_MODE_SHOW_CONFIRM_EICR : begin
           nTemp := PGuiScript(PCopyDataStruct(Msg.LParam)^.lpData)^.nParam;
-          Common.MLog(nCh,format('MSG_MODE_SHOW_CONFIRM_EICR : %d',[nTemp]));
+          if LogCommon <> nil then LogCommon.MLog(nCh,format('MSG_MODE_SHOW_CONFIRM_EICR : %d',[nTemp]));
           if nTemp > 0 then begin
             pnlMesConfirm[nCh].Visible := True;
-            Common.MLog(nCh,format('pnlMesConfirm[%d].Visible : True',[nCh]));
+            if LogCommon <> nil then LogCommon.MLog(nCh,format('pnlMesConfirm[%d].Visible : True',[nCh]));
           end
           else begin
             pnlMesConfirm[nCh].Visible := False;
-            Common.MLog(nCh,format('pnlMesConfirm[%d].Visible : false',[nCh]));
+            if LogCommon <> nil then LogCommon.MLog(nCh,format('pnlMesConfirm[%d].Visible : false',[nCh]));
             PasScr[nCh].HostEvntConfirm(2);
           end;
         end;
@@ -5041,7 +4913,7 @@ begin
         DefCommon.MSG_MODE_WORKING : begin
           sMsg := Trim(PGuiScript(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
           if nTemp = 10 then begin
-            Common.MLog(nCh+self.Tag*4,sMsg);
+            if LogCommon <> nil then LogCommon.MLog(nCh+self.Tag*4,sMsg);
             Exit;
           end;
 
@@ -5127,7 +4999,7 @@ begin
               pnlPGStatuses[nCh].Font.Name := 'Tahoma';
               if nTemp = -3 then begin
                 sDebug := Format('[ %s ]',[sMsg]);
-                Common.MLog(nCh+self.Tag*4,sDebug);
+                if LogCommon <> nil then LogCommon.MLog(nCh+self.Tag*4,sDebug);
               end;
               nTemp2 := PGuiScript(PCopyDataStruct(Msg.LParam)^.lpData)^.nParam2;
               if nTemp2 = 1 then begin
@@ -5204,7 +5076,7 @@ begin
                 case nTemp2 of
 
                   DefScript.SEQ_KEY_START: begin
-                    Common.MLog(nCh, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_KEY_START) ' + inttostr(nCh));
+                    if LogCommon <> nil then LogCommon.MLog(nCh, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_KEY_START) ' + inttostr(nCh));
 
                     if PasScr[nCh].m_bIsScriptWork then begin
                       Exit;
@@ -5213,7 +5085,7 @@ begin
                       CSharpDll.m_bIsProcessDone[nCh] := True;
                       if (Common.PLCInfo.InlineGIB) then begin
                         if (Common.SystemInfo.OCType = DefCommon.OCType)  then begin
-                          Common.MLog(nCh, '<TestForm> GIB MSG_MODE_SYNC_WORK(SEQ_KEY_START) ' + inttostr(nCh));
+                          if LogCommon <> nil then LogCommon.MLog(nCh, '<TestForm> GIB MSG_MODE_SYNC_WORK(SEQ_KEY_START) ' + inttostr(nCh));
                           SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, nCh , nCh , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
                           CSharpDll.m_bIsProcessDone[nCH] := false;
                         end
@@ -5289,7 +5161,7 @@ begin
                   end;
                   DefScript.SEQ_UNLOAD_ZONE: begin
                     CSharpDll.m_bIsProcessDone[nCh] := True;
-                    Common.MLog(nCh, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) ' + inttostr(nCh),True);
+                    if LogCommon <> nil then LogCommon.MLog(nCh, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) ' + inttostr(nCh),True);
                     //Exchange 요청(Unload/Load)
 
                     if (Common.PLCInfo.InlineGIB)  then  begin
@@ -5303,13 +5175,13 @@ begin
                           g_CommPLC.GetGlassData_PreviousUnitProcessing(g_CommPLC.GlassData[nCh],nEQP_ID, nSeq, 16);
 
                           if (nSeq = 1) and (g_CommPLC.GlassData[nCh].GlassJudge = 78) then begin  // A진행 후 NG 발생 시 재 시작
-                            Common.MLog(nCh, 'ECS AAB Mode : Restart SEQ : ' + inttostr(nSeq),True);
+                            if LogCommon <> nil then LogCommon.MLog(nCh, 'ECS AAB Mode : Restart SEQ : ' + inttostr(nSeq),True);
                             AutoLogicStart(nCh);
                           end
                           else SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, nCh , nCh , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
                         end
                         else begin
-                          Common.MLog(nCh, 'ECS AAB Mode : OFF!!',True);
+                          if LogCommon <> nil then LogCommon.MLog(nCh, 'ECS AAB Mode : OFF!!',True);
                           SendMessageMain(STAGE_MODE_SCRIPT_DONE_UNLOAD, nCh , nCh , nTemp2, '', nil); // Added by KTS 2023-04-03 오후 3:00:35
                         end;
                       end
@@ -5319,7 +5191,7 @@ begin
                           begin
                             for i := DefCommon.CH1 to DefCommon.CH2 do begin
                               if PasScr[i].m_bIsScriptWork or PasScr[i].TestInfo.PreOcReStart then begin
-                                Common.MLog(nCH, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(i));
+                                if LogCommon <> nil then LogCommon.MLog(nCH, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(i));
                                 Exit;
                               end;
                             end;
@@ -5339,7 +5211,7 @@ begin
                           begin
                             for i := DefCommon.CH3 to DefCommon.CH4 do begin
                               if PasScr[i].m_bIsScriptWork or PasScr[i].TestInfo.PreOcReStart then begin
-                                Common.MLog(nCH, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(i));
+                                if LogCommon <> nil then LogCommon.MLog(nCH, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(i));
                                 Exit;
                               end;
                             end;
@@ -5368,7 +5240,7 @@ begin
                         begin
                           for i := DefCommon.CH1 to DefCommon.CH2 do begin
                             if PasScr[i].m_bIsScriptWork or PasScr[i].TestInfo.PreOcReStart then begin
-                              Common.MLog(nCh, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(i));
+                              if LogCommon <> nil then LogCommon.MLog(nCh, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(i));
                               Exit;
                             end;
                           end;
@@ -5394,7 +5266,7 @@ begin
                         begin
                           for i := DefCommon.CH3 to DefCommon.CH4 do begin
                             if PasScr[i].m_bIsScriptWork or PasScr[i].TestInfo.PreOcReStart then begin
-                              Common.MLog(nCH, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(i));
+                              if LogCommon <> nil then LogCommon.MLog(nCH, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(i));
                               Exit;
                             end;
                           end;
@@ -5428,7 +5300,7 @@ begin
                 begin
                   for i := DefCommon.CH1 to DefCommon.CH2 do begin
                     if PasScr[i].m_bIsScriptWork then begin
-                      Common.MLog(nCh, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(i));
+                      if LogCommon <> nil then LogCommon.MLog(nCh, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(i));
                       Exit;
                     end;
                   end;
@@ -5440,7 +5312,7 @@ begin
                 begin
                   for i := DefCommon.CH3 to DefCommon.CH4 do begin
                     if PasScr[i].m_bIsScriptWork then begin
-                      Common.MLog(nCh, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(i));
+                      if LogCommon <> nil then LogCommon.MLog(nCh, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(i));
                       Exit;
                     end;
                   end;
@@ -5455,7 +5327,7 @@ begin
                 begin
                   for i := DefCommon.CH1 to DefCommon.CH2 do begin
                     if PasScr[i].m_bIsScriptWork then begin
-                      Common.MLog(nCh, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(i));
+                      if LogCommon <> nil then LogCommon.MLog(nCh, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(i));
                       Exit;
                     end;
                   end;
@@ -5467,7 +5339,7 @@ begin
                 begin
                   for i := DefCommon.CH3 to DefCommon.CH4 do begin
                     if PasScr[i].m_bIsScriptWork then begin
-                      Common.MLog(nCh, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(i));
+                      if LogCommon <> nil then LogCommon.MLog(nCh, '<TestForm> MSG_MODE_SYNC_WORK(SEQ_UNLOAD_ZONE) - m_bIsScriptWork ' + inttostr(i));
                       Exit;
                     end;
                   end;
@@ -5532,7 +5404,7 @@ begin
           sMsg := Trim(PGuiScript(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
           nTemp := (PGuiScript(PCopyDataStruct(Msg.LParam)^.lpData)^.nParam);
           if nTemp = 10 then begin
-            Common.MLog(nCh+self.Tag*4,sMsg);
+            if LogCommon <> nil then LogCommon.MLog(nCh+self.Tag*4,sMsg);
             Exit;
           end;
 
@@ -5551,7 +5423,7 @@ begin
 
       case PSyncHost(PCopyDataStruct(Msg.LParam)^.lpData)^.MsgMode of
         DefCommon.MSG_MODE_WORKING : begin
-          Common.MLog(nCh,sMsg);
+          if LogCommon <> nil then LogCommon.MLog(nCh,sMsg);
         end;
         DefGmes.MES_PCHK : begin  //JHHWANG-GMES: 2018-06-20
       		//Common.MLog(DefCommon.MAX_SYSTEM_LOG,'TfrmTest4ChPocb.WMCopyData: MSG_TYPE_HOST, MES_PCHK, PG'+IntToStr(nCh+1)); //IMSI
@@ -5808,7 +5680,7 @@ begin
         end;
         Defcommon.MSG_MODE_CAX10_MEM_CH_NO : begin
           if nTemp > -1 then begin
-            chkChannelUse[nCh].Caption := Format('kênh (Channel) %d / CA410 Memory Channel(%d)',[nCh + 1,nTemp]);
+            chkChannelUse[nCh].Caption := Format('kênh (Channel) %d/Memory(%d)/%s',[nCh + 1,nTemp,sMsg]);
             Common.SystemInfo.CA410_MemoryCh[nCh] := IntToStr(nTemp);
             Common.SavesystemInfoCA410Memory(nCh, Common.SystemInfo.CA410_MemoryCh[nCh]);
           end;
@@ -5823,8 +5695,8 @@ begin
     DefCommon.MSG_TYPE_COMM_ECS: begin
       nMode := PGUIMessage(PCopyDataStruct(Msg.LParam)^.lpData)^.Mode;
       //nTemp := PGUIMessage(PCopyDataStruct(Msg.LParam)^.lpData)^.Param;
-      nTemp := PGuiCamData(PCopyDataStruct(Msg.LParam)^.lpData)^.nParam;
-      sMsg := Trim(PGuiCamData(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
+      nTemp := PGUIMessage(PCopyDataStruct(Msg.LParam)^.lpData)^.Param;
+      sMsg := Trim(PGUIMessage(PCopyDataStruct(Msg.LParam)^.lpData)^.Msg);
       case nMode of
         COMMPLC_MODE_LOG_ECS : begin
           AddLog(sMsg, nCh, nTemp);

@@ -6,9 +6,9 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, ALed, RzPanel, RzButton, Vcl.ExtCtrls, System.ImageList, Vcl.ImgList,
   Vcl.Themes, System.UITypes, TILed, pasScriptClass, System.DateUtils, CommCameraRadiant, CommDIO_DAE, ControlDio_OC,
-  CommonClass, UserID, GMesCom, DefCommon, DefGmes, NGMsg, ModelInfo, Mainter, LogIn, HandBCR, DefDio,
+  CommonClass, UserID, GMesCom, DefCommon, DefGmes, NGMsg, ModelInfo, Mainter, LogIn, HandBCR, DefDio, System.Diagnostics,
   CommLightNaratech, Vcl.AppEvnts, Vcl.StdCtrls, Vcl.ComCtrls, AdvListV,  DfsFtp, CommIonizer, JigControl, DefScript,
-  {UdpServerClient,} Test4ChOC, SwitchBtn, ScriptClass, ModelSelect, {ModelDownload,} SystemSetup, RzStatus,
+  {UdpServerClient,} Test4ChOC, SwitchBtn, ScriptClass, ModelSelect, {ModelDownload,} SystemSetup, RzStatus,CommLog,
   DoorOpenAlarmMsg, CommPLC_ECS, ECSStatusForm, DBModule, NGRatioForm,ShellApi,CommThermometerMulti,LibCa410Option
   , CA_SDK2, dllClass,CommPG,DefPG, Registry, Inifiles,DllMesCom, {OtlTaskControl, OtlParallel,} SyncObjs, RzPrgres, tmsAdvGridExcel
 
@@ -163,6 +163,8 @@ type
     pnlAAMode: TRzPanel;
     ledAAMode: ThhALed;
     TimerLogUpdate: TTimer;
+    GrpSystemMsg: TGroupBox;
+    lblSystemNgMsg: TLabel;
     procedure FormCreate(Sender: TObject);
     procedure MyExceptionHandler(Sender : TObject; E : Exception );
     procedure btnInitClick(Sender: TObject);
@@ -1577,7 +1579,7 @@ begin
     sDebug := '[Click Event] Terminate ISPD Program';
     ShowSysLog(sDebug);
     tmSaveEnergy.Enabled := False;
-    for i := DefCommon.CH1 to DefCommon.MAX_CH do common.MLog(i,sDebug);
+    for i := DefCommon.CH1 to DefCommon.MAX_CH do if LogCommon <> nil then LogCommon.MLog(i,sDebug);
     Common.TaskBar(False);
 
     ControlDio.Set_TowerLampState(LAMP_STATE_NONE);
@@ -1624,7 +1626,7 @@ begin
   //grpSystemInfo.Caption:= 'System Information. ST ' + IntToStr(Common.PLCInfo.EQP_ID);
   m_bIsClose := False;
   {$IFDEF RELEASE}
-  if Common.SystemInfo.OCType = DefCommon.OCType then begin    // OC SW 실행 시 항상 on
+  if (Common.SystemInfo.OCType = DefCommon.OCType) and (Common.SystemInfo.EQPId_Type = 0)  then begin    // OC SW 실행 시 항상 on
     Common.OnLineInterlockInfo.Use     := True;
     Common.DfsConfInfo.bUseDfs         := True;    // OnLineInterlockInfo 설정으로 통합
     Common.DfsConfInfo.bUseCombiDown   := True;    // OnLineInterlockInfo 설정으로 통합
@@ -1632,9 +1634,13 @@ begin
   end;
   {$ENDIF}
 
+  LogCommon := TLogCommon.Create(DefCommon.MAX_SYSTEM_LOG,Common.Path.MLOG,Common.SystemInfo.EQPId);  // Log class 생성
+
+
   FLogBuffer := TStringList.Create;
   TimerLogUpdate.Interval := 1000;  // 1초마다 실행
   TimerLogUpdate.Enabled := True;
+
 
 
   Common.UpdateSystemInfo_Runtime;
@@ -1642,9 +1648,9 @@ begin
   pnlUserName.Caption := '';
   sDebug := '#################################### Turn On ISPD Program (';
   sDebug := sDebug + Format('Version Check : SW(%s %s)',[Common.GetVersionDate,Common.ProductVersion])+') ####################################';
-  for i := DefCommon.CH1 to DefCommon.MAX_PG_CNT do common.MLog(i,sDebug);
+  for i := DefCommon.CH1 to DefCommon.MAX_PG_CNT do if LogCommon <> nil then LogCommon.MLog(i,sDebug);
   sDebug := 'Memory usage : ' + Format('%0.2f%%', [Common.GetMemoryUsagePercentage]);
-  for i := DefCommon.CH1 to DefCommon.MAX_PG_CNT do common.MLog(i,sDebug);
+  for i := DefCommon.CH1 to DefCommon.MAX_PG_CNT do if LogCommon <> nil then LogCommon.MLog(i,sDebug);
   ShowSysLog('#################### [ Turn On Program ] - Version ' + Common.GetVersionDate + ' ' + Common.ProductVersion);
   sDebug := Format('Version Check : SW(%s %s)',[Common.GetVersionDate,Common.ProductVersion]);
   sDebug := sDebug + Format(', Psu(%s/%s), MES_CODE(%s), ThreadID(%4x)',[Common.m_Ver.psu_Date,Common.m_Ver.psu_Crc, Common.m_Ver.MES_CSV, TThread.CurrentThread.ThreadID]);
@@ -1939,7 +1945,7 @@ begin
     pnlLineName.Caption      := Common.OnLineInterlockInfo.Process_Code;
 
     sDebug := Format('sRcpName(%s),VersionModel(%s),LineName(%s)',[Common.OnLineInterlockInfo.sINIFileName,Common.OnLineInterlockInfo.Version_Model,Common.OnLineInterlockInfo.Process_Code]);
-    Common.MLog(DefCommon.MAX_SYSTEM_LOG,sDebug);
+    if LogCommon <> nil then LogCommon.MLog(DefCommon.MAX_SYSTEM_LOG,sDebug);
   end
   else begin
 //    RzgrpDFS.visible := False;
@@ -2103,25 +2109,32 @@ end;
 procedure TfrmMain_OC.InitialAll(bReset: Boolean);
 var
   i : Integer;
+  Stopwatch: TStopwatch;
+
+  procedure MeasureTimeAndLog(const LogMessage: string; CodeBlock: TProc);
+  begin
+    Stopwatch := TStopwatch.StartNew;
+    CodeBlock(); // 전달된 코드 블록 실행
+    Stopwatch.Stop;
+    ShowSysLog(format('%s : %d ms', [LogMessage, Stopwatch.ElapsedMilliseconds]));
+  end;
 begin
+
   Common.StatusInfo.Closing:= True; //종료 중
   Self.Enabled:= False;
-  if g_CommThermometer <> nil then begin
-    g_CommThermometer.Disconnect;
-    Common.Delay(1000);
-    g_CommThermometer.Free;
-    g_CommThermometer := nil;
-  end;
 
+  MeasureTimeAndLog('InitialAll 1', procedure begin
+    if g_CommThermometer <> nil then begin
+      g_CommThermometer.Disconnect;
+      Common.Delay(1000);
+      FreeAndNil(g_CommThermometer);
+    end;
+  end);
 
-  if g_CommPLC <> nil then begin
-    g_CommPLC.SaveGlassData(Common.Path.Ini + 'GlassData.dat');
-  end;
 
   m_bIsClose := True;
   if CommCamera <> nil then begin
-    CommCamera.Free;
-    CommCamera := nil;
+    FreeAndNil(CommCamera);
 
     ledCam1.Value := False;
     ledCam2.Value := False;
@@ -2129,18 +2142,16 @@ begin
     ledCam4.Value := False;
   end;
   ReleaseReadyModOnPlc;
+
   for I := 0 to Pred(DefCommon.MAX_SWITCH_CNT) do begin
     if DongaSwitch[i] <> nil then begin
-      DongaSwitch[i].Free;
-      DongaSwitch[i] := nil;
+      FreeAndNil(DongaSwitch[i]);
     end;
   end;
 
-
   if DfsFtpCommon <> nil then begin
     if DfsFtpCommon.IsConnected then DfsFtpCommon.Disconnect;
-    DfsFtpCommon.Free;
-    DfsFtpCommon := nil;
+    FreeAndNil(DfsFtpCommon);
   end;
 
   for i := DefCommon.CH1 to DefCommon.MAX_CH do begin
@@ -2148,97 +2159,76 @@ begin
       g_CommPLC.SaveGlassData_CH(i,Common.Path.Ini + format('GlassData_CH%d.dat',[i+1]));
     end;
     if DfsFtpCh[i] <> nil then begin
-      DfsFtpCh[i].Free;
-      DfsFtpCh[i] := nil;
+      FreeAndNil(DfsFtpCh[i]);
     end;
   end;
 
   if DongaGmes <> nil then begin
 //    btnLogIn.Caption := 'đăng nhập (Log In)';
-    DongaGmes.Free;
-    DongaGmes := nil;
+    FreeAndNil(DongaGmes);
   end;
 
   if DongaHandBcr <> nil then begin
-    DongaHandBcr.Free;
-    DongaHandBcr := nil;
+    FreeAndNil(DongaHandBcr);
   end;
 
   if UdpServerPG <> nil then begin
-    for I := DefCommon.PG_1 to DefCommon.PG_MAX do begin
-      if (Pg[i] <> nil) and (not (Pg[i].StatusPg in [pgDisconn])) then begin
-      //TBD:DP860? Pg[0].SendPgReset;
-        Sleep(500);
-      end;
-    end;
-    UdpServerPG.Free;
-    UdpServerPG := nil;
+    FreeAndNil(UdpServerPG);
   end;
-
-//  if UdpServer <> nil then begin
-//    UdpServer.Free;
-//    UdpServer := nil;
-//  end;
   if Script <> nil then begin
-    Script.Free;
-    Script := nil;
+    FreeAndNil(Script);
   end;
 
   for i := DefCommon.JIG_A to DefCommon.JIG_B do begin
     // Distroy current alloc class
     if frmTest4ChOC[i] <> nil then begin
-      frmTest4ChOC[i].Free;
-      frmTest4ChOC[i] := nil;
+      FreeAndNil(frmTest4ChOC[i]);
     end;
   end;
 
-  // NG Msg close.
+    // NG Msg close.
   if frmModelNgMsg <> nil then begin
-    frmModelNgMsg.Free;
-    frmModelNgMsg := nil;
+    FreeAndNil(frmModelNgMsg);
   end;
   if frmDisplayAlarm <> nil then begin
-    frmDisplayAlarm.Free;
-    frmDisplayAlarm := nil;
+    FreeAndNil(frmDisplayAlarm);
   end;
   if frmNgMsg <> nil then begin
-    frmNgMsg.Free;
-    frmNgMsg := nil;
+    FreeAndNil(frmNgMsg);
   end;
-
-
 
 //  ControlDio.ClearOutDioSig(OUT_ION_BAR_SOL);
 //  ControlDio.ClearOutDioSig(OUT_AIR_KNIFE_SOL);
-  Sleep(300); //DIO 출력 대기
+//  sleep(300);
+
   for i := 0 to Pred(DefCommon.MAX_IONIZER_CNT) do begin
     if DaeIonizer[i] <> nil then begin
       DaeIonizer[i].IsIgnoreNg:= True;
-      DaeIonizer[i].Free;
-      DaeIonizer[i] := nil;
+      FreeAndNil(DaeIonizer[i]);
     end;
   end;
 
-
   if ControlDio <> nil then begin
-    ControlDio.Free;
-    ControlDio := nil;
+    FreeAndNil(ControlDio);
   end;
 
   if g_CommPLC <> nil then begin
     g_CommPLC.StopThread;
-    g_CommPLC.Free;
-    g_CommPLC := nil;
+    FreeAndNil(g_CommPLC);
   end;
 
+  if LogCommon <> nil then
+    FreeAndNil(LogCommon);
+
+
   if Common is TCommon then begin
-    Common.Free;
-    Common := nil;
+    FreeAndNil(Common);
   end;
 
   if bReset then begin
     // Create Again.
     Common :=	TCommon.Create;
+    LogCommon := TLogCommon.Create(DefCommon.MAX_SYSTEM_LOG,Common.Path.MLOG,Common.SystemInfo.EQPId);
     CreateClassData;
     m_bIsClose := False;
     ShowSysLog('Program InitialAll');
@@ -2697,7 +2687,7 @@ end;
 
 procedure TfrmMain_OC.MyExceptionHandler(Sender: TObject; E: Exception);
 begin
-  common.MLog(0,'Application Exception Error, class=' + Sender.ClassName +', mesg='+ E.Message);
+  if LogCommon <> nil then LogCommon.MLog(0,'Application Exception Error, class=' + Sender.ClassName +', mesg='+ E.Message);
   raise Exception.Create('Here!');
 end;
 
@@ -3221,11 +3211,11 @@ begin
 
         if Common.SystemInfo.OCType = DefCommon.PreOCType then begin
           DongaGmes.MesData[nCh].ApdrData := Common.ReadLGDDLLSummaryLog_New(sFileName,sPID,PasScr[nCh].TestInfo.SerialNo,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
-  //        ShowSysLog('ReadLGDDLLSummaryLog_New : ' + PasScr[nCh].TestInfo.ApdrData);
           if Length(DongaGmes.MesData[nCh].ApdrData) > 0 then
             sGD_DEFECT := ',GD:GD_DEFECT:' + DongaGmes.MesData[nCh].GDDefectCode
           else sGD_DEFECT := 'GD:GD_DEFECT:' + DongaGmes.MesData[nCh].GDDefectCode;
-          DongaGmes.MesData[nCh].ApdrData := DongaGmes.MesData[nCh].ApdrData + sGD_DEFECT;
+          sTempSensorData := ',' + PasScr[nCh].ExecExtraFunction('MakeApdrData_EAS');
+          DongaGmes.MesData[nCh].ApdrData := DongaGmes.MesData[nCh].ApdrData + sTempSensorData + sGD_DEFECT;
         end
         else begin
           sIRTempData := ',' + frmTest4ChOC[0].GetIRTempData(nCh);
@@ -3234,12 +3224,9 @@ begin
           DongaGmes.MesData[nCh].ApdrData := Common.ReadLGDDLLSummaryLog_New(sFileName,sPID,PasScr[nCh].TestInfo.SerialNo,FormatDateTime('yymmdd',PasScr[nCh].TestInfo.StartTime),nCh);
           DongaGmes.MesData[nCh].ApdrData := DongaGmes.MesData[nCh].ApdrData + sIRTempData + sTempSensorData + sEASR2RData;
         end;
-//        Common.MLog(nCh,format('ApdrData : Done : PID : %s!!',[sPID]));
-//        DongaGmes.MesData[nCh].ApdrData := PasScr[nCh].TestInfo.ApdrData;
         DongaGmes.SendEasApdr(PasScr[nCh].TestInfo.SerialNo, nCh);
-//        Common.MLog(nCh,'SendEasApdr Done!!');
       except
-        on E: Exception do  Common.MLog(nCh,'EAS_APDR : ' + E.Message,True);
+        on E: Exception do  if LogCommon <> nil then LogCommon.MLog(nCh,'EAS_APDR : ' + E.Message,True);
       end;
 
     end;
@@ -4818,17 +4805,23 @@ begin
 end;
 
 procedure TfrmMain_OC.Button4Click(Sender: TObject);
+var
+sFileName,sSerialNo : string;
 begin
-  if DongaGmes <> nil then
-   DongaGmes.SendR2REodsTest(3);
+  sSerialNo := 'GH3HB00020X0000R682DM2XXX3BXVA42V3XXX30XXX951GAH2GA43G9J1G82XS5GXXD4490518AX4AJX1XXXXXXXXSXXXXTAHF0FHA200Q1Q0000STT+2+2G3FFBH8TG03PE0000UFN'
+  +'+2GJ6H6F04B6N0000CE8GJ6H9H034TV000015ATHAH8W2NM9N0000PWS2F1121222249UANJH9H002PB0000PV1A8AXJ436324082620910201395JWXX3A0143A4243';
+  sFileName := Common.Path.LGDDLL + format('Oclog\SummaryLog\%s_Summary_Log_', ['H9AMAL535D']) + '241101'+ '.csv';
+  Common.ReadLGDDLLSummaryLog_New(sFileName,'A5P349000518AD4',sSerialNo,'241101',2);
+
 end;
+
 
 procedure TfrmMain_OC.SaveCsvSummaryLog(nCh: Integer);
 var
   sFilePath, sFileName: String;
   sLine: String;
-  txtF: TextFile;
   i: Integer;
+  StreamWriter: TStreamWriter;
 begin
   sFilePath := Common.Path.SumCsv + FormatDateTime('yyyymm', Now) + PathDelim;
   sFileName := sFilePath + PasScr[nCh].m_sFileCsv;
@@ -4837,16 +4830,17 @@ begin
   if Common.CheckDir(sFilePath) then
     Exit;
 
-//  sFileName := Common.IsFileOpenInExcel(sFileName);   // 해당 파일 엑셀 실행 여부 확인
+  // sFileName := Common.IsFileOpenInExcel(sFileName);   // 해당 파일 엑셀 실행 여부 확인
   try
-    FileSetReadOnly(sFileName,False);
-    AssignFile(txtF, sFileName);
+    FileSetReadOnly(sFileName, False);
 
     try
-      // 파일이 존재하지 않으면 헤더 생성
-      if not FileExists(sFileName) then
-      begin
-        Rewrite(txtF);
+      // TStreamWriter 인스턴스 생성
+
+      if FileExists(sFileName) then
+        StreamWriter := TStreamWriter.Create(sFileName, True, TEncoding.UTF8) // Append 모드로 파일을 엽니다.
+      else begin
+        StreamWriter := TStreamWriter.Create(sFileName, False, TEncoding.UTF8); // 새 파일을 생성합니다.
         sLine := PasScr[nCh].TestInfo.InsCsv.Data[0, 0];
 
         for i := 1 to Pred(PasScr[nCh].TestInfo.InsCsv.FColCnt) do
@@ -4854,27 +4848,83 @@ begin
           sLine := sLine + ',' + PasScr[nCh].TestInfo.InsCsv.Data[0, i];
         end;
 
-        WriteLn(txtF, sLine);
+        StreamWriter.WriteLine(sLine);
       end;
 
-      // 데이터 추가
-      Append(txtF);
-      sLine := PasScr[nCh].TestInfo.InsCsv.Data[1, 0];
+      try
 
-      for i := 1 to Pred(PasScr[nCh].TestInfo.InsCsv.FColCnt) do
-      begin
-        sLine := sLine + ',' + PasScr[nCh].TestInfo.InsCsv.Data[1, i];
+        // 데이터 추가
+        sLine := PasScr[nCh].TestInfo.InsCsv.Data[1, 0];
+
+        for i := 1 to Pred(PasScr[nCh].TestInfo.InsCsv.FColCnt) do
+        begin
+          sLine := sLine + ',' + PasScr[nCh].TestInfo.InsCsv.Data[1, i];
+        end;
+
+        StreamWriter.WriteLine(sLine);
+      finally
+        StreamWriter.Free; // TStreamWriter 인스턴스를 안전하게 해제
       end;
-
-      WriteLn(txtF, sLine);
     except
       // 파일 작업 중 예외 발생 시 예외 처리
     end;
   finally
-    CloseFile(txtF); // 파일 핸들을 안전하게 닫음
-    FileSetReadOnly(sFileName,true);
+    FileSetReadOnly(sFileName, True);
   end;
 end;
+
+//procedure TfrmMain_OC.SaveCsvSummaryLog(nCh: Integer);
+//var
+//  sFilePath, sFileName: String;
+//  sLine: String;
+//  txtF: TextFile;
+//  i: Integer;
+//begin
+//  sFilePath := Common.Path.SumCsv + FormatDateTime('yyyymm', Now) + PathDelim;
+//  sFileName := sFilePath + PasScr[nCh].m_sFileCsv;
+//
+//  // 디렉토리가 없으면 생성하고, 생성 중 예외가 발생하면 예외 처리
+//  if Common.CheckDir(sFilePath) then
+//    Exit;
+//
+////  sFileName := Common.IsFileOpenInExcel(sFileName);   // 해당 파일 엑셀 실행 여부 확인
+//  try
+//    FileSetReadOnly(sFileName,False);
+//    AssignFile(txtF, sFileName);
+//
+//    try
+//      // 파일이 존재하지 않으면 헤더 생성
+//      if not FileExists(sFileName) then
+//      begin
+//        Rewrite(txtF);
+//        sLine := PasScr[nCh].TestInfo.InsCsv.Data[0, 0];
+//
+//        for i := 1 to Pred(PasScr[nCh].TestInfo.InsCsv.FColCnt) do
+//        begin
+//          sLine := sLine + ',' + PasScr[nCh].TestInfo.InsCsv.Data[0, i];
+//        end;
+//
+//        WriteLn(txtF, sLine);
+//      end;
+//
+//      // 데이터 추가
+//      Append(txtF);
+//      sLine := PasScr[nCh].TestInfo.InsCsv.Data[1, 0];
+//
+//      for i := 1 to Pred(PasScr[nCh].TestInfo.InsCsv.FColCnt) do
+//      begin
+//        sLine := sLine + ',' + PasScr[nCh].TestInfo.InsCsv.Data[1, i];
+//      end;
+//
+//      WriteLn(txtF, sLine);
+//    except
+//      // 파일 작업 중 예외 발생 시 예외 처리
+//    end;
+//  finally
+//    CloseFile(txtF); // 파일 핸들을 안전하게 닫음
+//    FileSetReadOnly(sFileName,true);
+//  end;
+//end;
 
 
 procedure TfrmMain_OC.SendCHMsgAddLog(nMsgMode, nParam, nParam2: Integer; sMsg: String; pData: Pointer);
@@ -5246,7 +5296,7 @@ begin
   try
     if mmoSysLog = nil then exit;
     sDebug := FormatDateTime('[HH:MM:SS.zzz] ',now) + sMsg;
-    Common.MLog(DefCommon.MAX_SYSTEM_LOG, sMsg);
+    if LogCommon <> nil then LogCommon.MLog(DefCommon.MAX_SYSTEM_LOG, sMsg);
     FLogBuffer.Add(sDebug);
 //    Common.LockControl(mmoSysLog);
 //    mmoSysLog.DisableAlign;
@@ -5842,7 +5892,7 @@ begin
   self.Enabled:= True;
 
   if g_CommPLC <> nil then begin
-    g_CommPLC.LoadGlassData(Common.Path.Ini + 'GlassData.dat');
+//    g_CommPLC.LoadGlassData(Common.Path.Ini + 'GlassData.dat');
     for I := 0 to DefCommon.MAX_CH do
       g_CommPLC.LoadGlassData_CH(i,Common.Path.Ini + format('GlassData_CH%d.dat',[i + 1])); //기존에 저장된 데이터를 로드 - Initialize나 종료 시 소실 방지
   end;
@@ -5854,6 +5904,11 @@ begin
   for i := DefCommon.CH1 to DefCommon.MAX_JIG_CH do begin
     PasScr[i].InitialScript;
   end;
+
+  Common.CenterGroupBox(GrpSystemMsg, Self); // GrpSystemMsg 현재 폼(Self) 기준으로 정가운데 배치
+  if Common.TestModelInfoFLOW.IDLEMode then
+    GrpSystemMsg.Visible := True
+  else GrpSystemMsg.Visible := False;
 
 
   if Common.SystemInfo.Use_ECS then begin

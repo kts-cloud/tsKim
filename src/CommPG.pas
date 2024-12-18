@@ -186,6 +186,7 @@ type
     RawBgrData      : array of byte;
     RawData         : array of Byte;
     Image_Pat1      : TImage;
+    m_hEvent        : HWND;
 		{$ENDIF}
     m_sAF9APIType  : string;  //Debug //TBD:ITOLED?
     //================================================================= PG_DP860
@@ -597,14 +598,12 @@ var
 begin
   if udpsvr <> nil then	begin
     udpSvr.Active := False;
-    udpSvr.Free;
-    udpSvr := nil;
+    FreeAndNil(udpSvr);
   end;
 
   for nPg := DefCommon.PG_1 to DefCommon.PG_MAX do begin
     if PG[nPg] <> nil then begin
-      PG[nPg].Free;
-      PG[nPg] := nil;
+      FreeAndNil(PG[nPg]);
     end;
   end;
 
@@ -1013,9 +1012,6 @@ end;
 
 destructor TCommPG.Destroy;
 begin
-  if not (StatusPg in [pgDisconn]) then begin
-    SendPowerOn(CMD_POWER_OFF,False{bPowerReset},0,0);
-  end;
 
   sPreviousCommand := '';
 {$IFDEF PG_AF9}
@@ -1038,21 +1034,18 @@ begin
   end;
 {$ENDIF}
   if FFTPClient <> nil then begin
-    FFTPClient.Free;
-    FFTPClient := nil;
+    FreeAndNil(FFTPClient);
   end;
 
 	//
   if tmConnCheck <> nil then begin
     tmConnCheck.Enabled := False;
-    tmConnCheck.Free;
-    tmConnCheck := nil;
+    FreeAndNil(tmConnCheck);
   end;
 	//
   if tmPwrMeasure <> nil then begin
     tmPwrMeasure.Enabled := False;
-    tmPwrMeasure.Free;
-    tmPwrMeasure := nil;
+    FreeAndNil(tmPwrMeasure);
   end;
 	//
   inherited;
@@ -6563,7 +6556,9 @@ begin
                 Break;
 
               sLocalFullName := Trim(Common.Path.FLASH + Format('CH%d_', [m_nPG + 1]) + sRemoteFile);
-              Result := DP860_FileGetPG2PC('/home/upload', sRemoteFile, sLocalFullName, False, False);
+              if FileExists(sLocalFullName) then System.SysUtils.DeleteFile(sLocalFullName);
+
+              Result := DP860_FileGetPG2PC('/home/upload', sRemoteFile, sLocalFullName, True, False);
 
               if Result <> WAIT_OBJECT_0 then begin
                 FFTPClient.Disconnect;
@@ -6572,9 +6567,15 @@ begin
                 FFTPClient.Connect;
                 sDebug :=  '<PG> FTP Connect';
                 ShowTestWindow(DefCommon.MSG_MODE_WORKING, DefCommon.LOG_TYPE_OK, sDebug);
-                Result := DP860_FileGetPG2PC('/home/upload', sRemoteFile, sLocalFullName, False, False);
+
+                sRemoteFile := Format('FlashR_A0x%x_L%d.bin', [nAddr, nSize]);
+                Result := DP860_SendNvmReadFile(nAddr, nSize, sRemoteFile, nWaitMS, nRetry);
+
                 if Result <> WAIT_OBJECT_0 then
-                    Break;
+                  Break;
+                Result := DP860_FileGetPG2PC('/home/upload', sRemoteFile, sLocalFullName, True, False);
+                if Result <> WAIT_OBJECT_0 then
+                  Break;
               end;
 
               mtData := TMemoryStream.Create;

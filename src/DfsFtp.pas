@@ -7,7 +7,7 @@ uses
   Winapi.Windows, Winapi.Messages, System.Classes, System.SysUtils,
   IdBaseComponent, IdComponent, IdTCPConnection, IdTCPClient,
   IdExplicitTLSClientServerBase, IdFTP, IdFTPCommon, IdFTPListParseWindowsNT,
-  IdFTPList, CommonClass, Math, StrUtils,
+  IdFTPList, CommonClass, Math, StrUtils,CommLog,
   Xml.xmldom, Xml.XMLIntf, Xml.XMLDoc, DefCommon, GMesCom;
 
 type
@@ -204,13 +204,15 @@ procedure TDfsFtp.Connect;
 begin
   try
     if ftp.Connected then ftp.Disconnect;
-    Common.MLog(m_nCh, '<DFS> FTP Connect to ' + ftp.Host);
+    if LogCommon <> nil then
+      LogCommon.mlog(m_nCh, '<DFS> FTP Connect to ' + ftp.Host);
     ftp.Connect;
     DfsFtpConnOK := True;
     SendMainGuiDisplay(DefCommon.MSG_MODE_DISPLAY_CONNECTION, m_nCh, 1{0:Disconnected,1:Connected}); //2019-04-09
   except
     on E: Exception do begin
-      Common.MLog(m_nCh, '<DFS> FTP Connect Error! E.Message=' + E.Message);
+      if LogCommon <> nil then
+        LogCommon.mlog(m_nCh, '<DFS> FTP Connect Error! E.Message=' + E.Message);
       if Assigned(OnErrMsg) then OnErrMsg(0, '<DFS> FTP Connect Error! E.Message=' + E.Message);
       ftp.DisConnect;
       DfsFtpConnOK := False;
@@ -295,16 +297,19 @@ end;
 procedure TDfsFtp.MakeAndChangeDir(sDir: String);
 begin
   try
-    Common.MLog(m_nCh, '<DFS> DFS FOLDER DIRECTORY MAKE[' + sDir + ']');
+    if LogCommon <> nil then
+      LogCommon.mlog(m_nCh, '<DFS> DFS FOLDER DIRECTORY MAKE[' + sDir + ']');
     DfsFtpCh[m_nCh].MakeDir(sDir);
     Common.Delay(50);
 
-    Common.MLog(m_nCh, '<DFS> DFS FOLDER DIRECTORY CHANGE[' + sDir + ']');
+    if LogCommon <> nil then
+      LogCommon.mlog(m_nCh, '<DFS> DFS FOLDER DIRECTORY CHANGE[' + sDir + ']');
     DfsFtpCh[m_nCh].ChangeDir(sDir);
     Common.Delay(50);
   except
     on E: Exception do begin
-      Common.MLog(m_nCh, '<FILE_SVR> FTP MakeAndChangeDir Control Error! E.Message=' + E.Message);
+      if LogCommon <> nil then
+        LogCommon.mlog(m_nCh, '<FILE_SVR> FTP MakeAndChangeDir Control Error! E.Message=' + E.Message);
       DfsFtpCh[m_nCh].ChangeDir(sDir);
       Common.Delay(50);
     end;
@@ -322,7 +327,8 @@ begin
     ftp.Put(sSource, sDest);
   except  //2019-02-08
     on E: Exception do begin
-      Common.MLog(0, '<FILE_SVR> FTP PUT Error! E.Message=' + E.Message);
+      if LogCommon <> nil then
+        LogCommon.mlog(0, '<FILE_SVR> FTP PUT Error! E.Message=' + E.Message);
     end;
   end;
 end;
@@ -403,7 +409,8 @@ begin
 
       for i := 0 to Pred(sList2.Count) do begin
         if (Pos('.ini',sList2[i]) > 0) then begin
-          Common.MLog(DefCommon.MAX_SYSTEM_LOG, '<DFS> DOWNLOAD COMBI FILE NAME : ' + sList2[i]);
+          if LogCommon <> nil then
+            LogCommon.mlog(DefCommon.MAX_SYSTEM_LOG, '<DFS> DOWNLOAD COMBI FILE NAME : ' + sList2[i]);
           DfsFtpCommon.Get(sList2[i], Common.Path.CombiCode + sList2[i]);
         end;
       end;
@@ -411,8 +418,10 @@ begin
       //Common.LoadCombiFile;
     except
       on E: Exception do begin
-        Common.MLog(m_nCh, '<DFS> FTP Transmission Error! E.Message=' + E.Message);
-        Common.MLog(DefCommon.MAX_SYSTEM_LOG, '<DFS> COMBICODE DOWNLOAD FAIL.');
+        if LogCommon <> nil then
+            LogCommon.mlog(m_nCh, '<DFS> FTP Transmission Error! E.Message=' + E.Message);
+        if LogCommon <> nil then
+          LogCommon.mlog(DefCommon.MAX_SYSTEM_LOG, '<DFS> COMBICODE DOWNLOAD FAIL.');
 
         DfsFtpCommon.DisConnect;
         Common.Delay(50);
@@ -600,7 +609,8 @@ begin
   //sRootDir := '\'
   if sPid = '' then begin
     sErrMsg := '<DFS> HEX_INDEX File Download Fail (Panel ID is NOT exist) !';
-    Common.MLog(m_nCh,sErrMsg);  //TBD:DFS?  OnErrMsg(m_nCh,sErrMsg);
+    if LogCommon <> nil then
+      LogCommon.mlog(m_nCh,sErrMsg);  //TBD:DFS?  OnErrMsg(m_nCh,sErrMsg);
     Exit(False);
   end;
 
@@ -622,7 +632,8 @@ begin
   if not DfsFtpCh[m_nCh].IsConnected then begin
   //DfsFtpCh[m_nCh].DisConnect;
     sErrMsg := '<DFS> HEX_INDEX and HEX File Download Fail (DFS Server Not Connected)';
-    Common.MLog(m_nCh, sErrMsg);
+    if LogCommon <> nil then
+      LogCommon.mlog(m_nCh, sErrMsg);
     //TBD? OnErrMsg(m_nCh, sErrMsg);
     Exit(False);
   end;
@@ -631,7 +642,8 @@ begin
     //---------------------------------- Download HEX_INDEX File
     try
       //sRootDir := '\';
-      Common.MLog(m_nCh, '<DFS> FTP Directory Change [/DEFECT/HEX_INDEX]');
+      if LogCommon <> nil then
+        LogCommon.mlog(m_nCh, '<DFS> FTP Directory Change [/DEFECT/HEX_INDEX]');
       DfsFtpCh[m_nCh].ChangeDir('DEFECT');
       DfsFtpCh[m_nCh].ChangeDir('HEX_INDEX');
       sList := TStringList.Create;
@@ -639,26 +651,31 @@ begin
       for i := 0 to Pred(sList.Count) do begin
         DfsFtpCh[m_nCh].ChangeDir(sList[i]);  //Common.Delay(50);
       end;
-      Common.MLog(m_nCh, '<DFS> HEX_INDEX File Downloading (' + sHexIdxServerFullName + ')');
+      if LogCommon <> nil then
+        LogCommon.mlog(m_nCh, '<DFS> HEX_INDEX File Downloading (' + sHexIdxServerFullName + ')');
       DfsFtpCh[m_nCh].Get(sHexIdxFileName, sHexIdxLocalFullName); //Common.Delay(50);
     except
       on E: Exception do begin
         DfsFtpCh[m_nCh].Disconnect; //Common.Delay(50);
         sErrMsg := '<DFS> HEX_INDEX File Download Fail (FTP Error: ' + E.Message + ')';
-        Common.MLog(m_nCh, sErrMsg);
+        if LogCommon <> nil then
+          LogCommon.mlog(m_nCh, sErrMsg);
         //TBD? OnErrMsg(m_nCh, sErrMsg);
         Exit(False);
       end;
     end;
-    Common.MLog(m_nCh, '<DFS> HEX_INDEX File Download OK ');
+    if LogCommon <> nil then
+      LogCommon.mlog(m_nCh, '<DFS> HEX_INDEX File Download OK ');
 
     // Parse HEX_INDEX and Get HEX File Location ---------------------
     sHexServerFullName := GetDfsFullNameFromIdxFile(sHexIdxLocalFullName);
-    Common.MLog(m_nCh, '<DFS> HexFileName : ' + sHexServerFullName);
+    if LogCommon <> nil then
+      LogCommon.mlog(m_nCh, '<DFS> HexFileName : ' + sHexServerFullName);
     if sHexServerFullName = '' then begin
       DfsFtpCh[m_nCh].Disconnect; //Common.Delay(50);
       sErrMsg := '<DFS> HEX_INDEX File is Empty';
-      Common.MLog(m_nCh, sErrMsg);
+      if LogCommon <> nil then
+      LogCommon.mlog(m_nCh, sErrMsg);
       //TBD? OnErrMsg(m_nCh, sErrMsg);
       Exit(False);
     end;
@@ -687,18 +704,19 @@ begin
       for i := 0 to Pred(sList2.Count) do begin
         DfsFtpCh[m_nCh].ChangeDir(sList2[i]); //Common.Delay(50);
       end;
-      Common.MLog(m_nCh, '<DFS> HEX File Downloading (' + sHexServerFullName + ')');
+      if LogCommon <> nil then
+      LogCommon.mlog(m_nCh, '<DFS> HEX File Downloading (' + sHexServerFullName + ')');
       DfsFtpCh[m_nCh].Get(sHexFileName, m_DfsRetInfo.HexFileName); //Common.Delay(50);
       DfsFtpCh[m_nCh].DisConnect; //Common.Delay(50);
     except
       on E: Exception do begin
         DfsFtpCh[m_nCh].DisConnect; //Common.Delay(50);
         sErrMsg := '<DFS> HEX File Download Fail (FTP Error: ' + E.Message + ')';
-        Common.MLog(m_nCh, sErrMsg); //TBD? OnErrMsg(m_nCh, sErrMsg);
+        if LogCommon <> nil then LogCommon.mlog(m_nCh, sErrMsg); //TBD? OnErrMsg(m_nCh, sErrMsg);
         Exit(False);
       end;
     end;
-    Common.MLog(m_nCh, '<DFS> HEX File DOwnload OK');
+    if LogCommon <> nil then LogCommon.MLog(m_nCh, '<DFS> HEX File DOwnload OK');
     Result := True;
   finally
     //------------------------------------ Disconnect DFS FTP server if connected
@@ -725,7 +743,7 @@ begin
   // Check PanelId
   if sPid = '' then begin
     sErrMsg := '<DFS> HEX_INDEX File Upload Fail (Panel ID is NOT exist) !';
-    Common.MLog(m_nCh, sErrMsg);  //OnErrMsg(m_nCh, sErrMsg);
+    if LogCommon <> nil then LogCommon.MLog(m_nCh, sErrMsg);  //OnErrMsg(m_nCh, sErrMsg);
     Exit(1);
   end;
 
@@ -768,7 +786,7 @@ begin
   end;
   if not FileExists(sHexLocalFullName) then begin
     sErrMsg := '<DFS> HEX File Upload Fail (HEX file is NOT exist) !';
-    Common.MLog(m_nCh, sErrMsg);
+    if LogCommon <> nil then LogCommon.MLog(m_nCh, sErrMsg);
   //TBD? OnErrMsg(m_nCh, sErrMsg);
     Exit(2);
   end;
@@ -787,7 +805,7 @@ begin
   if not DfsFtpCh[m_nCh].IsConnected then begin
   //DfsFtpCh[m_nCh].DisConnect;
     sErrMsg := '<DFS> HEX_INDEX and HEX File Upload Fail (DFS Server Not Connected)';
-    Common.MLog(m_nCh, sErrMsg);
+    if LogCommon <> nil then LogCommon.MLog(m_nCh, sErrMsg);
     //TBD? OnErrMsg(m_nCh, sErrMsg);
     Exit(3);
   end;
@@ -875,7 +893,7 @@ begin
     MakeAndChangeDir(sTempDir);
     sTempDir2 := Copy(sDfsHashPath, 10, 8);
     MakeAndChangeDir(sTempDir2);
-    Common.MLog(m_nCh, '<DFS> HEX_INDEX File Uploading (' + sHexIdxServerFullName + ')');
+    if LogCommon <> nil then LogCommon.MLog(m_nCh, '<DFS> HEX_INDEX File Uploading (' + sHexIdxServerFullName + ')');
     DfsFtpCh[m_nCh].Put(sHexIdxLocalFullName, sHexIdxFileName); //Common.Delay(50);
     for i := 0 to 3 do begin
       DfsFtpCh[m_nCh].ChangeDirUp; //Common.Delay(50);
@@ -884,12 +902,12 @@ begin
     on E: Exception do begin
       DfsFtpCh[m_nCh].DisConnect; //Common.Delay(50);
       sErrMsg := '<DFS> HEX_INDEX File Upload Fail (FTP Error: ' + E.Message + ')';
-      Common.MLog(m_nCh, sErrMsg);
+      if LogCommon <> nil then LogCommon.MLog(m_nCh, sErrMsg);
       //TBD? OnErrMsg(m_nCh, sErrMsg);
       Exit(4);
     end;
   end;
-  Common.MLog(m_nCh, '<DFS> HEX_INDEX File Upload OK ');
+  if LogCommon <> nil then LogCommon.MLog(m_nCh, '<DFS> HEX_INDEX File Upload OK ');
 
   //------------------------------------ Upload HEX file
   try
@@ -904,19 +922,19 @@ begin
     MakeAndChangeDir(sTempDir3);
     sTempDir4  := Common.SystemInfo.EQPId;
     MakeAndChangeDir(sTempDir4);
-    Common.MLog(m_nCh, '<DFS> HEX File Uploading (' + sHexServerFullName + ')');
+    if LogCommon <> nil then LogCommon.MLog(m_nCh, '<DFS> HEX File Uploading (' + sHexServerFullName + ')');
     DfsFtpCh[m_nCh].Put(sHexLocalFullName, sHexFileName); //Common.Delay(50);
     DfsFtpCh[m_nCh].DisConnect;
   except
     on E: Exception do begin
       DfsFtpCh[m_nCh].DisConnect; //Common.Delay(50);
       sErrMsg := '<DFS> HEX File Upload Fail (FTP Error: ' + E.Message + ')';
-      Common.MLog(m_nCh, sErrMsg);
+      if LogCommon <> nil then LogCommon.MLog(m_nCh, sErrMsg);
       //TBD? OnErrMsg(m_nCh, sErrMsg);
       Exit(5);
     end;
   end;
-  Common.MLog(m_nCh, '<DFS> HEX File Upload OK');
+  if LogCommon <> nil then LogCommon.MLog(m_nCh, '<DFS> HEX File Upload OK');
   Result := 0;
 
   //------------------------------------ Disconnect DFS FTP Connection if connected

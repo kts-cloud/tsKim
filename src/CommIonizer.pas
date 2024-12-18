@@ -3,7 +3,7 @@ unit CommIonizer;
 interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, Vcl.ExtCtrls,  System.Classes, VaComm, Vcl.Dialogs,
-  DefRs232, DefCommon, CommonClass, IdGlobal;
+  DefRs232, DefCommon, CommonClass, IdGlobal,CommLog;
 
 const
   MSG_MODE_IONIZER_CONNECTION     = 1;
@@ -151,18 +151,15 @@ destructor TIonizer.Destroy;
 begin
   if tmIonAliveCheck <> nil then begin
     tmIonAliveCheck.Enabled := False;
-    tmIonAliveCheck.Free;
-    tmIonAliveCheck := nil;
+    FreeAndNil(tmIonAliveCheck);
   end;
   if tmIonTimeOut <> nil then begin
     tmIonTimeOut.Enabled := False;
-    tmIonTimeOut.Free;
-    tmIonTimeOut := nil;
+    FreeAndNil(tmIonTimeOut);
   end;
   if ComIonizer is TVaComm then begin
     ComIonizer.Close;
-    ComIonizer.Free;
-    ComIonizer := nil;
+    FreeAndNil(ComIonizer);
   end;
   inherited;
 end;
@@ -337,7 +334,7 @@ begin
         else if FModelType = 2 then sTemp := 'SIB5S';
 
 
-        Common.MLog(DefCommon.MAX_SYSTEM_LOG,'Ionizer Read Data: '+sPacket);
+        if LogCommon <> nil then LogCommon.MLog(DefCommon.MAX_SYSTEM_LOG,'Ionizer Read Data: '+sPacket);
         SendMainGuiDisplay(CommIonizer.MSG_MODE_IONIZER_ERR_MSG,3,sTemp + ' Model Config Check!');
       end;
       m_bConnected := False;
@@ -357,7 +354,7 @@ begin
     //유효하지 않은 문자열일 경우 오류(madException) 방지: RichEdit line insertion error.
     on E: Exception do  begin
 
-      Common.MLog(DefCommon.MAX_SYSTEM_LOG, 'MLog Exception:' + E.Message);
+      if LogCommon <> nil then LogCommon.MLog(DefCommon.MAX_SYSTEM_LOG, 'MLog Exception:' + E.Message);
     end;
   end;
 end;

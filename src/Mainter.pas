@@ -4,7 +4,7 @@ interface
 {$I Common.inc}
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  System.UITypes, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, RzRadChk, Vcl.StdCtrls, RzLabel, Vcl.Mask,
+  System.UITypes, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, RzRadChk, Vcl.StdCtrls, RzLabel, Vcl.Mask, CommLog,
   RzEdit, RzCmboBx, RzButton, RzPanel, ALed, Vcl.ExtCtrls, RzTabs, {UdpServerClient,}CommPG, DefDio, RzCommon,
   HandBCR, IdGlobal, System.IniFiles, Ezi_Servo, CommDIO_DAE, NGMsg,LogicVh,DefScript,dllClass,UserUtils,
   CommonClass, RzShellDialogs, DefCommon, DefPG, RzLstBox, ScrMemo, ScrMps, pasScriptClass, CommIonizer,Math,
@@ -3407,7 +3407,7 @@ sAnsiStr : string;
 begin
   nStartAddr := Common.TestModelInfoFLOW.SerialNoFlashInfo.nAddr;
   nLength :=  Common.TestModelInfoFLOW.SerialNoFlashInfo.nLength;
-  Common.MLog(nPgNo,format('OCThreadFlash_READ_Proc nStartAddr : %d nLength : %d ',[nStartAddr,nLength]));
+  if LogCommon <> nil then LogCommon.MLog(nPgNo,format('OCThreadFlash_READ_Proc nStartAddr : %d nLength : %d ',[nStartAddr,nLength]));
 
   SetLength(SerialNoBuf,nLength);
   wdRet :=  Pg[nPgNo].SendFlashRead(nStartAddr,nLength, @SerialNoBuf[0]);
@@ -4612,10 +4612,10 @@ procedure TfrmMainter.RzPageControl1Click(Sender: TObject);   // 2018-06-08 jhhw
 begin
 
   if RzPageControl1.ActivePage = TabSheet1 then begin
-      Common.MLog(DefCommon.MAX_SYSTEM_LOG,'Mainter: PG Comm');
+      if LogCommon <> nil then LogCommon.MLog(DefCommon.MAX_SYSTEM_LOG,'Mainter: PG Comm');
   end
   else if RzPageControl1.ActivePage = tabIoMap then begin
-      Common.MLog(DefCommon.MAX_SYSTEM_LOG,'Mainter: IO MAP');
+      if LogCommon <> nil then LogCommon.MLog(DefCommon.MAX_SYSTEM_LOG,'Mainter: IO MAP');
   end
 {$IFDEF CA310_USE}
   else if RzPageControl1.ActivePage = tbCa31AutoCal then begin
@@ -4629,7 +4629,7 @@ begin
   end
 {$ENDIF}
   else if RzPageControl1.ActivePage = tbSystemInfo then begin
-      Common.MLog(DefCommon.MAX_SYSTEM_LOG,'Mainter: System Information');
+      if LogCommon <> nil then LogCommon.MLog(DefCommon.MAX_SYSTEM_LOG,'Mainter: System Information');
   end
 {$IFDEF ISPD_POCB}
   else if RzPageControl1.ActivePage = tabLoaderPlcComm then begin

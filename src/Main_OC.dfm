@@ -1693,6 +1693,48 @@ object frmMain_OC: TfrmMain_OC
     Visible = False
     OnClick = Button4Click
   end
+  object GrpSystemMsg: TGroupBox
+    Left = 467
+    Top = 345
+    Width = 758
+    Height = 358
+    Color = clBtnFace
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -11
+    Font.Name = 'Tahoma'
+    Font.Style = []
+    ParentBackground = False
+    ParentColor = False
+    ParentFont = False
+    TabOrder = 10
+    Visible = False
+    StyleElements = []
+    object lblSystemNgMsg: TLabel
+      Left = 2
+      Top = 15
+      Width = 754
+      Height = 341
+      Margins.Left = 100
+      Align = alClient
+      Alignment = taCenter
+      AutoSize = False
+      Caption = 'IDLE MODE!!!'
+      Color = clLime
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clBlack
+      Font.Height = -64
+      Font.Name = 'Tahoma'
+      Font.Style = [fsBold]
+      ParentColor = False
+      ParentFont = False
+      Transparent = False
+      Layout = tlCenter
+      WordWrap = True
+      StyleElements = []
+      ExplicitLeft = 0
+    end
+  end
   object ilIMGMain: TImageList
     ColorDepth = cd32Bit
     Height = 32

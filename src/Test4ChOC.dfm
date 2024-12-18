@@ -17,7 +17,6 @@ object frmTest4ChOC: TfrmTest4ChOC
   KeyPreview = True
   OldCreateOrder = False
   Visible = True
-  OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   PixelsPerInch = 96

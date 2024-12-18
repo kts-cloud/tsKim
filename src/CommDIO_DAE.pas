@@ -409,14 +409,11 @@ begin
     StopThread;
     m_bConnected:= False;
 
-
-
     if m_UDPServer <> nil then begin
       m_UDPServer.OnUDPException := nil;
       m_UDPServer.OnUDPRead:= nil;
       m_UDPServer.Active:= False;
-      m_UDPServer.Free;
-      m_UDPServer:= nil;
+      FreeAndNil(m_UDPServer);
     end;
 
     if m_UDPClient <> nil then begin
@@ -425,15 +422,17 @@ begin
     end;
 
     AddLog('Destroy', True);
+    DIDataPre := nil;
+    DIData := nil;
+    DOData := nil;
+    DODataFlush := nil;
 
-    DIDataPre:= nil;
-    DIData:= nil;
     SetEvent(m_hEventCommand);
     CloseHandle(m_hEventCommand);
 
-    m_csWrite.Free;
-    m_csLog.Free;
-    m_slLog.Free;
+    FreeAndNil(m_csWrite);
+    FreeAndNil(m_csLog);
+    FreeAndNil(m_slLog);
 
     inherited;
 

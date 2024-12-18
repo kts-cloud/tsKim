@@ -27,6 +27,7 @@ interface
 const
 
   CA_SDK2_DLL = 'CASDK2_DAE.dll';
+  CA410_DISPLAY_ITEM = 'COMM(%d)/SerialNo(%s)';
 
 type
   CA_SDK2_Handle = THandle;
@@ -304,7 +305,7 @@ var
   nErr, nRet, nPort : integer;
   i, k, nGetMemCh: Integer;
   wdRet : DWORD;
-  sErrMsg : string;
+  sErrMsg,sIdx : string;
   bIsNg   : boolean;
   thCa    : TThread;
 begin
@@ -363,8 +364,10 @@ begin
             end
             else begin
               sErrMsg := Format('MEM CH:%0.2d',[nGetMemCh]);
+              sIdx := Format(CA410_DISPLAY_ITEM{'USB ID (COMM%d), SerialNo (%s)'},[m_DeviceInfo[i].DeviceId,m_DeviceInfo[i].SerialNo]);
 //              ShowTestForm(defCommon.MSG_MODE_CAX10_MEM_CH_NO,nCh,False,sErrMsg);
-              ShowTestForm(defCommon.MSG_MODE_CAX10_MEM_CH_NO,nCh,False, '' , nGetMemCh);
+              ShowTestForm(defCommon.MSG_MODE_CAX10_MEM_CH_NO,nCh,False,sIdx, nGetMemCh);
+
               sErrMsg := Format('Get CA410 MEM CH:%0.2d - OK',[nGetMemCh]);
               ShowTestForm(DefCommon.MSG_MODE_WORKING,nCh,False,sErrMsg);
             end;

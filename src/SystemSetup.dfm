@@ -48,6 +48,10 @@ object frmSystemSetup: TfrmSystemSetup
       Font.Name = 'Tahoma'
       Font.Style = []
       ParentFont = False
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object grpSystem: TRzGroupBox
         Left = 3
         Top = 3
@@ -2851,6 +2855,10 @@ object frmSystemSetup: TfrmSystemSetup
     object tbEcsSheet: TRzTabSheet
       Color = clWindow
       Caption = 'ECS(MES) Configuration'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object grpPlcConfig: TRzGroupBox
         Left = 11
         Top = 19
@@ -4667,6 +4675,10 @@ object frmSystemSetup: TfrmSystemSetup
     object tbDfsConfigration: TRzTabSheet
       Color = clWindow
       Caption = 'Dfs Configration'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object RzgrpDfsFtpFileUpload: TRzGroupBox
         Left = 17
         Top = 192
@@ -6121,6 +6133,10 @@ object frmSystemSetup: TfrmSystemSetup
     object TabSheet2: TRzTabSheet
       Color = clWindow
       Caption = 'GB Configuration'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object grpCa310Set: TRzGroupBox
         Left = 20
         Top = 16

@@ -595,53 +595,84 @@ begin
 
   dtNow:= Now;
   m_csLog.Enter;
-
-  if HourOf(m_dtSaveLog) <> HourOf(dtNow) then SaveLog(m_dtSaveLog); //시간 변경된 경우 이전 File로 저장
-  if bSave and (sLog = '') then begin
-    //단순 저장 요청
-  end else begin
-    //저장 요청이 아닌 경우Log 추가
-    m_slLog.Add(FormatDateTime('HH:NN:SS.ZZZ => ', dtNow) + sLog);
+  try
+    if HourOf(m_dtSaveLog) <> HourOf(dtNow) then SaveLog(m_dtSaveLog); //시간 변경된 경우 이전 File로 저장
+    if bSave and (sLog = '') then begin
+      //단순 저장 요청
+    end else begin
+      //저장 요청이 아닌 경우Log 추가
+      m_slLog.Add(FormatDateTime('HH:NN:SS.ZZZ => ', dtNow) + sLog);
+    end;
+    //로그 라인수가 누적 라인수 초과이거나누적시간(초) 초과인 경우File로 저장
+    if (m_slLog.Count > LogAccumulateCount) or (SecondsBetween(dtNow, m_dtSaveLog) > LogAccumulateSecond) or bSave then begin
+      SaveLog(dtNow);
+    end;
+  finally
+    m_csLog.Leave;
   end;
 
-
-  //로그 라인수가 누적 라인수 초과이거나누적시간(초) 초과인 경우File로 저장
-  if (m_slLog.Count > LogAccumulateCount) or (SecondsBetween(dtNow, m_dtSaveLog) > LogAccumulateSecond) or bSave then begin
-    SaveLog(dtNow);
-  end;
-  m_csLog.Leave;
 end;
 
 procedure TCommPLCThread.SaveLog(dtSave: TDateTime);
 var
   sFileName: String;
   sDir: String;
-  logFile: TextFile;
+  logFile: TStreamWriter;
 begin
   if m_slLog.Count = 0 then Exit;
 
-  sDir:= m_sLogPath + FormatDateTime('YYYYMMDD', dtSave);
+  sDir := m_sLogPath + FormatDateTime('YYYYMMDD', dtSave);
   ForceDirectories(sDir);
-  sFileName:=  sDir + '\' + format('CommPLC_%s.txt',[FormatDateTime('YYYYMMDDHH', dtSave)]);
-  AssignFile(logFile, sFileName);
+  sFileName := sDir + '\' + format('CommPLC_%s.txt', [FormatDateTime('YYYYMMDDHH', dtSave)]);
+
   try
+    if FileExists(sFileName) then
+      logFile := TStreamWriter.Create(sFileName, True) // Append mode
+    else
+      logFile := TStreamWriter.Create(sFileName, False); // Create new file
+
     try
-      {$I-}
-      if FileExists(sFileName) then Append(logFile) else Rewrite(logFile);
-
-      WriteLn(logFile, Trim(m_slLog.Text));
-
-      //m_csLog.Acquire;
+      logFile.WriteLine(Trim(m_slLog.Text));
       m_slLog.Clear;
-      //m_csLog.Release;
-      m_dtSaveLog:= dtSave;
-      {$I+}
-    except
+      m_dtSaveLog := Now;
+    finally
+      logFile.Free;
     end;
-  finally
-    CloseFile(logFile);
+  except
+    // Handle exceptions if necessary
   end;
 end;
+
+//procedure TCommPLCThread.SaveLog(dtSave: TDateTime);
+//var
+//  sFileName: String;
+//  sDir: String;
+//  logFile: TextFile;
+//begin
+//  if m_slLog.Count = 0 then Exit;
+//
+//  sDir:= m_sLogPath + FormatDateTime('YYYYMMDD', dtSave);
+//  ForceDirectories(sDir);
+//  sFileName:=  sDir + '\' + format('CommPLC_%s.txt',[FormatDateTime('YYYYMMDDHH', dtSave)]);
+//  AssignFile(logFile, sFileName);
+//  try
+//    try
+//      {$I-}
+//      if FileExists(sFileName) then Append(logFile) else Rewrite(logFile);
+//
+//      WriteLn(logFile, Trim(m_slLog.Text));
+//
+//      //m_csLog.Acquire;
+//      m_slLog.Clear;
+//      //m_csLog.Release;
+//      m_dtSaveLog:= dtSave;
+//      {$I+}
+//    except
+//    end;
+//  finally
+//    CloseFile(logFile);
+//  end;
+//end;
 
 constructor TCommPLCThread.Create(hMsgHandle: THandle; nMsgType, nStationNumber: Integer; bUseSimulator: Boolean);
 var
@@ -748,17 +779,17 @@ begin
 
   if frmPlcSimulate <> nil then begin
     frmPlcSimulate.SetActive(0);
-    frmPlcSimulate.Free;
-    frmPlcSimulate:= nil;
+    FreeAndNil(frmPlcSimulate);
   end;
 
   if m_ActUtl <> nil then begin
-    m_ActUtl.Free;
-    m_ActUtl:= nil;
+    FreeAndNil(m_ActUtl);
   end;
 
-  m_AlarmQue.Free;
-  m_MESQue.Free;
+  if m_AlarmQue <> nil then
+    FreeAndNil(m_AlarmQue);
+  if m_MESQue <> nil then
+    FreeAndNil(m_MESQue);
 
   PollingDataPre:= nil;
   PollingData:= nil;
@@ -771,9 +802,10 @@ begin
 
   AddLog('[Destroy]', True);
 
-  m_csWrite.Free;
-  m_csLog.Free;
-  m_slLog.Free;
+  FreeAndNil(m_csWrite);
+  FreeAndNil(m_csLog);
+  FreeAndNil(m_slLog);
+
   CloseHandle(m_hECSEvent);
 
   inherited;
@@ -1133,7 +1165,7 @@ begin
     else begin
       //Heavy Alarm
       WriteDevice('W' + IntToHex(StartAddr_EQP_W+$10*$00+$F, 3), nAlarmCode);
-      PulseDeviceBit('B' + IntToHex(StartAddr_EQP+$10*$00+$F, 3), $E, 1000); //Heavy Alarm Report
+      PulseDeviceBit('B' + IntToHex(StartAddr_EQP+$10*$00+$F, 3), $F, 1000); //Heavy Alarm Report
 //      if Common.PLCInfo.InlineGIB then begin
 //        WriteDevice('W' + IntToHex(StartAddr_EQP_W+$10*$00+$D, 3), 0);
 //        WriteDevice('W' + IntToHex(StartAddr_EQP_W+$10*$00+$F, 3), 0);
@@ -5317,13 +5349,13 @@ var
   i: Integer;
 begin
   fs:= TFileStream.Create(sFileName, fmCreate);
-  AddLog(format('SaveGlassData_CH %d : Start',[nCh]),True);
+  AddLog(format('SaveGlassData_CH %d : Start',[nCh]));
   try
     ConvertGlassDataToBlock(GlassData[nCH], naGlassData[0]);
     fs.Write(naGlassData[0], Sizeof(naGlassData));
   finally
     FreeAndNil(fs);
-    AddLog(format('SaveGlassData_CH : End',[nCH]),True);
+    AddLog(format('SaveGlassData_CH : End',[nCH]));
   end;
 end;
 

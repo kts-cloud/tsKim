@@ -6,7 +6,7 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.Mask, RzEdit, RzPanel, Vcl.ExtCtrls,
   RzTabs, RzRadChk, RzButton, RzCmboBx, Vcl.Grids, AdvObj, BaseGrid, AdvGrid, IniFiles, CommonClass, DefCommon,
-  {FileTrans,} PwdChange, RzLstBox, RzShellDialogs, System.UITypes, LogIn, DfsFtp,
+  {FileTrans,} PwdChange, RzLstBox, RzShellDialogs, System.UITypes, LogIn, DfsFtp,CommLog,
   Vcl.Buttons, Vcl.ComCtrls, Vcl.ToolWin, System.ImageList, Vcl.ImgList, AdvUtil, RTTI,
   RzRadGrp,ShellApi
 {$IFDEF  CA310_USE}
@@ -777,11 +777,30 @@ end;
 
 procedure TfrmSystemSetup.btnSaveClick(Sender: TObject);
 var
-  i,nLine : Integer;
+  i,j,nLine : Integer;
   OldSysInfo: TSystemInfo;
   OldPLCInfo: TPLCInfo;
   OldDFSInfo: TDfsConfInfo;
+  ComboBoxes: array[0..3] of TRzComboBox;
 begin
+  ComboBoxes[0] := cboCa310_1;
+  ComboBoxes[1] := cboCa310_2;
+  ComboBoxes[2] := cboCa310_3;
+  ComboBoxes[3] := cboCa310_4;
+
+  // 중복 체크를 수행합니다.
+  for i := 0 to High(ComboBoxes) do
+  begin
+    for j := i + 1 to High(ComboBoxes) do
+    begin
+      if (ComboBoxes[i].ItemIndex > 0) and (ComboBoxes[i].ItemIndex = ComboBoxes[j].ItemIndex) then
+      begin
+        Application.MessageBox('Ca410 set abnormalities!!', 'Confirm', MB_OK);
+        Exit;
+      end;
+    end;
+  end;
+
   OldSysInfo:= Common.SystemInfo;
 
   with Common.SystemInfo do begin
@@ -928,7 +947,7 @@ begin
 
   if CheckChangedSysInfo(@OldSysInfo, @Common.SystemInfo) = True then begin
     //System Info 변경됨
-    Common.MLog(DefCommon.MAX_SYSTEM_LOG, 'Changed SystemInfo');
+    if LogCommon <> nil then LogCommon.MLog(DefCommon.MAX_SYSTEM_LOG, 'Changed SystemInfo');
   end;
 
   with Common.OnLineInterlockInfo do begin
@@ -957,7 +976,7 @@ begin
 
   if CheckChangedDFSInfo(@OldDFSInfo, @Common.DfsConfInfo) = True then begin
     //변경됨
-    Common.MLog(DefCommon.MAX_SYSTEM_LOG, 'Changed DFSInfo');
+    if LogCommon <> nil then LogCommon.MLog(DefCommon.MAX_SYSTEM_LOG, 'Changed DFSInfo');
   end;
 
   OldPLCInfo:= Common.PLCInfo;
@@ -982,7 +1001,7 @@ begin
 
   if CheckChangedPLCInfo(@OldPLCInfo, @Common.PLCInfo) = True then begin
     //변경됨
-    Common.MLog(DefCommon.MAX_SYSTEM_LOG, 'Changed PLCInfo');
+    if LogCommon <> nil then LogCommon.MLog(DefCommon.MAX_SYSTEM_LOG, 'Changed PLCInfo');
   end;
 
   with Common.InterlockInfo do begin
@@ -1107,7 +1126,7 @@ begin
         sValue1:= fields[i].GetValue(pData1).GetArrayElement(k).ToString;
         sValue2:= fields[i].GetValue(pData2).GetArrayElement(k).ToString;
         if sValue1 <> sValue2 then begin
-          Common.MLog(DefCommon.MAX_SYSTEM_LOG, Format('DFSInfo Changed  %s(%d): %s -> %s', [fields[i].Name, k, sValue1, sValue2]));
+          if LogCommon <> nil then LogCommon.MLog(DefCommon.MAX_SYSTEM_LOG, Format('DFSInfo Changed  %s(%d): %s -> %s', [fields[i].Name, k, sValue1, sValue2]));
           Result:= True;
         end;
       end;
@@ -1116,7 +1135,7 @@ begin
       sValue1:= fields[i].GetValue(pData1).ToString;
       sValue2:= fields[i].GetValue(pData2).ToString;
       if sValue1 <> sValue2 then begin
-        Common.MLog(DefCommon.MAX_SYSTEM_LOG, Format('DFSInfo Changed  %s: %s -> %s', [fields[i].Name, sValue1, sValue2]));
+        if LogCommon <> nil then LogCommon.MLog(DefCommon.MAX_SYSTEM_LOG, Format('DFSInfo Changed  %s: %s -> %s', [fields[i].Name, sValue1, sValue2]));
         Result:= True;
       end;
     end;
@@ -1144,7 +1163,7 @@ begin
         sValue1:= fields[i].GetValue(pData1).GetArrayElement(k).ToString;
         sValue2:= fields[i].GetValue(pData2).GetArrayElement(k).ToString;
         if sValue1 <> sValue2 then begin
-          Common.MLog(DefCommon.MAX_SYSTEM_LOG, Format('PLCInfo Changed  %s(%d): %s -> %s', [fields[i].Name, k, sValue1, sValue2]));
+          if LogCommon <> nil then LogCommon.MLog(DefCommon.MAX_SYSTEM_LOG, Format('PLCInfo Changed  %s(%d): %s -> %s', [fields[i].Name, k, sValue1, sValue2]));
           Result:= True;
         end;
       end;
@@ -1153,7 +1172,7 @@ begin
       sValue1:= fields[i].GetValue(pData1).ToString;
       sValue2:= fields[i].GetValue(pData2).ToString;
       if sValue1 <> sValue2 then begin
-        Common.MLog(DefCommon.MAX_SYSTEM_LOG, Format('PLCInfo Changed  %s: %s -> %s', [fields[i].Name, sValue1, sValue2]));
+        if LogCommon <> nil then LogCommon.MLog(DefCommon.MAX_SYSTEM_LOG, Format('PLCInfo Changed  %s: %s -> %s', [fields[i].Name, sValue1, sValue2]));
         Result:= True;
       end;
     end;
@@ -1181,7 +1200,7 @@ begin
         sValue1:= fields[i].GetValue(pData1).GetArrayElement(k).ToString;
         sValue2:= fields[i].GetValue(pData2).GetArrayElement(k).ToString;
         if sValue1 <> sValue2 then begin
-          Common.MLog(DefCommon.MAX_SYSTEM_LOG, Format('SystemInfo Changed  %s(%d): %s -> %s', [fields[i].Name, k, sValue1, sValue2]));
+          if LogCommon <> nil then LogCommon.MLog(DefCommon.MAX_SYSTEM_LOG, Format('SystemInfo Changed  %s(%d): %s -> %s', [fields[i].Name, k, sValue1, sValue2]));
           Result:= True;
         end;
       end;
@@ -1190,7 +1209,7 @@ begin
       sValue1:= fields[i].GetValue(pData1).ToString;
       sValue2:= fields[i].GetValue(pData2).ToString;
       if sValue1 <> sValue2 then begin
-        Common.MLog(DefCommon.MAX_SYSTEM_LOG, Format('SystemInfo Changed  %s: %s -> %s', [fields[i].Name, sValue1, sValue2]));
+        if LogCommon <> nil then LogCommon.MLog(DefCommon.MAX_SYSTEM_LOG, Format('SystemInfo Changed  %s: %s -> %s', [fields[i].Name, sValue1, sValue2]));
         Result:= True;
       end;
     end;
@@ -1517,12 +1536,14 @@ begin
     RzGroupBox9.Visible := True;
     RzpnlCombiPath.Visible := True;
     edCombiDownPath.Visible := True;
+    grpCa310Set.Visible := True;
   end
   else begin
     RzGroupBox4.Visible := False;
     RzGroupBox9.Visible := False;
     RzpnlCombiPath.Visible := False;
     edCombiDownPath.Visible := False;
+    grpCa310Set.Visible := False;
   end;
 end;
 

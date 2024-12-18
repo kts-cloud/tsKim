@@ -41,6 +41,7 @@ type
     FIsTerminating : boolean;
     FTPMutex: TMutex;
     FMonitorTask: ITask;
+    TerminationEvent: TEvent; // 모니터 작업 종료를 위한 이벤트 추가
     procedure SetIsConnected(const Value: Boolean);
     procedure SetOnConnected(const Value: InFtpConnEvnt);
     procedure SetOnErrMsg(const Value: InFtpErrMsg);
@@ -51,10 +52,6 @@ type
   public
     FFTP : TIdFTP;
     m_WorkDir : string;
-    property IsConnectCheck : Boolean read FIsConnectCheck write SetIsConnectCheck;
-    property IsConnected : Boolean read FIsConnected write SetIsConnected;
-    property OnConnected : InFtpConnEvnt read FOnConnected write SetOnConnected;
-    property OnErrMsg : InFtpErrMsg read FOnErrMsg write SetOnErrMsg;
     constructor Create(sHost, sUserName, sPassword: string); overload;
     constructor Create(sHost, sUserName, sPassword: string; OnError: InFtpErrMsg); overload;
     destructor Destroy; override;
@@ -72,6 +69,11 @@ type
     function Size(sFileName: string; var nSize: integer): string;
     procedure StartMonitorTask;
     procedure StopMonitorTask;
+
+    property IsConnectCheck : Boolean read FIsConnectCheck write SetIsConnectCheck;
+    property IsConnected : Boolean read FIsConnected write SetIsConnected;
+    property OnConnected : InFtpConnEvnt read FOnConnected write SetOnConnected;
+    property OnErrMsg : InFtpErrMsg read FOnErrMsg write SetOnErrMsg;
   end;
 
 implementation
@@ -81,6 +83,8 @@ implementation
 constructor TFTPClient.Create(sHost, sUserName, sPassword: string);
 begin
   FTPMutex := TMutex.Create;
+
+  TerminationEvent := TEvent.Create; // 이벤트 생성
   FFTP := TIdFTP.Create(nil);
 
   with FFTP do begin
@@ -115,6 +119,21 @@ begin
   end;
 end;
 
+//procedure TFTPClient.StartMonitorTask;
+//begin
+//  if Assigned(FMonitorTask) and (FMonitorTask.Status = TTaskStatus.Running) then
+//    Exit;
+//
+//  FMonitorTask := TTask.Run(procedure
+//  begin
+//    while not FIsTerminating do
+//    begin
+//      MonitorTimerEvent;
+//      Sleep(2000); // 2초 간격
+//    end;
+//  end);
+//end;
+
 procedure TFTPClient.StartMonitorTask;
 begin
   if Assigned(FMonitorTask) and (FMonitorTask.Status = TTaskStatus.Running) then
@@ -124,36 +143,65 @@ begin
   begin
     while not FIsTerminating do
     begin
+      if TerminationEvent.WaitFor(5000) = wrSignaled then
+        Break; // 종료 이벤트가 설정되면 루프 종료
       MonitorTimerEvent;
-      Sleep(5000); // 5초 간격
     end;
   end);
 end;
 
-procedure TFTPClient.StopMonitorTask;
-var
+//procedure TFTPClient.StopMonitorTask;
+//var
+//  MaxWaitTime: Integer;
+//  Stopwatch: TStopwatch;
+//begin
+//  FIsTerminating := True;
+//  MaxWaitTime := 2000;
+//  Stopwatch := TStopwatch.StartNew;
+//
+//  if Assigned(FMonitorTask) then
+//  begin
+//    while (FMonitorTask.Status = TTaskStatus.Running) and (Stopwatch.ElapsedMilliseconds < MaxWaitTime) do
+//    begin
+//      Sleep(100);
+//    end;
+//
+//    if FMonitorTask.Status <> TTaskStatus.Running then
+//      FMonitorTask := nil
+//    else
+//      CodeSite.Send('#FTP# StopMonitorTask timeout exceeded. Task could not be stopped gracefully.');
+//  end;
+//
+//  Stopwatch.Stop;
+//end;
+
+procedure TFTPClient.StopMonitorTask;
+var
   MaxWaitTime: Integer;
   Stopwatch: TStopwatch;
 begin
   FIsTerminating := True;
-  MaxWaitTime := 5000;
+  TerminationEvent.SetEvent; // 작업이 중지되도록 이벤트 설정
+
+  MaxWaitTime := 5000; // 최대 대기 시간 5초
   Stopwatch := TStopwatch.StartNew;
 
   if Assigned(FMonitorTask) then
   begin
     while (FMonitorTask.Status = TTaskStatus.Running) and (Stopwatch.ElapsedMilliseconds < MaxWaitTime) do
     begin
-      Sleep(100);
+      Sleep(100); // 작업 종료 대기
     end;
 
     if FMonitorTask.Status <> TTaskStatus.Running then
       FMonitorTask := nil
     else
-      CodeSite.Send('#FTP# StopMonitorTask timeout exceeded. Task could not be stopped gracefully.');
+      CodeSite.Send('#FTP# StopMonitorTask: Monitor task could not be stopped gracefully.');
   end;
 
   Stopwatch.Stop;
 end;
+
 
 constructor TFTPClient.Create(sHost, sUserName, sPassword: string; OnError: InFtpErrMsg);
 begin
@@ -170,6 +218,7 @@ begin
     FreeAndNil(FFTP);
   end;
   FreeAndNil(FTPMutex);
+  FreeAndNil(TerminationEvent); // 이벤트 해제
   inherited;
 end;
 
@@ -245,7 +294,7 @@ begin
   try
     if FFTP.Connected then
       FFTP.Disconnect;
-    Sleep(10);
+//    Sleep(10);
     FFTP.Connect;
   except
     on E: Exception do
@@ -278,7 +327,7 @@ begin
         CodeSite.Send('#FTP# Disconnect timeout exceeded.');
         Break;
       end;
-      Sleep(100);
+//      Sleep(100);
     end;
     if not FFTP.Connected then
       CodeSite.Send('#FTP# Disconnected successfully')
@@ -327,30 +376,18 @@ end;
 function TFTPClient.DeleteFile(sFile: string): string;
 var
   sErrMsg: string;
-  FileList: TStringList;
 begin
   sErrMsg := '';
-  FileList := TStringList.Create;
-  try
-    try
-      // 파일 목록을 가져와서 파일이 있는지 확인
-      List(FileList, sFile);
-      if FileList.Count > 0 then
-      begin
-        // 파일이 존재하는 경우 삭제 시도
-        FFTP.Delete(sFile);
-      end;
-    except
-      on E: Exception do
-      begin
-        sErrMsg := Trim(E.Message);
-        HandleException(E, 'DeleteFile');
-      end;
-    end;
-  finally
-    FileList.Free;
-  end;
 
+  try
+    FFTP.Delete(sFile);
+  except
+    on E: Exception do
+    begin
+      sErrMsg := Trim(E.Message);
+      HandleException(E, 'DeleteFile');
+    end;
+  end;
   Result := sErrMsg;
 end;
 
@@ -374,24 +411,22 @@ end;
 function TFTPClient.Get(sSourceFile, sDestFile: string): string;
 var
   sErrMsg: string;
-  FileList: TStringList;
 begin
   sErrMsg := '';
-  FileList := TStringList.Create;
   FTPMutex.Acquire; // 뮤텍스 잠금
   try
     try
       // 파일 목록을 가져와서 파일이 있는지 확인
-      List(FileList, sSourceFile);
-      if FileList.Count > 0 then
-      begin
+//      List(FileList, sSourceFile);
+//      if FileList.Count > 0 then
+//      begin
         // 파일이 존재하는 경우 다운로드 시도
         FFTP.Get(sSourceFile, sDestFile, True);
-      end
-      else
-      begin
-        sErrMsg := 'File does not exist on server.';
-      end;
+//      end
+//      else
+//      begin
+//        sErrMsg := 'File does not exist on server.';
+//      end;
     except
       on E: Exception do
       begin
@@ -401,7 +436,7 @@ begin
     end;
   finally
     FTPMutex.Release; // 뮤텍스 해제
-    FileList.Free;
+//    FileList.Free;
   end;
 
   Result := sErrMsg;
