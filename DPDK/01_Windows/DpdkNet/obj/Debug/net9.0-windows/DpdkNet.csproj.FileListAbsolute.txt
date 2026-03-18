@@ -1,0 +1,11 @@
+D:\DPDK\01_Windows\DpdkNet\bin\Debug\net9.0-windows\DpdkNet.deps.json
+D:\DPDK\01_Windows\DpdkNet\bin\Debug\net9.0-windows\DpdkNet.dll
+D:\DPDK\01_Windows\DpdkNet\bin\Debug\net9.0-windows\DpdkNet.pdb
+D:\DPDK\01_Windows\DpdkNet\obj\Debug\net9.0-windows\DpdkNet.GeneratedMSBuildEditorConfig.editorconfig
+D:\DPDK\01_Windows\DpdkNet\obj\Debug\net9.0-windows\DpdkNet.AssemblyInfoInputs.cache
+D:\DPDK\01_Windows\DpdkNet\obj\Debug\net9.0-windows\DpdkNet.AssemblyInfo.cs
+D:\DPDK\01_Windows\DpdkNet\obj\Debug\net9.0-windows\DpdkNet.csproj.CoreCompileInputs.cache
+D:\DPDK\01_Windows\DpdkNet\obj\Debug\net9.0-windows\DpdkNet.dll
+D:\DPDK\01_Windows\DpdkNet\obj\Debug\net9.0-windows\refint\DpdkNet.dll
+D:\DPDK\01_Windows\DpdkNet\obj\Debug\net9.0-windows\DpdkNet.pdb
+D:\DPDK\01_Windows\DpdkNet\obj\Debug\net9.0-windows\ref\DpdkNet.dll

@@ -1,0 +1,392 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DPDK vs Socket UDP 성능 비교 리포트</title>
+<style>
+:root {
+    --bg: #0f172a;
+    --surface: #1e293b;
+    --surface2: #334155;
+    --border: #475569;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --accent: #38bdf8;
+    --accent2: #818cf8;
+    --green: #4ade80;
+    --orange: #fb923c;
+    --red: #f87171;
+    --yellow: #fbbf24;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: 'Segoe UI', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 0;
+}
+header {
+    background: linear-gradient(135deg, #1e293b, #0f172a, #1e1b4b);
+    border-bottom: 1px solid var(--border);
+    padding: 2rem;
+    text-align: center;
+}
+header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+header p { color: var(--text-muted); font-size: 0.95rem; margin-top: 0.3rem; }
+.container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+h2 {
+    font-size: 1.4rem; font-weight: 700; color: var(--text);
+    margin: 2rem 0 1rem; padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+}
+h2:first-child { margin-top: 0; }
+h3 { font-size: 1.1rem; color: var(--accent); margin: 1.5rem 0 0.5rem; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: 0.5rem 0 1.5rem; font-size: 0.9rem; }
+th {
+    background: var(--surface2); color: var(--accent); text-align: left;
+    padding: 0.6rem 1rem; font-weight: 600; border: 1px solid var(--border);
+}
+td { padding: 0.5rem 1rem; border: 1px solid var(--border); }
+tr:nth-child(even) td { background: rgba(30,41,59,0.5); }
+td.val-dpdk { color: var(--accent); font-weight: 600; font-family: 'Cascadia Code', Consolas, monospace; }
+td.val-socket { color: var(--accent2); font-weight: 600; font-family: 'Cascadia Code', Consolas, monospace; }
+td.winner { background: rgba(74,222,128,0.1); }
+td.diff-positive { color: var(--green); font-weight: 600; }
+td.diff-negative { color: var(--red); font-weight: 600; }
+td.diff-equal { color: var(--text-muted); }
+
+/* Chart containers */
+.chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin: 1rem 0; }
+.chart-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 1rem; position: relative;
+}
+.chart-box h4 { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0.5rem; text-align: center; }
+.chart-box canvas { height: 280px !important; }
+.chart-full { grid-column: 1 / -1; }
+
+/* Legend badges */
+.legend { display: flex; gap: 1.5rem; justify-content: center; margin: 1rem 0; }
+.legend-item { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: var(--text-muted); }
+.legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+.legend-dot.dpdk { background: var(--accent); }
+.legend-dot.socket { background: var(--accent2); }
+
+/* Info boxes */
+.info-box {
+    background: rgba(56,189,248,0.06); border-left: 4px solid var(--accent);
+    border-radius: 8px; padding: 1rem 1.25rem; margin: 1rem 0;
+}
+.info-box strong { color: var(--accent); }
+
+/* History table */
+.history-scroll { max-height: 400px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; }
+.history-scroll table { margin: 0; }
+.history-scroll th { position: sticky; top: 0; z-index: 1; }
+.row-dpdk td:nth-child(1) { border-left: 3px solid var(--accent); }
+.row-socket td:nth-child(1) { border-left: 3px solid var(--accent2); }
+
+/* Responsive */
+@media (max-width: 768px) { .chart-grid { grid-template-columns: 1fr; } .container { padding: 1rem; } }
+@media print {
+    body { background: #fff; color: #000; }
+    header { background: #f5f5f5; }
+    header h1 { -webkit-text-fill-color: #1e293b; }
+    .chart-box { border-color: #ccc; }
+    td.val-dpdk, td.val-socket { color: #000; }
+}
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header>
+    <h1>DPDK vs Socket UDP 성능 비교 리포트</h1>
+    <p>생성: 2026-03-05 16:15:24</p>
+</header>
+<div class="container">
+<h2>테스트 환경</h2>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
+<div>
+<h3>PC 사양</h3>
+<table>
+<tr><td style="width:35%"><strong>PC 이름</strong></td><td>DESKTOP-7HT6PBB</td></tr>
+<tr><td><strong>OS</strong></td><td>Microsoft Windows NT 10.0.19045.0</td></tr>
+<tr><td><strong>CPU</strong></td><td>Intel(R) Core(TM) i7-4790 CPU @ 3.60GHz</td></tr>
+<tr><td><strong>CPU 코어</strong></td><td>8 (논리)</td></tr>
+<tr><td><strong>RAM</strong></td><td>7.9 GB</td></tr>
+</table>
+</div>
+<div>
+<h3>테스트 설정</h3>
+<table>
+<tr><td style="width:35%"><strong>목적지</strong></td><td>169.254.199.11:8001</td></tr>
+<tr><td><strong>출발지</strong></td><td>169.254.199.10:8000</td></tr>
+<tr><td><strong>DST MAC</strong></td><td>E6:00:51:03:A9:B6</td></tr>
+<tr><td><strong>Payload</strong></td><td>128 bytes</td></tr>
+<tr><td><strong>명령어</strong></td><td><code>version.all</code></td></tr>
+<tr><td><strong>전송률</strong></td><td>무제한</td></tr>
+<tr><td><strong>Timeout</strong></td><td>1,000 ms</td></tr>
+<tr><td><strong>DPDK 전송 횟수</strong></td><td>10,000 회</td></tr>
+<tr><td><strong>Socket 전송 횟수</strong></td><td>10,000 회</td></tr>
+</table>
+</div>
+</div>
+<h2>성능 비교 요약</h2>
+<div class="legend">
+    <div class="legend-item"><div class="legend-dot dpdk"></div>DPDK UDP</div>
+    <div class="legend-item"><div class="legend-dot socket"></div>Socket UDP</div>
+</div>
+<table>
+<tr><th>항목</th><th>DPDK UDP</th><th>Socket UDP</th><th>비교</th></tr>
+<tr><td>Avg PPS</td><td class="val-dpdk winner">1.1K</td><td class="val-socket">471</td><td class="diff-positive">DPDK 우세 (136.7%)</td></tr>
+<tr><td>Peak PPS</td><td class="val-dpdk winner">1.4K</td><td class="val-socket">1.1K</td><td class="diff-positive">DPDK 우세 (33.1%)</td></tr>
+<tr><td>Avg RTT</td><td class="val-dpdk winner">0.772 ms</td><td class="val-socket">2.099 ms</td><td class="diff-positive">DPDK 우세 (63.2%)</td></tr>
+<tr><td>Min RTT</td><td class="val-dpdk winner">0.001 ms</td><td class="val-socket">0.971 ms</td><td class="diff-positive">DPDK 우세 (99.9%)</td></tr>
+<tr><td>Max RTT</td><td class="val-dpdk winner">2.464 ms</td><td class="val-socket">619.986 ms</td><td class="diff-positive">DPDK 우세 (99.6%)</td></tr>
+<tr><td>StdDev RTT</td><td class="val-dpdk winner">0.273 ms</td><td class="val-socket">8.736 ms</td><td class="diff-positive">DPDK 우세 (96.9%)</td></tr>
+<tr><td>성공/전체</td><td class="val-dpdk">10,000 / 10,000</td><td class="val-socket">10,000 / 10,000</td><td class="diff-equal">100.0% vs 100.0%</td></tr>
+<tr><td>소요시간</td><td class="val-dpdk winner">9.0 s</td><td class="val-socket">21.3 s</td><td class="diff-positive">DPDK 우세 (57.8%)</td></tr>
+</table>
+
+<h2>시계열 그래프</h2>
+<div class="chart-grid">
+    <div class="chart-box"><h4>TX PPS (Packets Per Second)</h4><canvas id="chartTxPps"></canvas></div>
+    <div class="chart-box"><h4>RX PPS (Packets Per Second)</h4><canvas id="chartRxPps"></canvas></div>
+    <div class="chart-box"><h4>TX Throughput (Mbps)</h4><canvas id="chartTxMbps"></canvas></div>
+    <div class="chart-box"><h4>RX Throughput (Mbps)</h4><canvas id="chartRxMbps"></canvas></div>
+</div>
+
+<h2>비교 차트</h2>
+<div class="chart-grid">
+    <div class="chart-box"><h4>Peak PPS 비교</h4><canvas id="chartPeakPps"></canvas></div>
+    <div class="chart-box" id="rttChartBox"><h4>RTT 비교 (ms)</h4><canvas id="chartRtt"></canvas></div>
+</div>
+<h2>세션 히스토리</h2>
+<div class="history-scroll"><table>
+<tr><th>시간</th><th>소스</th><th>TX PPS</th><th>RX PPS</th><th>TX Mbps</th><th>RX Mbps</th><th>총 TX</th><th>총 RX</th><th>Err</th><th>Drop</th></tr>
+<tr class="row-dpdk"><td>16:11:20</td><td>DPDK</td><td>919</td><td>919</td><td>0.4</td><td>0.4</td><td>609</td><td>609</td><td>0</td><td>0</td></tr>
+<tr class="row-dpdk"><td>16:11:21</td><td>DPDK</td><td>1.0K</td><td>1.0K</td><td>0.4</td><td>0.4</td><td>1,632</td><td>1,632</td><td>0</td><td>0</td></tr>
+<tr class="row-dpdk"><td>16:11:22</td><td>DPDK</td><td>1.4K</td><td>1.4K</td><td>0.6</td><td>0.6</td><td>3,000</td><td>3,000</td><td>0</td><td>0</td></tr>
+<tr class="row-dpdk"><td>16:11:23</td><td>DPDK</td><td>1.4K</td><td>1.4K</td><td>0.6</td><td>0.6</td><td>4,387</td><td>4,387</td><td>0</td><td>0</td></tr>
+<tr class="row-dpdk"><td>16:11:24</td><td>DPDK</td><td>1.4K</td><td>1.4K</td><td>0.6</td><td>0.6</td><td>5,748</td><td>5,748</td><td>0</td><td>0</td></tr>
+<tr class="row-dpdk"><td>16:11:25</td><td>DPDK</td><td>1.4K</td><td>1.4K</td><td>0.6</td><td>0.6</td><td>7,150</td><td>7,150</td><td>0</td><td>0</td></tr>
+<tr class="row-dpdk"><td>16:11:26</td><td>DPDK</td><td>1.4K</td><td>1.4K</td><td>0.6</td><td>0.6</td><td>8,599</td><td>8,599</td><td>0</td><td>0</td></tr>
+<tr class="row-dpdk"><td>16:11:27</td><td>DPDK</td><td>1.3K</td><td>1.3K</td><td>0.6</td><td>0.6</td><td>9,959</td><td>9,959</td><td>0</td><td>0</td></tr>
+<tr class="row-socket"><td>16:14:35</td><td>Socket</td><td>459</td><td>447</td><td>0.2</td><td>0.4</td><td>41</td><td>40</td><td>0</td><td>0</td></tr>
+<tr class="row-socket"><td>16:14:36</td><td>Socket</td><td>497</td><td>497</td><td>0.2</td><td>0.4</td><td>546</td><td>545</td><td>0</td><td>0</td></tr>
+<tr class="row-socket"><td>16:14:39</td><td>Socket</td><td>503</td><td>503</td><td>0.2</td><td>0.4</td><td>1,247</td><td>1,246</td><td>0</td><td>0</td></tr>
+<tr class="row-socket"><td>16:14:40</td><td>Socket</td><td>504</td><td>504</td><td>0.2</td><td>0.4</td><td>1,761</td><td>1,760</td><td>0</td><td>0</td></tr>
+<tr class="row-socket"><td>16:14:41</td><td>Socket</td><td>502</td><td>502</td><td>0.2</td><td>0.4</td><td>2,271</td><td>2,270</td><td>0</td><td>0</td></tr>
+<tr class="row-socket"><td>16:14:42</td><td>Socket</td><td>499</td><td>499</td><td>0.2</td><td>0.4</td><td>2,782</td><td>2,781</td><td>0</td><td>0</td></tr>
+<tr class="row-socket"><td>16:14:43</td><td>Socket</td><td>509</td><td>509</td><td>0.2</td><td>0.4</td><td>3,290</td><td>3,289</td><td>0</td><td>0</td></tr>
+<tr class="row-socket"><td>16:14:44</td><td>Socket</td><td>509</td><td>509</td><td>0.2</td><td>0.4</td><td>3,800</td><td>3,799</td><td>0</td><td>0</td></tr>
+<tr class="row-socket"><td>16:14:46</td><td>Socket</td><td>518</td><td>518</td><td>0.2</td><td>0.4</td><td>4,512</td><td>4,511</td><td>0</td><td>0</td></tr>
+<tr class="row-socket"><td>16:14:47</td><td>Socket</td><td>495</td><td>495</td><td>0.2</td><td>0.4</td><td>5,016</td><td>5,015</td><td>0</td><td>0</td></tr>
+<tr class="row-socket"><td>16:14:48</td><td>Socket</td><td>503</td><td>503</td><td>0.2</td><td>0.4</td><td>5,521</td><td>5,520</td><td>0</td><td>0</td></tr>
+<tr class="row-socket"><td>16:14:49</td><td>Socket</td><td>502</td><td>502</td><td>0.2</td><td>0.4</td><td>6,039</td><td>6,038</td><td>0</td><td>0</td></tr>
+<tr class="row-socket"><td>16:14:50</td><td>Socket</td><td>495</td><td>495</td><td>0.2</td><td>0.4</td><td>6,548</td><td>6,547</td><td>0</td><td>0</td></tr>
+<tr class="row-socket"><td>16:14:51</td><td>Socket</td><td>512</td><td>512</td><td>0.2</td><td>0.4</td><td>7,063</td><td>7,062</td><td>0</td><td>0</td></tr>
+<tr class="row-socket"><td>16:14:52</td><td>Socket</td><td>513</td><td>513</td><td>0.2</td><td>0.4</td><td>7,578</td><td>7,577</td><td>0</td><td>0</td></tr>
+<tr class="row-socket"><td>16:14:53</td><td>Socket</td><td>509</td><td>509</td><td>0.2</td><td>0.4</td><td>8,089</td><td>8,088</td><td>0</td><td>0</td></tr>
+<tr class="row-socket"><td>16:14:54</td><td>Socket</td><td>487</td><td>487</td><td>0.2</td><td>0.4</td><td>8,602</td><td>8,601</td><td>0</td><td>0</td></tr>
+<tr class="row-socket"><td>16:14:55</td><td>Socket</td><td>512</td><td>512</td><td>0.2</td><td>0.4</td><td>9,115</td><td>9,114</td><td>0</td><td>0</td></tr>
+<tr class="row-socket"><td>16:14:56</td><td>Socket</td><td>505</td><td>505</td><td>0.2</td><td>0.4</td><td>9,623</td><td>9,622</td><td>0</td><td>0</td></tr>
+</table></div>
+
+<h2>NIC 하드웨어 통계 (DPDK)</h2>
+<table>
+<tr><th>항목</th><th>값</th><th>항목</th><th>값</th></tr>
+<tr><td>RX Packets</td><td class="val-dpdk">10,154</td><td>TX Packets</td><td class="val-dpdk">10,070</td></tr>
+<tr><td>RX Bytes</td><td class="val-dpdk">1,032,312</td><td>TX Bytes</td><td class="val-dpdk">604,200</td></tr>
+<tr><td>Missed</td><td class="val-dpdk">0</td><td>RX Errors</td><td class="val-dpdk">0</td></tr>
+<tr><td>TX Errors</td><td class="val-dpdk">0</td><td>No Mbuf</td><td class="val-dpdk">0</td></tr>
+</table>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script>
+// Global Chart.js defaults
+Chart.defaults.color = '#94a3b8';
+Chart.defaults.borderColor = '#334155';
+Chart.defaults.font.family = "'Segoe UI', sans-serif";
+
+const DPDK_COLOR = '#38bdf8';
+const DPDK_BG = 'rgba(56,189,248,0.15)';
+const SOCKET_COLOR = '#818cf8';
+const SOCKET_BG = 'rgba(129,140,248,0.15)';
+
+const numberFmt = new Intl.NumberFormat('ko-KR');
+const tooltipCb = {
+    label: ctx => {
+        let v = ctx.parsed.y;
+        return ctx.dataset.label + ': ' + (v >= 1000 ? numberFmt.format(Math.round(v)) : v.toFixed(1));
+    }
+};
+
+// ── Time-Series Data ──
+const dpdkTimes = ['16:11:20','16:11:21','16:11:22','16:11:23','16:11:24','16:11:25','16:11:26','16:11:27'];
+const socketTimes = ['16:14:35','16:14:36','16:14:39','16:14:40','16:14:41','16:14:42','16:14:43','16:14:44','16:14:46','16:14:47','16:14:48','16:14:49','16:14:50','16:14:51','16:14:52','16:14:53','16:14:54','16:14:55','16:14:56'];
+const dpdkTxPps = [919.2163632123809,1021.4090337620732,1410.9123488339678,1355.633937911963,1363.1989481993862,1408.3608805178553,1441.7301976460315,1344.6748706292628];
+const dpdkRxPps = [919.2163632123809,1021.4090337620732,1410.9123488339678,1355.633937911963,1363.1989481993862,1408.3608805178553,1441.7301976460315,1344.6748706292628];
+const dpdkTxMbps = [0.3897477380020495,0.4330774303151191,0.5982268359056023,0.5747887896746723,0.5779963540365398,0.5971450133395707,0.6112936038019173,0.5701421451468074];
+const dpdkRxMbps = [0.3897477380020495,0.4330774303151191,0.5982268359056023,0.5747887896746723,0.5779963540365398,0.5971450133395707,0.6112936038019173,0.5701421451468074];
+const socketTxPps = [458.55091201302736,497.3456876885301,503.2733521429576,503.54439303318287,501.8129688814946,498.53650773258863,509.2629267906239,509.2492393089431,517.9300923857958,494.51704229356636,502.7269275184924,502.10132289270325,495.3500067585935,511.6935686514598,513.2379463502074,509.1458676113427,486.69778117041426,511.9247660195719,505.1328229920299];
+const socketRxPps = [447.36674342734375,497.3456876885301,503.2733521429576,503.54439303318287,501.8129688814946,498.53650773258863,509.2629267906239,509.2492393089431,517.9300923857958,494.51704229356636,502.7269275184924,502.10132289270325,495.3500067585935,511.6935686514598,513.2379463502074,509.1458676113427,486.69778117041426,511.9247660195719,505.1328229920299];
+const socketTxMbps = [0.1944255866935236,0.21087457157993678,0.21338790130861404,0.21350282264606954,0.21276869880575372,0.21137947927861755,0.21592748095922454,0.21592167746699187,0.21960235917157742,0.20967522593247215,0.2131562172678408,0.2128909609065062,0.21002840286564367,0.21695807310821896,0.21761288925248792,0.2158778478672093,0.20635985921625566,0.2170561007922985,0.2141763169486207];
+const socketRxMbps = [0.3650512626367125,0.40583408115384056,0.4106710553486534,0.4108922247150772,0.4094793826072996,0.4068057903097923,0.41555854826114913,0.4155473792760976,0.4226309553868093,0.4035259065115502,0.41022517285508975,0.4097146794804459,0.40420560551501233,0.41754195201959116,0.4188021642217692,0.41546302797085566,0.39714538943505806,0.4177306090719707,0.4121883835614964];
+
+// Merge unique time labels preserving order
+function mergeLabels(a, b) {
+    const set = new Set();
+    const result = [];
+    for (const t of a) { if (!set.has(t)) { set.add(t); result.push(t); } }
+    for (const t of b) { if (!set.has(t)) { set.add(t); result.push(t); } }
+    result.sort();
+    return result;
+}
+
+function mapToLabels(labels, times, values) {
+    const map = new Map();
+    times.forEach((t, i) => map.set(t, values[i]));
+    return labels.map(t => map.has(t) ? map.get(t) : null);
+}
+
+// ── Time-Series Charts ──
+function createTimeChart(canvasId, title, dpdkVals, socketVals) {
+    const labels = mergeLabels(dpdkTimes, socketTimes);
+    const dData = mapToLabels(labels, dpdkTimes, dpdkVals);
+    const sData = mapToLabels(labels, socketTimes, socketVals);
+
+    new Chart(document.getElementById(canvasId), {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'DPDK',
+                    data: dData,
+                    borderColor: DPDK_COLOR,
+                    backgroundColor: DPDK_BG,
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    tension: 0.3,
+                    fill: true,
+                    spanGaps: false
+                },
+                {
+                    label: 'Socket',
+                    data: sData,
+                    borderColor: SOCKET_COLOR,
+                    backgroundColor: SOCKET_BG,
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    tension: 0.3,
+                    fill: true,
+                    spanGaps: false
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                tooltip: { callbacks: tooltipCb },
+                legend: { labels: { usePointStyle: true, pointStyle: 'rect' } }
+            },
+            scales: {
+                x: {
+                    grid: { color: '#1e293b' },
+                    ticks: { maxTicksLimit: 15, maxRotation: 0 }
+                },
+                y: {
+                    grid: { color: '#1e293b' },
+                    beginAtZero: true,
+                    ticks: {
+                        callback: v => v >= 1000000 ? (v/1000000).toFixed(1)+'M' : v >= 1000 ? (v/1000).toFixed(0)+'K' : v.toFixed(0)
+                    }
+                }
+            }
+        }
+    });
+}
+
+createTimeChart('chartTxPps', 'TX PPS', dpdkTxPps, socketTxPps);
+createTimeChart('chartRxPps', 'RX PPS', dpdkRxPps, socketRxPps);
+createTimeChart('chartTxMbps', 'TX Mbps', dpdkTxMbps, socketTxMbps);
+createTimeChart('chartRxMbps', 'RX Mbps', dpdkRxMbps, socketRxMbps);
+
+// ── Peak PPS Bar Chart ──
+new Chart(document.getElementById('chartPeakPps'), {
+    type: 'bar',
+    data: {
+        labels: ['Peak PPS'],
+        datasets: [
+            { label: 'DPDK', data: [1443.8749160053403], backgroundColor: DPDK_COLOR, borderRadius: 4 },
+            { label: 'Socket', data: [1084.7163466755692], backgroundColor: SOCKET_COLOR, borderRadius: 4 }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: 'y',
+        plugins: {
+            tooltip: { callbacks: tooltipCb },
+            legend: { labels: { usePointStyle: true, pointStyle: 'rect' } }
+        },
+        scales: {
+            x: {
+                grid: { color: '#1e293b' },
+                ticks: {
+                    callback: v => v >= 1000000 ? (v/1000000).toFixed(1)+'M' : v >= 1000 ? (v/1000).toFixed(0)+'K' : v
+                }
+            },
+            y: { grid: { display: false } }
+        }
+    }
+});
+
+// ── RTT Bar Chart ──
+
+new Chart(document.getElementById('chartRtt'), {
+    type: 'bar',
+    data: {
+        labels: ['Avg RTT', 'Min RTT', 'Max RTT', 'StdDev RTT'],
+        datasets: [
+            { label: 'DPDK', data: [0.7721635099999941, 0.0009, 2.4642, 0.2734111559053441], backgroundColor: DPDK_COLOR, borderRadius: 4 },
+            { label: 'Socket', data: [2.0991877299999944, 0.9714, 619.9858, 8.73598493258703], backgroundColor: SOCKET_COLOR, borderRadius: 4 }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(3) + ' ms' } },
+            legend: { labels: { usePointStyle: true, pointStyle: 'rect' } }
+        },
+        scales: {
+            x: { grid: { display: false } },
+            y: { grid: { color: '#1e293b' }, beginAtZero: true, title: { display: true, text: 'ms', color: '#94a3b8' } }
+        }
+    }
+});
+</script>
+
+</div>
+<footer style="text-align:center;padding:2rem;color:#64748b;font-size:0.8rem;border-top:1px solid #334155">
+    DPDK vs Socket UDP Performance Report &middot; Generated by Dpdk Test Tool
+</footer>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "CurrentStep": 1,
+  "StepStatuses": {
+    "0": 2,
+    "1": 0,
+    "2": 0,
+    "3": 0,
+    "4": 0,
+    "5": 0,
+    "6": 0,
+    "7": 0
+  },
+  "ProjectRoot": "D:\\DPDK\\01_Windows",
+  "WdkPath": null,
+  "BcdBackupPath": null,
+  "BoundNicInstanceIds": []
+}

@@ -1,0 +1,11 @@
+D:\Dongaeltek\_Project\04_VHOLED\_Project\SW\ITOLED_OC\DPDK\01_Windows\DpdkNet\obj\Release\net8.0-windows\DpdkNet.GeneratedMSBuildEditorConfig.editorconfig
+D:\Dongaeltek\_Project\04_VHOLED\_Project\SW\ITOLED_OC\DPDK\01_Windows\DpdkNet\obj\Release\net8.0-windows\DpdkNet.AssemblyInfoInputs.cache
+D:\Dongaeltek\_Project\04_VHOLED\_Project\SW\ITOLED_OC\DPDK\01_Windows\DpdkNet\obj\Release\net8.0-windows\DpdkNet.AssemblyInfo.cs
+D:\Dongaeltek\_Project\04_VHOLED\_Project\SW\ITOLED_OC\DPDK\01_Windows\DpdkNet\obj\Release\net8.0-windows\DpdkNet.csproj.CoreCompileInputs.cache
+D:\Dongaeltek\_Project\04_VHOLED\_Project\SW\ITOLED_OC\DPDK\01_Windows\DpdkNet\bin\Release\net8.0-windows\HwNet.deps.json
+D:\Dongaeltek\_Project\04_VHOLED\_Project\SW\ITOLED_OC\DPDK\01_Windows\DpdkNet\bin\Release\net8.0-windows\HwNet.dll
+D:\Dongaeltek\_Project\04_VHOLED\_Project\SW\ITOLED_OC\DPDK\01_Windows\DpdkNet\bin\Release\net8.0-windows\HwNet.pdb
+D:\Dongaeltek\_Project\04_VHOLED\_Project\SW\ITOLED_OC\DPDK\01_Windows\DpdkNet\obj\Release\net8.0-windows\HwNet.dll
+D:\Dongaeltek\_Project\04_VHOLED\_Project\SW\ITOLED_OC\DPDK\01_Windows\DpdkNet\obj\Release\net8.0-windows\refint\HwNet.dll
+D:\Dongaeltek\_Project\04_VHOLED\_Project\SW\ITOLED_OC\DPDK\01_Windows\DpdkNet\obj\Release\net8.0-windows\HwNet.pdb
+D:\Dongaeltek\_Project\04_VHOLED\_Project\SW\ITOLED_OC\DPDK\01_Windows\DpdkNet\obj\Release\net8.0-windows\ref\HwNet.dll

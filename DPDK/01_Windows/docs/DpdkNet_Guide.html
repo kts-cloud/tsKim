@@ -1,0 +1,2100 @@
+<!DOCTYPE html>
+<html lang="ko"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DpdkNet.dll 사용 가이드</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --surface2: #334155;
+            --border: #475569;
+            --text: #e2e8f0;
+            --text-muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent2: #818cf8;
+            --green: #4ade80;
+            --orange: #fb923c;
+            --red: #f87171;
+            --yellow: #fbbf24;
+            --code-bg: #0c1222;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            scroll-behavior: smooth;
+        }
+
+        /* ── Header ── */
+        header {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e1b4b 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 3rem 2rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at 30% 50%, rgba(56,189,248,0.08) 0%, transparent 50%),
+                        radial-gradient(circle at 70% 50%, rgba(129,140,248,0.06) 0%, transparent 50%);
+            pointer-events: none;
+        }
+        header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+        header p {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+        .version-badge {
+            display: inline-block;
+            background: var(--surface2);
+            color: var(--accent);
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            margin-top: 0.75rem;
+            border: 1px solid var(--border);
+        }
+
+        /* ── Layout ── */
+        .container {
+            display: flex;
+            max-width: 1400px;
+            margin: 0 auto;
+            min-height: calc(100vh - 200px);
+        }
+
+        /* ── Sidebar ── */
+        nav.sidebar {
+            width: 280px;
+            min-width: 280px;
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            padding: 1.5rem 0;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+        }
+        nav.sidebar h3 {
+            color: var(--text-muted);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            padding: 0.75rem 1.5rem 0.4rem;
+            margin-top: 0.5rem;
+        }
+        nav.sidebar a {
+            display: block;
+            padding: 0.4rem 1.5rem;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.15s;
+            border-left: 3px solid transparent;
+        }
+        nav.sidebar a:hover {
+            color: var(--accent);
+            background: rgba(56,189,248,0.05);
+            border-left-color: var(--accent);
+        }
+        nav.sidebar a.sub {
+            padding-left: 2.5rem;
+            font-size: 0.83rem;
+        }
+
+        /* ── Main content ── */
+        main {
+            flex: 1;
+            padding: 2.5rem 3rem;
+            max-width: 900px;
+        }
+
+        h2 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--text);
+            margin: 2.5rem 0 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+        h2:first-child { margin-top: 0; }
+
+        h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--accent);
+            margin: 2rem 0 0.75rem;
+        }
+
+        h4 {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--accent2);
+            margin: 1.5rem 0 0.5rem;
+        }
+
+        p { margin-bottom: 0.75rem; }
+
+        /* ── Code blocks ── */
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.25rem 1.5rem;
+            overflow-x: auto;
+            margin: 0.75rem 0 1.25rem;
+            font-size: 0.88rem;
+            line-height: 1.6;
+            position: relative;
+        }
+        pre code {
+            font-family: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', Consolas, monospace;
+            color: var(--text);
+        }
+        code {
+            font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+            background: var(--surface2);
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.88em;
+            color: var(--accent);
+        }
+        pre code { background: none; padding: 0; }
+
+        /* Syntax highlighting */
+        .kw { color: #c084fc; }          /* keyword */
+        .tp { color: #38bdf8; }          /* type */
+        .str { color: #4ade80; }         /* string */
+        .cm { color: #64748b; }          /* comment */
+        .num { color: #fb923c; }         /* number */
+        .fn { color: #fbbf24; }          /* function */
+        .op { color: #94a3b8; }          /* operator */
+        .prop { color: #e2e8f0; }        /* property */
+        .attr { color: #f472b6; }        /* attribute */
+
+        /* ── Tables ── */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0.75rem 0 1.25rem;
+            font-size: 0.9rem;
+        }
+        th {
+            background: var(--surface2);
+            color: var(--accent);
+            text-align: left;
+            padding: 0.6rem 1rem;
+            font-weight: 600;
+            border: 1px solid var(--border);
+        }
+        td {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border);
+            vertical-align: top;
+        }
+        tr:nth-child(even) td { background: rgba(30,41,59,0.5); }
+
+        /* ── Cards / Info boxes ── */
+        .info-box {
+            border-radius: 8px;
+            padding: 1rem 1.25rem;
+            margin: 1rem 0;
+            border-left: 4px solid;
+        }
+        .info-box.tip    { background: rgba(74,222,128,0.08); border-color: var(--green); }
+        .info-box.warn   { background: rgba(251,191,36,0.08); border-color: var(--yellow); }
+        .info-box.danger { background: rgba(248,113,113,0.08); border-color: var(--red); }
+        .info-box.info   { background: rgba(56,189,248,0.08); border-color: var(--accent); }
+        .info-box strong {
+            display: block;
+            margin-bottom: 0.3rem;
+        }
+        .info-box.tip strong    { color: var(--green); }
+        .info-box.warn strong   { color: var(--yellow); }
+        .info-box.danger strong { color: var(--red); }
+        .info-box.info strong   { color: var(--accent); }
+
+        /* ── Architecture diagram ── */
+        .arch-diagram {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 2rem 2.5rem;
+            margin: 1rem 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0;
+        }
+        .arch-box {
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            padding: 1rem 1.5rem;
+            text-align: center;
+            width: 100%;
+            max-width: 560px;
+            position: relative;
+        }
+        .arch-box .box-title {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 0.2rem;
+        }
+        .arch-box .box-sub {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+        }
+        .arch-box .box-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.3rem 1rem;
+            margin-top: 0.6rem;
+            font-size: 0.82rem;
+            text-align: left;
+        }
+        .arch-box .box-inner {
+            border: 1.5px dashed var(--red);
+            border-radius: 6px;
+            padding: 0.4rem 0.8rem;
+            margin-top: 0.7rem;
+            font-size: 0.82rem;
+        }
+        .arch-arrow {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0.15rem 0;
+            color: var(--text-muted);
+            font-size: 0.78rem;
+            line-height: 1.2;
+        }
+        .arch-arrow .arrow-line {
+            width: 2px;
+            height: 18px;
+            background: var(--border);
+        }
+        .arch-arrow .arrow-head {
+            width: 0; height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 8px solid var(--border);
+        }
+        .arch-arrow .arrow-label {
+            margin-top: 0.15rem;
+            margin-bottom: 0.15rem;
+        }
+        .arch-box.layer-app { border-color: #38bdf8; }
+        .arch-box.layer-app .box-title { color: #fbbf24; }
+        .arch-box.layer-lib { border-color: #818cf8; }
+        .arch-box.layer-lib .box-title { color: #c084fc; }
+        .arch-box.layer-shim { border-color: #fb923c; }
+        .arch-box.layer-shim .box-title { color: #fb923c; }
+        .arch-box.layer-dpdk { border-color: #f87171; }
+        .arch-box.layer-dpdk .box-title { color: #f87171; }
+
+        /* ── Namespace box ── */
+        .ns-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+            margin: 1rem 0;
+        }
+        .ns-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+        }
+        .ns-card h5 {
+            color: var(--accent);
+            font-size: 0.95rem;
+            margin-bottom: 0.4rem;
+        }
+        .ns-card ul {
+            list-style: none;
+            padding: 0;
+        }
+        .ns-card li {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            padding: 0.15rem 0;
+        }
+        .ns-card li code {
+            font-size: 0.82rem;
+        }
+
+        /* ── Step indicator ── */
+        .step {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+        .step-num {
+            flex-shrink: 0;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            color: var(--bg);
+            font-weight: 700;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .step-content { flex: 1; }
+        .step-content h4 {
+            margin-top: 0.2rem;
+            margin-bottom: 0.3rem;
+        }
+
+        /* ── Lists ── */
+        ul, ol { padding-left: 1.5rem; margin-bottom: 0.75rem; }
+        li { margin-bottom: 0.3rem; }
+
+        /* ── Responsive ── */
+        @media (max-width: 900px) {
+            nav.sidebar { display: none; }
+            main { padding: 1.5rem; }
+            .ns-grid { grid-template-columns: 1fr; }
+        }
+
+        /* ── Section divider ── */
+        .section-divider {
+            height: 1px;
+            background: linear-gradient(to right, transparent, var(--border), transparent);
+            margin: 3rem 0;
+        }
+
+        /* ── Scroll bar ── */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--border); }
+
+        /* ── Print ── */
+        @media print {
+            body { background: #fff; color: #000; }
+            nav.sidebar { display: none; }
+            pre { border-color: #ccc; background: #f5f5f5; }
+            header { background: #f5f5f5; }
+            header h1 { -webkit-text-fill-color: #1e293b; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ════════════ HEADER ════════════ -->
+<header>
+    <h1>DpdkNet.dll 사용 가이드</h1>
+    <p>Windows DPDK를 C# 애플리케이션에서 쉽게 사용하기 위한 클래스 라이브러리</p>
+    <span class="version-badge">.NET 9.0 · DPDK 26.03</span>
+</header>
+
+<!-- ════════════ CONTAINER ════════════ -->
+<div class="container">
+
+<!-- ── Sidebar Navigation ── -->
+<nav class="sidebar">
+    <h3 class="">시작하기</h3>
+    <a href="#overview" class="">개요</a>
+    <a href="#architecture" class="">아키텍처</a>
+    <a href="#prerequisites" class="">사전 요구사항</a>
+    <a href="#project-setup" class="">프로젝트 설정</a>
+
+    <h3 class="">기본 사용법</h3>
+    <a href="#init" class="">DPDK 초기화</a>
+    <a href="#status-monitoring">상태 모니터링</a>
+    <a href="#port-info">포트 정보 조회</a>
+    <a href="#cleanup">종료 및 정리</a>
+
+    <h3>엔진 사용법</h3>
+    <a href="#tx-engine">UDP TX (송신)</a>
+    <a href="#rx-engine">UDP RX (수신)</a>
+    <a href="#echo-engine">UDP Echo (반향)</a>
+    <a href="#reqresp-engine">Request/Response</a>
+    <a href="#reqresp-mc" class="sub">Multi-Channel (MC)</a>
+    <a href="#ftp-engine">FTP (lwIP 기반)</a>
+    <a href="#nic-coordinator" class="sub">NIC Coordinator</a>
+
+    <h3>성능 모니터링</h3>
+    <a href="#perf-counter">PerformanceCounter</a>
+    <a href="#hw-stats">HW 통계 (NIC)</a>
+    <a href="#rtt-stats">RTT 통계</a>
+
+    <h3>API 레퍼런스</h3>
+    <a href="#namespaces">네임스페이스</a>
+    <a href="#api-dpdkmanager">DpdkManager</a>
+    <a href="#api-engines">엔진 클래스</a>
+    <a href="#api-configs">Config 클래스</a>
+    <a href="#api-models">Models</a>
+    <a href="#api-stats">Stats</a>
+    <a href="#api-netutils">NetUtils</a>
+    <a href="#api-structs">패킷 구조체</a>
+    <a href="#api-interop">DpdkInterop (P/Invoke)</a>
+    <a href="#api-native-structs">NativeStructs</a>
+    <a href="#api-ftp">FTP 클래스</a>
+
+    <h3>고급 사용법</h3>
+    <a href="#multi-engine">다중 엔진 운용</a>
+    <a href="#arp-reqresp">ARP + ReqResp</a>
+    <a href="#pipeline-mode">파이프라인 모드</a>
+    <a href="#error-handling">에러 핸들링</a>
+    <a href="#best-practices">베스트 프랙티스</a>
+    <a href="#ftp-reconnect">FTP 재연결 패턴</a>
+
+    <h3>부록</h3>
+    <a href="#full-example">전체 예제</a>
+    <a href="#troubleshooting">트러블슈팅</a>
+</nav>
+
+<!-- ── Main Content ── -->
+<main class="">
+
+<!-- ═══════════════════════════════════════ -->
+<!-- 1. OVERVIEW                            -->
+<!-- ═══════════════════════════════════════ -->
+<h2 id="overview">개요</h2>
+
+<p><strong>DpdkNet</strong>은 Windows 환경의 DPDK(Data Plane Development Kit)를 C# 애플리케이션에서 쉽게 사용할 수 있도록 만든 .NET 클래스 라이브러리입니다.</p>
+
+<p>DPDK의 고성능 패킷 처리 기능을 P/Invoke(C Shim DLL)를 통해 캡슐화하여, 별도의 네이티브 코딩 없이 C# 프로젝트 참조만으로 초고속 UDP 송수신, Echo 서버, Request/Response 패턴 등을 구현할 수 있습니다.</p>
+
+<div class="info-box info">
+    <strong>주요 특징</strong>
+    <ul>
+        <li>프로젝트 참조 하나로 DPDK 기능 사용 (<code>DpdkNet.dll</code>)</li>
+        <li>싱글톤 패턴의 <code>DpdkManager</code>로 간편한 초기화/정리</li>
+        <li>4가지 엔진: TX, RX, Echo, Request/Response</li>
+        <li>IDpdkContext 인터페이스를 통한 의존성 주입 (DI) 지원</li>
+        <li>스레드 안전한 ConcurrentQueue 기반 패킷 전달</li>
+        <li>실시간 성능 통계 (PPS, Mbps, RTT)</li>
+    </ul>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- ARCHITECTURE                           -->
+<!-- ═══════════════════════════════════════ -->
+<h2 id="architecture">아키텍처</h2>
+
+<div class="arch-diagram">
+    <!-- Layer 1: C# Application -->
+    <div class="arch-box layer-app">
+        <div class="box-title">Your C# Application</div>
+        <div class="box-sub">(Console, WinForms, WPF, ASP.NET, etc.)</div>
+    </div>
+
+    <div class="arch-arrow">
+        <div class="arrow-line"></div>
+        <div class="arrow-head"></div>
+        <div class="arrow-label">ProjectReference / DLL 참조</div>
+    </div>
+
+    <!-- Layer 2: DpdkNet.dll -->
+    <div class="arch-box layer-lib">
+        <div class="box-title">DpdkNet.dll <span style="color:#64748b;font-weight:400;font-size:0.85rem">(C# Class Library)</span></div>
+        <div class="box-grid">
+            <span style="color:#38bdf8">DpdkManager</span>
+            <span style="color:#4ade80">TX Engine</span>
+            <span style="color:#fbbf24">PerformanceCounter</span>
+            <span style="color:#38bdf8">IDpdkContext</span>
+            <span style="color:#4ade80">RX Engine</span>
+            <span style="color:#fbbf24">RttStats</span>
+            <span style="color:#38bdf8">DpdkInitOpts</span>
+            <span style="color:#4ade80">Echo Engine</span>
+            <span style="color:#fbbf24">StatsSnapshot</span>
+            <span style="color:#38bdf8">PortInfo</span>
+            <span style="color:#4ade80">ReqResp</span>
+            <span style="color:#fbbf24">NetUtils</span>
+        </div>
+        <div class="box-inner">
+            <span style="color:#f87171;font-weight:600">internal</span>
+            <span style="color:#94a3b8">&nbsp;—&nbsp;</span>
+            <span style="color:#e2e8f0">DpdkInterop (P/Invoke)</span>
+            <span style="color:#94a3b8"> · </span>
+            <span style="color:#e2e8f0">NativeStructs</span>
+        </div>
+    </div>
+
+    <div class="arch-arrow">
+        <div class="arrow-line"></div>
+        <div class="arrow-head"></div>
+        <div class="arrow-label">P/Invoke (DllImport)</div>
+    </div>
+
+    <!-- Layer 3: dpdk_shim.dll -->
+    <div class="arch-box layer-shim">
+        <div class="box-title">dpdk_shim.dll <span style="color:#64748b;font-weight:400;font-size:0.85rem">(C Native Shim)</span></div>
+        <div class="box-sub">SEH 보호, SeLockMemory, Hugepage 설정</div>
+    </div>
+
+    <div class="arch-arrow">
+        <div class="arrow-line"></div>
+        <div class="arrow-head"></div>
+        <div class="arrow-label">DPDK API calls</div>
+    </div>
+
+    <!-- Layer 4: DPDK DLLs + NIC -->
+    <div class="arch-box layer-dpdk">
+        <div class="box-title">DPDK DLLs <span style="color:#64748b;font-weight:400;font-size:0.85rem">(rte_eal, rte_ethdev, rte_mbuf, ...)</span></div>
+        <div class="box-sub">netuio + virt2phys 드라이버</div>
+        <div class="box-sub" style="color:#fbbf24;margin-top:0.2rem">Intel X550 NIC</div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- PREREQUISITES                          -->
+<!-- ═══════════════════════════════════════ -->
+<h2 id="prerequisites">사전 요구사항</h2>
+
+<table>
+    <tbody><tr><th>항목</th><th>요구사항</th></tr>
+    <tr><td>OS</td><td>Windows 10/11 (64-bit)</td></tr>
+    <tr><td>.NET</td><td>.NET 9.0 SDK 이상</td></tr>
+    <tr><td>DPDK</td><td>DPDK 26.03 (Windows 빌드, shared library)</td></tr>
+    <tr><td>드라이버</td><td>netuio, virt2phys 커널 드라이버 설치</td></tr>
+    <tr><td>NIC</td><td>DPDK 지원 NIC (예: Intel X550, i40e, mlx5)</td></tr>
+    <tr><td>Shim DLL</td><td><code>dpdk_shim.dll</code> (C 네이티브 심 라이브러리)</td></tr>
+    <tr><td>권한</td><td>관리자 권한 (Administrator) 필수</td></tr>
+</tbody></table>
+
+<div class="info-box warn">
+    <strong>필수 DLL 파일</strong>
+    <code>dpdk_shim.dll</code>과 모든 DPDK DLL 파일 (<code>rte_eal.dll</code>, <code>rte_ethdev.dll</code>, <code>rte_mbuf.dll</code> 등)이 실행 파일과 같은 디렉토리에 있어야 합니다.
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- PROJECT SETUP                          -->
+<!-- ═══════════════════════════════════════ -->
+<h2 id="project-setup">프로젝트 설정</h2>
+
+<h3>방법 1: 프로젝트 참조 (권장)</h3>
+<p>같은 솔루션 내에서 DpdkNet 소스 프로젝트를 직접 참조합니다.</p>
+
+<pre><code><span class="cm">&lt;!-- YourApp.csproj --&gt;</span>
+<span class="kw">&lt;Project</span> <span class="attr">Sdk</span>=<span class="str">"Microsoft.NET.Sdk"</span><span class="kw">&gt;</span>
+  <span class="kw">&lt;PropertyGroup&gt;</span>
+    <span class="kw">&lt;OutputType&gt;</span>Exe<span class="kw">&lt;/OutputType&gt;</span>
+    <span class="kw">&lt;TargetFramework&gt;</span>net9.0-windows<span class="kw">&lt;/TargetFramework&gt;</span>
+    <span class="kw">&lt;Nullable&gt;</span>enable<span class="kw">&lt;/Nullable&gt;</span>
+    <span class="kw">&lt;ImplicitUsings&gt;</span>enable<span class="kw">&lt;/ImplicitUsings&gt;</span>
+  <span class="kw">&lt;/PropertyGroup&gt;</span>
+
+  <span class="kw">&lt;ItemGroup&gt;</span>
+    <span class="kw">&lt;ProjectReference</span> <span class="attr">Include</span>=<span class="str">"..\DpdkNet\DpdkNet.csproj"</span> <span class="kw">/&gt;</span>
+  <span class="kw">&lt;/ItemGroup&gt;</span>
+<span class="kw">&lt;/Project&gt;</span></code></pre>
+
+<h3>방법 2: DLL 직접 참조</h3>
+<p>빌드된 <code>DpdkNet.dll</code> 파일을 직접 참조합니다.</p>
+
+<pre><code><span class="kw">&lt;ItemGroup&gt;</span>
+  <span class="kw">&lt;Reference</span> <span class="attr">Include</span>=<span class="str">"DpdkNet"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;HintPath&gt;</span>libs\DpdkNet.dll<span class="kw">&lt;/HintPath&gt;</span>
+  <span class="kw">&lt;/Reference&gt;</span>
+<span class="kw">&lt;/ItemGroup&gt;</span></code></pre>
+
+<h3>네임스페이스 구조</h3>
+<div class="ns-grid">
+    <div class="ns-card">
+        <h5>DpdkNet</h5>
+        <ul>
+            <li><code>DpdkManager</code> — 핵심 매니저</li>
+            <li><code>IDpdkContext</code> — DI 인터페이스</li>
+            <li><code>DpdkInitOptions</code> — 초기화 옵션</li>
+            <li><code>DpdkState</code> — 상태 열거형</li>
+            <li><code>PortInfo</code> — 포트 정보</li>
+        </ul>
+    </div>
+    <div class="ns-card">
+        <h5>DpdkNet.Engine</h5>
+        <ul>
+            <li><code>IDpdkEngine</code> — 엔진 인터페이스</li>
+            <li><code>DpdkUdpTxEngine</code> — UDP 송신</li>
+            <li><code>DpdkUdpRxEngine</code> — UDP 수신</li>
+            <li><code>DpdkEchoEngine</code> — UDP 반향</li>
+            <li><code>DpdkUdpReqRespEngine</code> — 요청/응답</li>
+            <li><code>DpdkFtpEngine</code> — FTP (lwIP)</li>
+        </ul>
+    </div>
+    <div class="ns-card">
+        <h5 class="">DpdkNet.Config</h5>
+        <ul class="">
+            <li class=""><code>TxConfig</code> — 송신 설정</li>
+            <li class=""><code>RxConfig</code> — 수신 필터 설정</li>
+            <li class=""><code>ReqRespConfig</code> — 요청/응답 설정</li>
+            <li class=""><code>FtpConfig</code> — FTP 설정</li>
+        </ul>
+    </div>
+    <div class="ns-card">
+        <h5>DpdkNet.Stats</h5>
+        <ul>
+            <li><code>PerformanceCounter</code> — 성능 카운터</li>
+            <li><code>StatsSnapshot</code> — 스냅샷</li>
+            <li><code>RttStats</code> — RTT 통계</li>
+        </ul>
+    </div>
+    <div class="ns-card">
+        <h5 class="">DpdkNet.Models</h5>
+        <ul class="">
+            <li class=""><code class="">RxPacketInfo</code> — 수신 패킷 정보</li>
+            <li class=""><code class="">ReqRespResult</code> — 요청/응답 결과</li>
+            <li class=""><code class="">FtpEvent</code> — FTP 이벤트</li>
+            <li class=""><code class="">FtpEventType</code> — 이벤트 유형 열거형</li>
+        </ul>
+    </div>
+    <div class="ns-card">
+        <h5>DpdkNet.Utilities</h5>
+        <ul>
+            <li><code class="">NetUtils</code> — 네트워크 유틸리티</li>
+        </ul>
+    </div>
+</div>
+
+<div class="section-divider"></div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- DPDK INITIALIZATION                    -->
+<!-- ═══════════════════════════════════════ -->
+<h2 id="init" class="">DPDK 초기화</h2>
+
+<p class="">모든 DPDK 작업의 시작점입니다. <code class="">DpdkManager.Instance</code> 싱글톤을 통해 EAL(Environment Abstraction Layer)을 초기화하고 NIC 포트를 설정합니다.</p>
+
+<h3 class="">기본 초기화</h3>
+<pre class=""><code class=""><span class="kw">using</span> <span class="tp">DpdkNet</span>;
+
+<span class="cm">// 상태 변경 이벤트 구독 (초기화 진행 로그)</span>
+<span class="tp">DpdkManager</span>.Instance.<span class="fn">StatusChanged</span> += (sender, e) =&gt;
+{
+    <span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"[{e.State}] {e.Message}"</span>);
+};
+
+<span class="cm">// 기본 옵션으로 초기화</span>
+<span class="kw">await</span> <span class="tp">DpdkManager</span>.Instance.<span class="fn">InitializeAsync</span>(<span class="kw">new</span> <span class="tp">DpdkInitOptions</span>());
+
+<span class="cm">// 상태 확인</span>
+<span class="kw">if</span> (<span class="tp">DpdkManager</span>.Instance.State == <span class="tp">DpdkState</span>.Ready)
+{
+    <span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">"DPDK 초기화 성공!"</span>);
+    <span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"DPDK 버전: {DpdkManager.Instance.DpdkVersion}"</span>);
+    <span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"사용 포트: {DpdkManager.Instance.PortId}"</span>);
+}</code></pre>
+
+<h3>상세 옵션 초기화</h3>
+<pre><code><span class="kw">var</span> options = <span class="kw">new</span> <span class="tp">DpdkInitOptions</span>
+{
+    CoreMask   = <span class="str">"0-3"</span>,      <span class="cm">// CPU 코어 0~3 사용</span>
+    MemoryMb   = <span class="num">1024</span>,       <span class="cm">// hugepage 메모리 1GB 할당</span>
+    LogLevel   = <span class="str">"*:warning"</span>, <span class="cm">// 로그 레벨 (error, warning, info, debug)</span>
+    PortId     = <span class="num">0</span>,          <span class="cm">// 사용할 이더넷 포트 번호</span>
+    MbufPoolSize = <span class="num">16383</span>,    <span class="cm">// 패킷 버퍼 풀 크기 (2^n - 1 권장)</span>
+    LinkSpeeds = <span class="num">0</span>           <span class="cm">// 0 = 자동 협상 (auto-negotiation)</span>
+};
+
+<span class="kw">await</span> <span class="tp">DpdkManager</span>.Instance.<span class="fn">InitializeAsync</span>(options);</code></pre>
+
+<h4>DpdkInitOptions 속성</h4>
+<table>
+    <tbody><tr><th>속성</th><th>타입</th><th>기본값</th><th>설명</th></tr>
+    <tr><td><code>CoreMask</code></td><td>string</td><td><code>"0"</code></td><td>사용할 CPU 코어. <code>"0"</code>, <code>"0-3"</code>, <code>"0,2,4"</code></td></tr>
+    <tr><td><code>MemoryMb</code></td><td>int</td><td><code>512</code></td><td>hugepage 메모리 크기 (MB)</td></tr>
+    <tr><td><code>LogLevel</code></td><td>string</td><td><code>"*:error"</code></td><td>DPDK 로그 레벨</td></tr>
+    <tr><td><code>PortId</code></td><td>ushort</td><td><code>0</code></td><td>사용할 이더넷 포트 ID</td></tr>
+    <tr><td><code>MbufPoolSize</code></td><td>uint</td><td><code>8191</code></td><td>mbuf 풀 크기 (2^n - 1 권장)</td></tr>
+    <tr><td><code>LinkSpeeds</code></td><td>uint</td><td><code>0</code></td><td>링크 속도. 0 = 자동 협상</td></tr>
+</tbody></table>
+
+<h4>DpdkState 열거형</h4>
+<table>
+    <tbody><tr><th>값</th><th>설명</th></tr>
+    <tr><td><code>NotInitialized</code></td><td>초기 상태 (아직 InitializeAsync 미호출)</td></tr>
+    <tr><td><code>Initializing</code></td><td>초기화 진행 중</td></tr>
+    <tr><td><code>Ready</code></td><td>초기화 완료, 패킷 처리 가능</td></tr>
+    <tr><td><code>Error</code></td><td>초기화 또는 런타임 오류 발생</td></tr>
+    <tr><td><code>CleanedUp</code></td><td>정리 완료 (Cleanup/Dispose 호출 후)</td></tr>
+</tbody></table>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- STATUS MONITORING                      -->
+<!-- ═══════════════════════════════════════ -->
+<h2 id="status-monitoring">상태 모니터링</h2>
+
+<p><code>StatusChanged</code> 이벤트로 초기화 진행 상황과 오류를 실시간으로 모니터링합니다.</p>
+
+<pre><code><span class="tp">DpdkManager</span>.Instance.<span class="fn">StatusChanged</span> += (sender, e) =&gt;
+{
+    <span class="kw">switch</span> (e.State)
+    {
+        <span class="kw">case</span> <span class="tp">DpdkState</span>.Initializing:
+            <span class="tp">Console</span>.<span class="fn">ForegroundColor</span> = <span class="tp">ConsoleColor</span>.Yellow;
+            <span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"  ⏳ {e.Message}"</span>);
+            <span class="kw">break</span>;
+        <span class="kw">case</span> <span class="tp">DpdkState</span>.Ready:
+            <span class="tp">Console</span>.<span class="fn">ForegroundColor</span> = <span class="tp">ConsoleColor</span>.Green;
+            <span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"  ✓ {e.Message}"</span>);
+            <span class="kw">break</span>;
+        <span class="kw">case</span> <span class="tp">DpdkState</span>.Error:
+            <span class="tp">Console</span>.<span class="fn">ForegroundColor</span> = <span class="tp">ConsoleColor</span>.Red;
+            <span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"  ✗ {e.Message}"</span>);
+            <span class="kw">break</span>;
+    }
+    <span class="tp">Console</span>.<span class="fn">ResetColor</span>();
+};</code></pre>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- PORT INFO                              -->
+<!-- ═══════════════════════════════════════ -->
+<h2 id="port-info">포트 정보 조회</h2>
+
+<pre><code><span class="kw">var</span> mgr = <span class="tp">DpdkManager</span>.Instance;
+
+<span class="cm">// 사용 가능한 모든 포트 나열</span>
+<span class="kw">foreach</span> (<span class="kw">var</span> port <span class="kw">in</span> mgr.Ports)
+{
+    <span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"Port {port.PortId}: {port.DisplayName}"</span>);
+    <span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"  MAC: {NetUtils.FormatMac(port.Mac)}"</span>);
+    <span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"  Link: {(port.LinkUp ? "UP" : "DOWN")} @ {port.LinkSpeed} Mbps"</span>);
+}
+
+<span class="cm">// 현재 활성 포트의 MAC 주소</span>
+<span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"Active MAC: {NetUtils.FormatMac(mgr.LocalMac)}"</span>);
+
+<span class="cm">// 포트 전환 (다중 포트 사용 시)</span>
+<span class="kw">if</span> (mgr.<span class="fn">SwitchPort</span>(<span class="num">1</span>))
+    <span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">"포트 1로 전환 성공"</span>);</code></pre>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- CLEANUP                                -->
+<!-- ═══════════════════════════════════════ -->
+<h2 id="cleanup">종료 및 정리</h2>
+
+<div class="info-box danger">
+    <strong>중요: 반드시 Cleanup 호출</strong>
+    DPDK는 hugepage 메모리를 사용합니다. <code>Cleanup()</code> 또는 <code>Dispose()</code>를 호출하지 않으면 메모리가 해제되지 않아 시스템 재시작이 필요할 수 있습니다.
+</div>
+
+<pre><code><span class="cm">// 방법 1: using 패턴 (권장)</span>
+<span class="kw">using</span> <span class="kw">var</span> dpdk = <span class="tp">DpdkManager</span>.Instance;
+<span class="kw">await</span> dpdk.<span class="fn">InitializeAsync</span>(<span class="kw">new</span> <span class="tp">DpdkInitOptions</span>());
+<span class="cm">// ... 작업 수행 ...</span>
+<span class="cm">// using 블록 종료 시 자동 Dispose() → Cleanup()</span>
+
+<span class="cm">// 방법 2: 명시적 Cleanup</span>
+<span class="kw">try</span>
+{
+    <span class="kw">await</span> <span class="tp">DpdkManager</span>.Instance.<span class="fn">InitializeAsync</span>(<span class="kw">new</span> <span class="tp">DpdkInitOptions</span>());
+    <span class="cm">// ... 작업 수행 ...</span>
+}
+<span class="kw">finally</span>
+{
+    <span class="tp">DpdkManager</span>.Instance.<span class="fn">Cleanup</span>();
+}
+
+<span class="cm">// 방법 3: 프로세스 종료 시 안전망</span>
+<span class="tp">AppDomain</span>.CurrentDomain.<span class="fn">ProcessExit</span> += (s, e) =&gt;
+{
+    <span class="kw">try</span> { <span class="tp">DpdkManager</span>.Instance.<span class="fn">Cleanup</span>(); } <span class="kw">catch</span> { }
+};</code></pre>
+
+<div class="section-divider"></div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- TX ENGINE                              -->
+<!-- ═══════════════════════════════════════ -->
+<h2 id="tx-engine">UDP TX (송신) 엔진</h2>
+
+<p>고속 UDP 패킷 송신 엔진입니다. 목적지 MAC/IP/포트를 지정하고, PPS(Packets Per Second) 속도 제한을 설정할 수 있습니다.</p>
+
+<pre><code><span class="kw">using</span> <span class="tp">DpdkNet</span>;
+<span class="kw">using</span> <span class="tp">DpdkNet.Config</span>;
+<span class="kw">using</span> <span class="tp">DpdkNet.Engine</span>;
+<span class="kw">using</span> <span class="tp">DpdkNet.Stats</span>;
+<span class="kw">using</span> <span class="tp">DpdkNet.Utilities</span>;
+
+<span class="cm">// 1. DPDK 초기화</span>
+<span class="kw">await</span> <span class="tp">DpdkManager</span>.Instance.<span class="fn">InitializeAsync</span>(<span class="kw">new</span> <span class="tp">DpdkInitOptions</span> { PortId = <span class="num">0</span> });
+
+<span class="cm">// 2. 성능 카운터 생성 및 시작</span>
+<span class="kw">var</span> perf = <span class="kw">new</span> <span class="tp">PerformanceCounter</span>();
+perf.<span class="fn">Start</span>();
+
+<span class="cm">// 3. TX 엔진 생성 (IDpdkContext 주입)</span>
+<span class="kw">using var</span> tx = <span class="kw">new</span> <span class="tp">DpdkUdpTxEngine</span>(<span class="tp">DpdkManager</span>.Instance, perf);
+
+<span class="cm">// 4. 송신 설정</span>
+<span class="kw">var</span> config = <span class="kw">new</span> <span class="tp">TxConfig</span>
+{
+    DstMac      = <span class="tp">NetUtils</span>.<span class="fn">ParseMac</span>(<span class="str">"AA:BB:CC:DD:EE:FF"</span>),
+    DstIp       = <span class="str">"192.168.1.100"</span>,
+    DstPort     = <span class="num">5000</span>,
+    SrcIp       = <span class="str">"192.168.1.10"</span>,
+    SrcPort     = <span class="num">4000</span>,
+    PayloadSize = <span class="num">64</span>,        <span class="cm">// 페이로드 바이트 수</span>
+    TargetPps   = <span class="num">100000</span>,    <span class="cm">// 초당 10만 패킷 (0 = 무제한)</span>
+    PayloadText = <span class="str">"Hello DPDK!"</span>  <span class="cm">// null이면 0x00 패딩</span>
+};
+
+<span class="cm">// 5. 송신 시작</span>
+tx.<span class="fn">Start</span>(config);
+<span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">"TX 엔진 시작. 5초 후 중지..."</span>);
+
+<span class="cm">// 6. 실시간 통계 모니터링</span>
+<span class="kw">for</span> (<span class="kw">int</span> i = <span class="num">0</span>; i &lt; <span class="num">5</span>; i++)
+{
+    <span class="kw">await</span> <span class="tp">Task</span>.<span class="fn">Delay</span>(<span class="num">1000</span>);
+    <span class="kw">var</span> snap = perf.<span class="fn">TakeSnapshot</span>();
+    <span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"TX: {snap.TxPackets:N0} pkts, "</span> +
+                      <span class="str">$"{snap.TxPps:N0} PPS, {snap.TxMbps:F1} Mbps"</span>);
+}
+
+<span class="cm">// 7. 중지</span>
+tx.<span class="fn">Stop</span>();
+
+<span class="cm">// 최종 결과</span>
+<span class="kw">var</span> final = perf.<span class="fn">TakeSnapshot</span>();
+<span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"\n총 송신: {final.TxPackets:N0} 패킷, {final.TxBytes:N0} 바이트"</span>);
+<span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"Peak: {perf.PeakTxPps:N0} PPS, {perf.PeakTxMbps:F1} Mbps"</span>);</code></pre>
+
+<h4>TxConfig 속성</h4>
+<table>
+    <tbody><tr><th>속성</th><th>타입</th><th>설명</th></tr>
+    <tr><td><code>DstMac</code></td><td>byte[]</td><td>목적지 MAC 주소 (6바이트). <code>NetUtils.ParseMac()</code> 사용</td></tr>
+    <tr><td><code>DstIp</code></td><td>string</td><td>목적지 IP 주소</td></tr>
+    <tr><td><code>DstPort</code></td><td>ushort</td><td>목적지 UDP 포트</td></tr>
+    <tr><td><code>SrcIp</code></td><td>string</td><td>소스 IP 주소</td></tr>
+    <tr><td><code>SrcPort</code></td><td>ushort</td><td>소스 UDP 포트</td></tr>
+    <tr><td><code>PayloadSize</code></td><td>int</td><td>페이로드 크기 (바이트)</td></tr>
+    <tr><td><code>TargetPps</code></td><td>int</td><td>목표 PPS. 0 = 최대 속도</td></tr>
+    <tr><td><code>PayloadText</code></td><td>string?</td><td>페이로드 텍스트. null이면 0x00 채움</td></tr>
+</tbody></table>
+
+<div class="info-box tip">
+    <strong>응답 수신 (TX + RX)</strong>
+    TX 엔진은 <code>ResponseQueue</code> 속성을 통해 응답 패킷도 수신할 수 있습니다. TX 스레드 내에서 RX polling을 동시에 수행합니다.
+</div>
+
+<pre><code><span class="cm">// TX 중 수신된 응답 확인</span>
+<span class="kw">while</span> (tx.ResponseQueue.<span class="fn">TryDequeue</span>(<span class="kw">out var</span> resp))
+{
+    <span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"응답: {resp.SrcIp}:{resp.SrcPort} → {resp.PayloadText}"</span>);
+}</code></pre>
+
+<div class="section-divider"></div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- RX ENGINE                              -->
+<!-- ═══════════════════════════════════════ -->
+<h2 id="rx-engine">UDP RX (수신) 엔진</h2>
+
+<p>UDP 패킷 수신 전용 엔진입니다. 포트 번호와 IP 주소로 필터링이 가능하며, 수신된 패킷은 <code>ConcurrentQueue</code>로 전달됩니다.</p>
+
+<pre><code><span class="kw">using</span> <span class="tp">DpdkNet</span>;
+<span class="kw">using</span> <span class="tp">DpdkNet.Engine</span>;
+<span class="kw">using</span> <span class="tp">DpdkNet.Stats</span>;
+
+<span class="kw">await</span> <span class="tp">DpdkManager</span>.Instance.<span class="fn">InitializeAsync</span>(<span class="kw">new</span> <span class="tp">DpdkInitOptions</span>());
+
+<span class="kw">var</span> perf = <span class="kw">new</span> <span class="tp">PerformanceCounter</span>();
+perf.<span class="fn">Start</span>();
+
+<span class="cm">// RX 엔진 생성 + 필터 설정</span>
+<span class="kw">using var</span> rx = <span class="kw">new</span> <span class="tp">DpdkUdpRxEngine</span>(<span class="tp">DpdkManager</span>.Instance, perf)
+{
+    FilterPort   = <span class="num">5000</span>,          <span class="cm">// 이 포트로 오는 패킷만 수신 (0=전체)</span>
+    FilterIp     = <span class="str">"192.168.1.10"</span>, <span class="cm">// 이 IP로 오는 패킷만 (null=전체)</span>
+    MaxQueueSize = <span class="num">10000</span>          <span class="cm">// 큐 최대 크기 (초과 시 드롭)</span>
+};
+
+<span class="cm">// 수신 시작</span>
+rx.<span class="fn">Start</span>();
+<span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">"RX 엔진 시작. 패킷 대기 중..."</span>);
+
+<span class="cm">// 패킷 처리 루프</span>
+<span class="kw">var</span> cts = <span class="kw">new</span> <span class="tp">CancellationTokenSource</span>(<span class="tp">TimeSpan</span>.<span class="fn">FromSeconds</span>(<span class="num">10</span>));
+
+<span class="kw">while</span> (!cts.Token.IsCancellationRequested)
+{
+    <span class="kw">while</span> (rx.PacketQueue.<span class="fn">TryDequeue</span>(<span class="kw">out var</span> pkt))
+    {
+        <span class="tp">Console</span>.<span class="fn">WriteLine</span>(
+            <span class="str">$"[{pkt.Timestamp:HH:mm:ss.fff}] "</span> +
+            <span class="str">$"{pkt.SrcIp}:{pkt.SrcPort} → {pkt.DstIp}:{pkt.DstPort} "</span> +
+            <span class="str">$"({pkt.DataLen}B) {pkt.PayloadText}"</span>);
+    }
+    <span class="kw">await</span> <span class="tp">Task</span>.<span class="fn">Delay</span>(<span class="num">10</span>);
+}
+
+rx.<span class="fn">Stop</span>();
+
+<span class="kw">var</span> snap = perf.<span class="fn">TakeSnapshot</span>();
+<span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"총 수신: {snap.RxPackets:N0} 패킷"</span>);</code></pre>
+
+<h4>RxPacketInfo 구조</h4>
+<table>
+    <tbody><tr><th>속성</th><th>타입</th><th>설명</th></tr>
+    <tr><td><code>SrcMac</code></td><td>byte[]</td><td>송신자 MAC 주소</td></tr>
+    <tr><td><code>DstMac</code></td><td>byte[]</td><td>수신자 MAC 주소</td></tr>
+    <tr><td><code>SrcIp</code></td><td>string</td><td>송신자 IP</td></tr>
+    <tr><td><code>DstIp</code></td><td>string</td><td>수신자 IP</td></tr>
+    <tr><td><code>SrcPort</code></td><td>ushort</td><td>송신자 UDP 포트</td></tr>
+    <tr><td><code>DstPort</code></td><td>ushort</td><td>수신자 UDP 포트</td></tr>
+    <tr><td><code>DataLen</code></td><td>int</td><td>페이로드 길이 (바이트)</td></tr>
+    <tr><td><code>PayloadText</code></td><td>string?</td><td>디코딩된 페이로드 텍스트</td></tr>
+    <tr><td><code>Timestamp</code></td><td>DateTime</td><td>수신 시각</td></tr>
+</tbody></table>
+
+<div class="section-divider"></div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- ECHO ENGINE                            -->
+<!-- ═══════════════════════════════════════ -->
+<h2 id="echo-engine">UDP Echo (반향) 엔진</h2>
+
+<p>수신된 UDP 패킷의 MAC/IP/포트를 뒤집어 즉시 반송하는 Echo 서버입니다. 네트워크 연결 테스트와 지연 시간 측정에 유용합니다.</p>
+
+<pre><code><span class="kw">using</span> <span class="tp">DpdkNet</span>;
+<span class="kw">using</span> <span class="tp">DpdkNet.Engine</span>;
+<span class="kw">using</span> <span class="tp">DpdkNet.Stats</span>;
+
+<span class="kw">await</span> <span class="tp">DpdkManager</span>.Instance.<span class="fn">InitializeAsync</span>(<span class="kw">new</span> <span class="tp">DpdkInitOptions</span>());
+
+<span class="kw">var</span> perf = <span class="kw">new</span> <span class="tp">PerformanceCounter</span>();
+perf.<span class="fn">Start</span>();
+
+<span class="cm">// Echo 엔진 시작 — 모든 수신 UDP를 즉시 반송</span>
+<span class="kw">using var</span> echo = <span class="kw">new</span> <span class="tp">DpdkEchoEngine</span>(<span class="tp">DpdkManager</span>.Instance, perf);
+echo.<span class="fn">Start</span>();
+
+<span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">"Echo 서버 실행 중. Ctrl+C로 종료..."</span>);
+<span class="tp">Console</span>.<span class="fn">CancelKeyPress</span> += (s, e) =&gt; { e.Cancel = <span class="kw">true</span>; echo.<span class="fn">Stop</span>(); };
+
+<span class="cm">// 통계 모니터링</span>
+<span class="kw">while</span> (echo.IsRunning)
+{
+    <span class="kw">await</span> <span class="tp">Task</span>.<span class="fn">Delay</span>(<span class="num">2000</span>);
+    <span class="kw">var</span> snap = perf.<span class="fn">TakeSnapshot</span>();
+    <span class="tp">Console</span>.<span class="fn">WriteLine</span>(
+        <span class="str">$"Echo: RX {snap.RxPps:N0} PPS → TX {snap.TxPps:N0} PPS"</span>);
+}</code></pre>
+
+<div class="info-box info">
+    <strong>Echo 동작 원리</strong>
+    Echo 엔진은 수신 패킷의 Ethernet 헤더(src/dst MAC), IPv4 헤더(src/dst IP), UDP 헤더(src/dst Port)를 스왑한 후 IP 체크섬을 재계산하여 송신합니다. 페이로드는 변경 없이 그대로 반송됩니다.
+</div>
+
+<div class="section-divider"></div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- REQUEST/RESPONSE ENGINE                -->
+<!-- ═══════════════════════════════════════ -->
+<h2 id="reqresp-engine">Request/Response 엔진</h2>
+
+<p>지정된 횟수만큼 UDP 요청을 보내고 응답을 기다리며, RTT(Round-Trip Time)를 측정하는 엔진입니다. ARP 자동 해석, 파이프라인(윈도우) 모드, NIC 워밍업 등 고급 기능을 제공합니다.</p>
+
+<h3>기본 사용법 (동기 모드)</h3>
+<pre><code><span class="kw">using</span> <span class="tp">DpdkNet</span>;
+<span class="kw">using</span> <span class="tp">DpdkNet.Config</span>;
+<span class="kw">using</span> <span class="tp">DpdkNet.Engine</span>;
+<span class="kw">using</span> <span class="tp">DpdkNet.Stats</span>;
+<span class="kw">using</span> <span class="tp">DpdkNet.Utilities</span>;
+
+<span class="kw">await</span> <span class="tp">DpdkManager</span>.Instance.<span class="fn">InitializeAsync</span>(<span class="kw">new</span> <span class="tp">DpdkInitOptions</span>());
+
+<span class="kw">var</span> perf = <span class="kw">new</span> <span class="tp">PerformanceCounter</span>();
+perf.<span class="fn">Start</span>();
+
+<span class="kw">using var</span> rr = <span class="kw">new</span> <span class="tp">DpdkUdpReqRespEngine</span>(<span class="tp">DpdkManager</span>.Instance, perf);
+
+<span class="kw">var</span> config = <span class="kw">new</span> <span class="tp">ReqRespConfig</span>
+{
+    DstMac      = <span class="tp">NetUtils</span>.<span class="fn">ParseMac</span>(<span class="str">"AA:BB:CC:DD:EE:FF"</span>),
+    DstIp       = <span class="str">"192.168.1.100"</span>,
+    DstPort     = <span class="num">5000</span>,
+    SrcIp       = <span class="str">"192.168.1.10"</span>,
+    SrcPort     = <span class="num">4000</span>,
+    PayloadSize = <span class="num">64</span>,
+    TimeoutMs   = <span class="num">1000</span>,     <span class="cm">// 응답 대기 시간 (ms)</span>
+    RepeatCount = <span class="num">100</span>,      <span class="cm">// 요청 횟수 (0 = 무한)</span>
+    WindowSize  = <span class="num">1</span>,        <span class="cm">// 1 = 동기 모드 (한 번에 하나씩)</span>
+    EnableWarmup = <span class="kw">true</span>     <span class="cm">// NIC/DMA 워밍업 수행</span>
+};
+
+rr.<span class="fn">Start</span>(config);
+
+<span class="cm">// 완료 대기 + 실시간 결과 처리</span>
+<span class="kw">while</span> (rr.IsRunning || !rr.ResultQueue.IsEmpty)
+{
+    <span class="kw">while</span> (rr.ResultQueue.<span class="fn">TryDequeue</span>(<span class="kw">out var</span> result))
+    {
+        <span class="kw">if</span> (result.Success)
+            <span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"  #{result.SeqNumber}: RTT={result.RttMs:F3}ms"</span>);
+        <span class="kw">else</span>
+            <span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"  #{result.SeqNumber}: TIMEOUT"</span>);
+    }
+    <span class="kw">await</span> <span class="tp">Task</span>.<span class="fn">Delay</span>(<span class="num">50</span>);
+}
+
+<span class="cm">// RTT 통계 출력</span>
+<span class="kw">var</span> stats = rr.Stats;
+<span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"\n── RTT 통계 ──"</span>);
+<span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"  전송: {stats.Sent}  수신: {stats.Received}  타임아웃: {stats.Timeouts}"</span>);
+<span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"  Min: {stats.MinRtt:F3}ms  Avg: {stats.AvgRtt:F3}ms  Max: {stats.MaxRtt:F3}ms"</span>);</code></pre>
+
+<h3 id="pipeline-mode">파이프라인 모드 (고성능)</h3>
+<p><code>WindowSize &gt; 1</code>로 설정하면 파이프라인 모드가 활성화됩니다. 여러 요청을 동시에 보내고 응답을 병렬로 수집하여 처리량을 극대화합니다.</p>
+
+<pre><code><span class="kw">var</span> pipelineConfig = <span class="kw">new</span> <span class="tp">ReqRespConfig</span>
+{
+    DstMac      = <span class="tp">NetUtils</span>.<span class="fn">ParseMac</span>(<span class="str">"AA:BB:CC:DD:EE:FF"</span>),
+    DstIp       = <span class="str">"192.168.1.100"</span>,
+    DstPort     = <span class="num">5000</span>,
+    SrcIp       = <span class="str">"192.168.1.10"</span>,
+    SrcPort     = <span class="num">4000</span>,
+    PayloadSize = <span class="num">64</span>,
+    TimeoutMs   = <span class="num">500</span>,
+    RepeatCount = <span class="num">10000</span>,    <span class="cm">// 1만 회 요청</span>
+    WindowSize  = <span class="num">32</span>,       <span class="cm">// 동시 32개 요청 (파이프라인)</span>
+    EnableWarmup = <span class="kw">true</span>
+};</code></pre>
+
+<h4>ReqRespConfig 속성</h4>
+<table>
+    <tbody><tr><th>속성</th><th>타입</th><th>기본값</th><th>설명</th></tr>
+    <tr><td><code>DstMac</code></td><td>byte[]</td><td>-</td><td>목적지 MAC (ARP로 자동 해석 가능)</td></tr>
+    <tr><td><code>DstIp</code></td><td>string</td><td>-</td><td>목적지 IP</td></tr>
+    <tr><td><code>DstPort</code></td><td>ushort</td><td>-</td><td>목적지 UDP 포트</td></tr>
+    <tr><td><code>SrcIp</code></td><td>string</td><td>-</td><td>소스 IP</td></tr>
+    <tr><td><code>SrcPort</code></td><td>ushort</td><td>-</td><td>소스 UDP 포트</td></tr>
+    <tr><td><code>PayloadSize</code></td><td>int</td><td>-</td><td>페이로드 크기 (바이트)</td></tr>
+    <tr><td><code>PayloadText</code></td><td>string?</td><td>null</td><td>페이로드 텍스트</td></tr>
+    <tr><td><code>TimeoutMs</code></td><td>int</td><td>1000</td><td>응답 대기 타임아웃 (ms)</td></tr>
+    <tr><td><code>RepeatCount</code></td><td>int</td><td>0</td><td>반복 횟수. 0 = 무한</td></tr>
+    <tr><td><code>WindowSize</code></td><td>int</td><td>1</td><td>파이프라인 윈도우. 1 = 동기</td></tr>
+    <tr><td><code>EnableWarmup</code></td><td>bool</td><td>true</td><td>NIC/DMA 워밍업 수행</td></tr>
+</tbody></table>
+
+<h4>ReqRespResult 구조</h4>
+<table>
+    <tbody><tr><th>속성</th><th>타입</th><th>설명</th></tr>
+    <tr><td><code>SeqNumber</code></td><td>uint</td><td>요청 시퀀스 번호</td></tr>
+    <tr><td><code>Success</code></td><td>bool</td><td>응답 수신 성공 여부</td></tr>
+    <tr><td><code>RttMs</code></td><td>double</td><td>왕복 지연 시간 (밀리초)</td></tr>
+    <tr><td><code>ResponsePayload</code></td><td>string?</td><td>응답 페이로드</td></tr>
+    <tr><td><code>SrcIp</code></td><td>string</td><td>응답 송신자 IP</td></tr>
+    <tr><td><code>SrcPort</code></td><td>ushort</td><td>응답 송신자 포트</td></tr>
+    <tr><td><code>Timestamp</code></td><td>DateTime</td><td>타임스탬프</td></tr>
+</tbody></table>
+
+<h3 id="reqresp-mc">Multi-Channel Request/Response (shim_reqresp_once_mc)</h3>
+
+<p>여러 채널(CH1~CH4)이 동일 NIC에서 동시에 req/resp를 수행할 때, 패킷 충돌 없이 각 채널이 자신의 응답만 정확히 수신할 수 있도록 설계된 네이티브 함수입니다.</p>
+
+<div class="info-box info">
+    <strong>기존 shim_reqresp_once와의 차이</strong>
+    <ul>
+        <li><code>rte_spinlock_t g_rx_lock</code>으로 <code>rte_eth_rx_burst</code> 접근을 보호 (다중 스레드 안전)</li>
+        <li>매칭되지 않는 패킷을 drop 하지 않고 <code>g_spill[128]</code> 버퍼에 enqueue</li>
+        <li><code>shim_rx_burst</code>는 spill 버퍼를 먼저 배출한 후 NIC에서 추가 수신</li>
+        <li>다른 채널의 응답 패킷이 손실되지 않음</li>
+    </ul>
+</div>
+
+<h4>매칭 기준</h4>
+<table>
+    <tbody><tr><th>파라미터</th><th>바이트 오더</th><th>비교 대상</th></tr>
+    <tr><td><code>expected_src_ip</code></td><td>Network byte order</td><td>수신 패킷의 IPv4 Source Address</td></tr>
+    <tr><td><code>expected_dst_port</code></td><td>Host byte order (내부에서 <code>rte_cpu_to_be_16</code> 변환)</td><td>수신 패킷의 UDP Destination Port</td></tr>
+</tbody></table>
+
+<div class="info-box danger">
+    <strong>주의: expected_src_ip 바이트 오더</strong>
+    <code>expected_src_ip</code>는 반드시 <strong>network byte order</strong>로 전달해야 합니다.
+    <code>NetUtils.IpToUint()</code>는 host byte order를 반환하므로, 반드시 <code>NetUtils.Htonl()</code>로 변환하세요.
+    <br><br>
+    <code style="color:var(--green)">올바른 예: NetUtils.Htonl(NetUtils.IpToUint("169.254.199.11"))</code>
+    <br>
+    <code style="color:var(--red)">잘못된 예: NetUtils.IpToUint("169.254.199.11")  // host byte order → 매칭 실패!</code>
+</div>
+
+<h4>ShimReqRespResult 구조체</h4>
+<table>
+    <tbody><tr><th>필드</th><th>타입</th><th>설명</th></tr>
+    <tr><td><code>Status</code></td><td>int</td><td>0 = 성공, 1 = 타임아웃</td></tr>
+    <tr><td><code>RttMs</code></td><td>double</td><td>왕복 지연 시간 (밀리초)</td></tr>
+    <tr><td><code>RespLen</code></td><td>ushort</td><td>응답 페이로드 길이 (바이트)</td></tr>
+    <tr><td><code>SrcIp</code></td><td>uint</td><td>응답 송신자 IP (network byte order)</td></tr>
+    <tr><td><code>SrcPort</code></td><td>ushort</td><td>응답 송신자 포트 (host byte order)</td></tr>
+</tbody></table>
+
+<h4>Spill Buffer 동작 원리</h4>
+<pre><code><span class="cm">// dpdk_shim.c 내부 구조</span>
+<span class="kw">static struct</span> rte_mbuf *<span class="prop">g_spill</span>[<span class="num">128</span>];       <span class="cm">// 비매칭 패킷 임시 저장</span>
+<span class="kw">static volatile int</span>     <span class="prop">g_spill_count</span> = <span class="num">0</span>;
+<span class="kw">static</span> rte_spinlock_t    <span class="prop">g_rx_lock</span>;           <span class="cm">// rx_burst 보호용 spinlock</span>
+
+<span class="cm">// shim_rx_burst 호출 시:</span>
+<span class="cm">//   1. spinlock 획득</span>
+<span class="cm">//   2. g_spill[] 에서 먼저 배출 (FIFO)</span>
+<span class="cm">//   3. 남은 공간에 rte_eth_rx_burst() 로 NIC 수신</span>
+<span class="cm">//   4. spinlock 해제</span>
+
+<span class="cm">// shim_reqresp_once_mc RX 루프:</span>
+<span class="cm">//   1. spinlock 획득 → rte_eth_rx_burst</span>
+<span class="cm">//   2. 각 패킷의 src_ip / dst_port 비교</span>
+<span class="cm">//   3. 매칭 → 응답으로 반환</span>
+<span class="cm">//   4. 비매칭 → g_spill[] 에 enqueue (다른 채널이 나중에 수신)</span>
+<span class="cm">//   5. spinlock 해제</span></code></pre>
+
+<h4>사용 예제</h4>
+<pre class=""><code class=""><span class="cm">// PgDpdkServer.Send() 내부 — 동기 TX+RX 경로</span>
+<span class="kw">var</span> templatePkt = <span class="fn">BuildUdpPacket</span>(dstMac, dstIpNet,
+    (<span class="tp">ushort</span>)localPort, (<span class="tp">ushort</span>)peerPort, payload);
+<span class="kw">var</span> respBuf = <span class="kw">new byte</span>[<span class="num">2048</span>];
+<span class="kw">var</span> result = <span class="kw">new</span> <span class="tp">ShimReqRespResult</span>();
+
+<span class="cm">// expected_src_ip: PG의 IP를 network byte order로 전달</span>
+<span class="kw">var</span> expectedSrcIp = <span class="tp">NetUtils</span>.<span class="fn">Htonl</span>(<span class="tp">NetUtils</span>.<span class="fn">IpToUint</span>(peerIpStr));
+
+<span class="kw">int</span> rc = <span class="tp">DpdkInterop</span>.<span class="fn">shim_reqresp_once_mc</span>(
+    portId, mbufPool,
+    templatePkt, (<span class="tp">ushort</span>)templatePkt.Length, <span class="num">0</span>,
+    expectedSrcIp, (<span class="tp">ushort</span>)localPort,
+    <span class="num">3000</span>,                        <span class="cm">// timeout 3초</span>
+    respBuf, (<span class="tp">ushort</span>)respBuf.Length,
+    <span class="kw">ref</span> result, localMac, localIpNet);
+
+<span class="kw">if</span> (rc == <span class="num">0</span> &amp;&amp; result.Status == <span class="num">0</span>)
+{
+    <span class="kw">var</span> respStr = <span class="tp">Encoding</span>.ASCII.<span class="fn">GetString</span>(respBuf, <span class="num">0</span>, result.RespLen);
+    <span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"응답: {respStr}, RTT: {result.RttMs:F3}ms"</span>);
+}</code></pre>
+
+<div class="section-divider"></div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- FTP ENGINE (lwIP)                      -->
+<!-- ═══════════════════════════════════════ -->
+<h2 id="ftp-engine" class="">FTP Engine (lwIP 기반)</h2>
+
+<p class="">DPDK NIC을 통해 lwIP TCP/IP 스택으로 FTP 파일 전송을 수행하는 엔진입니다. OS 소켓을 사용하지 않고 DPDK의 커널 바이패스를 활용하여 고성능 파일 전송을 구현합니다.</p><img src="data:image/jpeg;base64,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CuXsk8hk5xWNahvU3UF0XcLktK5K0oQVJSEjCUhI5D8gK51JtkuLjs2vWrkiVo7XM6VHjRVy7nDdDLEtqRtGFAblNqICjjJBweefGqhrbcOzjQCZGeI7qYQFfvd0Xhs/l+9iqtFvc2NYpdobUgwJTqHnUFPNSkZxz6gcz0qRq7UL+pLmiU6y1GYZZRGjxms7GWkDCUpzz95yfEmpjGfl9IT9/dxKUpVClKUClKUClKUClKUClKUClKUClKUCtO/Zo/jbpz+p/tnazGtO/Zo/jbpz+p/tnaDMaUpQKV6MsqdztLYx99xKf/MivTg3fvMeuj50EelSODd+8x66PnTg3fvMeuj50EelSODd+8x66PnTg3fvMeuj50EelSODd+8x66PnTg3fvMeuj50EelSODd+8x66PnTg3fvMeuj50EelSODd+8x66PnTg3fvMeuj50EelSODd+8x66PnTg3fvMeuj50EelSODd+8x66PnTg3fvMeuj50EelSODd+8x66PnTg3fvMeuj50EelSODd+8x66PnTg3fvMeuj50EelSODd+8x66PnTg3fvMeuj50EelSODd+8x66PnTg3fvMeuj50EelSODd+8x66PnTg3fvMeuj50EelSODd+8x66PnTg3fvMeuj50EelSODd+8x66PnTg3fvMeuj50EelSODd+8x66PnTg3fvMeuj50EelSODd+8x66PnTg3fvMeuj50EelSODd+8x66PnTg3fvMeuj50EelSODd+8x66PnTg3fvMeuj50EelSODd+8x66PnTg3fvMeuj50EelSODd+8x66PnTg3fvMeuj50EelSODd+8x66PnTg3fvMeuj50EelSODd+8x66PnTg3fvMeuj50EelSODd+8x66PnTg3fvMeuj50EelSODd+8x66PnTg3fvMeuj50EelSODd+8x66PnTg3fvMeuj50EelSODd+8x66PnTg3fvMeuj50EelSODd+8x66PnTg3fvMeuj50EelSODd+8x66PnTg3fvMeuj50EelSODd+8x66PnTg3fvMeuj50EelSODd+8x66PnTg3fvMeuj50EelSODd+8x66PnTg3fvMeuj50EelSODd+8x66PnTg3fvMeuj50EelSODd+8x66PnTg3fvMeuj50EelSODd+8x66PnTg3fvMeuj50EelSODd+8x66PnTg3fvMeuj50E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" alt="inserted-image-1" data-inserted="1" style="max-width: 100%; height: auto; display: block; margin: 10px auto;">
+
+<div class="info-box tip">
+    <strong class="">Unified Dispatcher: UDP + FTP 동시 동작</strong>
+    <code>shim_dispatch_poll()</code> 기반 Unified Dispatcher가 RX 패킷을 자동 분류합니다:
+    <ul>
+        <li><strong>UDP 패킷</strong> → C# <code>ProcessRxPacket</code>으로 전달 (PG 통신 지속)</li>
+        <li><strong>TCP/ARP 패킷</strong> → lwIP 스택으로 전달 (FTP 통신)</li>
+    </ul>
+    FTP 중에도 <code>pg.status</code>, <code>tcon</code> 등 UDP 명령이 정상 동작합니다.<br>
+    멀티세션 FTP를 지원하여 최대 4개 CH가 동시에 FTP를 수행할 수 있습니다 (<code>sessionId</code> = 0~3).
+</div>
+
+<h3 class="">기본 사용법</h3>
+
+<pre><code><span class="kw">using</span> <span class="tp">DpdkNet</span>;
+<span class="kw">using</span> <span class="tp">DpdkNet.Config</span>;
+<span class="kw">using</span> <span class="tp">DpdkNet.Engine</span>;
+<span class="kw">using</span> <span class="tp">DpdkNet.Models</span>;
+
+<span class="kw">await</span> <span class="tp">DpdkManager</span>.Instance.<span class="fn">InitializeAsync</span>(<span class="kw">new</span> <span class="tp">DpdkInitOptions</span>());
+
+<span class="cm">// sessionId: CH 인덱스 (0~3). 각 CH가 독립 FTP 세션 사용</span>
+<span class="kw">using var</span> ftp = <span class="kw">new</span> <span class="tp">DpdkFtpEngine</span>(<span class="tp">DpdkManager</span>.Instance, sessionId: <span class="num">0</span>);
+
+<span class="cm">// 1. lwIP 스택 초기화</span>
+<span class="kw">var</span> config = <span class="kw">new</span> <span class="tp">FtpConfig</span>
+{
+    ServerIp   = <span class="str">"192.168.0.1"</span>,
+    ServerPort = <span class="num">21</span>,
+    Username   = <span class="str">"admin"</span>,
+    Password   = <span class="str">"password"</span>,
+    LocalIp    = <span class="str">"192.168.0.2"</span>,
+    Netmask    = <span class="str">"255.255.255.0"</span>,
+    Gateway    = <span class="str">"192.168.0.1"</span>,
+    TimeoutMs  = <span class="num">10000</span>
+};
+
+<span class="kw">if</span> (!ftp.<span class="fn">InitLwip</span>(config))
+{
+    <span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"lwIP 초기화 실패: {ftp.LastError}"</span>);
+    <span class="kw">return</span>;
+}
+
+<span class="cm">// 2. FTP 연결</span>
+<span class="kw">bool</span> connected = <span class="kw">await</span> ftp.<span class="fn">ConnectAsync</span>(
+    config.ServerIp, config.ServerPort,
+    config.Username, config.Password, config.TimeoutMs);
+
+<span class="kw">if</span> (!connected)
+{
+    <span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"FTP 연결 실패: {ftp.LastError}"</span>);
+    <span class="kw">return</span>;
+}
+
+<span class="cm">// 3. 디렉토리 탐색</span>
+<span class="kw">string</span>? pwd = <span class="kw">await</span> ftp.<span class="fn">PwdAsync</span>();
+<span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"현재 디렉토리: {pwd}"</span>);
+
+<span class="kw">string</span>? listing = <span class="kw">await</span> ftp.<span class="fn">ListAsync</span>(<span class="num">10000</span>);
+<span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"파일 목록:\n{listing}"</span>);
+
+<span class="kw">await</span> ftp.<span class="fn">CwdAsync</span>(<span class="str">"/upload"</span>);
+
+<span class="cm">// 4. 파일 다운로드</span>
+<span class="kw">byte</span>[]? data = <span class="kw">await</span> ftp.<span class="fn">DownloadAsync</span>(<span class="str">"test.bin"</span>, <span class="num">30000</span>);
+<span class="kw">if</span> (data != <span class="kw">null</span>)
+    <span class="tp">File</span>.<span class="fn">WriteAllBytes</span>(<span class="str">"downloaded.bin"</span>, data);
+
+<span class="cm">// 5. 파일 업로드</span>
+<span class="kw">byte</span>[] uploadData = <span class="tp">File</span>.<span class="fn">ReadAllBytes</span>(<span class="str">"local_file.bin"</span>);
+<span class="kw">bool</span> uploaded = <span class="kw">await</span> ftp.<span class="fn">UploadAsync</span>(<span class="str">"remote_file.bin"</span>, uploadData, <span class="num">30000</span>);
+
+<span class="cm">// 6. 연결 종료</span>
+<span class="kw">await</span> ftp.<span class="fn">DisconnectAsync</span>();
+ftp.<span class="fn">StopLwip</span>();</code></pre>
+
+<h3>멀티세션 FTP (4CH 동시 전송)</h3>
+
+<p>각 CH가 독립 <code>sessionId</code>를 사용하여 동시에 FTP 파일 전송을 수행할 수 있습니다. lwIP 스택은 레퍼런스 카운팅으로 관리되어 첫 세션이 init, 마지막 세션이 stop을 수행합니다.</p>
+
+<pre><code><span class="cm">// CH별 동시 FTP 다운로드 예제</span>
+<span class="kw">var</span> tasks = <span class="kw">new</span> <span class="tp">List</span>&lt;<span class="tp">Task</span>&gt;();
+<span class="kw">for</span> (<span class="kw">int</span> ch = <span class="num">0</span>; ch &lt; <span class="num">4</span>; ch++)
+{
+    <span class="kw">int</span> sessionId = ch;
+    tasks.<span class="fn">Add</span>(<span class="tp">Task</span>.<span class="fn">Run</span>(<span class="kw">async</span> () =&gt;
+    {
+        <span class="kw">using var</span> ftp = <span class="kw">new</span> <span class="tp">DpdkFtpEngine</span>(<span class="tp">DpdkManager</span>.Instance, sessionId);
+        ftp.<span class="fn">InitLwip</span>(config);  <span class="cm">// 레퍼런스 카운팅: 첫 호출만 실제 init</span>
+        <span class="kw">try</span>
+        {
+            <span class="kw">await</span> ftp.<span class="fn">ConnectAsync</span>(pgIp[sessionId], <span class="num">21</span>, user, pass, <span class="num">10000</span>);
+            <span class="kw">byte</span>[]? data = <span class="kw">await</span> ftp.<span class="fn">DownloadAsync</span>(remotePath, <span class="num">30000</span>);
+            <span class="kw">await</span> ftp.<span class="fn">DisconnectAsync</span>();
+        }
+        <span class="kw">finally</span>
+        {
+            ftp.<span class="fn">StopLwip</span>();  <span class="cm">// 레퍼런스 카운팅: 마지막 호출만 실제 stop</span>
+        }
+    }));
+}
+<span class="kw">await</span> <span class="tp">Task</span>.<span class="fn">WhenAll</span>(tasks);</code></pre>
+
+<div class="info-box info">
+    <strong>네이티브 세션 풀</strong>
+    <code>dpdk_shim.dll</code> 내부에 <code>ftp_client_t g_ftp_sessions[4]</code> 배열이 할당되어 있습니다.
+    각 <code>sessionId</code>는 독립적인 FTP 상태머신을 사용하므로 서로 간섭하지 않습니다.
+    <code>_ex</code> 접미사가 붙은 P/Invoke 함수들(<code>shim_ftp_connect_sync_ex</code> 등)이 세션 ID를 받습니다.
+</div>
+
+<h4>FtpConfig 속성</h4>
+<table>
+    <tbody><tr><th>속성</th><th>타입</th><th>기본값</th><th>설명</th></tr>
+    <tr><td><code>ServerIp</code></td><td>string</td><td><code>"192.168.0.1"</code></td><td>FTP 서버 IP 주소</td></tr>
+    <tr><td><code>ServerPort</code></td><td>ushort</td><td><code>21</code></td><td>FTP 서버 포트</td></tr>
+    <tr><td><code>Username</code></td><td>string</td><td><code>"anonymous"</code></td><td>로그인 사용자명</td></tr>
+    <tr><td><code>Password</code></td><td>string</td><td><code>"user@dpdk.local"</code></td><td>로그인 비밀번호</td></tr>
+    <tr><td><code>LocalIp</code></td><td>string</td><td><code>"192.168.0.2"</code></td><td>lwIP 스택의 로컬 IP</td></tr>
+    <tr><td><code>Netmask</code></td><td>string</td><td><code>"255.255.255.0"</code></td><td>서브넷 마스크</td></tr>
+    <tr><td><code>Gateway</code></td><td>string</td><td><code>"192.168.0.1"</code></td><td>기본 게이트웨이</td></tr>
+    <tr><td><code>TimeoutMs</code></td><td>int</td><td><code>10000</code></td><td>작업 타임아웃 (ms)</td></tr>
+</tbody></table>
+
+<h4>FtpEvent / FtpEventType</h4>
+<table>
+    <tbody><tr><th>이벤트 타입</th><th>설명</th></tr>
+    <tr><td><code>Connected</code></td><td>FTP 서버 연결 성공</td></tr>
+    <tr><td><code>Disconnected</code></td><td>연결 해제됨</td></tr>
+    <tr><td><code>LoginOk</code></td><td>로그인 성공</td></tr>
+    <tr><td><code>LoginFailed</code></td><td>로그인 실패</td></tr>
+    <tr><td><code>Listed</code></td><td>디렉토리 목록 수신 완료</td></tr>
+    <tr><td><code>Downloaded</code></td><td>파일 다운로드 완료</td></tr>
+    <tr><td><code>Uploaded</code></td><td>파일 업로드 완료</td></tr>
+    <tr><td><code>Error</code></td><td>오류 발생</td></tr>
+    <tr><td><code>Info</code></td><td>정보 메시지</td></tr>
+</tbody></table>
+
+<h4>EventQueue / LogQueue 폴링</h4>
+
+<pre><code><span class="cm">// 이벤트 폴링 (타이머에서 호출)</span>
+<span class="kw">while</span> (ftp.EventQueue.<span class="fn">TryDequeue</span>(<span class="kw">out var</span> evt))
+{
+    <span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"[{evt.Timestamp:HH:mm:ss}] {evt.Type}: {evt.Message}"</span>);
+}
+
+<span class="cm">// 로그 폴링</span>
+<span class="kw">while</span> (ftp.LogQueue.<span class="fn">TryDequeue</span>(<span class="kw">out var</span> log))
+{
+    <span class="tp">Console</span>.<span class="fn">WriteLine</span>(log);
+}</code></pre>
+
+<h3 id="nic-coordinator">NIC Coordinator (동시 멀티세션 FTP)</h3>
+
+<p>Unified Dispatcher (<code>shim_dispatch_poll</code>) 아키텍처에서 UDP와 FTP(TCP)는 동시에 동작합니다.
+<code>DpdkNicCoordinator</code>는 레퍼런스 카운팅으로 lwIP external RX 모드를 관리합니다:
+첫 FTP 세션 시작 시 lwIP external RX를 활성화하고, 마지막 세션 종료 시 비활성화합니다.</p>
+
+<div class="info-box tip">
+    <strong>레퍼런스 카운팅 동작 흐름</strong>
+    <ol>
+        <li><code>AcquireFtpAccessAsync()</code> — <code>Interlocked.Increment(_ftpActiveCount)</code></li>
+        <li>첫 세션 (<code>activeCount == 1</code>): <code>SetLwipExternalRx(true)</code> — Dispatcher가 TCP/ARP를 lwIP에 전달 시작</li>
+        <li>FTP 작업 수행 (각 CH가 독립 <code>sessionId</code>로 동시 전송 가능)</li>
+        <li><code>lease.DisposeAsync()</code> → <code>Interlocked.Decrement(_ftpActiveCount)</code></li>
+        <li>마지막 세션 (<code>activeCount == 0</code>): <code>SetLwipExternalRx(false)</code></li>
+    </ol>
+</div>
+
+<pre><code><span class="cm">// DpdkNicCoordinator 사용 예제 (CommPgDriver 내부)</span>
+<span class="cm">// PgIndex = CH 인덱스 (0~3) → sessionId로 사용</span>
+<span class="kw">var</span> lease = <span class="kw">await</span> _nicCoordinator.<span class="fn">AcquireFtpAccessAsync</span>();
+<span class="kw">try</span>
+{
+    <span class="cm">// sessionId = PgIndex → CH별 독립 FTP 세션</span>
+    <span class="kw">var</span> ftpEngine = <span class="kw">new</span> <span class="tp">DpdkFtpEngine</span>(_dpdkManager, PgIndex);
+    <span class="kw">try</span>
+    {
+        <span class="kw">var</span> config = <span class="fn">CreatePgFtpConfig</span>();
+        ftpEngine.<span class="fn">InitLwip</span>(config);  <span class="cm">// 레퍼런스 카운팅 init</span>
+
+        <span class="kw">await</span> ftpEngine.<span class="fn">ConnectAsync</span>(pgIpAddress, <span class="num">21</span>,
+            username, password, <span class="num">10000</span>);
+
+        <span class="cm">// FTP 다운로드/업로드 수행 (다른 CH도 동시에 FTP 가능)</span>
+        <span class="kw">byte</span>[]? data = <span class="kw">await</span> ftpEngine.<span class="fn">DownloadAsync</span>(remoteFile, <span class="num">30000</span>);
+
+        <span class="kw">await</span> ftpEngine.<span class="fn">DisconnectAsync</span>();
+    }
+    <span class="kw">finally</span>
+    {
+        ftpEngine.<span class="fn">StopLwip</span>();  <span class="cm">// 레퍼런스 카운팅 stop</span>
+        ftpEngine.<span class="fn">Dispose</span>();
+    }
+}
+<span class="kw">finally</span>
+{
+    <span class="kw">await</span> lease.<span class="fn">DisposeAsync</span>(); <span class="cm">// activeCount 감소, 마지막이면 external RX 해제</span>
+}</code></pre>
+
+<div class="info-box tip">
+    <strong>로그 확인</strong>
+    NicCoordinator 동작은 앱 로그에서 다음 메시지로 확인할 수 있습니다:
+    <ul>
+        <li><code>[DpdkNicCoordinator] FTP 활성화 (activeCount=N)</code></li>
+        <li><code>[DpdkNicCoordinator] external RX 활성화 (첫 FTP 세션)</code></li>
+        <li><code>[DpdkNicCoordinator] FTP 해제 (activeCount=N)</code></li>
+        <li><code>[DpdkNicCoordinator] external RX 비활성화 (마지막 FTP 세션 종료)</code></li>
+    </ul>
+</div>
+
+<div class="section-divider"></div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- PERFORMANCE COUNTER                    -->
+<!-- ═══════════════════════════════════════ -->
+<h2 id="perf-counter">PerformanceCounter</h2>
+
+<p>모든 엔진에서 공유하는 스레드 안전한 성능 카운터입니다. <code>Interlocked</code> 기반의 lock-free 연산으로 고속 통계를 수집합니다.</p>
+
+<pre><code><span class="kw">var</span> perf = <span class="kw">new</span> <span class="tp">PerformanceCounter</span>();
+perf.<span class="fn">Start</span>();
+
+<span class="cm">// 엔진이 내부적으로 호출하는 메서드들:</span>
+<span class="cm">// perf.AddTx(packetCount, byteCount);</span>
+<span class="cm">// perf.AddRx(packetCount, byteCount);</span>
+<span class="cm">// perf.AddErrors(count);</span>
+<span class="cm">// perf.AddDropped(count);</span>
+
+<span class="cm">// 주기적 스냅샷 조회</span>
+<span class="kw">var</span> timer = <span class="kw">new</span> <span class="tp">System.Timers.Timer</span>(<span class="num">1000</span>);
+timer.Elapsed += (s, e) =&gt;
+{
+    <span class="kw">var</span> snap = perf.<span class="fn">TakeSnapshot</span>();
+    <span class="tp">Console</span>.<span class="fn">WriteLine</span>(
+        <span class="str">$"TX: {snap.TxPps:N0} PPS ({snap.TxMbps:F1} Mbps) | "</span> +
+        <span class="str">$"RX: {snap.RxPps:N0} PPS ({snap.RxMbps:F1} Mbps) | "</span> +
+        <span class="str">$"Errors: {snap.Errors} Dropped: {snap.Dropped}"</span>);
+};
+timer.<span class="fn">Start</span>();
+
+<span class="cm">// Peak 값 조회</span>
+<span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"Peak TX: {perf.PeakTxPps:N0} PPS ({perf.PeakTxMbps:F1} Mbps)"</span>);
+<span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"Peak RX: {perf.PeakRxPps:N0} PPS ({perf.PeakRxMbps:F1} Mbps)"</span>);
+
+<span class="cm">// 리셋</span>
+perf.<span class="fn">Reset</span>();</code></pre>
+
+<h4>StatsSnapshot 속성</h4>
+<table>
+    <tbody><tr><th>속성</th><th>타입</th><th>설명</th></tr>
+    <tr><td><code>Timestamp</code></td><td>DateTime</td><td>스냅샷 생성 시각</td></tr>
+    <tr><td><code>TxPackets</code></td><td>long</td><td>누적 송신 패킷 수</td></tr>
+    <tr><td><code>RxPackets</code></td><td>long</td><td>누적 수신 패킷 수</td></tr>
+    <tr><td><code>TxBytes</code></td><td>long</td><td>누적 송신 바이트</td></tr>
+    <tr><td><code>RxBytes</code></td><td>long</td><td>누적 수신 바이트</td></tr>
+    <tr><td><code>TxPps</code></td><td>double</td><td>현재 송신 PPS (초당 패킷)</td></tr>
+    <tr><td><code>RxPps</code></td><td>double</td><td>현재 수신 PPS</td></tr>
+    <tr><td><code>TxMbps</code></td><td>double</td><td>현재 송신 Mbps</td></tr>
+    <tr><td><code>RxMbps</code></td><td>double</td><td>현재 수신 Mbps</td></tr>
+    <tr><td><code>Errors</code></td><td>long</td><td>누적 에러 수</td></tr>
+    <tr><td><code>Dropped</code></td><td>long</td><td>누적 드롭 수</td></tr>
+</tbody></table>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- HW STATS                               -->
+<!-- ═══════════════════════════════════════ -->
+<h2 id="hw-stats">HW 통계 (NIC 하드웨어)</h2>
+
+<p>NIC 하드웨어 수준의 통계를 조회합니다. PerformanceCounter(소프트웨어 카운터)와 달리 NIC 칩의 레지스터에서 직접 읽어온 값입니다.</p>
+
+<pre><code><span class="kw">var</span> mgr = <span class="tp">DpdkManager</span>.Instance;
+
+<span class="cm">// HW 통계 조회</span>
+<span class="kw">var</span> stats = mgr.<span class="fn">GetPortStats</span>();
+<span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"HW RX: {stats.ipackets:N0} pkts, {stats.ibytes:N0} bytes"</span>);
+<span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"HW TX: {stats.opackets:N0} pkts, {stats.obytes:N0} bytes"</span>);
+<span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"Missed: {stats.imissed:N0}  Errors: RX={stats.ierrors:N0} TX={stats.oerrors:N0}"</span>);
+<span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"No mbuf: {stats.rx_nombuf:N0}"</span>);
+
+<span class="cm">// HW 통계 리셋</span>
+mgr.<span class="fn">ResetPortStats</span>();
+
+<span class="cm">// 링크 상태 조회</span>
+<span class="kw">var</span> link = mgr.<span class="fn">GetLinkInfo</span>();
+<span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"Link: {(link.link_status == 1 ? "UP" : "DOWN")}"</span>);
+<span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"Speed: {link.link_speed} Mbps"</span>);
+<span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"Duplex: {(link.link_duplex == 1 ? "Full" : "Half")}"</span>);</code></pre>
+
+<h4>RteEthStats 구조체</h4>
+<table>
+    <tbody><tr><th>필드</th><th>타입</th><th>설명</th></tr>
+    <tr><td><code>ipackets</code></td><td>ulong</td><td>수신 패킷 수</td></tr>
+    <tr><td><code>opackets</code></td><td>ulong</td><td>송신 패킷 수</td></tr>
+    <tr><td><code>ibytes</code></td><td>ulong</td><td>수신 바이트</td></tr>
+    <tr><td><code>obytes</code></td><td>ulong</td><td>송신 바이트</td></tr>
+    <tr><td><code>imissed</code></td><td>ulong</td><td>놓친 패킷 (큐 풀)</td></tr>
+    <tr><td><code>ierrors</code></td><td>ulong</td><td>수신 오류</td></tr>
+    <tr><td><code>oerrors</code></td><td>ulong</td><td>송신 오류</td></tr>
+    <tr><td><code>rx_nombuf</code></td><td>ulong</td><td>mbuf 부족으로 드롭</td></tr>
+</tbody></table>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- RTT STATS                              -->
+<!-- ═══════════════════════════════════════ -->
+<h2 id="rtt-stats">RTT 통계</h2>
+
+<p><code>DpdkUdpReqRespEngine.Stats</code> 속성으로 RTT 통계에 접근합니다.</p>
+
+<pre><code><span class="kw">var</span> stats = reqRespEngine.Stats;
+
+<span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"── RTT 통계 ──"</span>);
+<span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"  전송:    {stats.Sent}"</span>);
+<span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"  수신:    {stats.Received}"</span>);
+<span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"  타임아웃: {stats.Timeouts}"</span>);
+<span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"  기타 RX: {stats.RxOther}"</span>);
+<span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"  Min RTT: {stats.MinRtt:F3} ms"</span>);
+<span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"  Avg RTT: {stats.AvgRtt:F3} ms"</span>);
+<span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"  Max RTT: {stats.MaxRtt:F3} ms"</span>);
+
+<span class="cm">// 성공률</span>
+<span class="kw">double</span> successRate = stats.Sent &gt; <span class="num">0</span>
+    ? (<span class="kw">double</span>)stats.Received / stats.Sent * <span class="num">100</span>
+    : <span class="num">0</span>;
+<span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"  성공률:  {successRate:F1}%"</span>);</code></pre>
+
+<div class="section-divider"></div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- API REFERENCE                          -->
+<!-- ═══════════════════════════════════════ -->
+<h2 id="namespaces">API 레퍼런스</h2>
+
+<h3 id="api-dpdkmanager">DpdkManager</h3>
+<table>
+    <tbody><tr><th>멤버</th><th>타입</th><th>설명</th></tr>
+    <tr><td><code>Instance</code></td><td>static DpdkManager</td><td>싱글톤 인스턴스</td></tr>
+    <tr><td><code>State</code></td><td>DpdkState</td><td>현재 DPDK 상태</td></tr>
+    <tr><td><code>MbufPool</code></td><td>IntPtr</td><td>메모리 버퍼 풀 포인터</td></tr>
+    <tr><td><code>PortId</code></td><td>ushort</td><td>활성 포트 ID</td></tr>
+    <tr><td><code>LocalMac</code></td><td>byte[]</td><td>활성 포트 MAC 주소</td></tr>
+    <tr><td><code>DpdkVersion</code></td><td>string?</td><td>DPDK 버전 문자열</td></tr>
+    <tr><td><code>ErrorMessage</code></td><td>string?</td><td>마지막 에러 메시지</td></tr>
+    <tr><td><code>Ports</code></td><td>IReadOnlyList&lt;PortInfo&gt;</td><td>사용 가능 포트 목록</td></tr>
+    <tr><td><code>StatusChanged</code></td><td>event</td><td>상태 변경 이벤트</td></tr>
+    <tr><td><code>ActivePortChanged</code></td><td>event</td><td>포트 변경 이벤트</td></tr>
+    <tr><td><code>InitializeAsync(opts)</code></td><td>Task</td><td>EAL 초기화 + 포트 설정</td></tr>
+    <tr><td><code>SwitchPort(id)</code></td><td>bool</td><td>다른 포트로 전환</td></tr>
+    <tr><td><code>GetPortStats()</code></td><td>RteEthStats</td><td>NIC HW 통계 조회</td></tr>
+    <tr><td><code>ResetPortStats()</code></td><td>void</td><td>NIC HW 통계 초기화</td></tr>
+    <tr><td><code>GetLinkInfo()</code></td><td>RteEthLink</td><td>링크 상태 조회</td></tr>
+    <tr><td><code>Cleanup()</code></td><td>void</td><td>DPDK 정리 및 메모리 해제</td></tr>
+    <tr><td><code>Dispose()</code></td><td>void</td><td>IDisposable (→ Cleanup)</td></tr>
+</tbody></table>
+
+<h3 id="api-engines">엔진 클래스</h3>
+<p>모든 엔진은 <code>IDpdkEngine</code> 인터페이스를 구현합니다.</p>
+
+<pre><code><span class="kw">public interface</span> <span class="tp">IDpdkEngine</span> : <span class="tp">IDisposable</span>
+{
+    <span class="kw">bool</span> IsRunning { <span class="kw">get</span>; }
+    <span class="kw">string</span>? LastError { <span class="kw">get</span>; }
+    <span class="kw">void</span> <span class="fn">Stop</span>();
+}</code></pre>
+
+<table>
+    <tbody><tr><th>엔진</th><th>생성자</th><th>시작 메서드</th><th>비고</th></tr>
+    <tr><td><code>DpdkUdpTxEngine</code></td><td>(IDpdkContext, PerformanceCounter)</td><td><code>Start(TxConfig)</code></td><td>ResponseQueue로 응답도 수신</td></tr>
+    <tr><td><code>DpdkUdpRxEngine</code></td><td>(IDpdkContext, PerformanceCounter)</td><td><code>Start()</code></td><td>FilterPort, FilterIp 필터링</td></tr>
+    <tr><td><code>DpdkEchoEngine</code></td><td>(IDpdkContext, PerformanceCounter)</td><td><code>Start()</code></td><td>MAC/IP/Port 스왑 반송</td></tr>
+    <tr><td><code>DpdkUdpReqRespEngine</code></td><td>(IDpdkContext, PerformanceCounter)</td><td><code>Start(ReqRespConfig)</code></td><td>Stats, ResultQueue, DiagQueue</td></tr>
+    <tr><td><code>DpdkFtpEngine</code></td><td>(IDpdkContext)</td><td><code>InitLwip(FtpConfig)</code> + async 메서드</td><td>lwIP FTP, EventQueue, LogQueue</td></tr>
+</tbody></table>
+
+<h3 id="api-configs">Config 클래스</h3>
+<p>위의 각 엔진 섹션에서 상세 설명을 참조하세요.</p>
+
+<h3 id="api-models">Models</h3>
+<p><code>RxPacketInfo</code>와 <code>ReqRespResult</code>의 속성은 각 엔진 섹션의 표를 참조하세요.</p>
+
+<h3 id="api-stats">Stats</h3>
+<p><code>PerformanceCounter</code>, <code>StatsSnapshot</code>, <code>RttStats</code>의 상세는 성능 모니터링 섹션을 참조하세요.</p>
+
+<h3 id="api-netutils">NetUtils 유틸리티</h3>
+<table>
+    <tbody><tr><th>메서드</th><th>설명</th><th>예시</th></tr>
+    <tr><td><code>ParseMac(string)</code></td><td>MAC 문자열 → byte[6]</td><td><code>ParseMac("AA:BB:CC:DD:EE:FF")</code></td></tr>
+    <tr><td><code>FormatMac(byte[])</code></td><td>byte[6] → MAC 문자열</td><td><code>"AA:BB:CC:DD:EE:FF"</code></td></tr>
+    <tr><td><code>IpToUint(string)</code></td><td>IP 문자열 → uint (<strong>host byte order</strong>)</td><td><code>IpToUint("192.168.1.1")</code> — shim 함수에 전달 시 <code>Htonl()</code> 필수</td></tr>
+    <tr><td><code>UintToIp(uint)</code></td><td>uint → IP 문자열</td><td><code>"192.168.1.1"</code></td></tr>
+    <tr><td><code>Htons(ushort)</code></td><td>Host → Network (16-bit)</td><td>바이트 순서 변환</td></tr>
+    <tr><td><code>Ntohs(ushort)</code></td><td>Network → Host (16-bit)</td><td>바이트 순서 변환</td></tr>
+    <tr><td><code>Htonl(uint)</code></td><td>Host → Network (32-bit)</td><td>바이트 순서 변환</td></tr>
+    <tr><td><code>Ntohl(uint)</code></td><td>Network → Host (32-bit)</td><td>바이트 순서 변환</td></tr>
+    <tr><td><code>ComputeIpChecksum(byte[])</code></td><td>IPv4 헤더 체크섬 계산</td><td>수동 패킷 조작 시 사용</td></tr>
+    <tr><td><code>ComputeUdpChecksum(...)</code></td><td>UDP 체크섬 계산</td><td>srcIp, dstIp, udp+payload</td></tr>
+</tbody></table>
+
+<h3 id="api-structs">패킷 구조체</h3>
+<p>네트워크 프로토콜 헤더를 나타내는 구조체들입니다. <code>[StructLayout(LayoutKind.Sequential, Pack = 1)]</code>로 선언되어 네이티브 메모리와 1:1 매핑됩니다.</p>
+
+<table>
+    <tbody><tr><th>구조체</th><th>크기</th><th>용도</th></tr>
+    <tr><td><code>EtherHdr</code></td><td>14 bytes</td><td>Ethernet II 프레임 헤더</td></tr>
+    <tr><td><code>Ipv4Hdr</code></td><td>20 bytes</td><td>IPv4 헤더</td></tr>
+    <tr><td><code>UdpHdr</code></td><td>8 bytes</td><td>UDP 헤더</td></tr>
+    <tr><td><code>ArpHdr</code></td><td>28 bytes</td><td>ARP 헤더</td></tr>
+    <tr><td><code>RteEthStats</code></td><td>64 bytes</td><td>NIC 통계 (DPDK)</td></tr>
+    <tr><td><code>RteEtherAddr</code></td><td>6 bytes</td><td>MAC 주소</td></tr>
+    <tr><td><code>RteEthLink</code></td><td>8 bytes</td><td>링크 상태 (비트필드)</td></tr>
+</tbody></table>
+
+<h3 id="api-interop">DpdkInterop (Internal P/Invoke)</h3>
+
+<p><code>DpdkInterop</code>은 <code>dpdk_shim.dll</code>의 네이티브 함수를 C#에서 호출하기 위한 P/Invoke 선언 클래스입니다. <code>internal</code>으로 선언되어 있으며, 외부 프로젝트에서 접근하려면 <code>InternalsVisibleTo</code>를 설정해야 합니다.</p>
+
+<pre><code><span class="cm">// DpdkNet.csproj 또는 AssemblyInfo.cs</span>
+[<span class="kw">assembly</span>: <span class="tp">InternalsVisibleTo</span>(<span class="str">"ITOLED.Hardware"</span>)]</code></pre>
+
+<table>
+    <tbody><tr><th>함수</th><th>설명</th></tr>
+    <tr><td><code>shim_reqresp_once</code></td><td>단일 채널 동기 req/resp. 비매칭 패킷은 drop</td></tr>
+    <tr><td><code>shim_reqresp_once_mc</code></td><td>Multi-Channel safe 동기 req/resp. spinlock + spill 버퍼로 비매칭 패킷 보존</td></tr>
+    <tr><td><code>shim_reqresp_batch</code></td><td>배치 req/resp — 여러 요청을 연속 전송하고 통계 수집</td></tr>
+    <tr><td><code>shim_tx_burst</code></td><td>패킷 배치 송신</td></tr>
+    <tr><td><code>shim_rx_burst</code></td><td>패킷 배치 수신 (spill 우선 배출)</td></tr>
+    <tr><td><code>shim_pktmbuf_alloc</code></td><td>mbuf 할당</td></tr>
+    <tr><td><code>shim_pktmbuf_append</code></td><td>mbuf에 데이터 공간 추가</td></tr>
+    <tr><td><code>shim_pktmbuf_free</code></td><td>mbuf 해제</td></tr>
+</tbody></table>
+
+<h4>LwipInterop (FTP / lwIP P/Invoke)</h4>
+<table>
+    <tbody><tr><th>함수</th><th>설명</th></tr>
+    <tr><td><code>shim_lwip_init</code></td><td>lwIP 스택 초기화 (단일 세션용)</td></tr>
+    <tr><td><code>shim_lwip_stop</code></td><td>lwIP 스택 정지 (단일 세션용)</td></tr>
+    <tr><td><code>shim_lwip_init_ref</code></td><td>lwIP 레퍼런스 카운팅 init (첫 호출만 실제 init)</td></tr>
+    <tr><td><code>shim_lwip_stop_ref</code></td><td>lwIP 레퍼런스 카운팅 stop (마지막 호출만 실제 stop)</td></tr>
+    <tr><td><code>shim_lwip_set_external_rx</code></td><td>lwIP external RX 모드 토글 (Dispatcher → lwIP TCP/ARP 전달)</td></tr>
+    <tr><td><code>shim_ftp_connect_sync_ex</code></td><td>멀티세션 FTP 연결 (sessionId 지정)</td></tr>
+    <tr><td><code>shim_ftp_disconnect_ex</code></td><td>멀티세션 FTP 연결 해제</td></tr>
+    <tr><td><code>shim_ftp_download_sync_ex</code></td><td>멀티세션 FTP 다운로드</td></tr>
+    <tr><td><code>shim_ftp_upload_sync_ex</code></td><td>멀티세션 FTP 업로드</td></tr>
+    <tr><td><code>shim_ftp_get_state_ex</code></td><td>멀티세션 FTP 상태 조회</td></tr>
+</tbody></table>
+
+<div class="info-box info">
+    <strong>하위 호환</strong>
+    기존 <code>shim_ftp_*</code> 함수들 (<code>_ex</code> 없는 버전)은 내부적으로 <code>sessionId=0</code>으로 호출됩니다.
+    단일 세션만 사용하는 경우 기존 API를 그대로 사용할 수 있습니다.
+</div>
+
+<h3 id="api-native-structs">NativeStructs</h3>
+
+<p>네이티브 shim 함수의 결과를 C#으로 전달하기 위한 구조체입니다.</p>
+
+<h4>ShimReqRespResult</h4>
+<table>
+    <tbody><tr><th>필드</th><th>타입</th><th>설명</th></tr>
+    <tr><td><code>Status</code></td><td>int</td><td>0 = 성공 (응답 수신), 1 = 타임아웃</td></tr>
+    <tr><td><code>RttMs</code></td><td>double</td><td>왕복 지연 시간 (밀리초, QueryPerformanceCounter 기반)</td></tr>
+    <tr><td><code>RespLen</code></td><td>ushort</td><td>응답 UDP 페이로드 길이 (바이트)</td></tr>
+    <tr><td><code>SrcIp</code></td><td>uint</td><td>응답 패킷의 Source IP (network byte order)</td></tr>
+    <tr><td><code>SrcPort</code></td><td>ushort</td><td>응답 패킷의 Source Port (host byte order)</td></tr>
+</tbody></table>
+
+<h4>ShimBatchStats</h4>
+<table>
+    <tbody><tr><th>필드</th><th>타입</th><th>설명</th></tr>
+    <tr><td><code>Sent</code></td><td>uint</td><td>전송한 요청 수</td></tr>
+    <tr><td><code>Received</code></td><td>uint</td><td>수신한 응답 수</td></tr>
+    <tr><td><code>Timeouts</code></td><td>uint</td><td>타임아웃 횟수</td></tr>
+    <tr><td><code>MinRttUs</code></td><td>ulong</td><td>최소 RTT (마이크로초)</td></tr>
+    <tr><td><code>MaxRttUs</code></td><td>ulong</td><td>최대 RTT (마이크로초)</td></tr>
+    <tr><td><code>AvgRttUs</code></td><td>ulong</td><td>평균 RTT (마이크로초)</td></tr>
+</tbody></table>
+
+<h3 id="api-ftp">FTP 클래스</h3>
+
+<h4>DpdkFtpEngine</h4>
+<table>
+    <tbody><tr><th>멤버</th><th>타입</th><th>설명</th></tr>
+    <tr><td><code>(ctor)</code></td><td>(IDpdkContext, int sessionId = 0)</td><td>생성자. sessionId = CH 인덱스 (0~3)</td></tr>
+    <tr><td><code>IsRunning</code></td><td>bool</td><td>엔진 실행 상태</td></tr>
+    <tr><td><code>LastError</code></td><td>string?</td><td>마지막 에러 메시지</td></tr>
+    <tr><td><code>EventQueue</code></td><td>ConcurrentQueue&lt;FtpEvent&gt;</td><td>이벤트 큐</td></tr>
+    <tr><td><code>LogQueue</code></td><td>ConcurrentQueue&lt;string&gt;</td><td>로그 큐</td></tr>
+    <tr><td><code>InitLwip(config)</code></td><td>bool</td><td>lwIP 스택 초기화 (레퍼런스 카운팅 — 첫 세션만 실제 init)</td></tr>
+    <tr><td><code>ConnectAsync(...)</code></td><td>Task&lt;bool&gt;</td><td>FTP 연결 + 로그인</td></tr>
+    <tr><td><code>DisconnectAsync()</code></td><td>Task</td><td>연결 해제</td></tr>
+    <tr><td><code>PwdAsync()</code></td><td>Task&lt;string?&gt;</td><td>현재 디렉토리 조회</td></tr>
+    <tr><td><code>CwdAsync(path)</code></td><td>Task&lt;bool&gt;</td><td>디렉토리 변경</td></tr>
+    <tr><td><code>ListAsync(timeoutMs)</code></td><td>Task&lt;string?&gt;</td><td>디렉토리 목록</td></tr>
+    <tr><td><code>DownloadAsync(path, timeoutMs)</code></td><td>Task&lt;byte[]?&gt;</td><td>파일 다운로드 (최대 64MB)</td></tr>
+    <tr><td><code>UploadAsync(path, data, timeoutMs)</code></td><td>Task&lt;bool&gt;</td><td>파일 업로드</td></tr>
+    <tr><td><code>ReconnectAsync(config)</code></td><td>Task&lt;bool&gt;</td><td>재연결 (lwIP 재초기화 포함)</td></tr>
+    <tr><td><code>GetFtpState()</code></td><td>int</td><td>네이티브 상태머신 상태</td></tr>
+    <tr><td><code>StopLwip()</code></td><td>void</td><td>lwIP 스택 정지 (레퍼런스 카운팅 — 마지막 세션만 실제 stop)</td></tr>
+    <tr><td><code>Stop()</code></td><td>void</td><td>엔진 중지</td></tr>
+    <tr><td><code>Dispose()</code></td><td>void</td><td>리소스 해제</td></tr>
+</tbody></table>
+
+<h4>FtpConfig</h4>
+<p>FTP Engine 섹션 참조</p>
+
+<h4>FtpEvent</h4>
+<table>
+    <tbody><tr><th>속성</th><th>타입</th><th>설명</th></tr>
+    <tr><td><code>Type</code></td><td>FtpEventType</td><td>이벤트 유형</td></tr>
+    <tr><td><code>Message</code></td><td>string</td><td>이벤트 메시지</td></tr>
+    <tr><td><code>Timestamp</code></td><td>DateTime</td><td>발생 시각</td></tr>
+</tbody></table>
+
+<div class="section-divider"></div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- ADVANCED USAGE                         -->
+<!-- ═══════════════════════════════════════ -->
+<h2 id="multi-engine">다중 엔진 운용</h2>
+
+<p>하나의 <code>DpdkManager</code>에서 여러 엔진을 동시에 실행할 수 있습니다. 각 엔진은 자체 스레드에서 동작합니다.</p>
+
+<pre><code><span class="kw">await</span> <span class="tp">DpdkManager</span>.Instance.<span class="fn">InitializeAsync</span>(<span class="kw">new</span> <span class="tp">DpdkInitOptions</span>());
+
+<span class="kw">var</span> txPerf = <span class="kw">new</span> <span class="tp">PerformanceCounter</span>();
+<span class="kw">var</span> rxPerf = <span class="kw">new</span> <span class="tp">PerformanceCounter</span>();
+txPerf.<span class="fn">Start</span>();
+rxPerf.<span class="fn">Start</span>();
+
+<span class="cm">// TX와 RX를 동시에 실행</span>
+<span class="kw">using var</span> tx = <span class="kw">new</span> <span class="tp">DpdkUdpTxEngine</span>(<span class="tp">DpdkManager</span>.Instance, txPerf);
+<span class="kw">using var</span> rx = <span class="kw">new</span> <span class="tp">DpdkUdpRxEngine</span>(<span class="tp">DpdkManager</span>.Instance, rxPerf)
+{
+    FilterPort = <span class="num">5000</span>
+};
+
+tx.<span class="fn">Start</span>(<span class="kw">new</span> <span class="tp">TxConfig</span>
+{
+    DstMac = <span class="tp">NetUtils</span>.<span class="fn">ParseMac</span>(<span class="str">"AA:BB:CC:DD:EE:FF"</span>),
+    DstIp = <span class="str">"192.168.1.100"</span>, DstPort = <span class="num">5000</span>,
+    SrcIp = <span class="str">"192.168.1.10"</span>,  SrcPort = <span class="num">4000</span>,
+    PayloadSize = <span class="num">128</span>, TargetPps = <span class="num">50000</span>
+});
+rx.<span class="fn">Start</span>();
+
+<span class="cm">// 5초간 모니터링</span>
+<span class="kw">for</span> (<span class="kw">int</span> i = <span class="num">0</span>; i &lt; <span class="num">5</span>; i++)
+{
+    <span class="kw">await</span> <span class="tp">Task</span>.<span class="fn">Delay</span>(<span class="num">1000</span>);
+    <span class="kw">var</span> txSnap = txPerf.<span class="fn">TakeSnapshot</span>();
+    <span class="kw">var</span> rxSnap = rxPerf.<span class="fn">TakeSnapshot</span>();
+    <span class="tp">Console</span>.<span class="fn">WriteLine</span>(
+        <span class="str">$"TX: {txSnap.TxPps:N0} PPS | RX: {rxSnap.RxPps:N0} PPS"</span>);
+}
+
+tx.<span class="fn">Stop</span>();
+rx.<span class="fn">Stop</span>();</code></pre>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- ARP + REQ/RESP                         -->
+<!-- ═══════════════════════════════════════ -->
+<h2 id="arp-reqresp">ARP 자동 해석</h2>
+
+<p><code>DpdkUdpReqRespEngine</code>은 시작 시 자동으로 ARP Request를 보내 목적지 MAC 주소를 해석합니다. DstMac에 broadcast MAC(<code>FF:FF:FF:FF:FF:FF</code>)을 넣으면 ARP가 자동 수행됩니다.</p>
+
+<div class="info-box info">
+    <strong>DispatchPoll 모드에서의 ARP 처리</strong>
+    Unified Dispatcher (<code>shim_dispatch_poll</code>) 사용 시 ARP 패킷 처리:
+    <ul>
+        <li><strong>lwIP 실행 중</strong>: ARP 패킷이 lwIP 스택으로 전달되어 자동 응답</li>
+        <li><strong>lwIP 미실행</strong>: ARP 패킷이 C# <code>out_udp_pkts</code>로 반환되어 <code>PgDpdkServer.HandleArpPacket()</code>이 직접 ARP Reply 생성</li>
+    </ul>
+    이 이중 경로 설계로 lwIP 실행 여부와 관계없이 PG 보드가 항상 PC의 MAC 주소를 해석할 수 있습니다.
+</div>
+
+<pre><code><span class="kw">var</span> config = <span class="kw">new</span> <span class="tp">ReqRespConfig</span>
+{
+    <span class="cm">// broadcast MAC → ARP 자동 해석</span>
+    DstMac      = <span class="kw">new byte</span>[] { <span class="num">0xFF</span>, <span class="num">0xFF</span>, <span class="num">0xFF</span>, <span class="num">0xFF</span>, <span class="num">0xFF</span>, <span class="num">0xFF</span> },
+    DstIp       = <span class="str">"192.168.1.100"</span>,
+    DstPort     = <span class="num">5000</span>,
+    SrcIp       = <span class="str">"192.168.1.10"</span>,
+    SrcPort     = <span class="num">4000</span>,
+    PayloadSize = <span class="num">64</span>,
+    RepeatCount = <span class="num">100</span>
+};
+
+<span class="cm">// DiagQueue로 ARP 진행 상황 확인</span>
+<span class="kw">while</span> (rr.DiagQueue.<span class="fn">TryDequeue</span>(<span class="kw">out var</span> diag))
+{
+    <span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"[DIAG] {diag}"</span>);
+    <span class="cm">// 예: "ARP: resolved 192.168.1.100 → AA:BB:CC:DD:EE:FF"</span>
+}</code></pre>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- ERROR HANDLING                         -->
+<!-- ═══════════════════════════════════════ -->
+<h2 id="error-handling">에러 핸들링</h2>
+
+<pre><code><span class="cm">// 1. 초기화 에러 확인</span>
+<span class="kw">await</span> <span class="tp">DpdkManager</span>.Instance.<span class="fn">InitializeAsync</span>(<span class="kw">new</span> <span class="tp">DpdkInitOptions</span>());
+
+<span class="kw">if</span> (<span class="tp">DpdkManager</span>.Instance.State == <span class="tp">DpdkState</span>.Error)
+{
+    <span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"초기화 실패: {DpdkManager.Instance.ErrorMessage}"</span>);
+    <span class="kw">return</span>;
+}
+
+<span class="cm">// 2. 엔진 에러 확인</span>
+<span class="kw">var</span> tx = <span class="kw">new</span> <span class="tp">DpdkUdpTxEngine</span>(<span class="tp">DpdkManager</span>.Instance, perf);
+tx.<span class="fn">Start</span>(config);
+
+<span class="cm">// 엔진이 비정상 종료되면 LastError에 메시지 저장</span>
+<span class="kw">if</span> (!tx.IsRunning &amp;&amp; tx.LastError != <span class="kw">null</span>)
+{
+    <span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"TX 엔진 오류: {tx.LastError}"</span>);
+}
+
+<span class="cm">// 3. DPDK 상태가 Ready인지 확인 후 엔진 시작</span>
+<span class="kw">if</span> (<span class="tp">DpdkManager</span>.Instance.State != <span class="tp">DpdkState</span>.Ready)
+{
+    <span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">"DPDK가 준비 상태가 아닙니다."</span>);
+    <span class="kw">return</span>;
+}</code></pre>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- BEST PRACTICES                         -->
+<!-- ═══════════════════════════════════════ -->
+<h2 id="best-practices">베스트 프랙티스</h2>
+
+<div class="info-box tip">
+    <strong>1. 반드시 관리자 권한으로 실행</strong>
+    DPDK는 hugepage 메모리와 PCI 디바이스에 직접 접근합니다. 관리자 권한 없이는 초기화가 실패합니다.
+</div>
+
+<div class="info-box tip">
+    <strong>2. Cleanup 보장</strong>
+    <code>using</code> 패턴, <code>try-finally</code>, 또는 <code>ProcessExit</code> 이벤트를 활용하여 hugepage 메모리를 반드시 해제하세요.
+</div>
+
+<div class="info-box tip">
+    <strong>3. MbufPoolSize 설정</strong>
+    <code>2^n - 1</code> 값을 사용하세요 (예: 8191, 16383, 32767). DPDK 내부 최적화와 관련됩니다.
+</div>
+
+<div class="info-box tip">
+    <strong>4. 엔진 생명주기</strong>
+    엔진을 Stop하기 전에 반드시 IsRunning을 확인하세요. 이미 중지된 엔진의 Stop은 안전하지만, 불필요한 호출입니다.
+</div>
+
+<div class="info-box tip">
+    <strong>5. PerformanceCounter 공유</strong>
+    하나의 PerformanceCounter를 여러 엔진에서 공유하면 TX/RX 합산 통계를 얻을 수 있습니다. 개별 통계가 필요하면 엔진마다 별도로 생성하세요.
+</div>
+
+<div class="info-box tip">
+    <strong>6. 큐 오버플로우 방지</strong>
+    RX 엔진의 <code>PacketQueue</code>를 주기적으로 소비하지 않으면 메모리가 증가합니다. <code>MaxQueueSize</code>를 적절히 설정하세요.
+</div>
+
+<div class="section-divider"></div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- FTP RECONNECT PATTERN                  -->
+<!-- ═══════════════════════════════════════ -->
+<h2 id="ftp-reconnect">FTP 재연결 패턴</h2>
+
+<p>FTP 작업은 서버 타임아웃 (421 응답), 네트워크 장애, 또는 유휴 연결 해제 등의 이유로 실패할 수 있습니다. <code>ReconnectAsync</code>를 활용하여 자동 재연결 + 재시도 패턴을 구현할 수 있습니다.</p>
+
+<pre><code><span class="cm">// 작업 실패 시 자동 재연결 + 재시도 패턴</span>
+<span class="kw">async</span> <span class="tp">Task</span>&lt;<span class="kw">string</span>?&gt; <span class="fn">SafeListAsync</span>(<span class="tp">DpdkFtpEngine</span> ftp, <span class="tp">FtpConfig</span> config)
+{
+    <span class="kw">string</span>? result = <span class="kw">await</span> ftp.<span class="fn">ListAsync</span>(config.TimeoutMs);
+    <span class="kw">if</span> (result == <span class="kw">null</span>)
+    {
+        <span class="cm">// 재연결 시도</span>
+        <span class="kw">bool</span> reconnected = <span class="kw">await</span> ftp.<span class="fn">ReconnectAsync</span>(config);
+        <span class="kw">if</span> (reconnected)
+            result = <span class="kw">await</span> ftp.<span class="fn">ListAsync</span>(config.TimeoutMs);
+    }
+    <span class="kw">return</span> result;
+}</code></pre>
+
+<div class="info-box info">
+    <strong>버퍼 크기 제한</strong>
+    <ul>
+        <li>다운로드: 최대 64MB</li>
+        <li>LIST 응답: 최대 64KB</li>
+        <li>PWD 응답: 최대 512B</li>
+    </ul>
+</div>
+
+<div class="section-divider"></div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- FULL EXAMPLE                           -->
+<!-- ═══════════════════════════════════════ -->
+<h2 id="full-example">전체 예제: 콘솔 애플리케이션</h2>
+
+<p>DPDK를 초기화하고 UDP 패킷을 송신한 후 통계를 출력하는 완전한 콘솔 애플리케이션입니다.</p>
+
+<pre><code><span class="kw">using</span> <span class="tp">DpdkNet</span>;
+<span class="kw">using</span> <span class="tp">DpdkNet.Config</span>;
+<span class="kw">using</span> <span class="tp">DpdkNet.Engine</span>;
+<span class="kw">using</span> <span class="tp">DpdkNet.Stats</span>;
+<span class="kw">using</span> <span class="tp">DpdkNet.Utilities</span>;
+
+<span class="kw">namespace</span> <span class="tp">MyDpdkApp</span>;
+
+<span class="kw">class</span> <span class="tp">Program</span>
+{
+    <span class="kw">static async</span> <span class="tp">Task</span> <span class="fn">Main</span>(<span class="kw">string</span>[] args)
+    {
+        <span class="cm">// ── 안전망: 비정상 종료 시 메모리 해제 ──</span>
+        <span class="tp">AppDomain</span>.CurrentDomain.<span class="fn">ProcessExit</span> += (s, e) =&gt;
+        {
+            <span class="kw">try</span> { <span class="tp">DpdkManager</span>.Instance.<span class="fn">Cleanup</span>(); } <span class="kw">catch</span> { }
+        };
+
+        <span class="cm">// ── 1. 초기화 ──</span>
+        <span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">"DPDK 초기화 중..."</span>);
+
+        <span class="tp">DpdkManager</span>.Instance.<span class="fn">StatusChanged</span> += (s, e) =&gt;
+            <span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"  [{e.State}] {e.Message}"</span>);
+
+        <span class="kw">await</span> <span class="tp">DpdkManager</span>.Instance.<span class="fn">InitializeAsync</span>(<span class="kw">new</span> <span class="tp">DpdkInitOptions</span>
+        {
+            CoreMask     = <span class="str">"0"</span>,
+            MemoryMb     = <span class="num">512</span>,
+            LogLevel     = <span class="str">"*:error"</span>,
+            PortId       = <span class="num">0</span>,
+            MbufPoolSize = <span class="num">8191</span>
+        });
+
+        <span class="kw">if</span> (<span class="tp">DpdkManager</span>.Instance.State != <span class="tp">DpdkState</span>.Ready)
+        {
+            <span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"초기화 실패: {DpdkManager.Instance.ErrorMessage}"</span>);
+            <span class="kw">return</span>;
+        }
+
+        <span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"✓ 초기화 완료 (v{DpdkManager.Instance.DpdkVersion})"</span>);
+        <span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"  MAC: {NetUtils.FormatMac(DpdkManager.Instance.LocalMac)}"</span>);
+
+        <span class="cm">// ── 2. 링크 상태 확인 ──</span>
+        <span class="kw">var</span> link = <span class="tp">DpdkManager</span>.Instance.<span class="fn">GetLinkInfo</span>();
+        <span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"  Link: {(link.link_status == 1 ? "UP" : "DOWN")} @ {link.link_speed} Mbps"</span>);
+
+        <span class="cm">// ── 3. TX 엔진 실행 ──</span>
+        <span class="kw">var</span> perf = <span class="kw">new</span> <span class="tp">PerformanceCounter</span>();
+        perf.<span class="fn">Start</span>();
+
+        <span class="kw">using var</span> tx = <span class="kw">new</span> <span class="tp">DpdkUdpTxEngine</span>(<span class="tp">DpdkManager</span>.Instance, perf);
+
+        tx.<span class="fn">Start</span>(<span class="kw">new</span> <span class="tp">TxConfig</span>
+        {
+            DstMac      = <span class="tp">NetUtils</span>.<span class="fn">ParseMac</span>(<span class="str">"AA:BB:CC:DD:EE:FF"</span>),
+            DstIp       = <span class="str">"192.168.1.100"</span>,
+            DstPort     = <span class="num">5000</span>,
+            SrcIp       = <span class="str">"192.168.1.10"</span>,
+            SrcPort     = <span class="num">4000</span>,
+            PayloadSize = <span class="num">64</span>,
+            TargetPps   = <span class="num">100000</span>,
+            PayloadText = <span class="str">"Hello from DpdkNet!"</span>
+        });
+
+        <span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">"\nTX 엔진 시작! 10초간 송신..."</span>);
+
+        <span class="cm">// ── 4. 실시간 통계 출력 ──</span>
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="num">0</span>; i &lt; <span class="num">10</span>; i++)
+        {
+            <span class="kw">await</span> <span class="tp">Task</span>.<span class="fn">Delay</span>(<span class="num">1000</span>);
+            <span class="kw">var</span> snap = perf.<span class="fn">TakeSnapshot</span>();
+            <span class="tp">Console</span>.<span class="fn">WriteLine</span>(
+                <span class="str">$"  [{i + 1:D2}s] TX: {snap.TxPackets:N0} pkts | "</span> +
+                <span class="str">$"{snap.TxPps:N0} PPS | {snap.TxMbps:F1} Mbps"</span>);
+        }
+
+        <span class="cm">// ── 5. 중지 ──</span>
+        tx.<span class="fn">Stop</span>();
+
+        <span class="cm">// ── 6. 최종 결과 ──</span>
+        <span class="kw">var</span> final_ = perf.<span class="fn">TakeSnapshot</span>();
+        <span class="kw">var</span> hwStats = <span class="tp">DpdkManager</span>.Instance.<span class="fn">GetPortStats</span>();
+
+        <span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"\n── 최종 결과 ──"</span>);
+        <span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"  SW 통계:"</span>);
+        <span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"    총 송신: {final_.TxPackets:N0} pkts ({final_.TxBytes:N0} bytes)"</span>);
+        <span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"    Peak:   {perf.PeakTxPps:N0} PPS ({perf.PeakTxMbps:F1} Mbps)"</span>);
+        <span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"  HW 통계:"</span>);
+        <span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"    NIC TX: {hwStats.opackets:N0} pkts"</span>);
+        <span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">$"    Errors: {hwStats.oerrors:N0}"</span>);
+
+        <span class="cm">// ── 7. 정리 ──</span>
+        <span class="tp">DpdkManager</span>.Instance.<span class="fn">Cleanup</span>();
+        <span class="tp">Console</span>.<span class="fn">WriteLine</span>(<span class="str">"\n정리 완료."</span>);
+    }
+}</code></pre>
+
+<h3>프로젝트 파일 (MyDpdkApp.csproj)</h3>
+<pre><code><span class="kw">&lt;Project</span> <span class="attr">Sdk</span>=<span class="str">"Microsoft.NET.Sdk"</span><span class="kw">&gt;</span>
+  <span class="kw">&lt;PropertyGroup&gt;</span>
+    <span class="kw">&lt;OutputType&gt;</span>Exe<span class="kw">&lt;/OutputType&gt;</span>
+    <span class="kw">&lt;TargetFramework&gt;</span>net9.0-windows<span class="kw">&lt;/TargetFramework&gt;</span>
+    <span class="kw">&lt;Nullable&gt;</span>enable<span class="kw">&lt;/Nullable&gt;</span>
+    <span class="kw">&lt;ImplicitUsings&gt;</span>enable<span class="kw">&lt;/ImplicitUsings&gt;</span>
+  <span class="kw">&lt;/PropertyGroup&gt;</span>
+
+  <span class="kw">&lt;ItemGroup&gt;</span>
+    <span class="kw">&lt;ProjectReference</span> <span class="attr">Include</span>=<span class="str">"..\DpdkNet\DpdkNet.csproj"</span> <span class="kw">/&gt;</span>
+  <span class="kw">&lt;/ItemGroup&gt;</span>
+<span class="kw">&lt;/Project&gt;</span></code></pre>
+
+<div class="section-divider"></div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- TROUBLESHOOTING                        -->
+<!-- ═══════════════════════════════════════ -->
+<h2 id="troubleshooting">트러블슈팅</h2>
+
+<table>
+    <tbody><tr><th>증상</th><th>원인</th><th>해결</th></tr>
+    <tr>
+        <td>초기화 실패: "EAL init failed"</td>
+        <td>관리자 권한 부족 또는 hugepage 미설정</td>
+        <td>관리자 권한으로 실행. hugepage 설정 확인</td>
+    </tr>
+    <tr>
+        <td>포트를 찾을 수 없음</td>
+        <td>NIC가 netuio 드라이버에 바인딩되지 않음</td>
+        <td><code>dpdk-devbind.py</code>로 NIC 바인딩 확인</td>
+    </tr>
+    <tr>
+        <td>DllNotFoundException: dpdk_shim.dll</td>
+        <td>네이티브 DLL이 실행 경로에 없음</td>
+        <td><code>dpdk_shim.dll</code>과 모든 DPDK DLL을 출력 폴더에 복사</td>
+    </tr>
+    <tr>
+        <td>Link DOWN</td>
+        <td>물리적 연결 없음 또는 속도 협상 실패</td>
+        <td>케이블 확인. <code>LinkSpeeds</code> 옵션으로 수동 설정</td>
+    </tr>
+    <tr>
+        <td>TX는 되지만 RX가 안 됨</td>
+        <td>MAC/IP 필터링, 방화벽, 또는 상대방 미응답</td>
+        <td>FilterPort/FilterIp 확인. Echo 엔진으로 루프백 테스트</td>
+    </tr>
+    <tr>
+        <td>hugepage 메모리 부족</td>
+        <td>이전 실행 후 Cleanup이 호출되지 않음</td>
+        <td>시스템 재시작 또는 수동 hugepage 해제</td>
+    </tr>
+    <tr>
+        <td>PPS가 예상보다 낮음</td>
+        <td>CPU 코어 부족 또는 MbufPoolSize 부족</td>
+        <td><code>CoreMask</code>로 더 많은 코어 할당. MbufPoolSize 증가</td>
+    </tr>
+    <tr>
+        <td>ReqResp 타임아웃 다수</td>
+        <td>ARP 실패 또는 상대방 응답 지연</td>
+        <td>DiagQueue 로그 확인. TimeoutMs 증가</td>
+    </tr>
+    <tr>
+        <td><code>shim_reqresp_once_mc</code> 항상 타임아웃</td>
+        <td><code>expected_src_ip</code> 바이트 오더 불일치</td>
+        <td><code>NetUtils.Htonl(NetUtils.IpToUint(ip))</code> 확인. host byte order 전달 시 매칭 실패</td>
+    </tr>
+    <tr>
+        <td>FTP 중 PG UDP 통신 중단</td>
+        <td>Unified Dispatcher 미사용 또는 lwIP external RX 미활성화</td>
+        <td>Dispatcher 모드에서는 FTP와 UDP 동시 동작. <code>[DpdkNicCoordinator]</code> 로그에서 external RX 활성화 확인</td>
+    </tr>
+    <tr>
+        <td>pg.status 전송 후 응답 없음</td>
+        <td>ARP 미응답 — PG가 PC의 MAC을 모름</td>
+        <td>DispatchPoll에서 lwIP 미실행 시 ARP가 C#의 <code>HandleArpPacket</code>으로 전달되는지 확인. <code>dpdk_shim.c</code> ARP 핸들링 점검</td>
+    </tr>
+    <tr>
+        <td>MC 모드에서 응답 손실</td>
+        <td>spill 버퍼 오버플로우 (128개 초과)</td>
+        <td>RX thread가 정상 동작하는지 확인. spill은 <code>shim_rx_burst</code>에서 자동 배출</td>
+    </tr>
+</tbody></table>
+
+<div class="info-box info">
+    <strong>디버깅 팁</strong>
+    <ul>
+        <li><code>DpdkInitOptions.LogLevel</code>을 <code>"*:debug"</code>로 설정하면 DPDK 내부 로그를 볼 수 있습니다</li>
+        <li><code>StatusChanged</code> 이벤트를 구독하면 초기화 단계별 진행 상황을 파악할 수 있습니다</li>
+        <li>ReqResp 엔진의 <code>DiagQueue</code>에서 ARP, 워밍업, 배치 전송 등의 진단 메시지를 확인할 수 있습니다</li>
+    </ul>
+</div>
+
+<br><br>
+<p style="text-align:center; color:var(--text-muted); font-size:0.85rem;">
+    DpdkNet © 2025-2026 · .NET 9.0 · DPDK 26.03 · Windows
+</p>
+<br>
+
+</main>
+</div>
+
+
+</body></html>

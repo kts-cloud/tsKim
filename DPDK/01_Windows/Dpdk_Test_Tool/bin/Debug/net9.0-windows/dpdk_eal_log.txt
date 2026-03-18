@@ -1,0 +1,10 @@
+shim_eal_init: argc=6
+  argv[0] = "DpdkTestTool"
+  argv[1] = "-l"
+  argv[2] = "0"
+  argv[3] = "-m"
+  argv[4] = "512"
+  argv[5] = "--log-level=*:error"
+  [using hardcoded args]
+
+=== rte_eal_init returned: -1 ===

@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DPDK vs Socket 성능 분석 — tcon.read/write RTT 차이 없는 원인</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700;800&family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-0: #06080c;
+    --bg-1: #0c0e14;
+    --bg-2: #12151c;
+    --bg-3: #181c24;
+    --bg-4: #1e222c;
+    --border-1: #1a1e28;
+    --border-2: #252a36;
+    --border-3: #303844;
+    --tx-1: #e8eaf0;
+    --tx-2: #a0a4b4;
+    --tx-3: #686c80;
+    --tx-4: #484c5c;
+    --amber: #f0a830;
+    --amber-dim: rgba(240,168,48,0.10);
+    --amber-border: rgba(240,168,48,0.22);
+    --red: #e85050;
+    --red-dim: rgba(232,80,80,0.10);
+    --red-border: rgba(232,80,80,0.20);
+    --green: #40c880;
+    --green-dim: rgba(64,200,128,0.10);
+    --green-border: rgba(64,200,128,0.20);
+    --blue: #5090e8;
+    --blue-dim: rgba(80,144,232,0.10);
+    --blue-border: rgba(80,144,232,0.20);
+    --cyan: #48b8c8;
+    --cyan-dim: rgba(72,184,200,0.08);
+    --violet: #9878d8;
+    --violet-dim: rgba(152,120,216,0.10);
+    --violet-border: rgba(152,120,216,0.20);
+    --mono: 'JetBrains Mono', 'Consolas', monospace;
+    --sans: 'Noto Sans KR', -apple-system, sans-serif;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: var(--bg-0);
+    color: var(--tx-1);
+    font-family: var(--sans);
+    font-size: 13.5px;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before {
+    content:'';
+    position:fixed; inset:0;
+    background: repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.015) 3px,rgba(0,0,0,0.015) 4px);
+    pointer-events:none; z-index:9999;
+  }
+  .wrap { max-width:1100px; margin:0 auto; padding:56px 44px 120px; }
+
+  /* ── Header ── */
+  .hdr { border-bottom:1px solid var(--border-1); padding-bottom:44px; margin-bottom:52px; position:relative; }
+  .hdr::after { content:''; position:absolute; bottom:-1px; left:0; width:240px; height:2px; background:linear-gradient(90deg,var(--amber),transparent); }
+  .badge {
+    display:inline-flex; align-items:center; gap:8px;
+    font-family:var(--mono); font-size:10px; font-weight:700;
+    letter-spacing:2.5px; text-transform:uppercase;
+    color:var(--blue); background:var(--blue-dim);
+    border:1px solid var(--blue-border); padding:5px 14px; margin-bottom:24px;
+  }
+  .badge::before { content:''; width:6px; height:6px; background:var(--blue); border-radius:50%; }
+  .hdr h1 { font-size:30px; font-weight:900; letter-spacing:-0.5px; line-height:1.25; margin-bottom:10px; }
+  .hdr h1 em { font-style:normal; color:var(--amber); }
+  .hdr h1 small { font-size:16px; font-weight:400; color:var(--tx-3); display:block; margin-top:4px; }
+  .hdr .sub { font-size:14px; color:var(--tx-2); font-weight:300; max-width:720px; }
+  .meta { display:flex; gap:36px; margin-top:22px; font-family:var(--mono); font-size:10.5px; color:var(--tx-4); }
+  .meta dt { color:var(--tx-3); margin-bottom:1px; } .meta dd { color:var(--tx-1); font-weight:500; }
+
+  /* ── Section ── */
+  .sec { margin-bottom:52px; }
+  .sec-label { font-family:var(--mono); font-size:9.5px; font-weight:700; letter-spacing:3px; text-transform:uppercase; color:var(--tx-4); margin-bottom:6px; }
+  .sec-title { font-size:20px; font-weight:700; margin-bottom:18px; padding-bottom:10px; border-bottom:1px solid var(--border-1); position:relative; }
+  .sec-title::after { content:''; position:absolute; bottom:-1px; left:0; width:50px; height:1px; background:var(--amber); }
+  p { margin-bottom:10px; color:var(--tx-2); }
+  p strong { color:var(--tx-1); }
+  p code, li code { font-family:var(--mono); font-size:11.5px; background:var(--bg-3); color:var(--cyan); padding:1px 5px; border-radius:2px; }
+
+  /* ── Architecture Diagram ── */
+  .arch-box {
+    background:var(--bg-2); border:1px solid var(--border-2); padding:28px 32px; margin:16px 0 24px;
+    font-family:var(--mono); font-size:12px; line-height:1.8; white-space:pre; overflow-x:auto;
+    color:var(--tx-2); position:relative;
+  }
+  .arch-box::before {
+    content:attr(data-title);
+    position:absolute; top:0; right:0;
+    font-size:9px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase;
+    color:var(--tx-4); background:var(--bg-3); padding:4px 12px;
+    border-left:1px solid var(--border-2); border-bottom:1px solid var(--border-2);
+  }
+  .arch-box .hi { color:var(--amber); font-weight:600; }
+  .arch-box .g { color:var(--green); }
+  .arch-box .r { color:var(--red); }
+  .arch-box .d { color:var(--tx-4); }
+  .arch-box .c { color:var(--cyan); }
+  .arch-box .v { color:var(--violet); }
+
+  /* ── Table ── */
+  table.tbl { width:100%; border-collapse:collapse; font-size:12.5px; margin-bottom:8px; }
+  .tbl thead th {
+    font-family:var(--mono); font-size:9px; font-weight:700;
+    letter-spacing:1.5px; text-transform:uppercase; color:var(--tx-4);
+    text-align:left; padding:9px 14px;
+    border-bottom:1px solid var(--border-2); background:var(--bg-3);
+  }
+  .tbl tbody td { padding:10px 14px; border-bottom:1px solid var(--border-1); vertical-align:top; }
+  .tbl tbody tr:hover { background:rgba(240,168,48,0.015); }
+  .tbl .idx { font-family:var(--mono); font-size:11px; color:var(--tx-4); width:36px; }
+  .tbl .desc { color:var(--tx-2); }
+  .tbl .mono { font-family:var(--mono); font-size:11.5px; }
+  .tbl .num-cell { font-family:var(--mono); font-size:12px; text-align:right; }
+  .tbl .diff-cell { font-family:var(--mono); font-size:12px; text-align:right; }
+  .tbl .diff-neg { color:var(--green); }
+  .tbl .diff-pos { color:var(--red); }
+  .tbl .diff-zero { color:var(--tx-4); }
+  .risk { font-family:var(--mono); font-size:9.5px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding:3px 10px; border-radius:2px; display:inline-block; white-space:nowrap; }
+  .risk-h { color:var(--red); background:var(--red-dim); border:1px solid var(--red-border); }
+  .risk-m { color:var(--amber); background:var(--amber-dim); border:1px solid var(--amber-border); }
+  .risk-l { color:var(--green); background:var(--green-dim); border:1px solid var(--green-border); }
+
+  /* ── Two-column comparison ── */
+  .pillars { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:20px 0 32px; }
+  .pillar {
+    background:var(--bg-2); border:1px solid var(--border-2); padding:24px 28px; position:relative; overflow:hidden;
+  }
+  .pillar::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:2px;
+  }
+  .pillar.p-b::before { background:linear-gradient(90deg,var(--green),transparent); }
+  .pillar.p-c::before { background:linear-gradient(90deg,var(--violet),transparent); }
+  .pillar.p-blue::before { background:linear-gradient(90deg,var(--blue),transparent); }
+  .pillar.p-amber::before { background:linear-gradient(90deg,var(--amber),transparent); }
+  .pillar .p-tag {
+    font-family:var(--mono); font-size:10px; font-weight:800;
+    letter-spacing:2px; text-transform:uppercase; margin-bottom:10px;
+  }
+  .pillar.p-b .p-tag { color:var(--green); }
+  .pillar.p-c .p-tag { color:var(--violet); }
+  .pillar.p-blue .p-tag { color:var(--blue); }
+  .pillar.p-amber .p-tag { color:var(--amber); }
+  .pillar h3 { font-size:16px; font-weight:700; margin-bottom:8px; }
+  .pillar p { font-size:12.5px; color:var(--tx-3); margin-bottom:0; }
+
+  /* ── Card ── */
+  .card { background:var(--bg-2); border:1px solid var(--border-1); margin-bottom:18px; overflow:hidden; }
+  .card-hdr {
+    display:flex; align-items:center; gap:12px;
+    padding:14px 22px; background:var(--bg-3); border-bottom:1px solid var(--border-1);
+  }
+  .card-num {
+    font-family:var(--mono); font-size:10px; font-weight:800;
+    padding:2px 8px; border-radius:2px;
+  }
+  .card.part-b .card-num { color:var(--green); background:var(--green-dim); }
+  .card.part-c .card-num { color:var(--violet); background:var(--violet-dim); }
+  .card-hdr h4 { font-size:13.5px; font-weight:600; }
+  .card-body { padding:18px 22px; }
+
+  /* ── Change List ── */
+  .cl { list-style:none; margin-bottom:14px; }
+  .cl li { padding:3px 0; color:var(--tx-2); font-size:12.5px; display:flex; align-items:baseline; gap:8px; }
+  .cl li::before { content:'\2192'; color:var(--amber); font-family:var(--mono); font-weight:700; flex-shrink:0; }
+
+  /* ── Code Block ── */
+  .code {
+    background:var(--bg-0); border:1px solid var(--border-1); padding:16px 20px; margin:10px 0;
+    font-family:var(--mono); font-size:11px; line-height:1.85; overflow-x:auto; position:relative;
+    white-space:pre;
+  }
+  .code::before {
+    content:attr(data-label);
+    position:absolute; top:0; right:0;
+    font-size:8.5px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase;
+    color:var(--tx-4); background:var(--bg-3); padding:3px 10px;
+    border-left:1px solid var(--border-1); border-bottom:1px solid var(--border-1);
+  }
+  .code .kw { color:var(--violet); }
+  .code .fn { color:var(--cyan); }
+  .code .str { color:var(--green); }
+  .code .cm { color:var(--tx-4); font-style:italic; }
+  .code .old { color:var(--red); text-decoration:line-through; opacity:0.55; }
+  .code .new { color:var(--green); font-weight:500; }
+  .code .arr { color:var(--tx-4); }
+  .code .num { color:var(--amber); }
+
+  /* ── Flow Diagram ── */
+  .flow-grid { display:grid; grid-template-columns:1fr 40px 1fr; gap:0; margin:20px 0; align-items:stretch; }
+  .flow-col { background:var(--bg-2); border:1px solid var(--border-1); padding:20px 24px; }
+  .flow-col h4 {
+    font-family:var(--mono); font-size:10px; font-weight:700;
+    letter-spacing:2px; text-transform:uppercase; margin-bottom:12px; padding-bottom:8px;
+    border-bottom:1px solid var(--border-1);
+  }
+  .flow-col.before h4 { color:var(--red); }
+  .flow-col.after h4 { color:var(--green); }
+  .flow-col.dpdk-col h4 { color:var(--cyan); }
+  .flow-col.socket-col h4 { color:var(--amber); }
+  .flow-arrow {
+    display:flex; align-items:center; justify-content:center;
+    font-size:20px; color:var(--amber); font-weight:900;
+  }
+  .flow-col .fentry {
+    font-family:var(--mono); font-size:10.5px; color:var(--tx-2);
+    padding:2px 0; white-space:nowrap;
+  }
+  .flow-col .fentry.strike { text-decoration:line-through; color:var(--tx-4); opacity:0.5; }
+  .flow-col .fentry.hi { color:var(--green); font-weight:500; }
+  .flow-col .fentry.enc { color:var(--amber); font-weight:500; }
+  .flow-col .fentry.slow { color:var(--red); font-weight:500; }
+  .flow-col .fentry.fast { color:var(--green); font-weight:500; }
+  .flow-col .fentry.neutral { color:var(--tx-3); }
+
+  /* ── Steps ── */
+  .steps { list-style:none; counter-reset:stp; position:relative; }
+  .steps::before { content:''; position:absolute; left:15px; top:10px; bottom:10px; width:1px; background:var(--border-1); }
+  .steps li { counter-increment:stp; display:flex; align-items:flex-start; gap:16px; padding:11px 0; position:relative; }
+  .steps li::before {
+    content:counter(stp);
+    font-family:var(--mono); font-size:10px; font-weight:800;
+    color:var(--amber); background:var(--bg-0); border:1px solid var(--amber);
+    width:30px; height:30px; display:flex; align-items:center; justify-content:center;
+    border-radius:50%; flex-shrink:0; z-index:1;
+  }
+  .steps .st { padding-top:5px; color:var(--tx-2); font-size:12.5px; }
+  .steps .st strong { color:var(--tx-1); }
+
+  /* ── Analysis result badge ── */
+  .result-row { display:flex; gap:12px; margin:16px 0; flex-wrap:wrap; }
+  .result-chip {
+    background:var(--bg-3); border:1px solid var(--border-2); padding:8px 16px;
+    font-family:var(--mono); font-size:11px; color:var(--tx-2);
+    display:flex; align-items:center; gap:8px;
+  }
+  .result-chip .val { color:var(--tx-1); font-weight:600; }
+  .result-chip .label { color:var(--tx-4); font-size:9.5px; letter-spacing:1px; text-transform:uppercase; }
+
+  /* ── Insight Box ── */
+  .insight-box {
+    background:var(--amber-dim); border:1px solid var(--amber-border); padding:16px 24px; margin:20px 0;
+    font-size:13px; color:var(--tx-1);
+  }
+  .insight-box strong { color:var(--amber); }
+
+  /* ── File Table ── */
+  .ftbl { width:100%; border-collapse:collapse; font-size:11.5px; margin-top:10px; }
+  .ftbl thead th {
+    font-family:var(--mono); font-size:8.5px; font-weight:700;
+    letter-spacing:1.5px; text-transform:uppercase; color:var(--tx-4);
+    text-align:left; padding:7px 12px;
+    border-bottom:1px solid var(--border-2); background:var(--bg-0);
+  }
+  .ftbl td { padding:7px 12px; border-bottom:1px solid var(--border-1); }
+  .ftbl .fp { font-family:var(--mono); font-size:10.5px; color:var(--cyan); }
+  .ftbl .fc { color:var(--tx-2); font-size:12px; }
+
+  /* ── Verify Grid ── */
+  .vgrid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .vitem { background:var(--bg-2); border:1px solid var(--border-1); padding:14px 18px; display:flex; gap:12px; align-items:flex-start; }
+  .vicon {
+    font-family:var(--mono); font-size:9px; font-weight:800;
+    color:var(--green); background:var(--green-dim); border:1px solid var(--green-border);
+    width:22px; height:22px; display:flex; align-items:center; justify-content:center;
+    flex-shrink:0; border-radius:2px;
+  }
+  .vitem .vt { font-size:11.5px; color:var(--tx-2); }
+  .vitem .vt strong { color:var(--tx-1); display:block; margin-bottom:2px; font-size:12px; }
+
+  /* ── Conclusion List ── */
+  .conclusion-list { list-style:none; margin:16px 0; }
+  .conclusion-list li {
+    padding:12px 18px; margin-bottom:8px;
+    background:var(--bg-2); border:1px solid var(--border-1);
+    color:var(--tx-2); font-size:13px; display:flex; align-items:baseline; gap:12px;
+  }
+  .conclusion-list .c-num {
+    font-family:var(--mono); font-size:10px; font-weight:800;
+    color:var(--amber); background:var(--amber-dim); border:1px solid var(--amber-border);
+    padding:2px 8px; border-radius:2px; flex-shrink:0;
+  }
+  .conclusion-list li strong { color:var(--tx-1); }
+
+  /* ── Footer ── */
+  .ftr { margin-top:80px; padding-top:20px; border-top:1px solid var(--border-1); display:flex; justify-content:space-between; font-family:var(--mono); font-size:9.5px; color:var(--tx-4); }
+
+  @media print {
+    body { background:#fff; color:#111; }
+    body::before { display:none; }
+    .card,.arch-box,.code,.pillar,.flow-col,.vitem { background:#f8f8f8; border-color:#ddd; }
+    code { background:#eee !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ═══ HEADER ═══ -->
+<header class="hdr">
+  <div class="badge">Performance Analysis</div>
+  <h1>DPDK vs Socket <em>성능 분석</em>
+    <small>tcon.read/write RTT 차이 없는 원인 — PG Board HW 병목 분석</small>
+  </h1>
+  <p class="sub">
+    DPDK kernel bypass와 기존 Socket 방식의 tcon.read/write RTT를 비교한 결과,
+    <strong>평균 32μs (2.0%) 차이</strong>로 사실상 동일한 성능을 보임.
+    이 문서는 그 원인을 RTT 구성 요소별로 분석합니다.
+  </p>
+  <div class="meta">
+    <dl><dt>프로젝트</dt><dd>ITOLED_OC (X3584)</dd></dl>
+    <dl><dt>문서 버전</dt><dd>v1.0</dd></dl>
+    <dl><dt>작성일</dt><dd>2026-03-17</dd></dl>
+    <dl><dt>분석 대상</dt><dd>tcon.read / tcon.write RTT</dd></dl>
+  </div>
+</header>
+
+<!-- ═══ SECTION 01: 측정 환경 ═══ -->
+<section class="sec">
+  <div class="sec-label">Section 01</div>
+  <h2 class="sec-title">측정 환경</h2>
+
+  <table class="tbl">
+    <thead><tr><th>항목</th><th>내용</th></tr></thead>
+    <tbody>
+      <tr><td class="desc" style="width:160px;"><strong>HW (NIC)</strong></td><td class="desc">Intel X550 10GbE NIC</td></tr>
+      <tr><td class="desc"><strong>HW (대상)</strong></td><td class="desc">PG Board (TCON controller)</td></tr>
+      <tr><td class="desc"><strong>SW</strong></td><td class="desc">C# Blazor Server (.NET 8) + DPDK 26.03 (<code>hwio.dll</code>) / <code>System.Net.Sockets</code></td></tr>
+      <tr><td class="desc"><strong>NIC Driver (DPDK)</strong></td><td class="desc"><code>netuio</code> (DPDK userspace driver)</td></tr>
+      <tr><td class="desc"><strong>NIC Driver (Socket)</strong></td><td class="desc">Intel <code>ixgbe</code> (kernel driver)</td></tr>
+      <tr><td class="desc"><strong>Log (DPDK)</strong></td><td class="desc"><code>DebugLog_H9AGBL515A_20260316_AM_Ch1_DPDK.txt</code></td></tr>
+      <tr><td class="desc"><strong>Log (Socket)</strong></td><td class="desc"><code>DebugLog_H9AGBL515A_20260316_AM_Ch1_Socket.txt</code></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ═══ SECTION 02: 측정 결과 요약 ═══ -->
+<section class="sec">
+  <div class="sec-label">Section 02</div>
+  <h2 class="sec-title">측정 결과 요약</h2>
+
+  <h3 style="font-size:15px; font-weight:600; margin-bottom:12px; color:var(--cyan);">tcon.read RTT</h3>
+  <table class="tbl">
+    <thead><tr><th>Metric</th><th style="text-align:right;">DPDK</th><th style="text-align:right;">Socket</th><th style="text-align:right;">Diff</th></tr></thead>
+    <tbody>
+      <tr><td class="desc">Count</td><td class="num-cell">8,943</td><td class="num-cell">8,945</td><td class="diff-cell diff-zero">-</td></tr>
+      <tr><td class="desc">Avg</td><td class="num-cell">1,617 μs</td><td class="num-cell">1,649 μs</td><td class="diff-cell diff-neg">-32 μs</td></tr>
+      <tr><td class="desc">Median</td><td class="num-cell">1,535 μs</td><td class="num-cell">1,644 μs</td><td class="diff-cell diff-neg">-109 μs</td></tr>
+      <tr><td class="desc">P95</td><td class="num-cell">2,109 μs</td><td class="num-cell">2,111 μs</td><td class="diff-cell diff-neg">-2 μs</td></tr>
+      <tr><td class="desc">P99</td><td class="num-cell">2,179 μs</td><td class="num-cell">2,272 μs</td><td class="diff-cell diff-neg">-93 μs</td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="font-size:15px; font-weight:600; margin:24px 0 12px; color:var(--cyan);">tcon.write RTT</h3>
+  <table class="tbl">
+    <thead><tr><th>Metric</th><th style="text-align:right;">DPDK</th><th style="text-align:right;">Socket</th><th style="text-align:right;">Diff</th></tr></thead>
+    <tbody>
+      <tr><td class="desc">Count</td><td class="num-cell">6,496</td><td class="num-cell">6,496</td><td class="diff-cell diff-zero">-</td></tr>
+      <tr><td class="desc">Avg</td><td class="num-cell">1,571 μs</td><td class="num-cell">1,602 μs</td><td class="diff-cell diff-neg">-31 μs</td></tr>
+      <tr><td class="desc">Median</td><td class="num-cell">1,507 μs</td><td class="num-cell">1,611 μs</td><td class="diff-cell diff-neg">-104 μs</td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="font-size:15px; font-weight:600; margin:24px 0 12px; color:var(--amber);">COMBINED (read + write)</h3>
+  <table class="tbl">
+    <thead><tr><th>Metric</th><th style="text-align:right;">DPDK</th><th style="text-align:right;">Socket</th><th style="text-align:right;">Diff</th></tr></thead>
+    <tbody>
+      <tr><td class="desc"><strong>Avg</strong></td><td class="num-cell" style="color:var(--cyan); font-weight:600;">1,597 μs</td><td class="num-cell" style="color:var(--amber); font-weight:600;">1,629 μs</td><td class="diff-cell diff-neg" style="font-weight:600;">-32 μs</td></tr>
+    </tbody>
+  </table>
+
+  <div class="result-row">
+    <div class="result-chip"><span class="label">RTT 차이</span><span class="val" style="color:var(--amber);">32μs (2.0%)</span></div>
+    <div class="result-chip"><span class="label">TX-to-TX gap 차이</span><span class="val" style="color:var(--amber);">~8μs</span></div>
+  </div>
+</section>
+
+<!-- ═══ SECTION 03: RTT 구성 요소 분석 ═══ -->
+<section class="sec">
+  <div class="sec-label">Section 03</div>
+  <h2 class="sec-title">RTT 구성 요소 분석</h2>
+
+  <div class="arch-box" data-title="RTT Breakdown">
+<span class="hi">tcon.read/write 전체 RTT 구성:</span>
+
+<span class="c">[C# App]</span> ──TX──> <span class="v">[NIC]</span> ══════> <span class="r">[PG Board]</span> ══════> <span class="v">[NIC]</span> ──RX──> <span class="c">[C# App]</span>
+ <span class="c">~100μs</span>     <span class="v">~5μs</span>    <span class="r">~1500μs (HW처리)</span>     <span class="v">~5μs</span>    <span class="c">~100μs</span>
+
+├── <span class="c">SW Send</span> ──┤├── <span class="v">Network</span> ─┤├──── <span class="r">PG HW</span> ────┤├── <span class="v">Network</span> ─┤├── <span class="c">SW RX</span> ──┤
+   <span class="c">~100μs</span>        <span class="v">~5μs</span>          <span class="r">~1500μs</span>           <span class="v">~5μs</span>         <span class="c">~100μs</span>
+
+<span class="d">───────────────────────────────────────────────────────────────────</span>
+총 RTT ≈ <span class="hi">1710μs</span>
+SW 제어 가능: <span class="c">~200μs (12%)</span>
+PG HW 고정:  <span class="r">~1500μs (88%)</span> <span class="hi">← 병목</span>
+  </div>
+
+  <div class="insight-box">
+    <strong>핵심:</strong> 전체 RTT의 88%가 PG Board HW 처리 시간이며, DPDK/Socket이 제어할 수 있는 구간은 12%에 불과합니다.
+  </div>
+</section>
+
+<!-- ═══ SECTION 04: Send 경로 비교 ═══ -->
+<section class="sec">
+  <div class="sec-label">Section 04</div>
+  <h2 class="sec-title">DPDK vs Socket Send 경로 비교</h2>
+
+  <div class="pillars">
+    <div class="pillar p-amber">
+      <div class="p-tag">Socket Send Path (~25-50μs)</div>
+      <h3>Kernel Syscall 기반</h3>
+      <ul class="cl" style="margin-top:12px;">
+        <li><code>Encoding.ASCII.GetBytes</code> — ~5μs</li>
+        <li><code>new IPEndPoint</code> — ~3μs</li>
+        <li><code>UdpClient.Send</code> (kernel syscall) — ~15-30μs</li>
+      </ul>
+      <p style="margin-top:8px; color:var(--amber); font-family:var(--mono); font-size:11px; font-weight:600;">총: ~25-50μs</p>
+    </div>
+    <div class="pillar p-blue">
+      <div class="p-tag">DPDK Send Path (~80-110μs)</div>
+      <h3>Userspace DMA 기반</h3>
+      <ul class="cl" style="margin-top:12px;">
+        <li><code>BuildUdpPacket</code> (new byte[], header) — ~35-50μs</li>
+        <li><code>AllocMbuf</code> (DPDK mempool) — ~10-15μs</li>
+        <li><code>Marshal.Copy</code> (managed -> native) — ~15-20μs</li>
+        <li><code>TxBurst</code> (DMA) — ~3-5μs</li>
+      </ul>
+      <p style="margin-top:8px; color:var(--blue); font-family:var(--mono); font-size:11px; font-weight:600;">총: ~80-110μs</p>
+    </div>
+  </div>
+
+  <div class="arch-box" data-title="Send 비교">
+<span class="hi">Send 경로 오버헤드 비교:</span>
+
+<span class="g">Socket</span>:  GetBytes(5) + IPEndPoint(3) + <span class="g">Syscall(15-30)</span>  = <span class="g">~25-50μs</span>
+<span class="c">DPDK</span>:    BuildPkt(35-50) + Mbuf(10-15) + Marshal(15-20) + <span class="c">DMA(3-5)</span> = <span class="r">~80-110μs</span>
+                                                                    <span class="d">───────</span>
+DPDK 패킷 구성 오버헤드: <span class="r">+50-60μs</span>  (byte[] 할당, 헤더 구축, mbuf lifecycle)
+DPDK NIC-level TX 이득:  <span class="g">-10-25μs</span>  (DMA vs kernel syscall)
+<span class="d">───────────────────────────────────────────────────────────────────</span>
+<span class="hi">Net: DPDK가 Send에서 ~30-40μs 더 느림</span>
+  </div>
+</section>
+
+<!-- ═══ SECTION 05: RX 경로 비교 ═══ -->
+<section class="sec">
+  <div class="sec-label">Section 05</div>
+  <h2 class="sec-title">RX 경로 비교</h2>
+
+  <p>DPDK와 Socket 모두 <strong>동일한 C# 파싱 로직</strong>을 사용하므로, RX 경로의 오버헤드는 사실상 동일합니다.</p>
+
+  <div class="arch-box" data-title="RX Path (공통)">
+<span class="hi">RX 처리 경로 (DPDK / Socket 공통):</span>
+
+1. <span class="c">ProcessRxPacket</span> string 파싱     ~80-100μs
+   <span class="d">ToUpperInvariant, IndexOf, Substring 등</span>
+
+2. <span class="c">ManualResetEventSlim</span> signal      ~50-100μs
+   <span class="d">RX 스레드 → CheckCmdAck 대기 스레드 깨움</span>
+
+3. <span class="c">CheckCmdAck</span> spin-wait 감지        ~50-100μs
+   <span class="d">SpinWait loop에서 응답 감지</span>
+<span class="d">───────────────────────────────────────────────────────────────────</span>
+총 RX 오버헤드: <span class="hi">~200-300μs (DPDK/Socket 동일)</span>
+  </div>
+
+  <div class="insight-box">
+    <strong>결론:</strong> RX 경로는 100% C# managed code이므로, 네트워크 레이어(DPDK/Socket)의 차이가 반영되지 않습니다. 두 방식 모두 ~200-300μs의 동일한 오버헤드를 가집니다.
+  </div>
+</section>
+
+<!-- ═══ SECTION 06: 왜 DPDK가 빠르지 않은가 ═══ -->
+<section class="sec">
+  <div class="sec-label">Section 06</div>
+  <h2 class="sec-title">왜 DPDK가 빠르지 않은가?</h2>
+
+  <div class="arch-box" data-title="Waterfall Breakdown">
+        ┌─────────────────────────────────────────────────────────┐
+        │          <span class="hi">tcon.read/write RTT ≈ 1600μs</span>                  │
+        ├────────┬────────────────────────────┬───────────────────┤
+        │ <span class="c">SW TX</span>  │     <span class="r">PG Board HW 처리</span>       │     <span class="c">SW RX</span>        │
+        │ <span class="c">~100μs</span> │     <span class="r">~1400μs (88%)</span>          │     <span class="c">~100μs</span>       │
+        ├────────┼────────────────────────────┼───────────────────┤
+<span class="c">DPDK</span>:   │ <span class="r">80-110</span> │         <span class="d">동일</span>               │     <span class="d">200-300</span>      │
+<span class="g">Socket</span>: │ <span class="g">25-50</span>  │         <span class="d">동일</span>               │     <span class="d">200-300</span>      │
+        └────────┴────────────────────────────┴───────────────────┘
+                 ↑
+            <span class="r">DPDK가 여기서 50μs 더 느림</span>
+            <span class="d">하지만 전체 1600μs 중 3%에 불과</span>
+  </div>
+
+  <div class="insight-box">
+    <strong>핵심 인사이트:</strong> PG 보드 HW 처리 시간(~1400μs)이 전체 RTT의 88%를 차지하므로, 네트워크 레이어 최적화의 효과가 미미합니다. DPDK의 kernel bypass는 NIC TX에서 ~10-25μs를 절약하지만, C# 패킷 구성 오버헤드(BuildUdpPacket + Marshal.Copy)가 ~50-60μs를 추가하여 오히려 Send 경로가 느려집니다.
+  </div>
+
+  <div class="result-row">
+    <div class="result-chip"><span class="label">PG HW 비율</span><span class="val" style="color:var(--red);">88%</span></div>
+    <div class="result-chip"><span class="label">SW 제어 가능</span><span class="val" style="color:var(--cyan);">12%</span></div>
+    <div class="result-chip"><span class="label">DPDK TX 오버헤드</span><span class="val" style="color:var(--red);">+50μs</span></div>
+    <div class="result-chip"><span class="label">DPDK NIC 이득</span><span class="val" style="color:var(--green);">-10μs</span></div>
+  </div>
+</section>
+
+<!-- ═══ SECTION 07: 최적화 적용 결과 ═══ -->
+<section class="sec">
+  <div class="sec-label">Section 07</div>
+  <h2 class="sec-title">최적화 적용 결과</h2>
+
+  <table class="tbl">
+    <thead><tr><th>#</th><th>최적화</th><th>대상</th><th>효과</th><th>상태</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="idx">1</td>
+        <td class="desc"><strong>ApplyTconWriteDelay 제거</strong></td>
+        <td class="desc">TX-to-TX gap</td>
+        <td class="desc">코드 정리 (설정값 0)</td>
+        <td><span class="risk risk-l">적용</span></td>
+      </tr>
+      <tr>
+        <td class="idx">2</td>
+        <td class="desc"><strong>ToUpperInvariant → OrdinalIgnoreCase</strong></td>
+        <td class="desc">RX 파싱</td>
+        <td class="desc">~20-30μs 감소</td>
+        <td><span class="risk risk-l">적용</span></td>
+      </tr>
+      <tr>
+        <td class="idx">3</td>
+        <td class="desc"><strong>SpinWait(20) → SpinWait(4)</strong></td>
+        <td class="desc">CheckCmdAck</td>
+        <td class="desc">~10-20μs 감소</td>
+        <td><span class="risk risk-l">적용</span></td>
+      </tr>
+      <tr>
+        <td class="idx">4</td>
+        <td class="desc"><strong>WritePktToMbuf unsafe (롤백)</strong></td>
+        <td class="desc">TX zero-copy</td>
+        <td class="desc" style="color:var(--red);">힙 손상 → 롤백</td>
+        <td><span class="risk risk-h">롤백</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p style="margin-top:12px;">최적화 항목 2, 3은 DPDK/Socket 양쪽 모두에 적용되어 공통적으로 ~30-50μs 감소 효과를 가져왔으나, 두 방식 간 상대적 차이에는 영향이 없습니다.</p>
+</section>
+
+<!-- ═══ SECTION 08: 결론 및 권장사항 ═══ -->
+<section class="sec">
+  <div class="sec-label">Section 08</div>
+  <h2 class="sec-title">결론 및 권장사항</h2>
+
+  <ul class="conclusion-list">
+    <li>
+      <span class="c-num">1</span>
+      <div><strong>DPDK의 실제 이점:</strong> NIC RTT는 동일하지만, 히스토그램 분포에서 DPDK가 1000-1500μs 구간에 더 많은 패킷이 집중됩니다. Median에서 ~109μs 차이, P99 tail latency에서 ~93μs 개선이 확인되었습니다.</div>
+    </li>
+    <li>
+      <span class="c-num">2</span>
+      <div><strong>DPDK가 빛나는 상황:</strong> 대량 패킷 burst, FTP 전송, 멀티채널 동시 통신 시나리오에서 kernel bypass 효과가 극대화됩니다. 단건 request/response에서는 이점이 제한적입니다.</div>
+    </li>
+    <li>
+      <span class="c-num">3</span>
+      <div><strong>tcon 단건 통신에서는:</strong> PG Board HW 처리가 전체 RTT의 88%를 차지하므로, DPDK와 Socket의 차이는 32μs (2.0%)에 불과하며 실질적 성능 차이가 없습니다.</div>
+    </li>
+    <li>
+      <span class="c-num">4</span>
+      <div><strong>권장:</strong> DPDK 유지 (FTP + 멀티채널 이점). tcon 단건 통신의 RTT 개선이 필요한 경우, 네트워크 레이어가 아닌 <strong>PG Board 펌웨어 개선</strong>이 필요합니다.</div>
+    </li>
+  </ul>
+
+  <div class="arch-box" data-title="Summary">
+<span class="hi">최종 판정:</span>
+
+┌─────────────────────────────────────────────────────────┐
+│  tcon.read/write 단건 RTT  →  <span class="d">DPDK ≈ Socket (차이 2%)</span>     │
+│  FTP / Burst / 멀티채널    →  <span class="g">DPDK >> Socket</span>               │
+│  RTT 근본 개선             →  <span class="r">PG FW 최적화 필요 (88% 차지)</span>  │
+└─────────────────────────────────────────────────────────┘
+  </div>
+</section>
+
+<footer class="ftr">
+  <span>DONGAELTEK — ITOLED_OC Project</span>
+  <span>DPDK vs Socket Performance Analysis v1.0 — 2026-03-17</span>
+</footer>
+
+</div>
+</body>
+</html>

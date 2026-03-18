@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(llvm-nm \"D:/DPDK/01_Windows/dpdk-src/build/lib/rte_mempool.lib\")",
+      "Bash(llvm-readobj --coff-exports \"D:/DPDK/01_Windows/dpdk-src/build/lib/rte_mempool-26.dll\")",
+      "Bash(powershell -NoProfile -ExecutionPolicy Bypass -File \"D:\\\\DPDK\\\\01_Windows\\\\build_diag.ps1\")",
+      "Bash(powershell -NoProfile -Command \"Start-Process ''cmd.exe'' -ArgumentList ''/c D:\\\\DPDK\\\\01_Windows\\\\run_diag2.bat'' -Verb RunAs\")",
+      "Read(//d/DPDK/02_lwIP_FTP/scripts/**)",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"build_shim.ps1\")"
+    ]
+  }
+}

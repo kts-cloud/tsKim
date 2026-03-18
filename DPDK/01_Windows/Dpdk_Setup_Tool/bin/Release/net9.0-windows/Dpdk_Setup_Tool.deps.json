@@ -1,0 +1,52 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v9.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v9.0": {
+      "Dpdk_Setup_Tool/1.0.0": {
+        "dependencies": {
+          "HwNet": "1.0.0",
+          "HwNet.Reference": "1.0.0.0"
+        },
+        "runtime": {
+          "Dpdk_Setup_Tool.dll": {}
+        }
+      },
+      "HwNet/1.0.0": {
+        "runtime": {
+          "HwNet.dll": {
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "HwNet.Reference/1.0.0.0": {
+        "runtime": {
+          "HwNet.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "Dpdk_Setup_Tool/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "HwNet/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "HwNet.Reference/1.0.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

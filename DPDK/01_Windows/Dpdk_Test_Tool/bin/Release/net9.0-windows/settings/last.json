@@ -1,0 +1,18 @@
+{
+  "CoreMask": "0",
+  "Memory": "512",
+  "LogLevel": "*:error",
+  "PortId": 0,
+  "MbufPoolSize": 8191,
+  "DstMac": "2E:EA:DF:2C:F6:84",
+  "DstIp": "169.254.199.11",
+  "DstPort": 8001,
+  "SrcIp": "169.254.199.10",
+  "SrcPort": 8000,
+  "PayloadSize": 64,
+  "SendRate": 0,
+  "PayloadText": "version.all#",
+  "ResponseTimeoutMs": 1000,
+  "FilterIp": "",
+  "FilterPort": 0
+}

@@ -1,0 +1,3 @@
+D:\Dongaeltek\_Project\04_VHOLED\_Project\SW\ITOLED_OC\DPDK\01_Windows\DpdkNet\bin\Release\net8.0-windows\win-x64\publish\DpdkNet.dll
+D:\Dongaeltek\_Project\04_VHOLED\_Project\SW\ITOLED_OC\DPDK\01_Windows\DpdkNet\bin\Release\net8.0-windows\win-x64\publish\DpdkNet.deps.json
+D:\Dongaeltek\_Project\04_VHOLED\_Project\SW\ITOLED_OC\DPDK\01_Windows\DpdkNet\bin\Release\net8.0-windows\win-x64\publish\DpdkNet.pdb
