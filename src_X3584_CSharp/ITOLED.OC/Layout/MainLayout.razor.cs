@@ -29,18 +29,26 @@ public partial class MainLayout : IDisposable
     {
         PaletteLight = new PaletteLight
         {
-            Primary = "#1976D2",
-            Secondary = "#424242",
-            AppbarBackground = "#1976D2",
+            Primary = "#37474F",
+            Secondary = "#546E7A",
+            AppbarBackground = "#263238",
+            Surface = "#FAFAFA",
+            Background = "#ECEFF1",
+            DrawerBackground = "#ECEFF1",
         },
         PaletteDark = new PaletteDark
         {
-            Primary = "#90CAF9",
-            Secondary = "#B0BEC5",
-            AppbarBackground = "#1E1E2E",
-            Background = "#121212",
-            Surface = "#1E1E1E",
-            DrawerBackground = "#1A1A2E",
+            Primary = "#78909C",
+            Secondary = "#90A4AE",
+            AppbarBackground = "#1C2833",
+            Background = "#0E1621",
+            Surface = "#172130",
+            DrawerBackground = "#141E2B",
+            TextPrimary = "#CFD8DC",
+            TextSecondary = "#90A4AE",
+            ActionDefault = "#78909C",
+            TableLines = "#263238",
+            Divider = "#263238",
         },
         Typography = new Typography
         {

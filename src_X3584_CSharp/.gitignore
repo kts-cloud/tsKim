@@ -1,0 +1,14 @@
+# Build outputs
+bin/
+obj/
+
+# IDE
+.vs/
+*.user
+*.suo
+
+# Debug
+bash.exe.stackdump
+
+# Claude local settings
+.claude/
