@@ -1,0 +1,66 @@
+@page "/dio-alarm"
+@* DioAlarmPage — replaces DioDisplayAlarm.pas *@
+@* Real-time DIO alarm status display *@
+@implements IDisposable
+
+<PageTitle>DIO Alarm</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-3">DIO Alarm Display</MudText>
+
+<MudGrid Spacing="2">
+    @for (int i = 0; i < _alarmCount; i++)
+    {
+        var idx = i;
+        var data = _alarmData[idx];
+        var msg = _alarmMessages[idx];
+        var isActive = data != 0;
+
+        <MudItem xs="4">
+            <MudAlert Severity="@(isActive ? Severity.Error : Severity.Normal)"
+                      Dense="true" NoIcon="@(!isActive)">
+                <div class="d-flex align-center gap-2">
+                    <MudText Typo="Typo.caption" Style="width: 30px;">@($"{idx:D3}")</MudText>
+                    <MudText Typo="Typo.body2">@(string.IsNullOrEmpty(msg) ? $"Alarm {idx}" : msg)</MudText>
+                </div>
+            </MudAlert>
+        </MudItem>
+    }
+</MudGrid>
+
+<MudButton Variant="Variant.Filled" Color="Color.Warning" Class="mt-3"
+           OnClick="ClearAlarms" StartIcon="@Icons.Material.Filled.Clear">
+    Clear All Alarms
+</MudButton>
+
+@code {
+    [Inject] private ISystemStatusService Status { get; set; } = default!;
+
+    private const int _alarmCount = 50; // Show first 50 alarms
+    private readonly byte[] _alarmData = new byte[150];
+    private readonly string[] _alarmMessages = new string[150];
+
+    private System.Threading.Timer? _timer;
+
+    protected override void OnInitialized()
+    {
+        for (int i = 0; i < _alarmMessages.Length; i++)
+            _alarmMessages[i] = "";
+
+        _timer = new System.Threading.Timer(async _ =>
+        {
+            for (int i = 0; i < 150; i++)
+            {
+                _alarmData[i] = Status.GetAlarmData(i);
+                _alarmMessages[i] = Status.GetAlarmMessage(i);
+            }
+            await InvokeAsync(StateHasChanged);
+        }, null, 0, 1000);
+    }
+
+    private void ClearAlarms()
+    {
+        Status.ClearAlarms();
+    }
+
+    public void Dispose() => _timer?.Dispose();
+}

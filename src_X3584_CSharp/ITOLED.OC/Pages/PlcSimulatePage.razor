@@ -1,0 +1,538 @@
+@page "/plc-simulate"
+@* PlcSimulatePage — replaces PlcSimluateForm.pas *@
+@* PLC connection status, polling data display, manual device read/write, simulator control *@
+@implements IDisposable
+
+<PageTitle>PLC Simulate</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-3">PLC Communication</MudText>
+
+@* ── Connection Status ──────────────────────────────────────────── *@
+<MudPaper Class="pa-3 mb-3">
+    <MudGrid Spacing="2">
+        <MudItem xs="12">
+            <div class="d-flex align-center gap-3 flex-wrap">
+                <MudChip T="string"
+                         Color="@(_plcConnected ? Color.Success : (_plcSimulator ? Color.Warning : Color.Error))"
+                         Variant="Variant.Filled" Size="Size.Medium">
+                    @if (_plcConnected) { <span>Connected</span> }
+                    else if (_plcSimulator) { <span>Simulator Mode</span> }
+                    else { <span>Disconnected</span> }
+                </MudChip>
+
+                <MudChip T="string" Color="Color.Default" Variant="Variant.Outlined" Size="Size.Small">
+                    EQP ID: @Plc.EqpId
+                </MudChip>
+                <MudChip T="string" Color="Color.Default" Variant="Variant.Outlined" Size="Size.Small">
+                    Polling: @(Plc.PollingInterval)ms
+                </MudChip>
+                @if (Plc.ConnectionError)
+                {
+                    <MudChip T="string" Color="Color.Error" Variant="Variant.Outlined" Size="Size.Small">
+                        Connection Error
+                    </MudChip>
+                }
+            </div>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+<MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
+    @* ── Tab 1: Polling Data ──────────────────────────────────────── *@
+    <MudTabPanel Text="Polling Data" Icon="@Icons.Material.Filled.Poll">
+        <MudGrid Spacing="2">
+            <MudItem xs="6">
+                <MudText Typo="Typo.subtitle2" Class="mb-1">Robot Data (@_robotLen words) — Start: B@(Config.PlcInfo.AddressRobot)</MudText>
+                <MudSimpleTable Dense="true" Hover="true" Bordered="true" Style="max-height: 250px; overflow-y: auto;">
+                    <thead><tr><th>Index</th><th>Address</th><th>Value</th><th>Hex</th><th>Binary (b15..b0)</th></tr></thead>
+                    <tbody>
+                        @for (int i = 0; i < _robotLen; i++)
+                        {
+                            var idx = i;
+                            <tr>
+                                <td>@idx</td>
+                                <td style="font-family:monospace;">B@(WordAddr(Config.PlcInfo.AddressRobot, idx))</td>
+                                <td>@Plc.PollingData[idx]</td>
+                                <td>@($"0x{Plc.PollingData[idx]:X4}")</td>
+                                <td style="font-family: monospace; font-size: 0.8rem;">@ToBinary(Plc.PollingData[idx])</td>
+                            </tr>
+                        }
+                    </tbody>
+                </MudSimpleTable>
+            </MudItem>
+
+            <MudItem xs="6">
+                <MudText Typo="Typo.subtitle2" Class="mb-1">ECS Data (@_ecsLen words) — Start: B@(Config.PlcInfo.AddressECS)</MudText>
+                <MudSimpleTable Dense="true" Hover="true" Bordered="true" Style="max-height: 250px; overflow-y: auto;">
+                    <thead><tr><th>Index</th><th>Address</th><th>Value</th><th>Hex</th><th>Binary (b15..b0)</th></tr></thead>
+                    <tbody>
+                        @for (int i = 0; i < _ecsLen; i++)
+                        {
+                            var idx = i;
+                            <tr>
+                                <td>@idx</td>
+                                <td style="font-family:monospace;">B@(WordAddr(Config.PlcInfo.AddressECS, idx))</td>
+                                <td>@Plc.PollingEcs[idx]</td>
+                                <td>@($"0x{Plc.PollingEcs[idx]:X4}")</td>
+                                <td style="font-family: monospace; font-size: 0.8rem;">@ToBinary(Plc.PollingEcs[idx])</td>
+                            </tr>
+                        }
+                    </tbody>
+                </MudSimpleTable>
+            </MudItem>
+
+            <MudItem xs="6">
+                <MudText Typo="Typo.subtitle2" Class="mb-1">EQP Data (@_eqpLen words) — Start: B@(Config.PlcInfo.AddressEQP)</MudText>
+                <MudSimpleTable Dense="true" Hover="true" Bordered="true" Style="max-height: 250px; overflow-y: auto;">
+                    <thead><tr><th>Index</th><th>Address</th><th>Value</th><th>Hex</th></tr></thead>
+                    <tbody>
+                        @for (int i = 0; i < _eqpLen; i++)
+                        {
+                            var idx = i;
+                            <tr>
+                                <td>@idx</td>
+                                <td style="font-family:monospace;">B@(WordAddr(Config.PlcInfo.AddressEQP, idx))</td>
+                                <td>@Plc.PollingEqp[idx]</td>
+                                <td>@($"0x{Plc.PollingEqp[idx]:X4}")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </MudSimpleTable>
+            </MudItem>
+
+            <MudItem xs="6">
+                <MudText Typo="Typo.subtitle2" Class="mb-1">CV Data (@_cvLen words) — Start: B@(Config.PlcInfo.AddressDoorOpen)</MudText>
+                <MudSimpleTable Dense="true" Hover="true" Bordered="true" Style="max-height: 250px; overflow-y: auto;">
+                    <thead><tr><th>Index</th><th>Address</th><th>Value</th><th>Hex</th></tr></thead>
+                    <tbody>
+                        @for (int i = 0; i < _cvLen; i++)
+                        {
+                            var idx = i;
+                            <tr>
+                                <td>@idx</td>
+                                <td style="font-family:monospace;">B@(WordAddr(Config.PlcInfo.AddressDoorOpen, idx))</td>
+                                <td>@Plc.PollingCv[idx]</td>
+                                <td>@($"0x{Plc.PollingCv[idx]:X4}")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </MudSimpleTable>
+            </MudItem>
+        </MudGrid>
+    </MudTabPanel>
+
+    @* ── Tab 2: Device Read/Write ─────────────────────────────────── *@
+    <MudTabPanel Text="Device R/W" Icon="@Icons.Material.Filled.EditNote">
+        @if (!Plc.Connected && !Plc.UseSimulator)
+        {
+            <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="mb-3">
+                PLC not connected and Simulator mode is OFF. Device R/W is unavailable.
+                System Setup &gt; PLC/ECS &gt; Use Simulation 체크 후 앱을 재시작하세요.
+            </MudAlert>
+        }
+        <MudGrid Spacing="2">
+            <MudItem xs="6">
+                <MudText Typo="Typo.subtitle1" Class="mb-2">Device Read</MudText>
+                <MudTextField T="string" @bind-Value="_readDevice" Label="Device (e.g. D100, B400)" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                <MudNumericField T="int" @bind-Value="_readCount" Label="Word Count" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-2" Min="1" Max="100" />
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-2" OnClick="ReadDevices"
+                           StartIcon="@Icons.Material.Filled.Download">Read</MudButton>
+
+                <MudText Typo="Typo.caption" Class="mt-2" Style="font-family: monospace; white-space: pre-wrap;">
+                    @_readResult
+                </MudText>
+            </MudItem>
+
+            <MudItem xs="6">
+                <MudText Typo="Typo.subtitle1" Class="mb-2">Device Write</MudText>
+                <MudTextField T="string" @bind-Value="_writeDevice" Label="Device (e.g. D100, B400)" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                <MudTextField T="string" @bind-Value="_writeValue" Label="Value (decimal)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-2" />
+                <MudButton Variant="Variant.Filled" Color="Color.Warning" Class="mt-2" OnClick="WriteDevice"
+                           StartIcon="@Icons.Material.Filled.Upload">Write</MudButton>
+
+                <MudText Typo="Typo.caption" Class="mt-2" Style="font-family: monospace; white-space: pre-wrap;">
+                    @_writeResult
+                </MudText>
+            </MudItem>
+        </MudGrid>
+    </MudTabPanel>
+
+    @* ── Tab 3: Quick Signals ─────────────────────────────────────── *@
+    <MudTabPanel Text="Quick Signals" Icon="@Icons.Material.Filled.ToggleOn">
+        <MudGrid Spacing="2">
+            <MudItem xs="12">
+                <MudText Typo="Typo.subtitle2" Class="mb-2">Toggle PLC Signals</MudText>
+            </MudItem>
+            <MudItem xs="3"><MudButton Variant="Variant.Outlined" FullWidth="true" OnClick="@(() => ToggleSignal("M100"))">M100 (Auto)</MudButton></MudItem>
+            <MudItem xs="3"><MudButton Variant="Variant.Outlined" FullWidth="true" OnClick="@(() => ToggleSignal("M101"))">M101 (Start)</MudButton></MudItem>
+            <MudItem xs="3"><MudButton Variant="Variant.Outlined" FullWidth="true" OnClick="@(() => ToggleSignal("M102"))">M102 (Stop)</MudButton></MudItem>
+            <MudItem xs="3"><MudButton Variant="Variant.Outlined" FullWidth="true" OnClick="@(() => ToggleSignal("M103"))">M103 (Reset)</MudButton></MudItem>
+
+            <MudItem xs="12" Class="mt-3">
+                <MudText Typo="Typo.caption" Style="font-family: monospace; white-space: pre-wrap;">
+                    @_readResult
+                </MudText>
+            </MudItem>
+        </MudGrid>
+    </MudTabPanel>
+
+    @* ── Tab 4: Simulator Control ─────────────────────────────────── *@
+    @if (_plcSimulator)
+    {
+        <MudTabPanel Text="Simulator" Icon="@Icons.Material.Filled.Science">
+            <MudGrid Spacing="2">
+                @* Auto Start toggle *@
+                <MudItem xs="12">
+                    <MudSwitch T="bool" Value="_simAutoStart" ValueChanged="SimAutoStartChanged"
+                               Label="Auto Start (auto-trigger Inspection Start after Load)"
+                               Color="Color.Primary" />
+                </MudItem>
+
+                @* Load event injection *@
+                <MudItem xs="12">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Inject Load Events</MudText>
+                </MudItem>
+                @for (int c = 0; c < 4; c++)
+                {
+                    var ch = c;
+                    <MudItem xs="3">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Small"
+                                   OnClick="@(() => InjectLoadGlassDataReport(ch))">
+                            CH@(ch + 1) Glass Data
+                        </MudButton>
+                    </MudItem>
+                }
+                @for (int c = 0; c < 4; c++)
+                {
+                    var ch = c;
+                    <MudItem xs="3">
+                        <MudButton Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true" Size="Size.Small"
+                                   OnClick="@(() => InjectLoadComplete(ch))">
+                            CH@(ch + 1) Load Complete
+                        </MudButton>
+                    </MudItem>
+                }
+
+                @* Unload event injection *@
+                <MudItem xs="12" Class="mt-2">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Inject Unload Events</MudText>
+                </MudItem>
+                @for (int c = 0; c < 4; c++)
+                {
+                    var ch = c;
+                    <MudItem xs="3">
+                        <MudButton Variant="Variant.Filled" Color="Color.Tertiary" FullWidth="true" Size="Size.Small"
+                                   OnClick="@(() => InjectUnloadComplete(ch))">
+                            CH@(ch + 1) Unload Complete
+                        </MudButton>
+                    </MudItem>
+                }
+
+                @* Inspection Start injection *@
+                <MudItem xs="12" Class="mt-2">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Inject Inspection Start</MudText>
+                </MudItem>
+                @for (int c = 0; c < 4; c++)
+                {
+                    var ch = c;
+                    <MudItem xs="3">
+                        <MudButton Variant="Variant.Filled" Color="Color.Warning" FullWidth="true" Size="Size.Small"
+                                   OnClick="@(() => InjectInspectionStart(ch))">
+                            CH@(ch + 1) Inspect Start
+                        </MudButton>
+                    </MudItem>
+                }
+
+                @* Simulator log *@
+                <MudItem xs="12" Class="mt-3">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Simulator Log</MudText>
+                    <MudPaper Outlined="true" Class="pa-2" Style="max-height: 200px; overflow-y: auto; font-family: monospace; font-size: 0.75rem; white-space: pre-wrap;">
+                        @_simLog
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+        </MudTabPanel>
+    }
+
+    @* ── Tab 5: Configuration ──────────────────────────────────────── *@
+    <MudTabPanel Text="Config" Icon="@Icons.Material.Filled.Settings">
+        <MudGrid Spacing="2">
+            <MudItem xs="6">
+                <MudSimpleTable Dense="true" Hover="true">
+                    <thead><tr><th colspan="2">PLC Configuration</th></tr></thead>
+                    <tbody>
+                        <tr><td>EQP ID</td><td>@Config.PlcInfo.EQPId</td></tr>
+                        <tr><td>Station No</td><td>@Config.PlcInfo.StationNo</td></tr>
+                        <tr><td>Polling Interval</td><td>@(Config.PlcInfo.PollingInterval)ms</td></tr>
+                        <tr><td>Connection Timeout</td><td>@(Config.PlcInfo.TimeoutConnection)ms</td></tr>
+                        <tr><td>ECS Timeout</td><td>@(Config.PlcInfo.TimeoutECS)ms</td></tr>
+                        <tr><td>Inline GIB</td><td>@Config.PlcInfo.InlineGIB</td></tr>
+                        <tr><td>Zone</td><td>@Config.PlcInfo.Zone</td></tr>
+                        <tr><td>Simulation</td><td>@Config.PlcInfo.UseSimulation</td></tr>
+                    </tbody>
+                </MudSimpleTable>
+            </MudItem>
+            <MudItem xs="6">
+                <MudSimpleTable Dense="true" Hover="true">
+                    <thead><tr><th colspan="2">PLC Addresses</th></tr></thead>
+                    <tbody>
+                        <tr><td>EQP Read</td><td>B@(Config.PlcInfo.AddressEQP)</td></tr>
+                        <tr><td>EQP Write</td><td>B@(Config.PlcInfo.AddressEQPWrite)</td></tr>
+                        <tr><td>ECS Read</td><td>B@(Config.PlcInfo.AddressECS)</td></tr>
+                        <tr><td>ECS Write</td><td>B@(Config.PlcInfo.AddressECSWrite)</td></tr>
+                        <tr><td>Robot Read</td><td>B@(Config.PlcInfo.AddressRobot)</td></tr>
+                        <tr><td>Robot Write</td><td>W@(Config.PlcInfo.AddressRobotWrite)</td></tr>
+                        <tr><td>Robot2 Read</td><td>B@(Config.PlcInfo.AddressRobot2)</td></tr>
+                        <tr><td>Robot2 Write</td><td>W@(Config.PlcInfo.AddressRobotWrite2)</td></tr>
+                        <tr><td>Door Open</td><td>B@(Config.PlcInfo.AddressDoorOpen)</td></tr>
+                    </tbody>
+                </MudSimpleTable>
+            </MudItem>
+
+            <MudItem xs="12">
+                <MudSimpleTable Dense="true" Hover="true">
+                    <thead><tr><th colspan="2">Driver Status</th></tr></thead>
+                    <tbody>
+                        <tr><td>Connected</td><td>@Plc.Connected</td></tr>
+                        <tr><td>UseSimulator</td><td>@Plc.UseSimulator</td></tr>
+                        <tr><td>ConnectionError</td><td>@Plc.ConnectionError</td></tr>
+                        <tr><td>IgnoreConnect</td><td>@Plc.IgnoreConnect</td></tr>
+                        <tr><td>InlineGib</td><td>@Plc.InlineGib</td></tr>
+                        <tr><td>Door Opened</td><td>@Plc.PollingDoorOpened</td></tr>
+                        <tr><td>AAB Mode</td><td>@Plc.PollingAabMode</td></tr>
+                    </tbody>
+                </MudSimpleTable>
+            </MudItem>
+        </MudGrid>
+    </MudTabPanel>
+</MudTabs>
+
+@code {
+    [Inject] private IPlcEcsDriver Plc { get; set; } = default!;
+    [Inject] private IConfigurationService Config { get; set; } = default!;
+    [Inject] private ISnackbar Snackbar { get; set; } = default!;
+
+    private string _readDevice = "D100";
+    private int _readCount = 10;
+    private string _readResult = "";
+    private string _writeDevice = "D100";
+    private string _writeValue = "0";
+    private string _writeResult = "";
+
+    private bool _plcConnected;
+    private bool _plcSimulator;
+    private bool _simAutoStart;
+    private string _simLog = "";
+
+    private int _robotLen;
+    private int _ecsLen;
+    private int _eqpLen;
+    private int _cvLen;
+
+    private System.Threading.Timer? _timer;
+
+    protected override void OnInitialized()
+    {
+        _robotLen = Plc.PollingData.Length;
+        _ecsLen = Plc.PollingEcs.Length;
+        _eqpLen = Plc.PollingEqp.Length;
+        _cvLen = Plc.PollingCv.Length;
+        _simAutoStart = Plc.SimAutoStart;
+
+        _timer = new System.Threading.Timer(async _ =>
+        {
+            _plcConnected = Plc.Connected;
+            _plcSimulator = Plc.UseSimulator;
+            await InvokeAsync(StateHasChanged);
+        }, null, 0, 1000);
+    }
+
+    // ── Simulator event injection ──
+
+    private void SimAutoStartChanged(bool value)
+    {
+        _simAutoStart = value;
+        Plc.SimAutoStart = value;
+        AppendSimLog($"Auto Start: {(value ? "ON" : "OFF")}");
+    }
+
+    private void InjectLoadGlassDataReport(int ch)
+    {
+        // Set Glass Data Report bit in Robot area → triggers ProcessRobotGlassDataReport
+        Plc.SimInjectBit($"B{GetRobotBitAddr(ch, 0x01):X3}", 1);
+        AppendSimLog($"Injected: Glass Data Report CH{ch}");
+    }
+
+    private void InjectLoadComplete(int ch)
+    {
+        // Set Load Complete bit in Robot area
+        Plc.SimInjectBit($"B{GetRobotBitAddr(ch, 0x03):X3}", 1);
+        AppendSimLog($"Injected: Load Complete CH{ch}");
+    }
+
+    private void InjectUnloadComplete(int ch)
+    {
+        // Set Unload Complete bit in Robot area
+        Plc.SimInjectBit($"B{GetRobotBitAddr(ch, 0x13):X3}", 1);
+        AppendSimLog($"Injected: Unload Complete CH{ch}");
+    }
+
+    private void InjectInspectionStart(int ch)
+    {
+        // Set Inspection Start bit in Robot area
+        Plc.SimInjectBit($"B{GetRobotBitAddr(ch, 0x0D):X3}", 1);
+        AppendSimLog($"Injected: Inspection Start CH{ch}");
+    }
+
+    /// <summary>
+    /// Computes Robot bit address, accounting for StartAddrRobot2 configuration.
+    /// Uses AddressRobot/AddressRobot2 from config (hex string → int).
+    /// </summary>
+    private int GetRobotBitAddr(int ch, int bitOffset)
+    {
+        int robotBase = Convert.ToInt32(Config.PlcInfo.AddressRobot, 16);
+        string robot2Str = Config.PlcInfo.AddressRobot2;
+        if (!string.IsNullOrEmpty(robot2Str) && robot2Str != "0" && ch >= 2)
+        {
+            int robot2Base = Convert.ToInt32(robot2Str, 16);
+            return robot2Base + (ch - 2) * 0x20 + bitOffset;
+        }
+        return robotBase + ch * 0x20 + bitOffset;
+    }
+
+    private void AppendSimLog(string msg)
+    {
+        var line = $"{DateTime.Now:HH:mm:ss.fff} {msg}";
+        _simLog = string.IsNullOrEmpty(_simLog) ? line : $"{line}\n{_simLog}";
+        // Keep log manageable (max 50 lines)
+        var lines = _simLog.Split('\n');
+        if (lines.Length > 50)
+            _simLog = string.Join('\n', lines[..50]);
+    }
+
+    // ── Existing methods ──
+
+    private Task ReadDevices()
+    {
+        if (!Plc.Connected && !Plc.UseSimulator)
+        {
+            _readResult = "PLC not connected (not in simulator mode)";
+            Snackbar.Add("PLC not connected", Severity.Error);
+            return Task.CompletedTask;
+        }
+
+        try
+        {
+            var data = new int[_readCount];
+            int ret = Plc.ReadDeviceBlock(_readDevice, _readCount, data, out _);
+            if (ret != 0)
+            {
+                _readResult = $"Read error: return code {ret}";
+                Snackbar.Add($"Read error: {ret}", Severity.Warning);
+                return Task.CompletedTask;
+            }
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"Read {_readCount} words from {_readDevice}:");
+            for (int i = 0; i < _readCount; i++)
+                sb.AppendLine($"  [{i:D3}] = {data[i]} (0x{data[i]:X4})");
+            _readResult = sb.ToString();
+        }
+        catch (Exception ex)
+        {
+            _readResult = $"Read exception: {ex.Message}";
+            Snackbar.Add($"Read failed: {ex.Message}", Severity.Error);
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task WriteDevice()
+    {
+        if (!Plc.Connected && !Plc.UseSimulator)
+        {
+            _writeResult = "PLC not connected (not in simulator mode)";
+            Snackbar.Add("PLC not connected", Severity.Error);
+            return Task.CompletedTask;
+        }
+
+        try
+        {
+            if (int.TryParse(_writeValue, out int val))
+            {
+                int ret = Plc.WriteDevice(_writeDevice, val);
+                if (ret == 0)
+                {
+                    _writeResult = $"OK: Wrote {val} (0x{val:X}) to {_writeDevice}";
+                    Snackbar.Add($"Wrote {val} to {_writeDevice}", Severity.Success);
+                }
+                else
+                {
+                    _writeResult = $"Write error: return code {ret}";
+                    Snackbar.Add($"Write error: {ret}", Severity.Warning);
+                }
+            }
+            else
+            {
+                _writeResult = $"Invalid value: {_writeValue}";
+                Snackbar.Add($"Invalid value: {_writeValue}", Severity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            _writeResult = $"Write exception: {ex.Message}";
+            Snackbar.Add($"Write failed: {ex.Message}", Severity.Error);
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task ToggleSignal(string device)
+    {
+        if (!Plc.Connected && !Plc.UseSimulator)
+        {
+            _readResult = "PLC not connected (not in simulator mode)";
+            Snackbar.Add("PLC not connected", Severity.Error);
+            return Task.CompletedTask;
+        }
+
+        try
+        {
+            int ret = Plc.ReadDevice(device, out int current, saveLog: false);
+            if (ret == 0)
+            {
+                int newVal = current == 0 ? 1 : 0;
+                ret = Plc.WriteDevice(device, newVal);
+                _readResult = ret == 0
+                    ? $"{device}: {current} → {newVal}"
+                    : $"{device}: Toggle failed (write error {ret})";
+            }
+            else
+            {
+                _readResult = $"Read error on {device}: {ret}";
+            }
+        }
+        catch (Exception ex)
+        {
+            _readResult = $"Toggle error: {ex.Message}";
+            Snackbar.Add($"Toggle failed: {ex.Message}", Severity.Error);
+        }
+        return Task.CompletedTask;
+    }
+
+    private static string ToBinary(int value)
+    {
+        return Convert.ToString(value & 0xFFFF, 2).PadLeft(16, '0');
+    }
+
+    /// <summary>
+    /// Computes the B-device word address for a given base hex address and word index.
+    /// Each word = 16 bits, so word N starts at base + N * 0x10.
+    /// </summary>
+    private static string WordAddr(string baseHex, int wordIndex)
+    {
+        if (int.TryParse(baseHex, System.Globalization.NumberStyles.HexNumber, null, out int baseAddr))
+            return $"{baseAddr + wordIndex * 0x10:X}";
+        return $"{baseHex}+{wordIndex}";
+    }
+
+    public void Dispose() => _timer?.Dispose();
+}

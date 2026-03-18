@@ -1,0 +1,1040 @@
+@page "/system-setup"
+@* SystemSetupPage — replaces SystemSetup.pas/SystemSetup.dfm *@
+@* System configuration: PLC, DIO, PG, network, file paths *@
+
+<PageTitle>System Setup</PageTitle>
+
+@if (!_isAuthenticated)
+{
+    <MudPaper Class="pa-6 d-flex flex-column align-center justify-center" Style="min-height: 300px;">
+        <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Large" Color="Color.Warning" Class="mb-3" />
+        <MudText Typo="Typo.h6" Class="mb-3">Admin Login Required</MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="OnAdminLoginClick">Login</MudButton>
+    </MudPaper>
+}
+else
+{
+
+<MudText Typo="Typo.h5" Class="mb-3">System Setup</MudText>
+
+<MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
+    @* ══════════════════════════════════════════════════════════════════════════ *@
+    @* Tab 1: System Config                                                      *@
+    @* ══════════════════════════════════════════════════════════════════════════ *@
+    <MudTabPanel Text="System" Icon="@Icons.Material.Filled.Computer">
+        <MudText Typo="Typo.subtitle1" Class="mb-2">General</MudText>
+        <MudGrid Spacing="2">
+            <MudItem xs="4">
+                <MudTextField T="string" @bind-Value="_equipmentId" Label="Equipment ID" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="4">
+                <MudTextField T="string" @bind-Value="_modelName" Label="Test Model" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="4">
+                <MudTextField T="string" @bind-Value="_swVersion" Label="SW Version" Variant="Variant.Outlined" ReadOnly="true" />
+            </MudItem>
+            <MudItem xs="3">
+                <MudNumericField T="int" @bind-Value="_ocType" Label="OC Type" Variant="Variant.Outlined" Min="0" Max="3" />
+            </MudItem>
+            <MudItem xs="3">
+                <MudNumericField T="int" @bind-Value="_chCountUsed" Label="CH Count Used" Variant="Variant.Outlined" Min="1" Max="4" />
+            </MudItem>
+            <MudItem xs="3">
+                <MudNumericField T="int" @bind-Value="_dioType" Label="DIO Type" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="3">
+                <MudNumericField T="int" @bind-Value="_pgType" Label="PG Type" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="3">
+                <MudNumericField T="int" @bind-Value="_pgMemorySize" Label="PG Memory Size" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="3">
+                <MudNumericField T="int" @bind-Value="_ngAlarmCount" Label="NG Alarm Count" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="3">
+                <MudNumericField T="int" @bind-Value="_retryCount" Label="Retry Count" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="3">
+                <MudNumericField T="int" @bind-Value="_ecsTimeout" Label="ECS Timeout (ms)" Variant="Variant.Outlined" />
+            </MudItem>
+        </MudGrid>
+
+        <MudText Typo="Typo.subtitle1" Class="mt-4 mb-2">Feature Flags</MudText>
+        <MudGrid Spacing="2">
+            <MudItem xs="3"><MudCheckBox T="bool" @bind-Value="_autoStart" Label="Auto Start" /></MudItem>
+            <MudItem xs="3"><MudCheckBox T="bool" @bind-Value="_ocManualType" Label="OC Manual Type" /></MudItem>
+            <MudItem xs="3"><MudCheckBox T="bool" @bind-Value="_useITOMode" Label="ITO Mode" /></MudItem>
+            <MudItem xs="3"><MudCheckBox T="bool" @bind-Value="_chReversal" Label="CH Reversal" /></MudItem>
+            <MudItem xs="3"><MudCheckBox T="bool" @bind-Value="_useECS" Label="Use ECS" /></MudItem>
+            <MudItem xs="3"><MudCheckBox T="bool" @bind-Value="_useMES" Label="Use MES" /></MudItem>
+            <MudItem xs="3"><MudCheckBox T="bool" @bind-Value="_useGIB" Label="Use GIB" /></MudItem>
+            <MudItem xs="3"><MudCheckBox T="bool" @bind-Value="_powerLog" Label="Power Log" /></MudItem>
+        </MudGrid>
+
+        <MudText Typo="Typo.subtitle1" Class="mt-4 mb-2">Passwords</MudText>
+        <MudGrid Spacing="2">
+            <MudItem xs="6">
+                <MudTextField T="string" @bind-Value="_password" Label="Password" Variant="Variant.Outlined" InputType="InputType.Password" />
+            </MudItem>
+            <MudItem xs="6">
+                <MudTextField T="string" @bind-Value="_supervisorPassword" Label="Supervisor Password" Variant="Variant.Outlined" InputType="InputType.Password" />
+            </MudItem>
+        </MudGrid>
+
+        <MudText Typo="Typo.subtitle1" Class="mt-4 mb-2">COM Ports</MudText>
+        <MudGrid Spacing="2">
+            @for (int i = 0; i < _comHandBCR.Length; i++)
+            {
+                var idx = i;
+                <MudItem xs="3">
+                    <MudNumericField T="int" @bind-Value="_comHandBCR[idx]" Label="@($"HandBCR {idx+1}")" Variant="Variant.Outlined" />
+                </MudItem>
+            }
+            @for (int i = 0; i < _comRCB.Length; i++)
+            {
+                var idx = i;
+                <MudItem xs="3">
+                    <MudNumericField T="int" @bind-Value="_comRCB[idx]" Label="@($"RCB {idx+1}")" Variant="Variant.Outlined" />
+                </MudItem>
+            }
+            @for (int i = 0; i < _comIonizer.Length; i++)
+            {
+                var idx = i;
+                <MudItem xs="3">
+                    <MudNumericField T="int" @bind-Value="_comIonizer[idx]" Label="@($"Ionizer {idx+1}")" Variant="Variant.Outlined" />
+                </MudItem>
+            }
+            <MudItem xs="3">
+                <MudNumericField T="int" @bind-Value="_comIrTempSensor" Label="IR Temp Sensor" Variant="Variant.Outlined" />
+            </MudItem>
+        </MudGrid>
+    </MudTabPanel>
+
+    @* ══════════════════════════════════════════════════════════════════════════ *@
+    @* Tab 2: PLC / ECS Config                                                   *@
+    @* ══════════════════════════════════════════════════════════════════════════ *@
+    <MudTabPanel Text="PLC / ECS" Icon="@Icons.Material.Filled.Memory">
+        <MudText Typo="Typo.subtitle1" Class="mb-2">PLC Connection</MudText>
+        <MudGrid Spacing="2">
+            <MudItem xs="3">
+                <MudNumericField T="int" @bind-Value="_plcEqpId" Label="EQP ID" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="3">
+                <MudNumericField T="int" @bind-Value="_plcStationNo" Label="Station No" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="3">
+                <MudNumericField T="int" @bind-Value="_plcPollingInterval" Label="Polling Interval (ms)" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="3">
+                <MudNumericField T="int" @bind-Value="_plcZone" Label="Zone" Variant="Variant.Outlined" />
+            </MudItem>
+        </MudGrid>
+
+        <MudText Typo="Typo.subtitle1" Class="mt-4 mb-2">Timeouts</MudText>
+        <MudGrid Spacing="2">
+            <MudItem xs="6">
+                <MudNumericField T="int" @bind-Value="_plcTimeoutConnection" Label="Connection Timeout (ms)" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="6">
+                <MudNumericField T="int" @bind-Value="_plcTimeoutECS" Label="ECS Timeout (ms)" Variant="Variant.Outlined" />
+            </MudItem>
+        </MudGrid>
+
+        <MudText Typo="Typo.subtitle1" Class="mt-4 mb-2">Addresses (Read)</MudText>
+        <MudGrid Spacing="2">
+            <MudItem xs="4">
+                <MudTextField T="string" @bind-Value="_plcAddrECS" Label="ECS Read" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="4">
+                <MudTextField T="string" @bind-Value="_plcAddrRobot" Label="Robot Read" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="4">
+                <MudTextField T="string" @bind-Value="_plcAddrEQP" Label="EQP Read" Variant="Variant.Outlined" />
+            </MudItem>
+        </MudGrid>
+
+        <MudText Typo="Typo.subtitle1" Class="mt-4 mb-2">Addresses (Write)</MudText>
+        <MudGrid Spacing="2">
+            <MudItem xs="4">
+                <MudTextField T="string" @bind-Value="_plcAddrECSWrite" Label="ECS Write" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="4">
+                <MudTextField T="string" @bind-Value="_plcAddrRobotWrite" Label="Robot Write" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="4">
+                <MudTextField T="string" @bind-Value="_plcAddrEQPWrite" Label="EQP Write" Variant="Variant.Outlined" />
+            </MudItem>
+        </MudGrid>
+
+        <MudText Typo="Typo.subtitle1" Class="mt-4 mb-2">Options</MudText>
+        <MudGrid Spacing="2">
+            <MudItem xs="4"><MudCheckBox T="bool" @bind-Value="_plcUseSimulation" Label="Use Simulation" /></MudItem>
+            <MudItem xs="4"><MudCheckBox T="bool" @bind-Value="_plcInlineGIB" Label="Inline GIB" /></MudItem>
+            <MudItem xs="4">
+                <MudTextField T="string" @bind-Value="_plcAddrDoorOpen" Label="Door Open Address" Variant="Variant.Outlined" />
+            </MudItem>
+        </MudGrid>
+    </MudTabPanel>
+
+    @* ══════════════════════════════════════════════════════════════════════════ *@
+    @* Tab 3: DFS / Network / Paths                                              *@
+    @* ══════════════════════════════════════════════════════════════════════════ *@
+    <MudTabPanel Text="DFS / Paths" Icon="@Icons.Material.Filled.Wifi">
+        <MudText Typo="Typo.subtitle1" Class="mb-2">DFS Server</MudText>
+        <MudGrid Spacing="2">
+            <MudItem xs="4">
+                <MudTextField T="string" @bind-Value="_dfsServerIp" Label="DFS Server IP" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="4">
+                <MudTextField T="string" @bind-Value="_dfsUser" Label="DFS User" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="4">
+                <MudTextField T="string" @bind-Value="_dfsPassword" Label="DFS Password" Variant="Variant.Outlined" InputType="InputType.Password" />
+            </MudItem>
+            <MudItem xs="8">
+                <MudTextField T="string" @bind-Value="_dfsCombiDownPath" Label="Combi Download Path" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="4">
+                <MudTextField T="string" @bind-Value="_dfsProcessName" Label="Process Name" Variant="Variant.Outlined" />
+            </MudItem>
+        </MudGrid>
+
+        <MudText Typo="Typo.subtitle1" Class="mt-4 mb-2">DFS Options</MudText>
+        <MudGrid Spacing="2">
+            <MudItem xs="3"><MudCheckBox T="bool" @bind-Value="_dfsUseDfs" Label="Use DFS" /></MudItem>
+            <MudItem xs="3"><MudCheckBox T="bool" @bind-Value="_dfsHexCompress" Label="HEX Compress" /></MudItem>
+            <MudItem xs="3"><MudCheckBox T="bool" @bind-Value="_dfsHexDelete" Label="HEX Delete" /></MudItem>
+            <MudItem xs="3"><MudCheckBox T="bool" @bind-Value="_dfsUseCombiDown" Label="Use Combi DL" /></MudItem>
+        </MudGrid>
+
+        <MudText Typo="Typo.subtitle1" Class="mt-4 mb-2">Paths</MudText>
+        <MudGrid Spacing="2">
+            <MudItem xs="12">
+                <MudTextField T="string" @bind-Value="_rootPath" Label="Root Directory" Variant="Variant.Outlined" FullWidth="true" ReadOnly="true" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField T="string" @bind-Value="_logPath" Label="Log Directory" Variant="Variant.Outlined" FullWidth="true" ReadOnly="true" />
+            </MudItem>
+        </MudGrid>
+
+        <MudText Typo="Typo.subtitle1" Class="mt-4 mb-2">FTP</MudText>
+        <MudGrid Spacing="2">
+            <MudItem xs="3">
+                <MudTextField T="string" @bind-Value="_hostFTPIP" Label="Host FTP IP" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="3">
+                <MudTextField T="string" @bind-Value="_hostFTPUser" Label="Host FTP User" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="3">
+                <MudTextField T="string" @bind-Value="_hostFTPPasswd" Label="Host FTP Password" Variant="Variant.Outlined" InputType="InputType.Password" />
+            </MudItem>
+            <MudItem xs="3">
+                <MudTextField T="string" @bind-Value="_hostFTPCombiPath" Label="FTP Combi Path" Variant="Variant.Outlined" />
+            </MudItem>
+        </MudGrid>
+    </MudTabPanel>
+
+    @* ══════════════════════════════════════════════════════════════════════════ *@
+    @* Tab 4: GMES / EAS / R2R                                                   *@
+    @* ══════════════════════════════════════════════════════════════════════════ *@
+    <MudTabPanel Text="GMES / EAS / R2R" Icon="@Icons.Material.Filled.Hub">
+        <MudText Typo="Typo.subtitle1" Class="mb-2">GMES</MudText>
+        <MudGrid Spacing="2">
+            <MudItem xs="3">
+                <MudTextField T="string" @bind-Value="_mesServicePort" Label="Service Port" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="3">
+                <MudTextField T="string" @bind-Value="_mesNetwork" Label="Network" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="3">
+                <MudTextField T="string" @bind-Value="_mesDaemonPort" Label="Daemon Port" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="3">
+                <MudNumericField T="int" @bind-Value="_eqpIdType" Label="EQP ID Type" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="6">
+                <MudTextField T="string" @bind-Value="_mesLocalSubject" Label="Local Subject" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="6">
+                <MudTextField T="string" @bind-Value="_mesRemoteSubject" Label="Remote Subject" Variant="Variant.Outlined" />
+            </MudItem>
+        </MudGrid>
+
+        <MudText Typo="Typo.subtitle1" Class="mt-4 mb-2">EAS</MudText>
+        <MudGrid Spacing="2">
+            <MudItem xs="4">
+                <MudTextField T="string" @bind-Value="_easService" Label="Service" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="4">
+                <MudTextField T="string" @bind-Value="_easNetwork" Label="Network" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="4">
+                <MudTextField T="string" @bind-Value="_easDaemonPort" Label="Daemon Port" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="6">
+                <MudTextField T="string" @bind-Value="_easLocalSubject" Label="Local Subject" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="6">
+                <MudTextField T="string" @bind-Value="_easRemoteSubject" Label="Remote Subject" Variant="Variant.Outlined" />
+            </MudItem>
+        </MudGrid>
+
+        <MudText Typo="Typo.subtitle1" Class="mt-4 mb-2">R2R</MudText>
+        <MudGrid Spacing="2">
+            <MudItem xs="4">
+                <MudTextField T="string" @bind-Value="_r2rService" Label="Service" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="4">
+                <MudTextField T="string" @bind-Value="_r2rNetwork" Label="Network" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="4">
+                <MudTextField T="string" @bind-Value="_r2rDaemonPort" Label="Daemon Port" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="6">
+                <MudTextField T="string" @bind-Value="_r2rLocalSubject" Label="Local Subject" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="6">
+                <MudTextField T="string" @bind-Value="_r2rRemoteSubject" Label="Remote Subject" Variant="Variant.Outlined" />
+            </MudItem>
+        </MudGrid>
+    </MudTabPanel>
+
+    @* ══════════════════════════════════════════════════════════════════════════ *@
+    @* Tab 5: CA410 / PG Settings                                                *@
+    @* ══════════════════════════════════════════════════════════════════════════ *@
+    <MudTabPanel Text="CA410 / PG" Icon="@Icons.Material.Filled.Tune">
+        <MudText Typo="Typo.subtitle1" Class="mb-2">CA310/CA410 (per Channel)</MudText>
+
+        @* ── Scan Button (Delphi: RzBitBtn4Click) ── *@
+        <div class="d-flex align-center gap-3 mb-3">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                       OnClick="ScanCa410"
+                       StartIcon="@Icons.Material.Filled.Usb">
+                Load CA-410 Devices
+            </MudButton>
+            <MudText Typo="Typo.caption" Style="color: #9E9E9E;">
+                Detected: @_ca410DeviceOptions.Count device(s)
+            </MudText>
+        </div>
+
+        @* ── Per-Channel Device Selection ── *@
+        <MudSimpleTable Dense="true" Hover="true" Striped="true" Style="max-width: 800px;">
+            <thead>
+                <tr>
+                    <th>CH</th>
+                    <th style="min-width: 300px;">Device</th>
+                    <th>Device ID</th>
+                    <th>Serial No</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (int i = 0; i < _comCa310.Length; i++)
+                {
+                    var idx = i;
+                    <tr>
+                        <td style="font-weight:600;">@(idx + 1)</td>
+                        <td>
+                            <MudSelect T="int" Value="_comCa310[idx]"
+                                       ValueChanged="@(v => OnCa410DeviceSelected(idx, v))"
+                                       Dense="true" Margin="Margin.Dense" Variant="Variant.Text">
+                                <MudSelectItem T="int" Value="0">NONE</MudSelectItem>
+                                @for (int d = 0; d < _ca410DeviceOptions.Count; d++)
+                                {
+                                    var capturedD = d;
+                                    var devIdx = capturedD + 1;
+                                    var devText = _ca410DeviceOptions[capturedD];
+                                    <MudSelectItem T="int" Value="devIdx">@devText</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </td>
+                        <td><MudText Typo="Typo.body2" Style="font-family: monospace;">@_comCa310DeviceId[idx]</MudText></td>
+                        <td><MudText Typo="Typo.body2" Style="font-family: monospace;">@_comCa310Serial[idx]</MudText></td>
+                    </tr>
+                }
+            </tbody>
+        </MudSimpleTable>
+
+        <MudText Typo="Typo.subtitle1" Class="mt-4 mb-2">PG TCON Settings</MudText>
+        <MudGrid Spacing="2">
+            <MudItem xs="4">
+                <MudNumericField T="int" @bind-Value="_pgTconWriteCmdType" Label="TCON Write Cmd Type" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="4">
+                <MudNumericField T="int" @bind-Value="_pgTconReadCmdType" Label="TCON Read Cmd Type" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="4">
+                <MudNumericField T="int" @bind-Value="_pgTconOcWriteDelayMsec" Label="OC Write Delay (ms)" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="4">
+                <MudTextField T="string" @bind-Value="_pgWriteReadPassAddr" Label="WriteRead Pass Addr" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="4">
+                <MudNumericField T="int" @bind-Value="_pgTconReadBeforeDelayMsec" Label="Read Before Delay (ms)" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="4">
+                <MudNumericField T="int" @bind-Value="_pgWaitAckAfterContOcWriteCnt" Label="Wait Ack Cnt" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="4">
+                <MudCheckBox T="bool" @bind-Value="_pgTconWriteLogDisplay" Label="TCON Write Log Display" />
+            </MudItem>
+            <MudItem xs="4">
+                <MudCheckBox T="bool" @bind-Value="_pgGpioReadHpdBeforeMeasure" Label="GPIO Read HPD" />
+            </MudItem>
+        </MudGrid>
+
+        <MudText Typo="Typo.subtitle1" Class="mt-4 mb-2">Debug</MudText>
+        <MudGrid Spacing="2">
+            <MudItem xs="4">
+                <MudNumericField T="int" @bind-Value="_debugLogLevel" Label="Debug Log Level" Variant="Variant.Outlined" Min="0" Max="5" />
+            </MudItem>
+        </MudGrid>
+    </MudTabPanel>
+
+    @* ══════════════════════════════════════════════════════════════════════════ *@
+    @* Tab 6: OC Factory Config (Delphi: tbOcFactoryConfig in SystemSetup)       *@
+    @* ══════════════════════════════════════════════════════════════════════════ *@
+    <MudTabPanel Text="OC Factory Config" Icon="@Icons.Material.Filled.Extension">
+        <MudText Typo="Typo.subtitle1" Class="mb-2">OC Factory Configuration (JSON)</MudText>
+
+        @* ── Config Grid ── *@
+        <MudSimpleTable Dense="true" Hover="true" Striped="true" Style="max-width: 900px;">
+            <thead>
+                <tr>
+                    <th style="width:60px;">Id</th>
+                    <th>DllPath</th>
+                    <th style="width:120px;">SubscriberType</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (int i = 0; i < _ocFactoryConfigs.Count; i++)
+                {
+                    var idx = i;
+                    var cfg = _ocFactoryConfigs[idx];
+                    <tr @onclick="() => OnOcConfigRowClick(idx)"
+                        style="@(_ocSelectedRow == idx ? "background:#e3f2fd;" : "cursor:pointer;")">
+                        <td>@cfg.Id</td>
+                        <td style="font-family:monospace; font-size:0.85em;">@cfg.DllPath</td>
+                        <td>@cfg.SubscriberType</td>
+                    </tr>
+                }
+            </tbody>
+        </MudSimpleTable>
+
+        @* ── Edit Fields ── *@
+        <MudGrid Spacing="2" Class="mt-3" Style="max-width: 900px;">
+            <MudItem xs="8">
+                <MudTextField T="string" @bind-Value="_ocDllPath" Label="DllPath"
+                              Variant="Variant.Outlined" Placeholder="LGDDLL/..." />
+            </MudItem>
+            <MudItem xs="4">
+                <MudSelect T="int" @bind-Value="_ocSubscriberType" Label="SubscriberType"
+                           Variant="Variant.Outlined">
+                    <MudSelectItem T="int" Value="1">1</MudSelectItem>
+                    <MudSelectItem T="int" Value="2">2</MudSelectItem>
+                    <MudSelectItem T="int" Value="3">3</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+        </MudGrid>
+
+        @* ── Action Buttons ── *@
+        <div class="d-flex gap-2 mt-3">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                       OnClick="AddOcConfig" StartIcon="@Icons.Material.Filled.Add">Add</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Info" Size="Size.Small"
+                       OnClick="UpdateOcConfig" StartIcon="@Icons.Material.Filled.Edit">Update</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Error" Size="Size.Small"
+                       OnClick="DeleteOcConfig" StartIcon="@Icons.Material.Filled.Delete">Delete</MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Warning" Size="Size.Small"
+                       OnClick="SaveOcFactoryConfig" StartIcon="@Icons.Material.Filled.Save">Save JSON</MudButton>
+        </div>
+    </MudTabPanel>
+</MudTabs>
+
+<MudPaper Class="pa-3 mt-3 d-flex gap-2">
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveConfig">Save</MudButton>
+    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="ReloadConfig">Reload</MudButton>
+</MudPaper>
+
+} @* end else _isAuthenticated *@
+
+@code {
+    [Inject] private IConfigurationService Config { get; set; } = default!;
+    [Inject] private IPathManager PathMgr { get; set; } = default!;
+    [Inject] private ISnackbar Snackbar { get; set; } = default!;
+    [Inject] private ICaSdk2Driver Ca410 { get; set; } = default!;
+    [Inject] private IAppInitializer AppInit { get; set; } = default!;
+    [Inject] private IDialogService DialogService { get; set; } = default!;
+    [Inject] private NavigationManager Nav { get; set; } = default!;
+
+    private bool _isAuthenticated;
+
+    private async Task OnAdminLoginClick()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small };
+        var dialog = await DialogService.ShowAsync<LoginDialog>("Admin Login", options);
+        var result = await dialog.Result;
+        if (result is not null && !result.Canceled)
+            _isAuthenticated = true;
+    }
+
+    // ── Tab 1: System ──────────────────────────────────────────────
+    private string _equipmentId = "";
+    private string _modelName = "";
+    private string _swVersion = "";
+    private int _ocType;
+    private int _chCountUsed = 4;
+    private int _dioType;
+    private int _pgType;
+    private int _pgMemorySize;
+    private int _ngAlarmCount;
+    private int _retryCount;
+    private int _ecsTimeout;
+    private bool _autoStart;
+    private bool _ocManualType;
+    private bool _useITOMode;
+    private bool _chReversal;
+    private bool _useECS;
+    private bool _useMES;
+    private bool _useGIB;
+    private bool _powerLog;
+    private string _password = "";
+    private string _supervisorPassword = "";
+    private int[] _comHandBCR = new int[4];
+    private int[] _comRCB = new int[2];
+    private int[] _comIonizer = new int[2];
+    private int _comIrTempSensor;
+
+    // ── Tab 2: PLC / ECS ───────────────────────────────────────────
+    private int _plcEqpId;
+    private int _plcStationNo;
+    private int _plcPollingInterval;
+    private int _plcTimeoutConnection;
+    private int _plcTimeoutECS;
+    private int _plcZone;
+    private string _plcAddrECS = "";
+    private string _plcAddrRobot = "";
+    private string _plcAddrEQP = "";
+    private string _plcAddrECSWrite = "";
+    private string _plcAddrRobotWrite = "";
+    private string _plcAddrEQPWrite = "";
+    private string _plcAddrDoorOpen = "";
+    private bool _plcUseSimulation;
+    private bool _plcInlineGIB;
+
+    // ── Tab 3: DFS / Paths ─────────────────────────────────────────
+    private string _dfsServerIp = "";
+    private string _dfsUser = "";
+    private string _dfsPassword = "";
+    private string _dfsCombiDownPath = "";
+    private string _dfsProcessName = "";
+    private bool _dfsUseDfs;
+    private bool _dfsHexCompress;
+    private bool _dfsHexDelete;
+    private bool _dfsUseCombiDown;
+    private string _rootPath = "";
+    private string _logPath = "";
+    private string _hostFTPIP = "";
+    private string _hostFTPUser = "";
+    private string _hostFTPPasswd = "";
+    private string _hostFTPCombiPath = "";
+
+    // ── Tab 4: GMES / EAS / R2R ────────────────────────────────────
+    private string _mesServicePort = "";
+    private string _mesNetwork = "";
+    private string _mesDaemonPort = "";
+    private string _mesLocalSubject = "";
+    private string _mesRemoteSubject = "";
+    private int _eqpIdType;
+    private string _easService = "";
+    private string _easNetwork = "";
+    private string _easDaemonPort = "";
+    private string _easLocalSubject = "";
+    private string _easRemoteSubject = "";
+    private string _r2rService = "";
+    private string _r2rNetwork = "";
+    private string _r2rDaemonPort = "";
+    private string _r2rLocalSubject = "";
+    private string _r2rRemoteSubject = "";
+
+    // ── Tab 5: CA410 / PG ──────────────────────────────────────────
+    private int[] _comCa310 = new int[4];
+    private int[] _comCa310DeviceId = new int[4];
+    private string[] _comCa310Serial = new string[] { "", "", "", "" };
+    private List<string> _ca410DeviceOptions = [];    // display strings for dropdown
+    private int _pgTconWriteCmdType;
+    private int _pgTconReadCmdType;
+    private int _pgTconOcWriteDelayMsec;
+    private string _pgWriteReadPassAddr = "";
+    private int _pgTconReadBeforeDelayMsec;
+    private int _pgWaitAckAfterContOcWriteCnt;
+    private bool _pgTconWriteLogDisplay;
+    private bool _pgGpioReadHpdBeforeMeasure;
+    private int _debugLogLevel;
+
+    // ── Tab 6: OC Factory Config ────────────────────────────────────
+    private List<OcFactoryConfigItem> _ocFactoryConfigs = new();
+    private int _ocSelectedRow = -1;
+    private string _ocDllPath = "";
+    private int _ocSubscriberType = 1;
+
+    private sealed class OcFactoryConfigItem
+    {
+        public int Id { get; set; }
+        public string DllPath { get; set; } = "";
+        public string ClassName { get; set; } = "";
+        public int SubscriberType { get; set; } = 1;
+    }
+
+    protected override void OnInitialized()
+    {
+        LoadFromConfig();
+        LoadOcFactoryConfig();
+    }
+
+    private void LoadFromConfig()
+    {
+        var sys = Config.SystemInfo;
+        if (sys is null) return;
+
+        // Tab 1: System
+        _equipmentId = sys.EQPId ?? "";
+        _modelName = sys.TestModel ?? "";
+        _swVersion = sys.SWVerInterlock ?? "";
+        _ocType = sys.OCType;
+        _chCountUsed = sys.ChCountUsed;
+        _dioType = sys.DIOType;
+        _pgType = sys.PGType;
+        _pgMemorySize = sys.PGMemorySize;
+        _ngAlarmCount = sys.NGAlarmCount;
+        _retryCount = sys.RetryCount;
+        _ecsTimeout = sys.ECSTimeout;
+        _autoStart = sys.AutoStart;
+        _ocManualType = sys.OcManualType;
+        _useITOMode = sys.UseITOMode;
+        _chReversal = sys.CHReversal;
+        _useECS = sys.UseECS;
+        _useMES = sys.UseMES;
+        _useGIB = sys.UseGIB;
+        _powerLog = sys.PowerLog;
+        _password = sys.Password ?? "";
+        _supervisorPassword = sys.SupervisorPassword ?? "";
+        _comIrTempSensor = sys.ComIrTempSensor;
+
+        if (sys.ComHandBCR is not null)
+            Array.Copy(sys.ComHandBCR, _comHandBCR, Math.Min(sys.ComHandBCR.Length, _comHandBCR.Length));
+        if (sys.ComRCB is not null)
+            Array.Copy(sys.ComRCB, _comRCB, Math.Min(sys.ComRCB.Length, _comRCB.Length));
+        if (sys.ComIonizer is not null)
+            Array.Copy(sys.ComIonizer, _comIonizer, Math.Min(sys.ComIonizer.Length, _comIonizer.Length));
+
+        // Tab 2: PLC
+        var plc = Config.PlcInfo;
+        if (plc is not null)
+        {
+            _plcEqpId = plc.EQPId;
+            _plcStationNo = plc.StationNo;
+            _plcPollingInterval = plc.PollingInterval;
+            _plcTimeoutConnection = plc.TimeoutConnection;
+            _plcTimeoutECS = plc.TimeoutECS;
+            _plcZone = plc.Zone;
+            _plcAddrECS = plc.AddressECS ?? "";
+            _plcAddrRobot = plc.AddressRobot ?? "";
+            _plcAddrEQP = plc.AddressEQP ?? "";
+            _plcAddrECSWrite = plc.AddressECSWrite ?? "";
+            _plcAddrRobotWrite = plc.AddressRobotWrite ?? "";
+            _plcAddrEQPWrite = plc.AddressEQPWrite ?? "";
+            _plcAddrDoorOpen = plc.AddressDoorOpen ?? "";
+            _plcUseSimulation = plc.UseSimulation;
+            _plcInlineGIB = plc.InlineGIB;
+        }
+
+        // Tab 3: DFS / Paths
+        var dfs = Config.DfsConfInfo;
+        if (dfs is not null)
+        {
+            _dfsServerIp = dfs.DfsServerIP ?? "";
+            _dfsUser = dfs.DfsUserName ?? "";
+            _dfsPassword = dfs.DfsPassword ?? "";
+            _dfsCombiDownPath = dfs.CombiDownPath ?? "";
+            _dfsProcessName = dfs.ProcessName ?? "";
+            _dfsUseDfs = dfs.UseDfs;
+            _dfsHexCompress = dfs.DfsHexCompress;
+            _dfsHexDelete = dfs.DfsHexDelete;
+            _dfsUseCombiDown = dfs.UseCombiDown;
+        }
+
+        _rootPath = PathMgr?.RootDir ?? "";
+        _logPath = PathMgr?.LogDir ?? "";
+        _hostFTPIP = sys.HostFTPIPAddr ?? "";
+        _hostFTPUser = sys.HostFTPUser ?? "";
+        _hostFTPPasswd = sys.HostFTPPasswd ?? "";
+        _hostFTPCombiPath = sys.HostFTPCombiPath ?? "";
+
+        // Tab 4: GMES / EAS / R2R
+        _mesServicePort = sys.ServicePort ?? "";
+        _mesNetwork = sys.Network ?? "";
+        _mesDaemonPort = sys.DaemonPort ?? "";
+        _mesLocalSubject = sys.LocalSubject ?? "";
+        _mesRemoteSubject = sys.RemoteSubject ?? "";
+        _eqpIdType = sys.EQPIdType;
+        _easService = sys.EasService ?? "";
+        _easNetwork = sys.EasNetwork ?? "";
+        _easDaemonPort = sys.EasDaemonPort ?? "";
+        _easLocalSubject = sys.EasLocalSubject ?? "";
+        _easRemoteSubject = sys.EasRemoteSubject ?? "";
+        _r2rService = sys.R2RService ?? "";
+        _r2rNetwork = sys.R2RNetwork ?? "";
+        _r2rDaemonPort = sys.R2RDaemonPort ?? "";
+        _r2rLocalSubject = sys.R2RLocalSubject ?? "";
+        _r2rRemoteSubject = sys.R2RRemoteSubject ?? "";
+
+        // Tab 5: CA410 / PG
+        if (sys.ComCa310 is not null)
+            Array.Copy(sys.ComCa310, _comCa310, Math.Min(sys.ComCa310.Length, _comCa310.Length));
+        if (sys.ComCa310DeviceId is not null)
+            Array.Copy(sys.ComCa310DeviceId, _comCa310DeviceId, Math.Min(sys.ComCa310DeviceId.Length, _comCa310DeviceId.Length));
+        if (sys.ComCa310Serial is not null)
+        {
+            for (int i = 0; i < Math.Min(sys.ComCa310Serial.Length, _comCa310Serial.Length); i++)
+                _comCa310Serial[i] = sys.ComCa310Serial[i] ?? "";
+        }
+
+        // Restore saved device list from INI (Delphi: Com_CaDeviceList)
+        _ca410DeviceOptions.Clear();
+        if (sys.ComCaDeviceList is not null)
+        {
+            foreach (var item in sys.ComCaDeviceList)
+            {
+                if (string.IsNullOrWhiteSpace(item)) break;
+                _ca410DeviceOptions.Add(item);
+            }
+        }
+
+        // Clamp selection indices to valid range (0=NONE, 1..N=devices)
+        for (int i = 0; i < _comCa310.Length; i++)
+        {
+            if (_comCa310[i] > _ca410DeviceOptions.Count)
+                _comCa310[i] = 0;
+        }
+
+        _pgTconWriteCmdType = sys.PGTconWriteCmdType;
+        _pgTconReadCmdType = sys.PGTconReadCmdType;
+        _pgTconOcWriteDelayMsec = sys.PGTconOcWriteDelayMsec;
+        _pgWriteReadPassAddr = sys.PGWriteReadPassAddr ?? "";
+        _pgTconReadBeforeDelayMsec = sys.PGTconReadBeforeDelayMsec;
+        _pgWaitAckAfterContOcWriteCnt = sys.PGWaitAckAfterContOcWriteCnt;
+        _pgTconWriteLogDisplay = sys.PGTconWriteLogDisplay;
+        _pgGpioReadHpdBeforeMeasure = sys.PGGpioReadHpdBeforeMeasure;
+        _debugLogLevel = sys.DebugLogLevelConfig;
+    }
+
+    private async Task SaveConfig()
+    {
+        var sys = Config.SystemInfo;
+        if (sys is null) return;
+
+        // Tab 1: System
+        sys.EQPId = _equipmentId;
+        sys.TestModel = _modelName;
+        sys.OCType = _ocType;
+        sys.ChCountUsed = _chCountUsed;
+        sys.DIOType = _dioType;
+        sys.PGType = _pgType;
+        sys.PGMemorySize = _pgMemorySize;
+        sys.NGAlarmCount = _ngAlarmCount;
+        sys.RetryCount = _retryCount;
+        sys.ECSTimeout = _ecsTimeout;
+        sys.AutoStart = _autoStart;
+        sys.OcManualType = _ocManualType;
+        sys.UseITOMode = _useITOMode;
+        sys.CHReversal = _chReversal;
+        sys.UseECS = _useECS;
+        sys.UseMES = _useMES;
+        sys.UseGIB = _useGIB;
+        sys.PowerLog = _powerLog;
+        sys.Password = _password;
+        sys.SupervisorPassword = _supervisorPassword;
+        sys.ComIrTempSensor = _comIrTempSensor;
+        Array.Copy(_comHandBCR, sys.ComHandBCR, Math.Min(_comHandBCR.Length, sys.ComHandBCR.Length));
+        Array.Copy(_comRCB, sys.ComRCB, Math.Min(_comRCB.Length, sys.ComRCB.Length));
+        Array.Copy(_comIonizer, sys.ComIonizer, Math.Min(_comIonizer.Length, sys.ComIonizer.Length));
+
+        // Tab 2: PLC
+        var plc = Config.PlcInfo;
+        if (plc is not null)
+        {
+            plc.EQPId = _plcEqpId;
+            plc.StationNo = _plcStationNo;
+            plc.PollingInterval = _plcPollingInterval;
+            plc.TimeoutConnection = _plcTimeoutConnection;
+            plc.TimeoutECS = _plcTimeoutECS;
+            plc.Zone = _plcZone;
+            plc.AddressECS = _plcAddrECS;
+            plc.AddressRobot = _plcAddrRobot;
+            plc.AddressEQP = _plcAddrEQP;
+            plc.AddressECSWrite = _plcAddrECSWrite;
+            plc.AddressRobotWrite = _plcAddrRobotWrite;
+            plc.AddressEQPWrite = _plcAddrEQPWrite;
+            plc.AddressDoorOpen = _plcAddrDoorOpen;
+            plc.UseSimulation = _plcUseSimulation;
+            plc.InlineGIB = _plcInlineGIB;
+        }
+
+        // Tab 3: DFS
+        var dfs = Config.DfsConfInfo;
+        if (dfs is not null)
+        {
+            dfs.DfsServerIP = _dfsServerIp;
+            dfs.DfsUserName = _dfsUser;
+            dfs.DfsPassword = _dfsPassword;
+            dfs.CombiDownPath = _dfsCombiDownPath;
+            dfs.ProcessName = _dfsProcessName;
+            dfs.UseDfs = _dfsUseDfs;
+            dfs.DfsHexCompress = _dfsHexCompress;
+            dfs.DfsHexDelete = _dfsHexDelete;
+            dfs.UseCombiDown = _dfsUseCombiDown;
+        }
+
+        sys.HostFTPIPAddr = _hostFTPIP;
+        sys.HostFTPUser = _hostFTPUser;
+        sys.HostFTPPasswd = _hostFTPPasswd;
+        sys.HostFTPCombiPath = _hostFTPCombiPath;
+
+        // Tab 4: GMES / EAS / R2R
+        sys.ServicePort = _mesServicePort;
+        sys.Network = _mesNetwork;
+        sys.DaemonPort = _mesDaemonPort;
+        sys.LocalSubject = _mesLocalSubject;
+        sys.RemoteSubject = _mesRemoteSubject;
+        sys.EQPIdType = _eqpIdType;
+        sys.EasService = _easService;
+        sys.EasNetwork = _easNetwork;
+        sys.EasDaemonPort = _easDaemonPort;
+        sys.EasLocalSubject = _easLocalSubject;
+        sys.EasRemoteSubject = _easRemoteSubject;
+        sys.R2RService = _r2rService;
+        sys.R2RNetwork = _r2rNetwork;
+        sys.R2RDaemonPort = _r2rDaemonPort;
+        sys.R2RLocalSubject = _r2rLocalSubject;
+        sys.R2RRemoteSubject = _r2rRemoteSubject;
+
+        // Tab 5: CA410 / PG
+        Array.Copy(_comCa310, sys.ComCa310, Math.Min(_comCa310.Length, sys.ComCa310.Length));
+        Array.Copy(_comCa310DeviceId, sys.ComCa310DeviceId, Math.Min(_comCa310DeviceId.Length, sys.ComCa310DeviceId.Length));
+        for (int i = 0; i < Math.Min(_comCa310Serial.Length, sys.ComCa310Serial.Length); i++)
+            sys.ComCa310Serial[i] = _comCa310Serial[i];
+
+        // Save device list (Delphi: Com_CaDeviceList)
+        if (sys.ComCaDeviceList is not null)
+        {
+            for (int i = 0; i < sys.ComCaDeviceList.Length; i++)
+                sys.ComCaDeviceList[i] = i < _ca410DeviceOptions.Count ? _ca410DeviceOptions[i] : "";
+        }
+
+        sys.PGTconWriteCmdType = _pgTconWriteCmdType;
+        sys.PGTconReadCmdType = _pgTconReadCmdType;
+        sys.PGTconOcWriteDelayMsec = _pgTconOcWriteDelayMsec;
+        sys.PGWriteReadPassAddr = _pgWriteReadPassAddr;
+        sys.PGTconReadBeforeDelayMsec = _pgTconReadBeforeDelayMsec;
+        sys.PGWaitAckAfterContOcWriteCnt = _pgWaitAckAfterContOcWriteCnt;
+        sys.PGTconWriteLogDisplay = _pgTconWriteLogDisplay;
+        sys.PGGpioReadHpdBeforeMeasure = _pgGpioReadHpdBeforeMeasure;
+        sys.DebugLogLevelConfig = _debugLogLevel;
+
+        // Tab 6: OC Factory Config — save JSON file
+        // (Delphi: SystemSetup.pas SaveOcFactoryConfig called before Common.SaveSystemInfo)
+        SaveOcFactoryConfig();
+
+        Config.Save();
+        Snackbar.Add("Configuration saved", Severity.Success);
+
+        // Offer SW reinitialize after save (Delphi: m_bIsChanged → InitialAll)
+        if (AppInit.CanInitialize)
+        {
+            var initResult = await DialogService.ShowMessageBox(
+                "Apply Changes",
+                "설정이 저장되었습니다. 프로그램을 초기화하여 변경사항을 적용하시겠습니까?",
+                yesText: "초기화", cancelText: "나중에");
+
+            if (initResult == true)
+            {
+                var success = await AppInit.InitializeAllAsync();
+                Snackbar.Add(
+                    success ? "SW 초기화 완료" : "초기화 실패",
+                    success ? Severity.Success : Severity.Error);
+                Nav.NavigateTo("/");
+            }
+            else
+            {
+                Snackbar.Add("SW 초기화 후 적용됩니다.", Severity.Info);
+            }
+        }
+    }
+
+    private Task ReloadConfig()
+    {
+        Config.Reload();
+        LoadFromConfig();
+        Snackbar.Add("Configuration reloaded", Severity.Info);
+        return Task.CompletedTask;
+    }
+
+    // =========================================================================
+    // CA-410 Scan & Device Selection (Delphi: RzBitBtn4Click + cboCa310_XClick)
+    // =========================================================================
+
+    /// <summary>
+    /// Reads already-detected CA-410 devices and populates the dropdown options.
+    /// Delphi: TfrmSystemSetup.RzBitBtn4Click — reads CaSdk2.DeviceCount (no re-scan).
+    /// ManualConnect was already called at startup (Program.cs).
+    /// </summary>
+    private Task ScanCa410()
+    {
+        // Read from existing device list (populated by ManualConnect at startup)
+        _ca410DeviceOptions.Clear();
+        foreach (var dev in Ca410.Devices)
+        {
+            _ca410DeviceOptions.Add(string.Format(DefCaSdk.CA410_DISPLAY_ITEM, dev.DeviceId, dev.SerialNo));
+        }
+
+        // Reset channel selections to NONE so user can re-assign
+        for (int i = 0; i < _comCa310.Length; i++)
+        {
+            _comCa310[i] = 0;
+            _comCa310DeviceId[i] = 0;
+            _comCa310Serial[i] = "";
+        }
+
+        Snackbar.Add($"CA-410: {Ca410.DeviceCount} device(s) detected", Severity.Success);
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Called when user selects a CA-410 device for a channel.
+    /// Delphi: cboCa310_XClick — extracts DeviceId and SerialNo from display string.
+    /// </summary>
+    private void OnCa410DeviceSelected(int channel, int selectedValue)
+    {
+        _comCa310[channel] = selectedValue;
+
+        if (selectedValue == 0 || selectedValue > _ca410DeviceOptions.Count)
+        {
+            // NONE selected
+            _comCa310DeviceId[channel] = 0;
+            _comCa310Serial[channel] = "";
+        }
+        else
+        {
+            // selectedValue is 1-based index into _ca410DeviceOptions
+            var devIndex = selectedValue - 1;
+            if (devIndex < Ca410.Devices.Count)
+            {
+                var dev = Ca410.Devices[devIndex];
+                _comCa310DeviceId[channel] = dev.DeviceId;
+                _comCa310Serial[channel] = dev.SerialNo;
+            }
+        }
+
+        StateHasChanged();
+    }
+
+    // =========================================================================
+    // OC Factory Config — Load / Save / CRUD
+    // (Delphi: SystemSetup.pas LoadOcFactoryConfig / SaveOcFactoryConfig)
+    // =========================================================================
+
+    private void LoadOcFactoryConfig()
+    {
+        _ocFactoryConfigs.Clear();
+        _ocSelectedRow = -1;
+        var path = Path.Combine(PathMgr.IniDir, "OC_Factory_Config.json");
+        if (!File.Exists(path)) return;
+
+        try
+        {
+            var json = File.ReadAllText(path, System.Text.Encoding.UTF8);
+            var items = System.Text.Json.JsonSerializer.Deserialize<List<OcFactoryConfigItem>>(json);
+            if (items != null)
+                _ocFactoryConfigs = items;
+        }
+        catch
+        {
+            // ignore parse errors — grid stays empty
+        }
+    }
+
+    private void SaveOcFactoryConfig()
+    {
+        // Sync ClassName from SubscriberType + normalize DllPath separators before saving
+        // (Delphi: SaveOcFactoryConfig → GetClassNameByType)
+        foreach (var cfg in _ocFactoryConfigs)
+        {
+            cfg.ClassName = GetClassNameByType(cfg.SubscriberType);
+            cfg.DllPath = cfg.DllPath.Replace('/', '\\');
+        }
+
+        var path = Path.Combine(PathMgr.IniDir, "OC_Factory_Config.json");
+        var options = new System.Text.Json.JsonSerializerOptions { WriteIndented = false };
+        var json = System.Text.Json.JsonSerializer.Serialize(_ocFactoryConfigs, options);
+        File.WriteAllText(path, json, System.Text.Encoding.UTF8);
+        Snackbar.Add("OC Factory Config JSON saved", Severity.Success);
+    }
+
+    private static string GetClassNameByType(int type) => type switch
+    {
+        1 => "LGD_OC_X3584.OCFlow.CompensationFlow",
+        2 => "LGD_OC_X3584_2.OCFlow.CompensationFlow",
+        3 => "LGD_OC_X3584_5.OCFlow.CompensationFlow",
+        _ => "LGD_OC_X3584.OCFlow.CompensationFlow"
+    };
+
+    private void OnOcConfigRowClick(int rowIndex)
+    {
+        _ocSelectedRow = rowIndex;
+        if (rowIndex >= 0 && rowIndex < _ocFactoryConfigs.Count)
+        {
+            _ocDllPath = _ocFactoryConfigs[rowIndex].DllPath;
+            _ocSubscriberType = _ocFactoryConfigs[rowIndex].SubscriberType;
+        }
+    }
+
+    private void AddOcConfig()
+    {
+        if (string.IsNullOrWhiteSpace(_ocDllPath))
+        {
+            Snackbar.Add("DllPath is empty", Severity.Warning);
+            return;
+        }
+        var maxId = _ocFactoryConfigs.Count > 0 ? _ocFactoryConfigs.Max(c => c.Id) : -1;
+        _ocFactoryConfigs.Add(new OcFactoryConfigItem
+        {
+            Id = maxId + 1,
+            DllPath = _ocDllPath,
+            ClassName = GetClassNameByType(_ocSubscriberType),
+            SubscriberType = _ocSubscriberType
+        });
+    }
+
+    private void UpdateOcConfig()
+    {
+        if (_ocSelectedRow < 0 || _ocSelectedRow >= _ocFactoryConfigs.Count) return;
+        if (string.IsNullOrWhiteSpace(_ocDllPath))
+        {
+            Snackbar.Add("DllPath is empty", Severity.Warning);
+            return;
+        }
+        _ocFactoryConfigs[_ocSelectedRow].DllPath = _ocDllPath;
+        _ocFactoryConfigs[_ocSelectedRow].SubscriberType = _ocSubscriberType;
+        _ocFactoryConfigs[_ocSelectedRow].ClassName = GetClassNameByType(_ocSubscriberType);
+    }
+
+    private void DeleteOcConfig()
+    {
+        if (_ocSelectedRow < 0 || _ocSelectedRow >= _ocFactoryConfigs.Count) return;
+        _ocFactoryConfigs.RemoveAt(_ocSelectedRow);
+        _ocSelectedRow = -1;
+        _ocDllPath = "";
+        _ocSubscriberType = 1;
+    }
+}

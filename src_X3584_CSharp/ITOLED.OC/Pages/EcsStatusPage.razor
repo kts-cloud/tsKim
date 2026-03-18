@@ -1,0 +1,424 @@
+@page "/ecs-status"
+@* EcsStatusPage — replaces ECSStatusForm.pas (2069 lines) *@
+@* ECS (Equipment Control System) status, polling grid, glass data, flow viz, test panel *@
+@implements IDisposable
+
+<PageTitle>ECS Status</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-2">ECS Status</MudText>
+
+<!-- Mode Toggle -->
+<MudToggleGroup T="int" @bind-Value="_mode" Color="Color.Primary" Class="mb-3" Size="Size.Small">
+    <MudToggleItem Value="0" Text="Status" />
+    <MudToggleItem Value="1" Text="Maintenance" />
+</MudToggleGroup>
+
+<MudGrid Spacing="2">
+    <!-- ═══════ Connection Status ═══════ -->
+    <MudItem xs="@(_mode == 0 ? 6 : 4)">
+        <MudPaper Class="pa-3">
+            <MudText Typo="Typo.subtitle1" Class="mb-2">Connection Status</MudText>
+            <MudSimpleTable Dense="true" Hover="true">
+                <tbody>
+                    <tr><td>ECS Connected</td><td><LedIndicator IsOn="@_ecsConnected" OnColor="Color.Success" /></td></tr>
+                    <tr><td>MES Connected</td><td><LedIndicator IsOn="@_mesConnected" OnColor="Color.Success" /></td></tr>
+                    <tr><td>EAS Connected</td><td><LedIndicator IsOn="@_easConnected" OnColor="Color.Success" /></td></tr>
+                    <tr><td>R2R Connected</td><td><LedIndicator IsOn="@_r2rConnected" OnColor="Color.Success" /></td></tr>
+                </tbody>
+            </MudSimpleTable>
+        </MudPaper>
+    </MudItem>
+
+    <!-- ═══════ Glass Data Summary ═══════ -->
+    <MudItem xs="@(_mode == 0 ? 6 : 4)">
+        <MudPaper Class="pa-3">
+            <MudText Typo="Typo.subtitle1" Class="mb-2">Glass Data</MudText>
+            <MudSimpleTable Dense="true" Hover="true">
+                <tbody>
+                    <tr><td>Glass ID</td><td>@_glassId</td></tr>
+                    <tr><td>Lot ID</td><td>@_lotId</td></tr>
+                    <tr><td>Carrier ID</td><td>@_carrierId</td></tr>
+                    <tr><td>Product Type</td><td>@_productType</td></tr>
+                    <tr><td>Recipe Name</td><td>@_recipeName</td></tr>
+                </tbody>
+            </MudSimpleTable>
+        </MudPaper>
+    </MudItem>
+
+    @if (_mode == 1)
+    {
+        <!-- ═══════ Start Addresses ═══════ -->
+        <MudItem xs="4">
+            <MudPaper Class="pa-3">
+                <MudText Typo="Typo.subtitle1" Class="mb-2">PLC Info / Addresses</MudText>
+                <MudSimpleTable Dense="true" Hover="true" Style="font-size:0.8rem;">
+                    <tbody>
+                        <tr><td>EQP ID</td><td>@Plc.EqpId</td></tr>
+                        <tr><td>InlineGIB</td><td>@(Plc.InlineGib ? "Yes" : "No")</td></tr>
+                        <tr><td>Simulator</td><td>@(Plc.UseSimulator ? "ON" : "OFF")</td></tr>
+                        <tr><td>Connected</td><td>@(Plc.Connected ? "Yes" : "No")</td></tr>
+                        <tr><td>Polling</td><td>@(Plc.PollingInterval) ms</td></tr>
+                        <tr><td colspan="2" style="background:#f0f0f0; font-weight:bold;">Polling Start Addresses</td></tr>
+                        <tr><td>EQP Read</td><td style="font-family:monospace;">B@(Config.PlcInfo.AddressEQP)</td></tr>
+                        <tr><td>EQP Write</td><td style="font-family:monospace;">B@(Config.PlcInfo.AddressEQPWrite)</td></tr>
+                        <tr><td>Robot Read</td><td style="font-family:monospace;">B@(Config.PlcInfo.AddressRobot)</td></tr>
+                        <tr><td>Robot Write</td><td style="font-family:monospace;">W@(Config.PlcInfo.AddressRobotWrite)</td></tr>
+                        <tr><td>Robot2 Read</td><td style="font-family:monospace;">B@(Config.PlcInfo.AddressRobot2)</td></tr>
+                        <tr><td>ECS Read</td><td style="font-family:monospace;">B@(Config.PlcInfo.AddressECS)</td></tr>
+                        <tr><td>ECS Write</td><td style="font-family:monospace;">B@(Config.PlcInfo.AddressECSWrite)</td></tr>
+                        <tr><td>Door Open</td><td style="font-family:monospace;">B@(Config.PlcInfo.AddressDoorOpen)</td></tr>
+                    </tbody>
+                </MudSimpleTable>
+            </MudPaper>
+        </MudItem>
+    }
+
+    <!-- ═══════ Polling Data Grid (INI-driven) ═══════ -->
+    <MudItem xs="12">
+        <MudPaper Class="pa-3" Style="overflow-x: auto;">
+            <MudText Typo="Typo.subtitle1" Class="mb-2">Polling Data</MudText>
+            @if (_gridColumns.Count > 0)
+            {
+                <table style="font-size: 0.7rem; white-space: nowrap; border-collapse: collapse;">
+                    <thead>
+                        <tr>
+                            <th style="min-width:30px; padding:2px 4px; border:1px solid #ddd; text-align:center;">Bit</th>
+                            @foreach (var col in _gridColumns)
+                            {
+                                var bg = GetGroupHeaderColor(col.Group);
+                                var addr = GetColumnAddress(col);
+                                <th style="background:@bg; min-width:55px; padding:2px 4px; border:1px solid #ddd; text-align:center;">
+                                    @col.Label<br/><span style="font-size:0.6rem; font-weight:normal; font-family:monospace;">@addr</span>
+                                </th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (int bit = 0; bit < 16; bit++)
+                        {
+                            var b = bit;
+                            <tr>
+                                <td style="text-align:center; padding:4px 6px; border:1px solid #ddd; font-weight:bold; height:2.4em; vertical-align:middle;">@b</td>
+                                @foreach (var col in _gridColumns)
+                                {
+                                    var bitDef = col.Bits[b];
+                                    var isOn = GetCellState(bitDef.Division, bitDef.Index, bitDef.BitLoc);
+                                    var bgColor = isOn ? GetGroupOnColor(col.Group) : "#FFFFFF";
+                                    var fgColor = isOn ? GetGroupTextColor(col.Group) : "#999";
+                                    var title = bitDef.Label;
+                                    <td style="background:@bgColor; text-align:center; padding:4px 6px; border:1px solid #ddd; height:2.4em; vertical-align:middle;"
+                                        title="@title">
+                                        @if (!string.IsNullOrEmpty(title))
+                                        {
+                                            @if (isOn)
+                                            {
+                                                <span style="color:@fgColor; font-weight:bold;">@title</span>
+                                            }
+                                            else
+                                            {
+                                                <span style="color:#aaa;">@title</span>
+                                            }
+                                        }
+                                        else if (isOn)
+                                        {
+                                            <span style="color:@fgColor; font-weight:bold;">ON</span>
+                                        }
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Info" Dense="true">
+                    No grid configuration loaded. Place EcsStatusGrid.ini in the INI directory.
+                </MudAlert>
+            }
+        </MudPaper>
+    </MudItem>
+
+    <!-- ═══════ Glass Data Detail (per channel) ═══════ -->
+    <MudItem xs="12">
+        <MudExpansionPanels Dense="true" Class="mb-2">
+            <MudExpansionPanel Text="Glass Data Detail (All Channels)" Expanded="false">
+                <MudSimpleTable Dense="true" Hover="true" Style="font-size: 0.8rem;">
+                    <thead>
+                        <tr>
+                            <th>Field</th>
+                            @for (int ch = 0; ch < _channelCount; ch++)
+                            {
+                                <th>CH @(ch + 1)</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>MateriID</td>
+                            @for (int ch = 0; ch < _channelCount; ch++)
+                            {
+                                <td>@GetGlassField(ch, g => g.MateriId)</td>
+                            }
+                        </tr>
+                        <tr>
+                            <td>GlassCode</td>
+                            @for (int ch = 0; ch < _channelCount; ch++)
+                            {
+                                <td>@GetGlassField(ch, g => g.GlassCode.ToString())</td>
+                            }
+                        </tr>
+                        <tr>
+                            <td>GlassID</td>
+                            @for (int ch = 0; ch < _channelCount; ch++)
+                            {
+                                <td>@GetGlassField(ch, g => g.GlassId)</td>
+                            }
+                        </tr>
+                        <tr>
+                            <td>GlassJudge</td>
+                            @for (int ch = 0; ch < _channelCount; ch++)
+                            {
+                                <td>@GetGlassField(ch, g => ((char)g.GlassJudge).ToString())</td>
+                            }
+                        </tr>
+                        <tr>
+                            <td>CarrierID</td>
+                            @for (int ch = 0; ch < _channelCount; ch++)
+                            {
+                                <td>@GetGlassField(ch, g => g.CarrierId)</td>
+                            }
+                        </tr>
+                        <tr>
+                            <td>LCM ID</td>
+                            @for (int ch = 0; ch < _channelCount; ch++)
+                            {
+                                <td>@GetGlassField(ch, g => g.LcmId)</td>
+                            }
+                        </tr>
+                        <tr>
+                            <td>RecipeNo</td>
+                            @for (int ch = 0; ch < _channelCount; ch++)
+                            {
+                                <td>@GetGlassField(ch, g => g.RecipeNumber.ToString())</td>
+                            }
+                        </tr>
+                        <tr>
+                            <td>GlassType</td>
+                            @for (int ch = 0; ch < _channelCount; ch++)
+                            {
+                                <td>@GetGlassField(ch, g => g.GlassType.ToString())</td>
+                            }
+                        </tr>
+                    </tbody>
+                </MudSimpleTable>
+            </MudExpansionPanel>
+        </MudExpansionPanels>
+    </MudItem>
+
+    <!-- ═══════ Load/Unload Flow Visualization ═══════ -->
+    <MudItem xs="12">
+        <MudExpansionPanels Dense="true" Class="mb-2">
+            <MudExpansionPanel Text="Load / Unload Flow" Expanded="false">
+                <MudToggleGroup T="int" @bind-Value="_flowChannel" Color="Color.Primary" Size="Size.Small" Class="mb-2">
+                    @for (int ch = 0; ch < _channelCount; ch++)
+                    {
+                        var c = ch;
+                        <MudToggleItem Value="@c" Text="@($"CH {c + 1}")" />
+                    }
+                </MudToggleGroup>
+
+                <MudGrid Spacing="1">
+                    <!-- Load Flow -->
+                    <MudItem xs="6">
+                        <MudText Typo="Typo.subtitle2" Class="mb-1">Load Flow</MudText>
+                        <div class="d-flex flex-wrap gap-1">
+                            @foreach (var step in _loadSteps)
+                            {
+                                var val = GetFlowData(_flowChannel, step.Index);
+                                <MudChip T="string" Color="@(val == 1 ? Color.Success : Color.Default)"
+                                         Size="Size.Small" Variant="Variant.Filled"
+                                         Style="font-size:0.7rem;">
+                                    @step.Label
+                                </MudChip>
+                            }
+                        </div>
+                    </MudItem>
+                    <!-- Unload Flow -->
+                    <MudItem xs="6">
+                        <MudText Typo="Typo.subtitle2" Class="mb-1">Unload Flow</MudText>
+                        <div class="d-flex flex-wrap gap-1">
+                            @foreach (var step in _unloadSteps)
+                            {
+                                var val = GetFlowData(_flowChannel, step.Index);
+                                <MudChip T="string" Color="@(val == 1 ? Color.Success : Color.Default)"
+                                         Size="Size.Small" Variant="Variant.Filled"
+                                         Style="font-size:0.7rem;">
+                                    @step.Label
+                                </MudChip>
+                            }
+                        </div>
+                    </MudItem>
+                </MudGrid>
+            </MudExpansionPanel>
+        </MudExpansionPanels>
+    </MudItem>
+
+    @if (_mode == 1)
+    {
+        <!-- ═══════ Maintenance Test Panel ═══════ -->
+        <!-- MES Test Buttons -->
+        <MudItem xs="6">
+            <MudPaper Class="pa-3">
+                <MudText Typo="Typo.subtitle1" Class="mb-2">MES Test</MudText>
+                <MudGrid Spacing="1">
+                    <MudItem xs="6"><MudTextField @bind-Value="_userId" Label="User ID" Margin="Margin.Dense" /></MudItem>
+                    <MudItem xs="6"><MudTextField @bind-Value="_serial" Label="Serial No" Margin="Margin.Dense" /></MudItem>
+                    <MudItem xs="4"><MudTextField @bind-Value="_errorCode" Label="Error Code" Margin="Margin.Dense" /></MudItem>
+                    <MudItem xs="4"><MudTextField @bind-Value="_inspResult" Label="Result" Margin="Margin.Dense" /></MudItem>
+                    <MudItem xs="4">
+                        <MudNumericField @bind-Value="_testChannel" Label="Channel" Min="0" Max="3" Margin="Margin.Dense" />
+                    </MudItem>
+                </MudGrid>
+                <div class="d-flex flex-wrap gap-2 mt-2">
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary"
+                               OnClick="OnUchkClick" Disabled="@_busy">UCHK</MudButton>
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary"
+                               OnClick="OnPchkClick" Disabled="@_busy">PCHK</MudButton>
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary"
+                               OnClick="OnEicrClick" Disabled="@_busy">EICR</MudButton>
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary"
+                               OnClick="OnApdrClick" Disabled="@_busy">APDR</MudButton>
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary"
+                               OnClick="OnZsetClick" Disabled="@_busy">ZSET</MudButton>
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary"
+                               OnClick="OnLinkTestClick" Disabled="@_busy">LinkTest</MudButton>
+                </div>
+            </MudPaper>
+        </MudItem>
+
+        <!-- Alarm / Unit Status Test -->
+        <MudItem xs="6">
+            <MudPaper Class="pa-3">
+                <MudText Typo="Typo.subtitle1" Class="mb-2">Alarm / Unit Status</MudText>
+                <MudGrid Spacing="1">
+                    <MudItem xs="4">
+                        <MudSelect @bind-Value="_alarmType" Label="Alarm Type" Margin="Margin.Dense">
+                            <MudSelectItem Value="0">Light</MudSelectItem>
+                            <MudSelectItem Value="1">Heavy</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="4">
+                        <MudNumericField @bind-Value="_alarmCode" Label="Alarm Code" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="4">
+                        <MudSelect @bind-Value="_alarmOnOff" Label="On/Off" Margin="Margin.Dense">
+                            <MudSelectItem Value="1">ON</MudSelectItem>
+                            <MudSelectItem Value="0">OFF</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                </MudGrid>
+                <div class="d-flex gap-2 mt-2">
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Warning"
+                               OnClick="OnAlarmClick" Disabled="@_busy">Send Alarm</MudButton>
+                </div>
+                <MudDivider Class="my-2" />
+                <MudGrid Spacing="1">
+                    <MudItem xs="6">
+                        <MudSelect @bind-Value="_unitStatusMode" Label="Unit Mode" Margin="Margin.Dense">
+                            <MudSelectItem Value="@CommPlcConst.UnitStateOnline">Online (0)</MudSelectItem>
+                            <MudSelectItem Value="@CommPlcConst.UnitStateAuto">Auto (5)</MudSelectItem>
+                            <MudSelectItem Value="@CommPlcConst.UnitStateRun">Run (8)</MudSelectItem>
+                            <MudSelectItem Value="@CommPlcConst.UnitStateIdle">Idle (9)</MudSelectItem>
+                            <MudSelectItem Value="@CommPlcConst.UnitStateDown">Down (10)</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudNumericField @bind-Value="_unitStatusValue" Label="Value" Margin="Margin.Dense" />
+                    </MudItem>
+                </MudGrid>
+                <div class="d-flex gap-2 mt-2">
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Info"
+                               OnClick="OnUnitStatusClick" Disabled="@_busy">Unit Status</MudButton>
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Info"
+                               OnClick="OnStatusModeClick" Disabled="@_busy">Status Mode</MudButton>
+                </div>
+            </MudPaper>
+        </MudItem>
+
+        <!-- Robot Operations -->
+        <MudItem xs="6">
+            <MudPaper Class="pa-3">
+                <MudText Typo="Typo.subtitle1" Class="mb-2">Robot Operations</MudText>
+                <MudNumericField @bind-Value="_robotChannel" Label="Channel (0-3)" Min="0" Max="3"
+                                 Margin="Margin.Dense" Class="mb-2" />
+                <div class="d-flex flex-wrap gap-2">
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Tertiary"
+                               OnClick="OnRobotLoadClick" Disabled="@_busy">Load Req</MudButton>
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Tertiary"
+                               OnClick="OnRobotUnloadClick" Disabled="@_busy">Unload Req</MudButton>
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Tertiary"
+                               OnClick="OnRobotExchangeClick" Disabled="@_busy">Exchange</MudButton>
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Dark"
+                               OnClick="OnRobotClearClick" Disabled="@_busy">Clear</MudButton>
+                </div>
+            </MudPaper>
+        </MudItem>
+
+        <!-- Glass / ECS Operations -->
+        <MudItem xs="6">
+            <MudPaper Class="pa-3">
+                <MudText Typo="Typo.subtitle1" Class="mb-2">Glass / ECS Operations</MudText>
+                <div class="d-flex flex-wrap gap-2 mb-2">
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Secondary"
+                               OnClick="OnGlassDataReportClick" Disabled="@_busy">GlassData Report</MudButton>
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Secondary"
+                               OnClick="OnGlassPositionClick" Disabled="@_busy">GlassPosition</MudButton>
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Secondary"
+                               OnClick="OnGlassExistClick" Disabled="@_busy">GlassExist</MudButton>
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Secondary"
+                               OnClick="OnGlassProcessingClick" Disabled="@_busy">GlassProcessing</MudButton>
+                </div>
+                <div class="d-flex flex-wrap gap-2 mb-2">
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Surface"
+                               OnClick="OnModelChangeClick" Disabled="@_busy">ModelChange</MudButton>
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Surface"
+                               OnClick="OnStagePositionClick" Disabled="@_busy">StagePosition</MudButton>
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Surface"
+                               OnClick="OnTakeOutReportClick" Disabled="@_busy">TakeOutReport</MudButton>
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Surface"
+                               OnClick="OnNormalOpClick" Disabled="@_busy">NormalOp</MudButton>
+                </div>
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.subtitle2" Class="mb-1">PLC Device R/W</MudText>
+                <MudGrid Spacing="1">
+                    <MudItem xs="5">
+                        <MudTextField @bind-Value="_deviceName" Label="Device" Margin="Margin.Dense" Placeholder="e.g. D100" />
+                    </MudItem>
+                    <MudItem xs="4">
+                        <MudTextField @bind-Value="_deviceValue" Label="Value" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="3">
+                        <div class="d-flex gap-1">
+                            <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="OnDeviceReadClick"
+                                       Disabled="@_busy">R</MudButton>
+                            <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="OnDeviceWriteClick"
+                                       Disabled="@_busy">W</MudButton>
+                        </div>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+        </MudItem>
+    }
+
+    <!-- ═══════ ECS Message Log ═══════ -->
+    <MudItem xs="12">
+        <MudPaper Class="pa-3" Style="max-height: 300px; overflow-y: auto;">
+            <MudText Typo="Typo.subtitle1" Class="mb-2">ECS Message Log</MudText>
+            @foreach (var entry in _ecsLog.TakeLast(100))
+            {
+                <MudText Typo="Typo.caption" Style="font-family: monospace;">@entry</MudText>
+            }
+        </MudPaper>
+    </MudItem>
+</MudGrid>

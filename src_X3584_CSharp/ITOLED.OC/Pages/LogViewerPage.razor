@@ -1,0 +1,80 @@
+@page "/log-viewer"
+@* LogViewerPage — Real-time log viewer with filtering *@
+@implements IDisposable
+
+<PageTitle>Log Viewer</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-3">Log Viewer</MudText>
+
+<MudPaper Class="pa-3 mb-2">
+    <div class="d-flex gap-3 align-center">
+        <MudSelect T="string" @bind-Value="_logLevel" Label="Level" Variant="Variant.Outlined"
+                   Margin="Margin.Dense" Style="width: 150px;">
+            <MudSelectItem T="string" Value="@("All")">All</MudSelectItem>
+            <MudSelectItem T="string" Value="@("Info")">Info</MudSelectItem>
+            <MudSelectItem T="string" Value="@("Warn")">Warn</MudSelectItem>
+            <MudSelectItem T="string" Value="@("Error")">Error</MudSelectItem>
+        </MudSelect>
+        <MudTextField T="string" @bind-Value="_filterText" Label="Filter" Variant="Variant.Outlined"
+                      Margin="Margin.Dense" Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" />
+        <MudCheckBox T="bool" @bind-Value="_autoScroll" Label="Auto-scroll" />
+        <MudSpacer />
+        <MudButton Variant="Variant.Outlined" Color="Color.Error" OnClick="ClearLog"
+                   StartIcon="@Icons.Material.Filled.Delete">
+            Clear
+        </MudButton>
+    </div>
+</MudPaper>
+
+<MudPaper Class="pa-2" Style="height: 600px; overflow-y: auto; background: #1a1a1a;" id="log-container">
+    @foreach (var entry in FilteredEntries)
+    {
+        <MudText Typo="Typo.caption"
+                 Style="@($"font-family: Consolas, monospace; color: {GetLogColor(entry)}; white-space: pre-wrap;")">
+            @entry
+        </MudText>
+    }
+</MudPaper>
+
+@code {
+    [Inject] private UiUpdateService UiService { get; set; } = default!;
+
+    private string _logLevel = "All";
+    private string _filterText = "";
+    private bool _autoScroll = true;
+    private readonly List<string> _entries = [];
+
+    private IEnumerable<string> FilteredEntries => _entries
+        .Where(e => _logLevel == "All" || e.Contains($"[{_logLevel}]", StringComparison.OrdinalIgnoreCase))
+        .Where(e => string.IsNullOrEmpty(_filterText) || e.Contains(_filterText, StringComparison.OrdinalIgnoreCase));
+
+    protected override void OnInitialized()
+    {
+        UiService.LogEntryAdded += OnLogEntry;
+    }
+
+    private void OnLogEntry(string message)
+    {
+        _entries.Add(message);
+        if (_entries.Count > 5000)
+            _entries.RemoveRange(0, 1000);
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void ClearLog() => _entries.Clear();
+
+    private static string GetLogColor(string entry)
+    {
+        if (entry.Contains("[Error]", StringComparison.OrdinalIgnoreCase)) return "#ff5252";
+        if (entry.Contains("[Warn]", StringComparison.OrdinalIgnoreCase)) return "#ffc107";
+        if (entry.Contains("[NG]", StringComparison.OrdinalIgnoreCase)) return "#ff5252";
+        if (entry.Contains("[OK]", StringComparison.OrdinalIgnoreCase)) return "#4caf50";
+        return "#b0bec5";
+    }
+
+    public void Dispose()
+    {
+        UiService.LogEntryAdded -= OnLogEntry;
+    }
+}

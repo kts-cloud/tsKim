@@ -1,0 +1,15 @@
+@* StatusRow — reusable LED + Label + Value row for SystemStatusPanel *@
+@* Replaces repeated inline markup for connection status rows *@
+
+<div class="status-row">
+    <LedIndicator IsOn="@IsOn" OnColor="@OnColor" />
+    <MudText Typo="Typo.caption" Class="status-label">@Label</MudText>
+    <MudText Typo="Typo.caption" Class="status-value">@Value</MudText>
+</div>
+
+@code {
+    [Parameter] public bool IsOn { get; set; }
+    [Parameter] public string Label { get; set; } = "";
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public Color OnColor { get; set; } = Color.Success;
+}

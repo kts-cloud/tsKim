@@ -1,0 +1,141 @@
+@page "/ng-ratio"
+@using Dongaeltek.ITOLED.BusinessLogic.Database
+
+<PageTitle>NG Ratio</PageTitle>
+<MudText Typo="Typo.h5" Class="mb-4">NG Ratio Statistics</MudText>
+
+<MudPaper Class="pa-4 mb-4" Elevation="2">
+    <MudGrid>
+        <MudItem xs="12" sm="3">
+            <MudDatePicker @bind-Date="_startDate" Label="Start Date" DateFormat="yyyy-MM-dd"
+                           Variant="Variant.Outlined" Margin="Margin.Dense" />
+        </MudItem>
+        <MudItem xs="12" sm="3">
+            <MudDatePicker @bind-Date="_endDate" Label="End Date" DateFormat="yyyy-MM-dd"
+                           Variant="Variant.Outlined" Margin="Margin.Dense" />
+        </MudItem>
+        <MudItem xs="12" sm="6" Class="d-flex align-end gap-2">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="OnQuery">Query</MudButton>
+            <MudButton Variant="Variant.Outlined" OnClick="OnToday">Today</MudButton>
+            <MudButton Variant="Variant.Outlined" OnClick="OnExport" Disabled="@(!_rows.Any())">CSV Export</MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Error" OnClick="OnDelete"
+                       Disabled="@(!_rows.Any())">Delete</MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@if (_rows.Any())
+{
+    <MudTable Items="@_rows" Dense="true" Hover="true" Bordered="true" Striped="true" Elevation="2">
+        <HeaderContent>
+            <MudTh>NG Type</MudTh>
+            <MudTh>Description</MudTh>
+            <MudTh Style="text-align:right">CH1</MudTh>
+            <MudTh Style="text-align:right">CH2</MudTh>
+            <MudTh Style="text-align:right">CH3</MudTh>
+            <MudTh Style="text-align:right">CH4</MudTh>
+            <MudTh Style="text-align:right">Total</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.NgType</MudTd>
+            <MudTd>@GetNgDescription(context.NgType)</MudTd>
+            <MudTd Style="@GetCellStyle(context.Ch1, _maxCh1)">@context.Ch1</MudTd>
+            <MudTd Style="@GetCellStyle(context.Ch2, _maxCh2)">@context.Ch2</MudTd>
+            <MudTd Style="@GetCellStyle(context.Ch3, _maxCh3)">@context.Ch3</MudTd>
+            <MudTd Style="@GetCellStyle(context.Ch4, _maxCh4)">@context.Ch4</MudTd>
+            <MudTd Style="text-align:right;font-weight:bold">@context.Total</MudTd>
+        </RowTemplate>
+    </MudTable>
+
+    <MudPaper Class="pa-2 mt-2" Elevation="1">
+        <MudText Typo="Typo.body2">
+            Total: CH1=@_rows.Sum(r => r.Ch1), CH2=@_rows.Sum(r => r.Ch2),
+            CH3=@_rows.Sum(r => r.Ch3), CH4=@_rows.Sum(r => r.Ch4),
+            Grand Total=@_rows.Sum(r => r.Total)
+        </MudText>
+    </MudPaper>
+}
+else if (_queried)
+{
+    <MudAlert Severity="Severity.Info">No data found for the selected date range.</MudAlert>
+}
+
+@code {
+    [Inject] private IDatabaseService DbService { get; set; } = default!;
+    [Inject] private IConfigurationService ConfigService { get; set; } = default!;
+    [Inject] private ISnackbar Snackbar { get; set; } = default!;
+
+    private DateTime? _startDate = DateTime.Today;
+    private DateTime? _endDate = DateTime.Today;
+    private List<NgRatioRow> _rows = [];
+    private bool _queried;
+    private int _maxCh1, _maxCh2, _maxCh3, _maxCh4;
+
+    private void OnQuery()
+    {
+        if (_startDate == null || _endDate == null) return;
+        _rows = DbService.QueryNgRatio(_startDate.Value, _endDate.Value);
+        _queried = true;
+        UpdateMaxValues();
+    }
+
+    private void OnToday()
+    {
+        _startDate = DateTime.Today;
+        _endDate = DateTime.Today;
+        OnQuery();
+    }
+
+    private void OnExport()
+    {
+        if (!_rows.Any()) return;
+        try
+        {
+            var lines = new List<string> { "NG_TYPE,Description,CH1,CH2,CH3,CH4,Total" };
+            foreach (var r in _rows)
+                lines.Add($"{r.NgType},{GetNgDescription(r.NgType)},{r.Ch1},{r.Ch2},{r.Ch3},{r.Ch4},{r.Total}");
+
+            var fileName = $"NGRatio_{_startDate:yyyyMMdd}_{_endDate:yyyyMMdd}.csv";
+            var filePath = Path.Combine(AppContext.BaseDirectory, fileName);
+            File.WriteAllLines(filePath, lines);
+            Snackbar.Add($"Exported to {fileName}", MudBlazor.Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Export failed: {ex.Message}", MudBlazor.Severity.Error);
+        }
+    }
+
+    private void OnDelete()
+    {
+        if (_startDate == null || _endDate == null) return;
+        DbService.DeleteNgData(_startDate.Value, _endDate.Value);
+        _rows.Clear();
+        Snackbar.Add("Data deleted.", MudBlazor.Severity.Info);
+    }
+
+    private void UpdateMaxValues()
+    {
+        _maxCh1 = _rows.Any() ? _rows.Where(r => r.NgType > 0).Select(r => r.Ch1).DefaultIfEmpty(0).Max() : 0;
+        _maxCh2 = _rows.Any() ? _rows.Where(r => r.NgType > 0).Select(r => r.Ch2).DefaultIfEmpty(0).Max() : 0;
+        _maxCh3 = _rows.Any() ? _rows.Where(r => r.NgType > 0).Select(r => r.Ch3).DefaultIfEmpty(0).Max() : 0;
+        _maxCh4 = _rows.Any() ? _rows.Where(r => r.NgType > 0).Select(r => r.Ch4).DefaultIfEmpty(0).Max() : 0;
+    }
+
+    private string GetNgDescription(int ngType)
+    {
+        if (ngType == 0) return "OK (PASS)";
+        var gmesInfo = ConfigService.GmesInfo;
+        if (ngType < gmesInfo.Count)
+            return gmesInfo[ngType].ErrMsg;
+        return $"NG Code {ngType}";
+    }
+
+    private static string GetCellStyle(int value, int maxValue)
+    {
+        var style = "text-align:right;";
+        if (value > 0 && value == maxValue)
+            style += "background-color:#e3f2fd;font-weight:bold;";
+        return style;
+    }
+}

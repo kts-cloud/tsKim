@@ -1,0 +1,75 @@
+@* LoginDialog.razor — Replaces Delphi TfrmLogIn (LogIn.pas) *@
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Login</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudTextField @bind-Value="_userId" Label="User ID" Variant="Variant.Outlined"
+                      Margin="Margin.Dense" MaxLength="6" Immediate="true" AutoFocus="true" />
+        <MudTextField @bind-Value="_password" Label="Password" Variant="Variant.Outlined"
+                      Margin="Margin.Dense" MaxLength="32" InputType="InputType.Password"
+                      Immediate="true" OnKeyDown="OnKeyDown" Class="mt-2" />
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <MudText Typo="Typo.caption" Color="Color.Error" Class="mt-1">@_errorMessage</MudText>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="OnCancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="OnOk">OK</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Inject] private IConfigurationService ConfigService { get; set; } = default!;
+
+    private string _userId = "ADMIN";
+    private string _password = "";
+    private string _errorMessage = "";
+
+    private void OnOk()
+    {
+        var pw = _password?.Trim() ?? "";
+
+        // Master password: current HH:mm as 4 digits (Delphi: FormatDateTime('hhnn', now))
+        var masterPw = DateTime.Now.ToString("HHmm");
+        if (pw == masterPw)
+        {
+            MudDialog.Close(DialogResult.Ok(new LoginResult(_userId, _userId == "SUPV")));
+            return;
+        }
+
+        var uid = _userId?.Trim().ToUpper() ?? "";
+        if (uid == "ADMIN")
+        {
+            if (pw == (ConfigService.SystemInfo?.Password ?? ""))
+            {
+                MudDialog.Close(DialogResult.Ok(new LoginResult(uid, false)));
+                return;
+            }
+        }
+        else if (uid == "SUPV")
+        {
+            if (pw == (ConfigService.SystemInfo?.SupervisorPassword ?? ""))
+            {
+                MudDialog.Close(DialogResult.Ok(new LoginResult(uid, true)));
+                return;
+            }
+        }
+
+        _errorMessage = "Invalid User ID or Password!";
+        _password = "";
+    }
+
+    private void OnCancel() => MudDialog.Cancel();
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") OnOk();
+        else if (e.Key == "Escape") OnCancel();
+    }
+
+    public record LoginResult(string UserId, bool IsSupervisor);
+}

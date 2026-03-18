@@ -1,0 +1,51 @@
+@* Navigation menu — replaces Delphi TRzPageControl tabs *@
+
+<MudNavMenu Dense="true">
+    <MudText Typo="Typo.subtitle2" Class="px-4 mt-2 mb-1" Style="color: var(--mud-palette-text-secondary);">
+        Main
+    </MudText>
+    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">
+        Dashboard
+    </MudNavLink>
+    <MudNavLink Href="/test" Icon="@Icons.Material.Filled.Science">
+        4Ch Test
+    </MudNavLink>
+
+    <MudText Typo="Typo.subtitle2" Class="px-4 mt-4 mb-1" Style="color: var(--mud-palette-text-secondary);">
+        Setup
+    </MudText>
+    <MudNavLink Href="/system-setup" Icon="@Icons.Material.Filled.Settings">
+        System Setup
+    </MudNavLink>
+    <MudNavLink Href="/model-info" Icon="@Icons.Material.Filled.Info">
+        Model Info
+    </MudNavLink>
+    <MudNavLink Href="/maintenance" Icon="@Icons.Material.Filled.Build">
+        Maintenance
+    </MudNavLink>
+
+    <MudText Typo="Typo.subtitle2" Class="px-4 mt-4 mb-1" Style="color: var(--mud-palette-text-secondary);">
+        Diagnostics
+    </MudText>
+    <MudNavLink Href="/dio-alarm" Icon="@Icons.Material.Filled.Warning">
+        DIO Alarm
+    </MudNavLink>
+    <MudNavLink Href="/dio-test" Icon="@Icons.Material.Filled.SettingsInputComponent">
+        DIO Test
+    </MudNavLink>
+    <MudNavLink Href="/plc-simulate" Icon="@Icons.Material.Filled.Memory">
+        PLC Simulate
+    </MudNavLink>
+    <MudNavLink Href="/ecs-status" Icon="@Icons.Material.Filled.Hub">
+        ECS Status
+    </MudNavLink>
+    <MudNavLink Href="/log-viewer" Icon="@Icons.Material.Filled.Description">
+        Log Viewer
+    </MudNavLink>
+    <MudNavLink Href="/virtual-bcr" Icon="@Icons.Material.Filled.QrCodeScanner">
+        Virtual BCR
+    </MudNavLink>
+    <MudNavLink Href="/ng-ratio" Icon="@Icons.Material.Filled.PieChart">
+        NG Ratio
+    </MudNavLink>
+</MudNavMenu>

@@ -1,0 +1,90 @@
+@* ModelDownloadDialog.razor — Replaces Delphi TfrmModelDownload (ModelDownload.pas) *@
+@implements IDisposable
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Model Download</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="mb-2">Downloading pattern files to Pattern Generators...</MudText>
+        @for (int i = 0; i < 4; i++)
+        {
+            var ch = i;
+            <MudPaper Class="pa-2 mb-2" Outlined="true">
+                <MudText Typo="Typo.caption">CH @(ch + 1): @_statusMessages[ch]</MudText>
+                <MudProgressLinear Value="@_progress[ch]" Color="@(_hasError[ch] ? Color.Error : Color.Info)"
+                                   Striped="@(_progress[ch] < 100 && _progress[ch] > 0)" Class="mt-1" />
+            </MudPaper>
+        }
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Dense="true" Class="mt-2">@_errorMessage</MudAlert>
+        }
+    </DialogContent>
+    <DialogActions>
+        @if (_hasAnyError)
+        {
+            <MudButton OnClick="OnClose" Variant="Variant.Filled">Close</MudButton>
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Inject] private ICommPgDriver[] PgDrivers { get; set; } = default!;
+
+    private readonly double[] _progress = new double[4];
+    private readonly string[] _statusMessages = ["Ready", "Ready", "Ready", "Ready"];
+    private readonly bool[] _hasError = new bool[4];
+    private bool _hasAnyError;
+    private string _errorMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Start downloads in parallel for each channel
+        var tasks = new Task[Math.Min(4, PgDrivers.Length)];
+        for (int i = 0; i < tasks.Length; i++)
+        {
+            var ch = i;
+            tasks[ch] = Task.Run(async () =>
+            {
+                try
+                {
+                    _statusMessages[ch] = "Downloading...";
+                    _progress[ch] = 10;
+                    await InvokeAsync(StateHasChanged);
+
+                    PgDrivers[ch].Dp860ModelInfoDownload();
+
+                    _progress[ch] = 100;
+                    _statusMessages[ch] = "Complete";
+                    await InvokeAsync(StateHasChanged);
+                }
+                catch (Exception ex)
+                {
+                    _hasError[ch] = true;
+                    _statusMessages[ch] = $"Error: {ex.Message}";
+                    await InvokeAsync(StateHasChanged);
+                }
+            });
+        }
+        await Task.WhenAll(tasks);
+
+        // Auto-close on success; keep open on error for user to review
+        _hasAnyError = _hasError.Any(e => e);
+        if (!_hasAnyError)
+        {
+            await Task.Delay(500); // brief pause so user sees "Complete"
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        else
+        {
+            _errorMessage = "일부 채널 다운로드 실패. 확인 후 Close 하세요.";
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void OnClose() => MudDialog.Close(DialogResult.Ok(true));
+
+    public void Dispose() { }
+}

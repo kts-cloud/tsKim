@@ -1,0 +1,11 @@
+@* StageFlowStep — visual step in stage flow pipeline *@
+
+<MudChip T="string" Color="@(Active ? Color.Primary : Color.Default)"
+         Variant="@(Active ? Variant.Filled : Variant.Outlined)" Size="Size.Small">
+    @Label
+</MudChip>
+
+@code {
+    [Parameter] public string Label { get; set; } = "";
+    [Parameter] public bool Active { get; set; }
+}

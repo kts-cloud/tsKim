@@ -1,0 +1,38 @@
+@* SeqFileNameDialog.razor — File name input dialog for Save As *@
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Save Sequence As</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudTextField T="string" @bind-Value="_fileName" Label="File Name" Variant="Variant.Outlined"
+                      Placeholder="e.g. dfu_test.seq" HelperText=".seq extension will be added automatically"
+                      Immediate="true" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="OnCancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="OnOk"
+                   Disabled="@string.IsNullOrWhiteSpace(_fileName)">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public string CurrentName { get; set; } = "";
+
+    private string _fileName = "";
+
+    protected override void OnInitialized()
+    {
+        _fileName = CurrentName;
+    }
+
+    private void OnOk()
+    {
+        if (string.IsNullOrWhiteSpace(_fileName))
+            return;
+        MudDialog.Close(DialogResult.Ok(_fileName.Trim()));
+    }
+
+    private void OnCancel() => MudDialog.Cancel();
+}

@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <UseWindowsForms>true</UseWindowsForms>
+    <NoWarn>NU1701</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ITOLED.Core\ITOLED.Core.csproj" />
+    <ProjectReference Include="..\ITOLED.Messaging\ITOLED.Messaging.csproj" />
+    <ProjectReference Include="..\ITOLED.Hardware\ITOLED.Hardware.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="5.0.0" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- LGD Factory DLL base assemblies — compile-time type resolution.
+         Private=false: do NOT copy to output — loaded at runtime from LGDDLL\
+         via AssemblyLoadContext resolver registered in Program.cs.
+         Factory DLLs (LGD_OC_X3584.dll, etc.) are loaded dynamically via
+         FactoryAssemblyLoadContext at runtime. -->
+    <Reference Include="LGD_OC_AstractPlatForm">
+      <HintPath>..\..\IT_OLED_OC_X3584_CSharp\LGDDLL\LGD_OC_AstractPlatForm.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="LGD_OC_Observers">
+      <HintPath>..\..\IT_OLED_OC_X3584_CSharp\LGDDLL\LGD_OC_Observers.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>

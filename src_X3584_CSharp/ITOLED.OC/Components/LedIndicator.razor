@@ -1,0 +1,22 @@
+@* LedIndicator — replaces ThhALed / TILed VCL components *@
+
+<span class="led-indicator mx-1" title="@Label">
+    <MudIcon Icon="@Icons.Material.Filled.Circle" Size="Size.Small"
+             Color="@(IsOn ? OnColor : Color.Dark)"
+             Style="@(_pulseStyle)" />
+    @if (!string.IsNullOrEmpty(Label))
+    {
+        <MudText Typo="Typo.caption" Class="ml-1" Style="color: inherit;">@Label</MudText>
+    }
+</span>
+
+@code {
+    [Parameter] public bool IsOn { get; set; }
+    [Parameter] public string Label { get; set; } = "";
+    [Parameter] public Color OnColor { get; set; } = Color.Success;
+    [Parameter] public bool Blink { get; set; }
+
+    private string _pulseStyle => IsOn && Blink
+        ? "animation: pulse 1s infinite;"
+        : "";
+}

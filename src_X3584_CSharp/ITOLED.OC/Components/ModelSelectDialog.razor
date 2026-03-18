@@ -1,0 +1,77 @@
+@* ModelSelectDialog.razor — Replaces Delphi TfrmSelectModel (ModelSelect.pas) *@
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Select Model</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudSelect T="string" Value="_selectedType" Label="Model Type"
+                   Variant="Variant.Outlined" Margin="Margin.Dense"
+                   ValueChanged="OnTypeChanged">
+            <MudSelectItem T="string" Value="@("ALL Model")">ALL Model</MudSelectItem>
+            @foreach (var t in _modelTypes)
+            {
+                <MudSelectItem T="string" Value="@t">@t</MudSelectItem>
+            }
+        </MudSelect>
+        <MudList T="string" @bind-SelectedValue="_selectedModel" Dense="true" Class="mt-2"
+                 Style="max-height:300px;overflow-y:auto;border:1px solid var(--mud-palette-lines-default);border-radius:4px;">
+            @foreach (var model in _filteredModels)
+            {
+                <MudListItem T="string" Value="@model" Text="@model" />
+            }
+        </MudList>
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <MudText Typo="Typo.caption" Color="Color.Error" Class="mt-1">@_errorMessage</MudText>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="OnCancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="OnOk">OK</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Inject] private IModelInfoService ModelInfoService { get; set; } = default!;
+    [Inject] private IConfigurationService ConfigService { get; set; } = default!;
+    [Parameter] public string CurrentModel { get; set; } = "";
+
+    private List<string> _allModels = [];
+    private List<string> _modelTypes = [];
+    private List<string> _filteredModels = [];
+    private string _selectedType = "ALL Model";
+    private string _selectedModel = "";
+    private string _errorMessage = "";
+
+    protected override void OnInitialized()
+    {
+        _allModels = ModelInfoService.GetAvailableModels().OrderBy(m => m).ToList();
+        _modelTypes = _allModels
+            .Select(m => m.Contains('_') ? m[..m.IndexOf('_')] : m)
+            .Distinct().OrderBy(t => t).ToList();
+        _filteredModels = _allModels;
+        _selectedModel = CurrentModel;
+    }
+
+    private void OnTypeChanged(string type)
+    {
+        _selectedType = type;
+        _filteredModels = (type == "ALL Model")
+            ? _allModels
+            : _allModels.Where(m => m.StartsWith(type + "_") || m == type).ToList();
+    }
+
+    private void OnOk()
+    {
+        if (string.IsNullOrEmpty(_selectedModel))
+        {
+            _errorMessage = "Please select a model!";
+            return;
+        }
+        MudDialog.Close(DialogResult.Ok(_selectedModel));
+    }
+
+    private void OnCancel() => MudDialog.Cancel();
+}

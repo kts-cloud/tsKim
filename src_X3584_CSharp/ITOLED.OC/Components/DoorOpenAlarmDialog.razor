@@ -1,0 +1,122 @@
+@* DoorOpenAlarmDialog.razor — Replaces Delphi TfrmDoorOpenAlarmMsg (DoorOpenAlarmMsg.pas) *@
+@* Shows door open/close status, refreshes every 1s, time-based password to close *@
+
+@using Dongaeltek.ITOLED.Core.Definitions
+@using Dongaeltek.ITOLED.Hardware.Dio
+@implements IDisposable
+
+<MudDialog Options="@(new DialogOptions { CloseButton = false, BackdropClick = false, CloseOnEscapeKey = false })">
+    <TitleContent>
+        <MudText Typo="Typo.h6" Color="Color.Error">Door Open Alarm</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudGrid>
+            <MudItem xs="6">
+                <MudPaper Class="pa-3" Style="@GetDoorStyle(_doorUpperLeft)">
+                    <MudText Align="Align.Center">Upper Left</MudText>
+                    <MudText Align="Align.Center" Typo="Typo.h6">@(_doorUpperLeft ? "OPEN" : "CLOSED")</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="6">
+                <MudPaper Class="pa-3" Style="@GetDoorStyle(_doorUpperRight)">
+                    <MudText Align="Align.Center">Upper Right</MudText>
+                    <MudText Align="Align.Center" Typo="Typo.h6">@(_doorUpperRight ? "OPEN" : "CLOSED")</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="6">
+                <MudPaper Class="pa-3" Style="@GetDoorStyle(_doorLowerLeft)">
+                    <MudText Align="Align.Center">Lower Left</MudText>
+                    <MudText Align="Align.Center" Typo="Typo.h6">@(_doorLowerLeft ? "OPEN" : "CLOSED")</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="6">
+                <MudPaper Class="pa-3" Style="@GetDoorStyle(_doorLowerRight)">
+                    <MudText Align="Align.Center">Lower Right</MudText>
+                    <MudText Align="Align.Center" Typo="Typo.h6">@(_doorLowerRight ? "OPEN" : "CLOSED")</MudText>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+        <MudTextField @bind-Value="_password" Label="Password to close" Class="mt-4"
+                      InputType="InputType.Password" Variant="Variant.Outlined"
+                      Margin="Margin.Dense" OnKeyDown="OnKeyDown" />
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <MudText Typo="Typo.caption" Color="Color.Error" Class="mt-1">@_errorMessage</MudText>
+        }
+        <MudText Typo="Typo.caption" Class="mt-2">Current Time: @DateTime.Now.ToString("HH:mm:ss")</MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="OnClose">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Inject] private IDioController DioController { get; set; } = default!;
+
+    private bool _doorUpperLeft, _doorUpperRight, _doorLowerLeft, _doorLowerRight;
+    private string _password = "";
+    private string _errorMessage = "";
+    private PeriodicTimer? _timer;
+    private CancellationTokenSource? _cts;
+
+    protected override void OnInitialized()
+    {
+        _cts = new CancellationTokenSource();
+        _timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        _ = RefreshLoop(_cts.Token);
+    }
+
+    private async Task RefreshLoop(CancellationToken ct)
+    {
+        while (await _timer!.WaitForNextTickAsync(ct))
+        {
+            RefreshDoorStatus();
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void RefreshDoorStatus()
+    {
+        // Door sensors: High=Closed, Low=Open (per DefDio.cs comments)
+        // ReadInSig returns true when signal is high (closed), so invert for "isOpen"
+        try
+        {
+            _doorUpperLeft = !DioController.ReadInSig(DioInput.Ch12DoorLeftOpen);
+            _doorUpperRight = !DioController.ReadInSig(DioInput.Ch12DoorRightOpen);
+            _doorLowerLeft = !DioController.ReadInSig(DioInput.Ch34DoorLeftOpen);
+            _doorLowerRight = !DioController.ReadInSig(DioInput.Ch34DoorRightOpen);
+        }
+        catch
+        {
+            // DIO not available in simulator mode
+        }
+    }
+
+    private void OnClose()
+    {
+        var expected = DateTime.Now.ToString("HHmm");
+        if (_password == expected)
+        {
+            MudDialog.Close(DialogResult.Ok(true));
+            return;
+        }
+        _errorMessage = "Invalid password! (Hint: current time)";
+        _password = "";
+    }
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") OnClose();
+    }
+
+    private static string GetDoorStyle(bool isOpen) =>
+        isOpen ? "background-color: #ff5252; color: white;" : "background-color: #4caf50; color: white;";
+
+    public void Dispose()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+        _timer?.Dispose();
+    }
+}

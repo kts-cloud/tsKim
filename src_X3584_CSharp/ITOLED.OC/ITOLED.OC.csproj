@@ -1,0 +1,66 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <OutputType>WinExe</OutputType>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>Dongaeltek.ITOLED.OC</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <!-- Administrator privileges required for DPDK netuio device access -->
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+
+    <!-- 불필요 다국어 위성 어셈블리 제거 (ko만 유지) -->
+    <SatelliteResourceLanguages>ko</SatelliteResourceLanguages>
+
+    <!-- DPDK 네이티브 코드가 힙을 손상시킬 수 있어 Tiered JIT 비활성화 (힙 크래시 우회) -->
+    <TieredCompilation>false</TieredCompilation>
+
+    <!-- Build output directly to deployment folder (alongside INI/, LGDDLL/, etc.) -->
+    <OutputPath>..\..\IT_OLED_OC_X3584_CSharp\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ITOLED.Core\ITOLED.Core.csproj" />
+    <ProjectReference Include="..\ITOLED.Messaging\ITOLED.Messaging.csproj" />
+    <ProjectReference Include="..\ITOLED.Hardware\ITOLED.Hardware.csproj" />
+    <ProjectReference Include="..\ITOLED.BusinessLogic\ITOLED.BusinessLogic.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebView.WindowsForms" Version="8.0.6" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.3" />
+    <PackageReference Include="MudBlazor" Version="8.5.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Update="wwwroot\**" CopyToOutputDirectory="PreserveNewest" />
+    <Content Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="INI\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- Remove staticwebassets.runtime.json from publish output to prevent
+       DirectoryNotFoundException on machines without NuGet cache -->
+  <Target Name="RemoveStaticWebAssetsManifest" AfterTargets="Publish">
+    <Delete Files="$(PublishDir)$(AssemblyName).staticwebassets.runtime.json" />
+  </Target>
+
+  <!-- HwNet.dll managed assembly reference (for HwManager in Program.cs) -->
+  <ItemGroup>
+    <Reference Include="HwNet">
+      <HintPath>..\DpdkNet_lib\HwNet.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- DPDK encrypted archive (required at runtime when USE_DPDK=1) -->
+  <ItemGroup>
+    <None Include="..\DPDK_lib\drivers.dat" Link="drivers.dat" CopyToOutputDirectory="PreserveNewest"
+          Condition="Exists('..\DPDK_lib\drivers.dat')" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,166 @@
+@* =============================================================================
+   SystemStatusPanel.razor — Left info panel replicating Delphi pnlSysInfo.
+   Shows connection status, MES info, DLL versions, and power information.
+   Original Delphi: pnlSysInfo (TRzPanel, 247px, Align=alLeft) in Main_OC.dfm.
+   ============================================================================= *@
+
+<div class="sys-status-panel">
+
+    @* ─── Section 1: System Information (grpSystemInfo) ─────── *@
+    <MudPaper Elevation="0" Class="pa-2 mb-1" Style="background: transparent;">
+        <MudText Typo="Typo.overline" Color="Color.Secondary" Class="mb-1">
+            System Information
+        </MudText>
+
+        @* CA410 Status: 4 channel LEDs in a row *@
+        <div class="status-row">
+            <MudText Typo="Typo.caption" Class="status-label">CA410</MudText>
+            @for (int i = 0; i < 4; i++)
+            {
+                var ch = i;
+                <LedIndicator IsOn="@_ca410Connected[ch]"
+                              Label="@($"Ch{ch + 1}")"
+                              OnColor="Color.Success" />
+            }
+        </div>
+
+        <StatusRow Label="Hand BCR" IsOn="@_handBcrConnected" Value="@_handBcrText" />
+
+        @* Switch A/B: two LEDs side-by-side *@
+        <div class="status-row">
+            <MudText Typo="Typo.caption" Class="status-label">Switch</MudText>
+            <LedIndicator IsOn="@_switchAConnected" OnColor="Color.Success" />
+            <MudText Typo="Typo.caption" Style="font-size: 0.72rem;" Class="mx-1">@_switchAText</MudText>
+            <LedIndicator IsOn="@_switchBConnected" OnColor="Color.Success" />
+            <MudText Typo="Typo.caption" Style="font-size: 0.72rem;" Class="mx-1">@_switchBText</MudText>
+        </div>
+
+        @* Ionizer: two LEDs *@
+        <div class="status-row">
+            <MudText Typo="Typo.caption" Class="status-label">Ionizer</MudText>
+            <LedIndicator IsOn="@_ionizer1Connected" OnColor="Color.Success" />
+            <MudText Typo="Typo.caption" Style="font-size: 0.72rem;" Class="mx-1">@_ionizer1Text</MudText>
+            <LedIndicator IsOn="@_ionizer2Connected" OnColor="Color.Success" />
+        </div>
+
+        <StatusRow Label="DIO Status" IsOn="@_dioConnected" Value="@_dioStatusText" />
+        <StatusRow Label="ECS Status" IsOn="@_ecsConnected" Value="@_ecsStatusText" />
+        <StatusRow Label="IR Temp" IsOn="@_irTempConnected" Value="@_irTempText" />
+    </MudPaper>
+
+    <MudDivider Class="my-1" />
+
+    @* ─── Section 2: GMES (RzGroupBox5) ────────────────────── *@
+    <MudPaper Elevation="0" Class="pa-2 mb-1" Style="background: transparent;">
+        <MudText Typo="Typo.overline" Color="Color.Secondary" Class="mb-1">GMES</MudText>
+
+        <StatusRow Label="GMES" IsOn="@_gmesConnected" Value="@_gmesText"
+                   OnColor="Color.Success" />
+
+        @* EQP ID (no LED) *@
+        <div class="status-row">
+            <MudText Typo="Typo.caption" Class="status-label">@_eqpIdLabel</MudText>
+            <MudText Typo="Typo.caption" Class="status-value">@_eqpId</MudText>
+        </div>
+
+        <StatusRow Label="EAS" IsOn="@_easConnected" Value="@_easText"
+                   OnColor="Color.Success" />
+        <StatusRow Label="R2R" IsOn="@_r2rConnected" Value="@_r2rText"
+                   OnColor="Color.Success" />
+
+        @* User ID / Name *@
+        <div class="status-row">
+            <MudText Typo="Typo.caption" Class="status-label">USER_ID</MudText>
+            <MudText Typo="Typo.caption" Class="status-value">@_userId</MudText>
+        </div>
+        <div class="status-row">
+            <MudText Typo="Typo.caption" Class="status-label">USER_NAME</MudText>
+            <MudText Typo="Typo.caption" Class="status-value">@_userName</MudText>
+        </div>
+    </MudPaper>
+
+    <MudDivider Class="my-1" />
+
+    @* ─── Section 3: Script Information (RzGroupBox3) ──────── *@
+    <MudPaper Elevation="0" Class="pa-2 mb-1" Style="background: transparent;">
+        <MudText Typo="Typo.overline" Color="Color.Secondary" Class="mb-1">
+            Script Information
+        </MudText>
+
+        @* CSX 수정 시간 (Delphi: pnlPsuVer) *@
+        <div class="status-row">
+            <MudText Typo="Typo.caption" Class="status-label">CSX</MudText>
+            <MudText Typo="Typo.caption" Class="status-value">@_csxModified</MudText>
+        </div>
+
+        @* LGD DLL — Delphi: Param=1 *@
+        @foreach (var line in GetDllDisplayLines())
+        {
+            <div class="status-row">
+                <MudText Typo="Typo.caption" Class="status-label" Style="font-size:0.65rem;">@line.Label</MudText>
+                <MudText Typo="Typo.caption" Class="status-value"
+                         Style="word-break:break-all; white-space:normal; font-size:0.65rem;">
+                    @line.Value
+                </MudText>
+            </div>
+        }
+
+        <StatusRow Label="AA Mode" IsOn="@_aaModeOn"
+                   Value="@(_aaModeOn ? "ON" : "OFF")" />
+    </MudPaper>
+
+    @* ─── Section 4: DFS Info (conditional) ────────────────── *@
+    @if (_dfsVisible)
+    {
+        <MudDivider Class="my-1" />
+        <MudPaper Elevation="0" Class="pa-2 mb-1" Style="background: transparent;">
+            <MudText Typo="Typo.overline" Color="Color.Secondary" Class="mb-1">DFS Info</MudText>
+
+            <StatusRow Label="DFS" IsOn="@_dfsConnected" Value="@_dfsText"
+                       OnColor="Color.Success" />
+            <div class="status-row">
+                <MudText Typo="Typo.caption" Class="status-label">RCP</MudText>
+                <MudText Typo="Typo.caption" Class="status-value"
+                         Style="font-size: 0.7rem;">@_dfsRcpName</MudText>
+            </div>
+        </MudPaper>
+    }
+
+    @* ─── Section 5: Power Information (grpPwrInfo) ────────── *@
+    <MudDivider Class="my-1" />
+    <MudPaper Elevation="0" Class="pa-2" Style="background: transparent;">
+        <MudText Typo="Typo.overline" Color="Color.Secondary" Class="mb-1">
+            Power Information
+        </MudText>
+        <MudSimpleTable Dense="true" Hover="true" Style="background: transparent;">
+            <thead>
+                <tr>
+                    <th class="pwr-cell">Power</th>
+                    <th class="pwr-cell">Volt</th>
+                    <th class="pwr-cell">Power</th>
+                    <th class="pwr-cell">Volt</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="pwr-cell">VLCD</td>
+                    <td class="pwr-cell">@_powerVlcd</td>
+                    <td class="pwr-cell">VEL</td>
+                    <td class="pwr-cell">@_powerVel</td>
+                </tr>
+                <tr>
+                    <td class="pwr-cell">VCC</td>
+                    <td class="pwr-cell">@_powerVcc</td>
+                    <td class="pwr-cell">VBAT</td>
+                    <td class="pwr-cell">@_powerVbat</td>
+                </tr>
+                <tr>
+                    <td class="pwr-cell">EXT</td>
+                    <td class="pwr-cell">@_powerExt</td>
+                    <td class="pwr-cell"></td>
+                    <td class="pwr-cell"></td>
+                </tr>
+            </tbody>
+        </MudSimpleTable>
+    </MudPaper>
+</div>

@@ -1,0 +1,385 @@
+@page "/model-info"
+@using Dongaeltek.ITOLED.Core.Common
+@using Dongaeltek.ITOLED.Core.Models
+@using Dongaeltek.ITOLED.Core.Definitions
+
+<PageTitle>Model Info</PageTitle>
+@if (!_isAuthenticated)
+{
+    <MudPaper Class="pa-6 d-flex flex-column align-center justify-center" Style="min-height: 300px;">
+        <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Large" Color="Color.Warning" Class="mb-3" />
+        <MudText Typo="Typo.h6" Class="mb-3">Admin Login Required</MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="OnAdminLoginClick">Login</MudButton>
+    </MudPaper>
+}
+else
+{
+
+<MudText Typo="Typo.h5" Class="mb-3">Model Information</MudText>
+
+@* ── Model Selector ────────────────────────────────────────── *@
+<MudPaper Class="pa-3 mb-3">
+    <MudGrid Spacing="2">
+        <MudItem xs="5">
+            <MudTextField T="string" Value="@_currentModel" Label="Current Model" ReadOnly="true"
+                          Variant="Variant.Filled" />
+        </MudItem>
+        <MudItem xs="5">
+            <MudSelect T="string" @bind-Value="_selectedModel" Label="Select Model" Variant="Variant.Outlined">
+                @foreach (var m in _availableModels)
+                {
+                    <MudSelectItem T="string" Value="@m">@m</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="2" Class="d-flex align-end">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                       OnClick="LoadSelectedModel">Load</MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@if (!_isLoaded)
+{
+    <MudAlert Severity="Severity.Info">No model loaded. Select a model and click Load.</MudAlert>
+}
+else
+{
+    <MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
+
+        @* ── Tab 1: Model Info ── *@
+        <MudTabPanel Text="Model Info" Icon="@Icons.Material.Filled.Info">
+            <MudGrid Spacing="2">
+                <MudItem xs="6"><MudTextField T="string" @bind-Value="_flow.ModelTypeName" Label="Model Type Name" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="6"><MudNumericField T="int" @bind-Value="_flow.ModelType" Label="Model Type" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="6"><MudTextField T="string" @bind-Value="_flow.ModelFileName" Label="Model File" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="6"><MudTextField T="string" @bind-Value="_patternGroupName" Label="Pattern Group" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="3"><MudNumericField T="byte" @bind-Value="_model.SigType" Label="Signal Type" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="3"><MudNumericField T="uint" @bind-Value="_model.Freq" Label="Freq" Variant="Variant.Outlined" /></MudItem>
+            </MudGrid>
+
+            <MudText Typo="Typo.subtitle2" Class="mt-3 mb-1">Horizontal Timing</MudText>
+            <MudGrid Spacing="2">
+                <MudItem xs="3"><MudNumericField T="ushort" @bind-Value="_model.HActive" Label="H_Active" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="3"><MudNumericField T="ushort" @bind-Value="_model.HBP" Label="H_BP" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="3"><MudNumericField T="ushort" @bind-Value="_model.HWidth" Label="H_Width" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="3"><MudNumericField T="ushort" @bind-Value="_model.HFP" Label="H_FP" Variant="Variant.Outlined" /></MudItem>
+            </MudGrid>
+
+            <MudText Typo="Typo.subtitle2" Class="mt-3 mb-1">Vertical Timing</MudText>
+            <MudGrid Spacing="2">
+                <MudItem xs="3"><MudNumericField T="ushort" @bind-Value="_model.VActive" Label="V_Active" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="3"><MudNumericField T="ushort" @bind-Value="_model.VBP" Label="V_BP" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="3"><MudNumericField T="ushort" @bind-Value="_model.VWidth" Label="V_Width" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="3"><MudNumericField T="ushort" @bind-Value="_model.VFP" Label="V_FP" Variant="Variant.Outlined" /></MudItem>
+            </MudGrid>
+
+            <MudText Typo="Typo.subtitle2" Class="mt-3 mb-1">Power Voltages (MODEL_INFO)</MudText>
+            <MudSimpleTable Dense="true" Hover="true" Bordered="true" Class="mt-1">
+                <thead>
+                    <tr><th>Rail</th><th>Voltage</th><th>Vol HL</th><th>Vol LL</th><th>Cur HL</th><th>Cur LL</th></tr>
+                </thead>
+                <tbody>
+                    @for (int i = 0; i < 6; i++)
+                    {
+                        var idx = i;
+                        <tr>
+                            <td>@GetPowerRailName(idx)</td>
+                            <td><MudNumericField T="ushort" @bind-Value="_model.PwrVol[idx]" Variant="Variant.Text" Margin="Margin.Dense" /></td>
+                            <td><MudNumericField T="ushort" @bind-Value="_model.PwrVolHL[idx]" Variant="Variant.Text" Margin="Margin.Dense" /></td>
+                            <td><MudNumericField T="ushort" @bind-Value="_model.PwrVolLL[idx]" Variant="Variant.Text" Margin="Margin.Dense" /></td>
+                            <td><MudNumericField T="ushort" @bind-Value="_model.PwrCurHL[idx]" Variant="Variant.Text" Margin="Margin.Dense" /></td>
+                            <td><MudNumericField T="ushort" @bind-Value="_model.PwrCurLL[idx]" Variant="Variant.Text" Margin="Margin.Dense" /></td>
+                        </tr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+        </MudTabPanel>
+
+        @* ── Tab 2: PG Setting ── *@
+        <MudTabPanel Text="PG Setting" Icon="@Icons.Material.Filled.Tune">
+            <MudText Typo="Typo.subtitle2" Class="mb-1">Resolution (MODEL_RESOLUTION)</MudText>
+            <MudGrid Spacing="2">
+                <MudItem xs="3"><MudNumericField T="ushort" @bind-Value="_pgConf.HActive" Label="H_Active" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="3"><MudNumericField T="ushort" @bind-Value="_pgConf.HBp" Label="H_BP" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="3"><MudNumericField T="ushort" @bind-Value="_pgConf.HSa" Label="H_SA" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="3"><MudNumericField T="ushort" @bind-Value="_pgConf.HFp" Label="H_FP" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="3"><MudNumericField T="ushort" @bind-Value="_pgConf.VActive" Label="V_Active" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="3"><MudNumericField T="ushort" @bind-Value="_pgConf.VBp" Label="V_BP" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="3"><MudNumericField T="ushort" @bind-Value="_pgConf.VSa" Label="V_SA" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="3"><MudNumericField T="ushort" @bind-Value="_pgConf.VFp" Label="V_FP" Variant="Variant.Outlined" /></MudItem>
+            </MudGrid>
+
+            <MudText Typo="Typo.subtitle2" Class="mt-3 mb-1">Timing (MODEL_TIMING)</MudText>
+            <MudGrid Spacing="2">
+                <MudItem xs="3"><MudNumericField T="uint" @bind-Value="_pgConf.LinkRate" Label="link_rate" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="3"><MudNumericField T="int" @bind-Value="_pgConf.Lane" Label="lane" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="3"><MudNumericField T="int" @bind-Value="_pgConf.Vsync" Label="Vsync" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="3"><MudTextField T="string" @bind-Value="_pgConf.RgbFormat" Label="RGBFormat" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="3"><MudNumericField T="int" @bind-Value="_pgConf.AlpmMode" Label="ALPM_Mode" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="3"><MudNumericField T="int" @bind-Value="_pgConf.VfbOffset" Label="vfb_offset" Variant="Variant.Outlined" /></MudItem>
+            </MudGrid>
+
+            <MudText Typo="Typo.subtitle2" Class="mt-3 mb-1">ALPDP (MODEL_ALPDP)</MudText>
+            <MudGrid Spacing="2">
+                <MudItem xs="2"><MudNumericField T="int" @bind-Value="_pgConf.HFdp" Label="h_fdp" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="2"><MudNumericField T="int" @bind-Value="_pgConf.HSdp" Label="h_sdp" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="2"><MudNumericField T="int" @bind-Value="_pgConf.HPcnt" Label="h_pcnt" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="2"><MudNumericField T="int" @bind-Value="_pgConf.VbN5b" Label="vb_n5b" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="2"><MudNumericField T="int" @bind-Value="_pgConf.VbN7" Label="vb_n7" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="2"><MudNumericField T="int" @bind-Value="_pgConf.VbN5a" Label="vb_n5a" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="2"><MudNumericField T="int" @bind-Value="_pgConf.VbSleep" Label="vb_sleep" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="2"><MudNumericField T="int" @bind-Value="_pgConf.VbN2" Label="vb_n2" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="2"><MudNumericField T="int" @bind-Value="_pgConf.VbN3" Label="vb_n3" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="2"><MudNumericField T="int" @bind-Value="_pgConf.VbN4" Label="vb_n4" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="2"><MudNumericField T="int" @bind-Value="_pgConf.MVid" Label="m_vid" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="2"><MudNumericField T="int" @bind-Value="_pgConf.NVid" Label="n_vid" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="2"><MudNumericField T="int" @bind-Value="_pgConf.Misc0" Label="misc_0" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="2"><MudNumericField T="int" @bind-Value="_pgConf.Misc1" Label="misc_1" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="2"><MudNumericField T="int" @bind-Value="_pgConf.NoAuxSel" Label="NoAux_Sel" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="2"><MudNumericField T="int" @bind-Value="_pgConf.CriticalSection" Label="critical_section" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="2"><MudNumericField T="int" @bind-Value="_pgConf.Tps" Label="tps" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="2"><MudNumericField T="int" @bind-Value="_pgConf.ChopEnable" Label="chop_enable" Variant="Variant.Outlined" /></MudItem>
+            </MudGrid>
+        </MudTabPanel>
+
+        @* ── Tab 3: Power ── *@
+        <MudTabPanel Text="Power" Icon="@Icons.Material.Filled.ElectricBolt">
+            <MudText Typo="Typo.subtitle2" Class="mb-1">Power Data (POWER_DATA)</MudText>
+            <MudGrid Spacing="2">
+                <MudItem xs="3"><MudNumericField T="int" @bind-Value="_pgPwr.PwrSlope" Label="PWR_SLOPE" Variant="Variant.Outlined" /></MudItem>
+            </MudGrid>
+            <MudSimpleTable Dense="true" Hover="true" Bordered="true" Class="mt-2">
+                <thead>
+                    <tr><th>#</th><th>Name</th><th>Vol (mV)</th><th>Vol HL</th><th>Vol LL</th><th>Cur HL (mA)</th><th>Cur LL</th></tr>
+                </thead>
+                <tbody>
+                    @for (int i = 0; i <= PgPowerIndex.Max; i++)
+                    {
+                        var idx = i;
+                        <tr>
+                            <td>@idx</td>
+                            <td><MudTextField T="string" @bind-Value="_pgPwr.PwrName[idx]" Variant="Variant.Text" Margin="Margin.Dense" /></td>
+                            <td><MudNumericField T="uint" @bind-Value="_pgPwr.PwrVol[idx]" Variant="Variant.Text" Margin="Margin.Dense" /></td>
+                            <td><MudNumericField T="uint" @bind-Value="_pgPwr.PwrVolHl[idx]" Variant="Variant.Text" Margin="Margin.Dense" /></td>
+                            <td><MudNumericField T="uint" @bind-Value="_pgPwr.PwrVolLl[idx]" Variant="Variant.Text" Margin="Margin.Dense" /></td>
+                            <td><MudNumericField T="uint" @bind-Value="_pgPwr.PwrCurHl[idx]" Variant="Variant.Text" Margin="Margin.Dense" /></td>
+                            <td><MudNumericField T="uint" @bind-Value="_pgPwr.PwrCurLl[idx]" Variant="Variant.Text" Margin="Margin.Dense" /></td>
+                        </tr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+
+            <MudText Typo="Typo.subtitle2" Class="mt-3 mb-1">Power Sequence (POWER_SEQUENCE)</MudText>
+            <MudSimpleTable Dense="true" Hover="true" Bordered="true" Class="mt-1">
+                <thead>
+                    <tr><th>#</th><th>Seq ON</th><th>Seq OFF</th></tr>
+                </thead>
+                <tbody>
+                    @for (int i = 0; i <= PgPowerIndex.SeqMax; i++)
+                    {
+                        var idx = i;
+                        <tr>
+                            <td>@idx</td>
+                            <td><MudNumericField T="int" @bind-Value="_pgSeq.SeqOn[idx]" Variant="Variant.Text" Margin="Margin.Dense" /></td>
+                            <td><MudNumericField T="int" @bind-Value="_pgSeq.SeqOff[idx]" Variant="Variant.Text" Margin="Margin.Dense" /></td>
+                        </tr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+        </MudTabPanel>
+
+        @* ── Tab 4: Flow ── *@
+        <MudTabPanel Text="Flow" Icon="@Icons.Material.Filled.AccountTree">
+            <MudGrid Spacing="2">
+                <MudItem xs="4"><MudNumericField T="int" @bind-Value="_flow.ModelType" Label="Model Type" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="4"><MudTextField T="string" @bind-Value="_flow.ModelTypeName" Label="Model Type Name" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="4"><MudTextField T="string" @bind-Value="_flow.ModelFileName" Label="Model File Name" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="4"><MudTextField T="string" @bind-Value="_flow.ProcessName" Label="Process Name" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="4"><MudNumericField T="int" @bind-Value="_flow.Ca410MemCh" Label="CA410 MemCh" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="4"><MudNumericField T="int" @bind-Value="_flow.BcrLength" Label="BCR Length" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="4"><MudNumericField T="uint" @bind-Value="_flow.SerialNoFlashInfo.Address" Label="SerialNo Addr" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="4"><MudNumericField T="uint" @bind-Value="_flow.SerialNoFlashInfo.Length" Label="SerialNo Length" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="4"><MudNumericField T="int" @bind-Value="_flow.UseNvmInit" Label="NVM Init Mode" Variant="Variant.Outlined" /></MudItem>
+            </MudGrid>
+
+            <MudText Typo="Typo.subtitle2" Class="mt-3 mb-1">Feature Flags</MudText>
+            <MudGrid Spacing="2">
+                <MudItem xs="3"><MudCheckBox T="bool" @bind-Value="_flow.UseDutDetect" Label="DUT Detect" /></MudItem>
+                <MudItem xs="3"><MudCheckBox T="bool" @bind-Value="_flow.IdleMode" Label="IDLE Mode" /></MudItem>
+                <MudItem xs="3"><MudNumericField T="int" @bind-Value="_flow.IdleModeDTime" Label="IDLE DTime" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="3"><MudCheckBox T="bool" @bind-Value="_flow.UseIonOnOff" Label="Ionizer On/Off" /></MudItem>
+                <MudItem xs="3"><MudCheckBox T="bool" @bind-Value="_flow.UseCheckVer" Label="Check Version" /></MudItem>
+                <MudItem xs="3"><MudCheckBox T="bool" @bind-Value="_flow.UseCheckReProgramming" Label="Check ReProg" /></MudItem>
+                <MudItem xs="3"><MudNumericField T="int" @bind-Value="_flow.UseCkNVMWriteSequence" Label="NVM Write Seq" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="3"><MudCheckBox T="bool" @bind-Value="_flow.UseTconWriteChecksum" Label="TCON Write CRC" /></MudItem>
+            </MudGrid>
+        </MudTabPanel>
+
+        @* ── Tab 5: Pattern ── *@
+        <MudTabPanel Text="Pattern" Icon="@Icons.Material.Filled.GridOn">
+            <MudText Typo="Typo.subtitle2" Class="mb-1">Pattern Group: @_patternGroupName (@_patterns.Count patterns)</MudText>
+            <MudDataGrid T="PatternGroupItem" Items="@_patterns" Dense="true" Hover="true"
+                         Bordered="true" RowsPerPage="20" Class="dense-grid">
+                <Columns>
+                    <PropertyColumn Property="x => x.Index" Title="#" />
+                    <PropertyColumn Property="x => x.Name" Title="Pattern Name" />
+                    <PropertyColumn Property="x => x.PatType" Title="Type (0=Pat,1=BMP)" />
+                    <PropertyColumn Property="x => x.PatIdx" Title="Pat Index" />
+                </Columns>
+            </MudDataGrid>
+        </MudTabPanel>
+
+    </MudTabs>
+
+    <MudPaper Class="pa-3 mt-3 d-flex gap-2">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveModel">Save</MudButton>
+        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="ReloadModel">Reload</MudButton>
+    </MudPaper>
+}
+
+} @* end else _isAuthenticated *@
+
+@code {
+    [Inject] private IModelInfoService ModelSvc { get; set; } = default!;
+    [Inject] private IConfigurationService Config { get; set; } = default!;
+    [Inject] private ISnackbar Snackbar { get; set; } = default!;
+    [Inject] private IAppInitializer AppInit { get; set; } = default!;
+    [Inject] private IDialogService DialogService { get; set; } = default!;
+    [Inject] private NavigationManager Nav { get; set; } = default!;
+
+    private bool _isAuthenticated;
+
+    private async Task OnAdminLoginClick()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small };
+        var dialog = await DialogService.ShowAsync<LoginDialog>("Admin Login", options);
+        var result = await dialog.Result;
+        if (result is not null && !result.Canceled)
+            _isAuthenticated = true;
+    }
+
+    // Model selector
+    private string _currentModel = "";
+    private string _selectedModel = "";
+    private List<string> _availableModels = new();
+    private bool _isLoaded;
+
+    // Editable data references (cast to concrete type for extra properties)
+    private ModelInfo _model = new();
+    private ModelInfoFlow _flow = new();
+    private PgModelConfig _pgConf = new();
+    private PgModelPowerData _pgPwr = new();
+    private PgModelPowerSequence _pgSeq = new();
+    private List<PatternGroupItem> _patterns = new();
+    private string _patternGroupName = "";
+
+    private static readonly string[] PowerRailNames = { "VLCD", "VCC", "VEXT", "VEL", "VBAT", "VNEG" };
+    private static string GetPowerRailName(int i) => i < PowerRailNames.Length ? PowerRailNames[i] : $"PWR_{i}";
+
+    protected override void OnInitialized()
+    {
+        _currentModel = Config.SystemInfo?.TestModel ?? "";
+        _availableModels = ModelSvc.GetAvailableModels().ToList();
+        _selectedModel = _currentModel;
+
+        if (!string.IsNullOrEmpty(_currentModel) && !ModelSvc.IsModelLoaded)
+            ModelSvc.LoadModel(_currentModel);
+
+        RefreshFromService();
+    }
+
+    private void RefreshFromService()
+    {
+        _isLoaded = ModelSvc.IsModelLoaded;
+        if (!_isLoaded) return;
+
+        _currentModel = ModelSvc.CurrentModelName;
+
+        if (ModelSvc is ModelInfoService svc)
+        {
+            _model = svc.ModelData;
+            _flow = svc.FlowData;
+            _pgConf = svc.PgData.PgModelConf;
+            _pgPwr = svc.PgData.PgPwrData;
+            _pgSeq = svc.PgData.PgPwrSeq;
+            _patterns = svc.PatternItems;
+            _patternGroupName = svc.PatternGroupName;
+        }
+    }
+
+    private void LoadSelectedModel()
+    {
+        if (string.IsNullOrEmpty(_selectedModel))
+        {
+            Snackbar.Add("Select a model first", Severity.Warning);
+            return;
+        }
+
+        if (ModelSvc.LoadModel(_selectedModel))
+        {
+            _currentModel = _selectedModel;
+            RefreshFromService();
+            Snackbar.Add($"Model '{_selectedModel}' loaded successfully", Severity.Success);
+        }
+        else
+        {
+            Snackbar.Add($"Failed to load model '{_selectedModel}' — MCF file not found", Severity.Error);
+        }
+    }
+
+    private async Task SaveModel()
+    {
+        if (!_isLoaded)
+        {
+            Snackbar.Add("No model loaded to save", Severity.Warning);
+            return;
+        }
+
+        // Update pattern group name back to service before saving
+        if (ModelSvc is ModelInfoService svc)
+        {
+            svc.PatternGroupName = _patternGroupName;
+        }
+
+        ModelSvc.SaveModelConfig();
+        Snackbar.Add($"Model '{_currentModel}' saved to MCF", Severity.Success);
+
+        // Offer SW reinitialize after save (Delphi: m_bIsChanged → InitialAll)
+        if (AppInit.CanInitialize)
+        {
+            var initResult = await DialogService.ShowMessageBox(
+                "Apply Changes",
+                "모델 정보가 저장되었습니다. 프로그램을 초기화하여 변경사항을 적용하시겠습니까?",
+                yesText: "초기화", cancelText: "나중에");
+
+            if (initResult == true)
+            {
+                var success = await AppInit.InitializeAllAsync();
+                Snackbar.Add(
+                    success ? "SW 초기화 완료" : "초기화 실패",
+                    success ? Severity.Success : Severity.Error);
+                Nav.NavigateTo("/");
+            }
+        }
+    }
+
+    private void ReloadModel()
+    {
+        if (!_isLoaded)
+        {
+            Snackbar.Add("No model loaded to reload", Severity.Warning);
+            return;
+        }
+
+        if (ModelSvc.ReloadCurrentModel())
+        {
+            RefreshFromService();
+            Snackbar.Add($"Model '{_currentModel}' reloaded from MCF", Severity.Info);
+        }
+        else
+        {
+            Snackbar.Add("Failed to reload model", Severity.Error);
+        }
+    }
+}

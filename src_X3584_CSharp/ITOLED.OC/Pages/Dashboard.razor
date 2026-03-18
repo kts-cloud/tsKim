@@ -1,0 +1,165 @@
+@page "/"
+@* Dashboard — replaces Main_OC.pas main form *@
+@* Main inspection dashboard with 4-channel status, stage flow, and system overview *@
+
+<PageTitle>ITOLED OC — Dashboard</PageTitle>
+
+<div class="dashboard-layout">
+    <SystemStatusPanel />
+    <div class="dashboard-content">
+<MudGrid Spacing="2">
+    @* ── Top row: Channel status cards ──────────────────────── *@
+    @for (int ch = 0; ch < 4; ch++)
+    {
+        var channel = ch;
+        <MudItem xs="3">
+            <MudPaper Elevation="2" Class="pa-3" Style="@GetChannelStyle(channel)">
+                <MudText Typo="Typo.subtitle1" Align="Align.Center">CH @(channel + 1)</MudText>
+                <MudDivider Class="my-2" />
+
+                @* LED status row *@
+                <div class="d-flex justify-center gap-2 mb-2">
+                    <LedIndicator Label="USE" IsOn="@_channelEnabled[channel]" OnColor="Color.Success" />
+                    <LedIndicator Label="RUN" IsOn="@(_channelStatus[channel] == 1)" OnColor="Color.Info" Blink="true" />
+                    <LedIndicator Label="NG" IsOn="@(_channelNg[channel])" OnColor="Color.Error" />
+                    <LedIndicator Label="PG" IsOn="@_pgConnected[channel]" OnColor="@_pgLedColor[channel]" />
+                </div>
+
+                @* 상태 배지 — Ready/Running/PASS/NG/Stop *@
+                <MudChip T="string" Color="@GetStatusColor(_channelStatus[channel])"
+                         Variant="Variant.Filled" Size="Size.Small"
+                         Style="font-weight: bold; width: 100%; justify-content: center;">
+                    @_channelStatusText[channel]
+                </MudChip>
+
+                @* Serial number *@
+                <MudTextField T="string" Value="@_serialNos[channel]" ReadOnly="true"
+                              Label="Serial No" Variant="Variant.Outlined" Margin="Margin.Dense" />
+
+                @* Result display *@
+                <MudText Typo="Typo.h5" Align="Align.Center" Class="mt-2"
+                         Color="@(_channelNg[channel] ? Color.Error : Color.Success)">
+                    @(_channelResult[channel])
+                </MudText>
+
+                @* Tact Time (per-channel) *@
+                <MudText Typo="Typo.caption" Align="Align.Center" Class="mt-1" Color="Color.Primary">
+                    Tact: @_tactTime[channel].ToString("F1") s
+                </MudText>
+            </MudPaper>
+        </MudItem>
+    }
+
+    @* ── Middle row: Per-channel Stage Flow ────────────────── *@
+    <MudItem xs="12">
+        <MudPaper Elevation="1" Class="pa-3">
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Stage Flow</MudText>
+            @for (int ch = 0; ch < 4; ch++)
+            {
+                var c = ch;
+                <div class="d-flex align-center gap-1 mb-1">
+                    <MudChip T="string" Size="Size.Small"
+                             Color="@GetStatusColor(_channelStatus[c])"
+                             Variant="Variant.Filled"
+                             Style="min-width: 52px; justify-content: center;">
+                        CH@(c + 1)
+                    </MudChip>
+                    <StageFlowStep Label="Load" Active="@(_channelStagePhase[c] == 1)" />
+                    <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" />
+                    <StageFlowStep Label="Power" Active="@(_channelStagePhase[c] == 2)" />
+                    <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" />
+                    <StageFlowStep Label="OC" Active="@(_channelStagePhase[c] == 3)" />
+                    <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" />
+                    <StageFlowStep Label="Report" Active="@(_channelStagePhase[c] == 4)" />
+                    <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" />
+                    <StageFlowStep Label="Unload" Active="@(_channelStagePhase[c] == 5)" />
+                </div>
+            }
+        </MudPaper>
+    </MudItem>
+
+    @* ── Bottom row: Log + controls ────────────────────────── *@
+    <MudItem xs="8">
+        <MudPaper Elevation="1" Class="pa-3" Style="height: 250px; overflow-y: auto;">
+            <MudText Typo="Typo.subtitle2" Class="mb-2">System Log</MudText>
+            <MudList T="string" Dense="true">
+                @foreach (var entry in _logEntries.TakeLast(50))
+                {
+                    <MudListItem T="string">
+                        <MudText Typo="Typo.caption" Style="font-family: monospace;">@entry</MudText>
+                    </MudListItem>
+                }
+            </MudList>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="4">
+        <MudPaper Elevation="1" Class="pa-3">
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Controls</MudText>
+            <MudStack Spacing="2">
+                @* 모드 인디케이터 *@
+                <MudAlert Severity="@(_autoMode ? Severity.Success : Severity.Normal)"
+                          Variant="Variant.Filled" Dense="true" NoIcon="false"
+                          Class="mb-1"
+                          Style="@(_autoMode ? "animation: mode-pulse 1.5s infinite; font-weight: bold; font-size: 1rem;" : "font-weight: bold; font-size: 1rem;")">
+                    @(_autoMode ? "AUTO MODE" : "MANUAL MODE")
+                </MudAlert>
+                <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.PlayArrow"
+                           Disabled="@_autoMode" OnClick="OnStartClick">
+                    AUTO START
+                </MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Error" FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.Stop"
+                           Disabled="@(!_autoMode)" OnClick="OnStopClick">
+                    AUTO STOP
+                </MudButton>
+                <MudDivider />
+                <MudButton Variant="Variant.Filled"
+                           Color="@(_isLoggedIn ? Color.Warning : Color.Info)"
+                           FullWidth="true"
+                           StartIcon="@(_isLoggedIn ? Icons.Material.Filled.Logout : Icons.Material.Filled.Login)"
+                           Disabled="@_autoMode"
+                           OnClick="OnLoginClick">
+                    @_loginButtonText
+                </MudButton>
+                @if (!string.IsNullOrEmpty(_mesStatusText))
+                {
+                    <MudAlert Severity="@(_isLoggedIn ? Severity.Success : Severity.Error)"
+                              Variant="Variant.Filled" Dense="true" NoIcon="false"
+                              Class="my-1" Style="font-weight:bold; font-size:0.85rem;">
+                        @_mesStatusText
+                    </MudAlert>
+                }
+                <MudDivider />
+                <MudButton Variant="Variant.Outlined" Color="Color.Warning" FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.RestartAlt"
+                           OnClick="OnAlarmResetClick">
+                    ALARM RESET
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.SwapHoriz"
+                           Disabled="@_autoMode"
+                           OnClick="OnModelChangeClick">
+                    MODEL CHANGE
+                </MudButton>
+                <MudButton Variant="Variant.Text" Color="Color.Default" FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.Key"
+                           Disabled="@_autoMode"
+                           OnClick="OnChangePasswordClick">
+                    CHANGE PASSWORD
+                </MudButton>
+                <MudDivider />
+                <MudButton Variant="Variant.Outlined" Color="Color.Info" FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.Refresh"
+                           Disabled="@(!_canInitialize || _initializing)"
+                           OnClick="OnInitializeClick">
+                    @(_initializing ? "Initializing..." : "SW INITIALIZE")
+                </MudButton>
+            </MudStack>
+        </MudPaper>
+
+    </MudItem>
+</MudGrid>
+    </div>
+</div>

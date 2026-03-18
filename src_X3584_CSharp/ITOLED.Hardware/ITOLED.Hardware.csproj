@@ -1,0 +1,57 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ITOLED.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ITOLED.Core\ITOLED.Core.csproj" />
+    <ProjectReference Include="..\ITOLED.Messaging\ITOLED.Messaging.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.IO.Ports" Version="10.0.3" />
+    <PackageReference Include="System.Text.Encoding.CodePages" Version="8.0.0" />
+  </ItemGroup>
+
+  <!-- CASDK2Net.dll managed assembly reference -->
+  <ItemGroup>
+    <Reference Include="CASDK2Net">
+      <HintPath>..\Ca410_lib\CASDK2Net.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- Native DLLs required by CASDK2Net at runtime -->
+  <ItemGroup>
+    <None Include="..\Ca410_lib\CASDK2.dll" Link="CASDK2.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\Ca410_lib\CASDK2Calc.dll" Link="CASDK2Calc.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\Ca410_lib\CASDK2Comm.dll" Link="CASDK2Comm.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\Ca410_lib\CASDK2Socket.dll" Link="CASDK2Socket.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\Ca410_lib\CA200Srvr.dll" Link="CA200Srvr.dll" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- HwNet.dll managed assembly reference (kernel-bypass transport) -->
+  <ItemGroup>
+    <Reference Include="HwNet">
+      <HintPath>..\DpdkNet_lib\HwNet.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- TIBCO_ECS_Converter DLLs — loaded at runtime via [DllImport] P/Invoke.
+       The DLL is a .NET Framework assembly with DllExport; calling via P/Invoke
+       lets the DllExport stub bootstrap .NET Framework CLR which handles the
+       multi-file TIBCO.Rendezvous assembly (netmodule) correctly. -->
+  <ItemGroup>
+    <None Include="..\Mes_lib\TIBCO_ECS_Converter.dll" Link="TIBCO_ECS_Converter.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\Mes_lib\TIBrvDriver64.dll" Link="TIBrvDriver64.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\Mes_lib\TIBCO.Rendezvous.dll" Link="TIBCO.Rendezvous.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\Mes_lib\TIBCO.Rendezvous.netmodule" Link="TIBCO.Rendezvous.netmodule" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,42 @@
+@inherits LayoutComponentBase
+
+<MudThemeProvider Theme="_theme" IsDarkMode="true" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="1" Dense="true">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit"
+                       Edge="Edge.Start" OnClick="@ToggleDrawer" />
+        <MudText Typo="Typo.h6" Class="ml-2">ITOLED OC Inspector</MudText>
+
+        @* Model name *@
+        <MudText Typo="Typo.caption" Class="ml-6" Style="color: #9E9E9E;">MODEL</MudText>
+        <MudText Typo="Typo.subtitle1" Class="ml-2" Style="color: #90CAF9; font-weight: 600; letter-spacing: 0.5px;">@_modelName</MudText>
+
+        <MudSpacer />
+
+        @* Status indicators — replaced ThhALed / TILed *@
+        <LedIndicator Label="AUTO" IsOn="@_autoMode" OnColor="Color.Success" />
+        <LedIndicator Label="ALARM" IsOn="@_alarmOn" OnColor="Color.Error" />
+        <LedIndicator Label="PLC" IsOn="@_plcConnected" OnColor="Color.Info" />
+
+        <MudText Typo="Typo.caption" Class="ml-4">@DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")</MudText>
+    </MudAppBar>
+
+    <MudDrawer @bind-Open="_drawerOpen" Elevation="2" ClipMode="DrawerClipMode.Always">
+        <NavMenu />
+    </MudDrawer>
+
+    <MudMainContent Class="pa-4">
+        @Body
+    </MudMainContent>
+
+    @* Bottom status bar — replaces TRzStatusBar *@
+    <MudAppBar Bottom="true" Dense="true" Elevation="1" Style="height: 32px;">
+        <MudText Typo="Typo.caption" Class="ml-2">Equipment: @_equipmentId</MudText>
+        <MudSpacer />
+        <MudText Typo="Typo.caption" Class="mr-2">Ver: @_swVersion</MudText>
+    </MudAppBar>
+</MudLayout>

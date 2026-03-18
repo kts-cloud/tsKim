@@ -1,0 +1,537 @@
+@page "/dio-test"
+@* DioTestPage — DIO signal read/write test page for manual I/O testing *@
+@* Replaces Delphi's DIO portion of the maintenance/test form *@
+@implements IDisposable
+
+<PageTitle>DIO Test</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-3">DIO Signal Test</MudText>
+
+@* ── Connection Status ──────────────────────────────────────────────── *@
+<MudPaper Class="pa-3 mb-3">
+    <MudGrid Spacing="2">
+        <MudItem xs="3">
+            <MudChip T="string"
+                     Color="@(_connected ? Color.Success : Color.Error)"
+                     Icon="@(_connected ? Icons.Material.Filled.Link : Icons.Material.Filled.LinkOff)"
+                     Size="Size.Small">
+                @(_connected ? "Connected" : "Disconnected")
+            </MudChip>
+        </MudItem>
+        <MudItem xs="3">
+            <MudText Typo="Typo.body2">Device: @DioConfig.DaeIoDeviceIp:@DioConfig.DaeIoDevicePort</MudText>
+        </MudItem>
+        <MudItem xs="3">
+            <MudText Typo="Typo.body2">Polling: @($"{DioConfig.DaeIoDeviceInterval}ms")</MudText>
+        </MudItem>
+        <MudItem xs="3">
+            <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small"
+                       OnClick="RefreshAll" StartIcon="@Icons.Material.Filled.Refresh">
+                Refresh
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@* ── Tabs: Input / Output ──────────────────────────────────────────── *@
+<MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-3">
+
+    @* ── Tab 1: Digital Input (Read-Only) ─────────────────────────── *@
+    <MudTabPanel Text="Digital Input (DI)" Icon="@Icons.Material.Filled.Input">
+        <MudText Typo="Typo.subtitle2" Class="mb-2">
+            96 Input Channels — Auto-refresh every @($"{_refreshMs}ms") (Read-Only)
+        </MudText>
+        <MudGrid Spacing="1">
+            @for (int byteIdx = 0; byteIdx < 12; byteIdx++)
+            {
+                var bIdx = byteIdx;
+                <MudItem xs="12">
+                    <MudPaper Class="pa-2" Outlined="true">
+                        <MudText Typo="Typo.caption" Class="mb-1" Style="font-weight:600;">
+                            DI Byte @bIdx (Signal @(bIdx * 8) ~ @(bIdx * 8 + 7))
+                        </MudText>
+                        <div class="d-flex gap-1 flex-wrap">
+                            @for (int bit = 0; bit < 8; bit++)
+                            {
+                                var sigIdx = bIdx * 8 + bit;
+                                var isHigh = _diState[sigIdx];
+                                var sigName = GetInputSignalName(sigIdx);
+                                <MudTooltip Text="@($"DI[{sigIdx}] {sigName}")">
+                                    <MudChip T="string"
+                                             Size="Size.Small"
+                                             Color="@(isHigh ? Color.Success : Color.Default)"
+                                             Variant="@(isHigh ? Variant.Filled : Variant.Outlined)"
+                                             Style="min-width:90px; font-family:monospace; font-size:0.75rem;">
+                                        @($"{sigIdx:D2}") @(isHigh ? "ON" : "OFF")
+                                    </MudChip>
+                                </MudTooltip>
+                            }
+                        </div>
+                    </MudPaper>
+                </MudItem>
+            }
+        </MudGrid>
+    </MudTabPanel>
+
+    @* ── Tab 2: Digital Output (Read + Write) ─────────────────────── *@
+    <MudTabPanel Text="Digital Output (DO)" Icon="@Icons.Material.Filled.Output">
+        <MudText Typo="Typo.subtitle2" Class="mb-2">
+            96 Output Channels — Click to toggle ON/OFF
+        </MudText>
+        <MudGrid Spacing="1">
+            @for (int byteIdx = 0; byteIdx < 12; byteIdx++)
+            {
+                var bIdx = byteIdx;
+                <MudItem xs="12">
+                    <MudPaper Class="pa-2" Outlined="true">
+                        <MudText Typo="Typo.caption" Class="mb-1" Style="font-weight:600;">
+                            DO Byte @bIdx (Signal @(bIdx * 8) ~ @(bIdx * 8 + 7))
+                        </MudText>
+                        <div class="d-flex gap-1 flex-wrap">
+                            @for (int bit = 0; bit < 8; bit++)
+                            {
+                                var sigIdx = bIdx * 8 + bit;
+                                var isHigh = _doState[sigIdx];
+                                var sigName = GetOutputSignalName(sigIdx);
+                                <MudTooltip Text="@($"DO[{sigIdx}] {sigName} — Click to toggle")">
+                                    <MudChip T="string"
+                                             Size="Size.Small"
+                                             Color="@(isHigh ? Color.Warning : Color.Default)"
+                                             Variant="@(isHigh ? Variant.Filled : Variant.Outlined)"
+                                             Style="min-width:90px; font-family:monospace; font-size:0.75rem; cursor:pointer;"
+                                             OnClick="@(() => ToggleOutput(sigIdx))">
+                                        @($"{sigIdx:D2}") @(isHigh ? "ON" : "OFF")
+                                    </MudChip>
+                                </MudTooltip>
+                            }
+                        </div>
+                    </MudPaper>
+                </MudItem>
+            }
+        </MudGrid>
+    </MudTabPanel>
+
+    @* ── Tab 3: Signal Name Reference ─────────────────────────────── *@
+    <MudTabPanel Text="Signal Map" Icon="@Icons.Material.Filled.Map">
+        <MudText Typo="Typo.subtitle2" Class="mb-2">DIO Signal Name Reference</MudText>
+        <MudGrid Spacing="2">
+            <MudItem xs="6">
+                <MudText Typo="Typo.h6" Class="mb-2">Input Signals</MudText>
+                <MudSimpleTable Dense="true" Hover="true" Style="max-height:500px; overflow-y:auto;">
+                    <thead>
+                        <tr><th>Index</th><th>Name</th><th>State</th></tr>
+                    </thead>
+                    <tbody>
+                        @for (int i = 0; i < 96; i++)
+                        {
+                            var idx = i;
+                            var name = GetInputSignalName(idx);
+                            if (name.StartsWith("Undefined")) continue;
+                            <tr>
+                                <td>@idx</td>
+                                <td>@name</td>
+                                <td>
+                                    <MudChip T="string" Size="Size.Small"
+                                             Color="@(_diState[idx] ? Color.Success : Color.Default)"
+                                             Variant="@(_diState[idx] ? Variant.Filled : Variant.Outlined)">
+                                        @(_diState[idx] ? "ON" : "OFF")
+                                    </MudChip>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </MudSimpleTable>
+            </MudItem>
+            <MudItem xs="6">
+                <MudText Typo="Typo.h6" Class="mb-2">Output Signals</MudText>
+                <MudSimpleTable Dense="true" Hover="true" Style="max-height:500px; overflow-y:auto;">
+                    <thead>
+                        <tr><th>Index</th><th>Name</th><th>State</th></tr>
+                    </thead>
+                    <tbody>
+                        @for (int i = 0; i < 96; i++)
+                        {
+                            var idx = i;
+                            var name = GetOutputSignalName(idx);
+                            if (name.StartsWith("Undefined")) continue;
+                            <tr>
+                                <td>@idx</td>
+                                <td>@name</td>
+                                <td>
+                                    <MudChip T="string" Size="Size.Small"
+                                             Color="@(_doState[idx] ? Color.Warning : Color.Default)"
+                                             Variant="@(_doState[idx] ? Variant.Filled : Variant.Outlined)"
+                                             Style="cursor:pointer;"
+                                             OnClick="@(() => ToggleOutput(idx))">
+                                        @(_doState[idx] ? "ON" : "OFF")
+                                    </MudChip>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </MudSimpleTable>
+            </MudItem>
+        </MudGrid>
+    </MudTabPanel>
+
+    @* ── Tab 4: Quick Actions ─────────────────────────────────────── *@
+    <MudTabPanel Text="Quick Actions" Icon="@Icons.Material.Filled.FlashOn">
+        <MudText Typo="Typo.subtitle2" Class="mb-3">
+            Common DIO operations (high-level commands via IDioController)
+        </MudText>
+
+        @* Tower Lamp *@
+        <MudPaper Class="pa-3 mb-3" Outlined="true">
+            <MudText Typo="Typo.h6" Class="mb-2">Tower Lamp</MudText>
+            <div class="d-flex gap-2">
+                <MudButton Variant="Variant.Filled" Color="Color.Error" Size="Size.Small"
+                           OnClick="@(() => SetTowerLamp(5))">Red (Error)</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Warning" Size="Size.Small"
+                           OnClick="@(() => SetTowerLamp(2))">Yellow (Pause)</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small"
+                           OnClick="@(() => SetTowerLamp(3))">Green (Auto)</MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small"
+                           OnClick="@(() => SetTowerLamp(0))">Off</MudButton>
+            </div>
+        </MudPaper>
+
+        @* Lamp On/Off *@
+        <MudPaper Class="pa-3 mb-3" Outlined="true">
+            <MudText Typo="Typo.h6" Class="mb-2">Inspection Lamp</MudText>
+            <div class="d-flex gap-2">
+                <MudButton Variant="Variant.Filled" Color="Color.Info" Size="Size.Small"
+                           OnClick="@(() => LampControl(0, true))">CH1-2 Lamp ON</MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small"
+                           OnClick="@(() => LampControl(0, false))">CH1-2 Lamp OFF</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Info" Size="Size.Small"
+                           OnClick="@(() => LampControl(1, true))">CH3-4 Lamp ON</MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small"
+                           OnClick="@(() => LampControl(1, false))">CH3-4 Lamp OFF</MudButton>
+            </div>
+        </MudPaper>
+
+        @* Fan On/Off *@
+        <MudPaper Class="pa-3 mb-3" Outlined="true">
+            <MudText Typo="Typo.h6" Class="mb-2">Fan Control</MudText>
+            <div class="d-flex gap-2 flex-wrap">
+                @for (int ch = 0; ch < 4; ch++)
+                {
+                    var c = ch;
+                    <MudButton Variant="Variant.Filled" Color="Color.Info" Size="Size.Small"
+                               OnClick="@(() => FanControl(c, true))">CH@(c+1) Fan ON</MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small"
+                               OnClick="@(() => FanControl(c, false))">CH@(c+1) Fan OFF</MudButton>
+                }
+            </div>
+        </MudPaper>
+
+        @* Ionizer On/Off *@
+        <MudPaper Class="pa-3 mb-3" Outlined="true">
+            <MudText Typo="Typo.h6" Class="mb-2">Ionizer Control</MudText>
+            <div class="d-flex gap-2">
+                <MudButton Variant="Variant.Filled" Color="Color.Info" Size="Size.Small"
+                           OnClick="@(() => IonizerControl(0, true))">CH1-2 Ion ON</MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small"
+                           OnClick="@(() => IonizerControl(0, false))">CH1-2 Ion OFF</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Info" Size="Size.Small"
+                           OnClick="@(() => IonizerControl(1, true))">CH3-4 Ion ON</MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small"
+                           OnClick="@(() => IonizerControl(1, false))">CH3-4 Ion OFF</MudButton>
+            </div>
+        </MudPaper>
+
+        @* PG Power Reset *@
+        <MudPaper Class="pa-3 mb-3" Outlined="true">
+            <MudText Typo="Typo.h6" Class="mb-2">PG Power Reset</MudText>
+            <div class="d-flex gap-2">
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small"
+                           OnClick="PgPowerResetAll">All CH Reset</MudButton>
+                @for (int ch = 0; ch < 4; ch++)
+                {
+                    var c = ch;
+                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small"
+                               OnClick="@(() => PgPowerResetCh(c))">CH@(c+1) Reset</MudButton>
+                }
+            </div>
+        </MudPaper>
+
+        @* Error Reset *@
+        <MudPaper Class="pa-3 mb-3" Outlined="true">
+            <MudText Typo="Typo.h6" Class="mb-2">Error Reset</MudText>
+            <div class="d-flex gap-2">
+                <MudButton Variant="Variant.Filled" Color="Color.Warning" Size="Size.Small"
+                           OnClick="@(() => DioCtrl.ResetError(0))">Reset All Errors</MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Warning" Size="Size.Small"
+                           OnClick="@(() => DioCtrl.ResetError(1))">Reset IO Errors</MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Warning" Size="Size.Small"
+                           OnClick="@(() => DioCtrl.ResetError(2))">Reset IO + Display</MudButton>
+            </div>
+        </MudPaper>
+
+        @* Action Log *@
+        @if (_actionLog.Count > 0)
+        {
+            <MudPaper Class="pa-3" Outlined="true">
+                <MudText Typo="Typo.h6" Class="mb-2">Action Log</MudText>
+                <div style="max-height:200px; overflow-y:auto; font-family:monospace; font-size:0.8rem;">
+                    @foreach (var log in _actionLog)
+                    {
+                        <div>@log</div>
+                    }
+                </div>
+            </MudPaper>
+        }
+    </MudTabPanel>
+</MudTabs>
+
+@code {
+    [Inject] private IDioController DioCtrl { get; set; } = default!;
+    [Inject] private IDaeDioDriver DioDriver { get; set; } = default!;
+    [Inject] private ISnackbar Snackbar { get; set; } = default!;
+
+    private const int _refreshMs = 500;
+    private bool _connected;
+    private readonly bool[] _diState = new bool[96];
+    private readonly bool[] _doState = new bool[96];
+    private readonly List<string> _actionLog = new();
+
+    private System.Threading.Timer? _timer;
+
+    protected override void OnInitialized()
+    {
+        RefreshAll();
+
+        // Auto-refresh timer
+        _timer = new System.Threading.Timer(async _ =>
+        {
+            ReadAllSignals();
+            await InvokeAsync(StateHasChanged);
+        }, null, _refreshMs, _refreshMs);
+    }
+
+    private void ReadAllSignals()
+    {
+        _connected = DioCtrl.Connected;
+        for (int i = 0; i < 96; i++)
+        {
+            _diState[i] = DioCtrl.ReadInSig(i);
+            _doState[i] = DioCtrl.ReadOutSig(i);
+        }
+    }
+
+    private void RefreshAll()
+    {
+        ReadAllSignals();
+        StateHasChanged();
+    }
+
+    private void ToggleOutput(int sigIdx)
+    {
+        if (!_connected)
+        {
+            Snackbar.Add("DIO not connected", Severity.Error);
+            return;
+        }
+
+        var currentState = _doState[sigIdx];
+        // WriteDioSig: isRemove=true → OFF, isRemove=false → ON
+        DioCtrl.WriteDioSig(sigIdx, isRemove: currentState);
+        _doState[sigIdx] = !currentState;
+
+        var action = currentState ? "OFF" : "ON";
+        var name = GetOutputSignalName(sigIdx);
+        AddLog($"DO[{sigIdx}] {name} → {action}");
+    }
+
+    private void SetTowerLamp(int state)
+    {
+        DioCtrl.SetTowerLampState(state);
+        AddLog($"Tower Lamp → State {state}");
+    }
+
+    private void LampControl(int group, bool isOn)
+    {
+        var result = DioCtrl.LampOnOff(group, isOn);
+        var groupName = group == 0 ? "CH1-2" : "CH3-4";
+        AddLog($"{groupName} Lamp → {(isOn ? "ON" : "OFF")} (result={result})");
+    }
+
+    private void FanControl(int channel, bool isOn)
+    {
+        DioCtrl.SetFanOnOff(channel, isOn);
+        AddLog($"CH{channel + 1} Fan → {(isOn ? "ON" : "OFF")}");
+    }
+
+    private void IonizerControl(int group, bool isOn)
+    {
+        DioCtrl.SetIonizer(group, isOn);
+        var groupName = group == 0 ? "CH1-2" : "CH3-4";
+        AddLog($"{groupName} Ionizer → {(isOn ? "ON" : "OFF")}");
+    }
+
+    private void PgPowerResetAll()
+    {
+        var result = DioCtrl.PowerResetPg();
+        AddLog($"PG Power Reset All → result={result}");
+    }
+
+    private void PgPowerResetCh(int ch)
+    {
+        var result = DioCtrl.PowerResetPgChannel(ch);
+        AddLog($"PG Power Reset CH{ch + 1} → result={result}");
+    }
+
+    private void AddLog(string message)
+    {
+        _actionLog.Insert(0, $"[{DateTime.Now:HH:mm:ss.fff}] {message}");
+        if (_actionLog.Count > 100) _actionLog.RemoveAt(_actionLog.Count - 1);
+        Snackbar.Add(message, Severity.Info, config => config.VisibleStateDuration = 1500);
+    }
+
+    // =========================================================================
+    // Signal Name Lookup (from DefDio.cs DioInput / DioOutput constants)
+    // =========================================================================
+
+    private static string GetInputSignalName(int idx) => idx switch
+    {
+        DioInput.Fan1Exhaust => "FAN1 Exhaust",
+        DioInput.Fan2Intake => "FAN2 Intake",
+        DioInput.Fan3Exhaust => "FAN3 Exhaust",
+        DioInput.Fan4Intake => "FAN4 Intake",
+        DioInput.EmoSwitch => "EMO Switch",
+        DioInput.Ch12DoorLeftOpen => "CH1-2 Door Left",
+        DioInput.Ch12DoorRightOpen => "CH1-2 Door Right",
+        DioInput.Ch34DoorLeftOpen => "CH3-4 Door Left",
+        DioInput.Ch34DoorRightOpen => "CH3-4 Door Right",
+        DioInput.McMonitoring => "MC Monitoring",
+        DioInput.TemperatureAlarm => "Temp Alarm",
+        DioInput.CylPressureGauge => "Cyl Pressure",
+        // CH1
+        DioInput.Ch1CarrierSensor => "CH1 Carrier",
+        DioInput.Ch1ProbeForwardSensor => "CH1 Probe Fwd",
+        DioInput.Ch1ProbeBackwardSensor => "CH1 Probe Bwd",
+        DioInput.Ch1ProbeUpSensor => "CH1 Probe Up",
+        DioInput.Ch1ProbeDownSensor => "CH1 Probe Dn",
+        DioInput.Ch1CarrierUnlockSensor1 => "CH1 Unlock1",
+        DioInput.Ch1CarrierLock1 => "CH1 Lock1",
+        DioInput.Ch1CarrierUnlockSensor2 => "CH1 Unlock2",
+        DioInput.Ch1CarrierLock2 => "CH1 Lock2",
+        DioInput.Ch1CarrierUnlockSensor3 => "CH1 Unlock3",
+        DioInput.Ch1CarrierLock3 => "CH1 Lock3",
+        DioInput.Ch1CarrierUnlockSensor4 => "CH1 Unlock4",
+        DioInput.Ch1CarrierLock4 => "CH1 Lock4",
+        // CH2
+        DioInput.Ch2CarrierSensor => "CH2 Carrier",
+        DioInput.Ch2ProbeForwardSensor => "CH2 Probe Fwd",
+        DioInput.Ch2ProbeBackwardSensor => "CH2 Probe Bwd",
+        DioInput.Ch2ProbeUpSensor => "CH2 Probe Up",
+        DioInput.Ch2ProbeDownSensor => "CH2 Probe Dn",
+        DioInput.Ch2CarrierUnlockSensor1 => "CH2 Unlock1",
+        DioInput.Ch2CarrierLock1 => "CH2 Lock1",
+        DioInput.Ch2CarrierUnlockSensor2 => "CH2 Unlock2",
+        DioInput.Ch2CarrierLock2 => "CH2 Lock2",
+        DioInput.Ch2CarrierUnlockSensor3 => "CH2 Unlock3",
+        DioInput.Ch2CarrierLock3 => "CH2 Lock3",
+        DioInput.Ch2CarrierUnlockSensor4 => "CH2 Unlock4",
+        DioInput.Ch2CarrierLock4 => "CH2 Lock4",
+        // CH3
+        DioInput.Ch3CarrierSensor => "CH3 Carrier",
+        DioInput.Ch3ProbeForwardSensor => "CH3 Probe Fwd",
+        DioInput.Ch3ProbeBackwardSensor => "CH3 Probe Bwd",
+        DioInput.Ch3ProbeUpSensor => "CH3 Probe Up",
+        DioInput.Ch3ProbeDownSensor => "CH3 Probe Dn",
+        DioInput.Ch3CarrierUnlockSensor1 => "CH3 Unlock1",
+        DioInput.Ch3CarrierLock1 => "CH3 Lock1",
+        DioInput.Ch3CarrierUnlockSensor2 => "CH3 Unlock2",
+        DioInput.Ch3CarrierLock2 => "CH3 Lock2",
+        DioInput.Ch3CarrierUnlockSensor3 => "CH3 Unlock3",
+        DioInput.Ch3CarrierLock3 => "CH3 Lock3",
+        DioInput.Ch3CarrierUnlockSensor4 => "CH3 Unlock4",
+        DioInput.Ch3CarrierLock4 => "CH3 Lock4",
+        // CH4
+        DioInput.Ch4CarrierSensor => "CH4 Carrier",
+        DioInput.Ch4ProbeForwardSensor => "CH4 Probe Fwd",
+        DioInput.Ch4ProbeBackwardSensor => "CH4 Probe Bwd",
+        DioInput.Ch4ProbeUpSensor => "CH4 Probe Up",
+        DioInput.Ch4ProbeDownSensor => "CH4 Probe Dn",
+        DioInput.Ch4CarrierUnlockSensor1 => "CH4 Unlock1",
+        DioInput.Ch4CarrierLock1 => "CH4 Lock1",
+        DioInput.Ch4CarrierUnlockSensor2 => "CH4 Unlock2",
+        DioInput.Ch4CarrierLock2 => "CH4 Lock2",
+        DioInput.Ch4CarrierUnlockSensor3 => "CH4 Unlock3",
+        DioInput.Ch4CarrierLock3 => "CH4 Lock3",
+        DioInput.Ch4CarrierUnlockSensor4 => "CH4 Unlock4",
+        DioInput.Ch4CarrierLock4 => "CH4 Lock4",
+        _ => $"Undefined{idx}"
+    };
+
+    private static string GetOutputSignalName(int idx) => idx switch
+    {
+        DioOutput.Ch12LampOff => "CH1-2 Lamp Off",
+        DioOutput.Ch34LampOff => "CH3-4 Lamp Off",
+        DioOutput.Ch1PgPowerOff => "CH1 PG Power",
+        DioOutput.Ch2PgPowerOff => "CH2 PG Power",
+        DioOutput.Ch3PgPowerOff => "CH3 PG Power",
+        DioOutput.Ch4PgPowerOff => "CH4 PG Power",
+        DioOutput.StartSwLed => "Start SW LED",
+        DioOutput.Ch12DoorLeftUnlock => "CH1-2 Door L Unlock",
+        DioOutput.Ch12DoorRightUnlock => "CH1-2 Door R Unlock",
+        DioOutput.Ch34DoorLeftUnlock => "CH3-4 Door L Unlock",
+        DioOutput.Ch34DoorRightUnlock => "CH3-4 Door R Unlock",
+        DioOutput.ResetSwitchLed => "Reset SW LED",
+        DioOutput.TowerLampRed => "Tower Red",
+        DioOutput.TowerLampYellow => "Tower Yellow",
+        DioOutput.TowerLampGreen => "Tower Green",
+        DioOutput.Buzzer1 => "Buzzer 1",
+        DioOutput.Buzzer2 => "Buzzer 2",
+        DioOutput.Buzzer3 => "Buzzer 3",
+        DioOutput.Buzzer4 => "Buzzer 4",
+        DioOutput.Ch12IonOnOffSol => "CH1-2 Ionizer",
+        DioOutput.Ch34IonOnOffSol => "CH3-4 Ionizer",
+        DioOutput.Ch12BackDoorLampOn => "CH1-2 BackDoor Lamp",
+        DioOutput.Ch34BackDoorLampOn => "CH3-4 BackDoor Lamp",
+        // CH1 Solenoids
+        DioOutput.Ch1ProbeForwardSol => "CH1 Probe Fwd Sol",
+        DioOutput.Ch1ProbeBackwardSol => "CH1 Probe Bwd Sol",
+        DioOutput.Ch1ProbeUpSol => "CH1 Probe Up Sol",
+        DioOutput.Ch1ProbeDownSol => "CH1 Probe Dn Sol",
+        DioOutput.Ch1CarrierUnlockSol => "CH1 Carrier Unlock",
+        DioOutput.Ch1CarrierLockSol => "CH1 Carrier Lock",
+        DioOutput.Ch1PmicLaserPoint => "CH1 PMIC Laser",
+        DioOutput.Ch1CenterLaserPoint => "CH1 Center Laser",
+        DioOutput.Ch1PmicFanOn => "CH1 PMIC Fan",
+        // CH2 Solenoids
+        DioOutput.Ch2ProbeForwardSol => "CH2 Probe Fwd Sol",
+        DioOutput.Ch2ProbeBackwardSol => "CH2 Probe Bwd Sol",
+        DioOutput.Ch2ProbeUpSol => "CH2 Probe Up Sol",
+        DioOutput.Ch2ProbeDownSol => "CH2 Probe Dn Sol",
+        DioOutput.Ch2CarrierUnlockSol => "CH2 Carrier Unlock",
+        DioOutput.Ch2CarrierLockSol => "CH2 Carrier Lock",
+        DioOutput.Ch2PmicLaserPoint => "CH2 PMIC Laser",
+        DioOutput.Ch2CenterLaserPoint => "CH2 Center Laser",
+        DioOutput.Ch2PmicFanOn => "CH2 PMIC Fan",
+        // CH3 Solenoids
+        DioOutput.Ch3ProbeForwardSol => "CH3 Probe Fwd Sol",
+        DioOutput.Ch3ProbeBackwardSol => "CH3 Probe Bwd Sol",
+        DioOutput.Ch3ProbeUpSol => "CH3 Probe Up Sol",
+        DioOutput.Ch3ProbeDownSol => "CH3 Probe Dn Sol",
+        DioOutput.Ch3CarrierUnlockSol => "CH3 Carrier Unlock",
+        DioOutput.Ch3CarrierLockSol => "CH3 Carrier Lock",
+        DioOutput.Ch3PmicLaserPoint => "CH3 PMIC Laser",
+        DioOutput.Ch3CenterLaserPoint => "CH3 Center Laser",
+        DioOutput.Ch3PmicFanOn => "CH3 PMIC Fan",
+        // CH4 Solenoids
+        DioOutput.Ch4ProbeForwardSol => "CH4 Probe Fwd Sol",
+        DioOutput.Ch4ProbeBackwardSol => "CH4 Probe Bwd Sol",
+        DioOutput.Ch4ProbeUpSol => "CH4 Probe Up Sol",
+        DioOutput.Ch4ProbeDownSol => "CH4 Probe Dn Sol",
+        DioOutput.Ch4CarrierUnlockSol => "CH4 Carrier Unlock",
+        DioOutput.Ch4CarrierLockSol => "CH4 Carrier Lock",
+        DioOutput.Ch4PmicLaserPoint => "CH4 PMIC Laser",
+        DioOutput.Ch4CenterLaserPoint => "CH4 Center Laser",
+        DioOutput.Ch4PmicFanOn => "CH4 PMIC Fan",
+        _ => $"Undefined{idx}"
+    };
+
+    public void Dispose() => _timer?.Dispose();
+}

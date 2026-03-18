@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ITOLED OC</title>
+    <base href="/" />
+    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet" />
+    <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
+    <link href="css/app.css" rel="stylesheet" />
+</head>
+<body>
+    <div id="app">Loading...</div>
+    <script src="_framework/blazor.webview.js"></script>
+    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
+    <script>
+        // Delphi: mmChannelLog.Perform(WM_VSCROLL, SB_BOTTOM, 0)
+        window.scrollToBottom = function (elementId) {
+            var el = document.getElementById(elementId);
+            if (el) el.scrollTop = el.scrollHeight;
+        };
+    </script>
+</body>
+</html>

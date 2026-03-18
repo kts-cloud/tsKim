@@ -1,0 +1,318 @@
+@page "/test"
+@* Test4ChPage — replaces Test4ChOC.pas/Test4ChOC.dfm *@
+@* 4-channel test execution page with per-channel inspection monitoring *@
+@using Dongaeltek.ITOLED.Core.Definitions
+@using Dongaeltek.ITOLED.Core.Interfaces
+@using Dongaeltek.ITOLED.Hardware.Dio
+@using Dongaeltek.ITOLED.Hardware.PatternGenerator
+@using Dongaeltek.ITOLED.Hardware.Plc
+@using Dongaeltek.ITOLED.OC.Services
+@using Dongaeltek.ITOLED.OC.Components
+@implements IDisposable
+
+<PageTitle>4Ch Test</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-2">4-Channel Inspection Test</MudText>
+
+@* ═══════════════════════════════════════════════════════════════════
+   JIG Control Panels (JIG A = CH1+CH2, JIG B = CH3+CH4)
+   ═══════════════════════════════════════════════════════════════════ *@
+<MudGrid Spacing="2" Class="mb-3">
+    @for (int j = 0; j < 2; j++)
+    {
+        var jig = j;
+        var jigLabel = jig == 0 ? "JIG A (CH1, CH2)" : "JIG B (CH3, CH4)";
+        <MudItem xs="6">
+            <MudPaper Class="pa-2" Outlined="true">
+                <MudText Typo="Typo.subtitle1" Style="color: var(--mud-palette-info); font-weight: 600;">
+                    @jigLabel
+                </MudText>
+                <div class="d-flex gap-2 mt-1 flex-wrap">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                               OnClick="@(() => StartTest(jig))"
+                               StartIcon="@Icons.Material.Filled.PlayArrow">
+                        Start
+                    </MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Error" Size="Size.Small"
+                               OnClick="@(() => StopTest(jig))"
+                               StartIcon="@Icons.Material.Filled.Stop">
+                        Stop
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                               OnClick="@(() => ToggleLamp(jig))"
+                               Color="@(_lampOn[jig] ? Color.Warning : Color.Default)"
+                               StartIcon="@Icons.Material.Filled.Lightbulb">
+                        @(_lampOn[jig] ? "Lamp ON" : "Lamp OFF")
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                               OnClick="@(() => ToggleIonizer(jig))"
+                               Color="@(_ionizerOn[jig] ? Color.Info : Color.Default)"
+                               StartIcon="@Icons.Material.Filled.Air">
+                        @(_ionizerOn[jig] ? "Ionizer ON" : "Ionizer OFF")
+                    </MudButton>
+                </div>
+            </MudPaper>
+        </MudItem>
+    }
+</MudGrid>
+
+@* ═══════════════════════════════════════════════════════════════════
+   Per-Channel Panels (CH1 ~ CH4)
+   ═══════════════════════════════════════════════════════════════════ *@
+@for (int i = 0; i < 4; i++)
+{
+    var ch = i;
+    var s = _ch[ch];
+    <MudPaper Class="pa-3 mb-3" Elevation="1" Style="@(s.Enabled ? "" : "opacity: 0.5;")">
+
+        @* ── Channel Header ──────────────────────────────────────── *@
+        <div class="d-flex align-center gap-3 mb-2">
+            <MudCheckBox T="bool" Value="@s.Enabled" ValueChanged="@(_ => ToggleChannelEnabled(ch))"
+                         Color="Color.Primary" Dense="true" />
+            <MudText Typo="Typo.h6" Style="min-width: 50px;">CH@(ch + 1)</MudText>
+
+            @* Serial Number *@
+            <MudPaper Class="pa-1 px-2" Outlined="true"
+                      Style="@(string.IsNullOrEmpty(s.SerialNo) ? "background: #1565C0; color: white;" : "background: #E3F2FD;")">
+                <MudText Typo="Typo.body2" Style="font-family: monospace; min-width: 160px;">
+                    @(string.IsNullOrEmpty(s.SerialNo) ? "Scan BCR" : s.SerialNo)
+                </MudText>
+            </MudPaper>
+
+            <MudSpacer />
+
+            @* Status Chip *@
+            <MudChip T="string" Size="Size.Small" Color="@GetResultChipColor(s.StatusCode)">
+                @s.StatusText
+            </MudChip>
+
+            @* Per-Channel Start/Stop *@
+            <MudIconButton Icon="@Icons.Material.Filled.PlayArrow" Size="Size.Small"
+                           Color="Color.Primary" OnClick="@(() => StartSingleChannel(ch))"
+                           title="Start Channel" />
+            <MudIconButton Icon="@Icons.Material.Filled.Stop" Size="Size.Small"
+                           Color="Color.Error" OnClick="@(() => StopSingleChannel(ch))"
+                           title="Stop Channel" />
+        </div>
+
+        @* ── CA-410 Connection Info ─────────────────────────────────── *@
+        <div class="d-flex align-center gap-2 mb-1">
+            <MudIcon Icon="@Icons.Material.Filled.Circle" Size="Size.Small"
+                     Color="@(s.Ca410Connected ? Color.Success : Color.Error)" />
+            <MudText Typo="Typo.caption" Style="font-family: monospace;">
+                @if (!string.IsNullOrEmpty(s.Ca410Info))
+                {
+                    @s.Ca410Info
+                }
+                else
+                {
+                    <span style="color: #9E9E9E;">CA-410: Disconnected</span>
+                }
+            </MudText>
+        </div>
+
+        @* ── PG Version Info (Delphi: pnlHwVersion[nCh]) ──────────── *@
+        <div class="d-flex align-center gap-2 mb-2">
+            <MudIcon Icon="@Icons.Material.Filled.Circle" Size="Size.Small"
+                     Color="@s.PgLedColor" />
+            <MudText Typo="Typo.caption" Style="font-family: monospace;">
+                @s.PgVersionText
+            </MudText>
+        </div>
+
+        <MudGrid Spacing="2">
+
+            @* ── Row 1: Result + Counts + Tact Time ────────────────── *@
+            <MudItem xs="3">
+                @* Large Result Display (Delphi: pnlPGStatuses) *@
+                <MudPaper Class="pa-3 d-flex align-center justify-center" Elevation="0"
+                          Style="@($"min-height: 80px; border-radius: 4px; {GetResultColor(s.StatusCode)}")">
+                    <MudText Typo="Typo.h4" Align="Align.Center" Style="font-weight: 700;">
+                        @s.StatusText
+                    </MudText>
+                </MudPaper>
+                @if (!string.IsNullOrEmpty(s.MesResult))
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Info" Class="mt-1">
+                        @s.MesResult
+                    </MudChip>
+                }
+            </MudItem>
+
+            <MudItem xs="3">
+                @* Test Count (Delphi: pnlTotalValues/pnlOKValues/pnlNGValues) *@
+                <MudSimpleTable Dense="true" Hover="true" Style="background: var(--mud-palette-surface);">
+                    <tbody>
+                        <tr>
+                            <td style="font-weight:600;">TOTAL</td>
+                            <td style="color: var(--mud-palette-warning); font-weight:600;">@s.TotalCount</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;">OK</td>
+                            <td style="color: var(--mud-palette-success); font-weight:600;">@s.OkCount</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;">NG</td>
+                            <td style="color: var(--mud-palette-error); font-weight:600;">@s.NgCount</td>
+                        </tr>
+                    </tbody>
+                </MudSimpleTable>
+                <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Default"
+                           OnClick="@(() => ResetCount(ch))" Class="mt-1"
+                           StartIcon="@Icons.Material.Filled.RestartAlt">
+                    Reset
+                </MudButton>
+            </MudItem>
+
+            <MudItem xs="3">
+                @* Tact Time (Delphi: pnlNowValues/pnlUnitTactVal) *@
+                <MudPaper Class="pa-2" Style="background: #212121;">
+                    <MudText Typo="Typo.caption" Style="color: #9E9E9E;">Total Tact</MudText>
+                    <MudText Typo="Typo.h6" Style="color: #76FF03; font-family: monospace; font-weight: 700;">
+                        @FormatTactTime(s.TotalTactSec)
+                    </MudText>
+                    <MudText Typo="Typo.caption" Style="color: #9E9E9E; margin-top: 4px;">Unit Tact</MudText>
+                    <MudText Typo="Typo.h6" Style="color: #FFD600; font-family: monospace; font-weight: 700;">
+                        @FormatUnitTactTime(s.UnitTactSec)
+                    </MudText>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="3">
+                @* Power Data Grid (Delphi: gridPWRPGs) *@
+                <MudSimpleTable Dense="true" Hover="true" Style="font-size: 0.8rem;">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th>Voltage</th>
+                            <th>mA</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="font-weight:600;">VCC</td>
+                            <td>@s.VccVoltage.ToString("F3")</td>
+                            <td>@s.VccCurrent.ToString("F1")</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;">VIN</td>
+                            <td>@s.VinVoltage.ToString("F3")</td>
+                            <td>@s.VinCurrent.ToString("F1")</td>
+                        </tr>
+                    </tbody>
+                </MudSimpleTable>
+            </MudItem>
+
+            @* ── Row 2: DIO LEDs + Previous Results ────────────────── *@
+            <MudItem xs="8">
+                @* DIO Signal LEDs (Delphi: ledDi*/ledDo* in pnlGrpDio) *@
+                <MudPaper Class="pa-2" Outlined="true">
+                    <MudText Typo="Typo.caption" Style="font-weight:600;" Class="mb-1">
+                        DIO Signals
+                    </MudText>
+                    <div class="d-flex gap-4 flex-wrap">
+                        @* DI — Probe Sensors (green) *@
+                        <div>
+                            <MudText Typo="Typo.overline" Style="color: #66BB6A;">DI Probe</MudText>
+                            <div class="d-flex flex-column gap-0">
+                                <LedIndicator IsOn="@s.DiProbeForward" Label="FWD" OnColor="Color.Success" />
+                                <LedIndicator IsOn="@s.DiProbeBackward" Label="BWD" OnColor="Color.Success" />
+                                <LedIndicator IsOn="@s.DiProbeUp" Label="UP" OnColor="Color.Success" />
+                                <LedIndicator IsOn="@s.DiProbeDown" Label="DN" OnColor="Color.Success" />
+                            </div>
+                        </div>
+
+                        @* DO — Probe Solenoids (yellow) *@
+                        <div>
+                            <MudText Typo="Typo.overline" Style="color: #FDD835;">DO Probe</MudText>
+                            <div class="d-flex flex-column gap-0">
+                                <LedIndicator IsOn="@s.DoProbeForward" Label="FWD" OnColor="Color.Warning" />
+                                <LedIndicator IsOn="@s.DoProbeBackward" Label="BWD" OnColor="Color.Warning" />
+                                <LedIndicator IsOn="@s.DoProbeUp" Label="UP" OnColor="Color.Warning" />
+                                <LedIndicator IsOn="@s.DoProbeDown" Label="DN" OnColor="Color.Warning" />
+                            </div>
+                        </div>
+
+                        @* DI — Carrier Lock Sensors (green) *@
+                        <div>
+                            <MudText Typo="Typo.overline" Style="color: #66BB6A;">DI Lock</MudText>
+                            <div class="d-flex flex-column gap-0">
+                                <LedIndicator IsOn="@s.DiCarrierLock1" Label="LK1" OnColor="Color.Success" />
+                                <LedIndicator IsOn="@s.DiCarrierLock2" Label="LK2" OnColor="Color.Success" />
+                                <LedIndicator IsOn="@s.DiCarrierLock3" Label="LK3" OnColor="Color.Success" />
+                                <LedIndicator IsOn="@s.DiCarrierLock4" Label="LK4" OnColor="Color.Success" />
+                            </div>
+                        </div>
+
+                        @* DI — Carrier Unlock Sensors (green) *@
+                        <div>
+                            <MudText Typo="Typo.overline" Style="color: #66BB6A;">DI Unlock</MudText>
+                            <div class="d-flex flex-column gap-0">
+                                <LedIndicator IsOn="@s.DiCarrierUnlock1" Label="UL1" OnColor="Color.Success" />
+                                <LedIndicator IsOn="@s.DiCarrierUnlock2" Label="UL2" OnColor="Color.Success" />
+                                <LedIndicator IsOn="@s.DiCarrierUnlock3" Label="UL3" OnColor="Color.Success" />
+                                <LedIndicator IsOn="@s.DiCarrierUnlock4" Label="UL4" OnColor="Color.Success" />
+                            </div>
+                        </div>
+
+                        @* DO — Carrier Solenoids + Detection (yellow) *@
+                        <div>
+                            <MudText Typo="Typo.overline" Style="color: #FDD835;">DO / Detect</MudText>
+                            <div class="d-flex flex-column gap-0">
+                                <LedIndicator IsOn="@s.DoCarrierLock" Label="LkSol" OnColor="Color.Warning" />
+                                <LedIndicator IsOn="@s.DoCarrierUnlock" Label="UlSol" OnColor="Color.Warning" />
+                                <LedIndicator IsOn="@s.DiDetect" Label="Detect" OnColor="Color.Success" />
+                            </div>
+                        </div>
+                    </div>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="4">
+                @* Previous Results (Delphi: pnlPrevResult) *@
+                <MudPaper Class="pa-2" Outlined="true">
+                    <MudText Typo="Typo.caption" Style="font-weight:600;" Class="mb-1">
+                        Previous Results (@s.PrevResults.Count)
+                    </MudText>
+                    <div class="d-flex gap-1 flex-wrap">
+                        @foreach (var prev in s.PrevResults)
+                        {
+                            <MudTooltip Text="@(prev.IsPass ? "PASS" : $"NG:{prev.NgCode}")">
+                                <MudIcon Icon="@Icons.Material.Filled.Circle" Size="Size.Small"
+                                         Color="@(prev.IsPass ? Color.Success : Color.Error)" />
+                            </MudTooltip>
+                        }
+                        @if (s.PrevResults.Count == 0)
+                        {
+                            <MudText Typo="Typo.caption" Style="color: #9E9E9E;">No results yet</MudText>
+                        }
+                    </div>
+                </MudPaper>
+            </MudItem>
+
+            @* ── Row 3: Channel Log ────────────────────────────────── *@
+            <MudItem xs="12">
+                @* Channel Log (Delphi: mmChannelLog) *@
+                <MudPaper id="@($"log-ch{ch}")" Class="pa-2" Style="background: #1a1a1a; max-height: 150px; overflow-y: auto;">
+                    <MudText Typo="Typo.caption" Style="color: #9E9E9E; font-weight:600;" Class="mb-1">
+                        CH@(ch + 1) Log
+                    </MudText>
+                    @foreach (var logLine in s.LogEntries)
+                    {
+                        <MudText Typo="Typo.body2"
+                                 Style="font-family: 'Consolas', monospace; font-size: 0.75rem; color: #E0E0E0; line-height: 1.3;">
+                            @logLine
+                        </MudText>
+                    }
+                    @if (s.LogEntries.Count == 0)
+                    {
+                        <MudText Typo="Typo.body2"
+                                 Style="font-family: 'Consolas', monospace; font-size: 0.75rem; color: #616161;">
+                            (empty)
+                        </MudText>
+                    }
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+}

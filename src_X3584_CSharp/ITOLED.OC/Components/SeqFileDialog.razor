@@ -1,0 +1,36 @@
+@* SeqFileDialog.razor — File selection dialog for loading .seq files *@
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Load Sequence File</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudList T="string" @bind-SelectedValue="_selectedFile" Dense="true"
+                 Style="max-height:300px;overflow-y:auto;border:1px solid var(--mud-palette-lines-default);border-radius:4px;">
+            @foreach (var file in Files)
+            {
+                <MudListItem T="string" Value="@file" Text="@file" />
+            }
+        </MudList>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="OnCancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="OnOk">Load</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public string[] Files { get; set; } = [];
+
+    private string _selectedFile = "";
+
+    private void OnOk()
+    {
+        if (string.IsNullOrEmpty(_selectedFile))
+            return;
+        MudDialog.Close(DialogResult.Ok(_selectedFile));
+    }
+
+    private void OnCancel() => MudDialog.Cancel();
+}

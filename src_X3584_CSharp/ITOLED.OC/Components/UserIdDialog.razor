@@ -1,0 +1,76 @@
+@* UserIdDialog.razor — Replaces Delphi TUserIdDlg (UserID.pas) *@
+@* Modal dialog for MES User ID input during login. *@
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Input User ID</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudTextField @ref="_textField" T="string" @bind-Value="_userId"
+                      Label="USER ID" Placeholder="Enter User ID or PM"
+                      Variant="Variant.Outlined" Margin="Margin.Dense"
+                      MaxLength="9" AutoFocus="true"
+                      OnKeyDown="OnKeyDown"
+                      HelperText="5~9 chars or PM" />
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <MudText Typo="Typo.caption" Color="Color.Error" Class="mt-1">@_errorMessage</MudText>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="OnCancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="OnOk">OK</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    /// <summary>
+    /// Pre-fill value (e.g. AutoLoginID or current MesUserId).
+    /// </summary>
+    [Parameter] public string DefaultUserId { get; set; } = "";
+
+    private MudTextField<string>? _textField;
+    private string _userId = "";
+    private string _errorMessage = "";
+
+    protected override void OnInitialized()
+    {
+        _userId = DefaultUserId;
+    }
+
+    private void OnOk()
+    {
+        var input = _userId?.Trim() ?? "";
+
+        // Delphi: if PM → accept; if length 5~9 → accept; else reject
+        if (string.Equals(input, "PM", StringComparison.OrdinalIgnoreCase))
+        {
+            MudDialog.Close(DialogResult.Ok(input.ToUpper()));
+            return;
+        }
+
+        if (input.Length < 5 || input.Length > 9)
+        {
+            _errorMessage = "Retry to input User ID number! (5~9 chars or PM)";
+            _userId = "";
+            return;
+        }
+
+        MudDialog.Close(DialogResult.Ok(input));
+    }
+
+    private void OnCancel()
+    {
+        MudDialog.Cancel();
+    }
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+            OnOk();
+        else if (e.Key == "Escape")
+            OnCancel();
+    }
+}

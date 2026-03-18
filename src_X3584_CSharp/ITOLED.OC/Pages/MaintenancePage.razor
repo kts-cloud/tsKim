@@ -1,0 +1,1693 @@
+@page "/maintenance"
+@implements IDisposable
+@using System.IO
+@inject IJSRuntime JS
+@* MaintenancePage — replaces Mainter.pas/Mainter.dfm *@
+@* Maintenance operations: PG communication, DIO test, manual device control *@
+
+<PageTitle>Maintenance</PageTitle>
+
+@if (!_isAuthenticated)
+{
+    <MudPaper Class="pa-6 d-flex flex-column align-center justify-center" Style="min-height: 300px;">
+        <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Large" Color="Color.Warning" Class="mb-3" />
+        <MudText Typo="Typo.h6" Class="mb-3">Admin Login Required</MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="OnAdminLoginClick">Login</MudButton>
+    </MudPaper>
+}
+else
+{
+
+<MudText Typo="Typo.h5" Class="mb-3">Maintenance</MudText>
+
+<MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
+    @* ── PG Communication Tab (Delphi: Mainter.pas PG/CAM tab) ── *@
+    <MudTabPanel Text="PG Comm" Icon="@Icons.Material.Filled.Cable">
+        <MudGrid Spacing="2">
+            @* ── Left: Status + Command ── *@
+            <MudItem xs="6">
+                @* PG Channel Selector (Delphi: cboChannelPg) *@
+                <MudSelect T="int" Label="PG Channel" Value="_selectedPgCh"
+                           ValueChanged="OnPgChannelChanged"
+                           Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-2">
+                    <MudSelectItem T="int" Value="0">CH 1</MudSelectItem>
+                    <MudSelectItem T="int" Value="1">CH 2</MudSelectItem>
+                    <MudSelectItem T="int" Value="2">CH 3</MudSelectItem>
+                    <MudSelectItem T="int" Value="3">CH 4</MudSelectItem>
+                </MudSelect>
+
+                @* PG Status *@
+                <MudPaper Class="pa-3 mb-2">
+                    <MudText Typo="Typo.subtitle1" Class="mb-2">PG Status (DP860) — CH @(_selectedPgCh + 1)</MudText>
+                    <MudGrid Spacing="1">
+                        <MudItem xs="4">
+                            <MudText Typo="Typo.body2">Status:</MudText>
+                            <MudChip T="string" Color="@GetPgStatusColor()" Size="Size.Small">@_pgStatusText</MudChip>
+                        </MudItem>
+                        <MudItem xs="4">
+                            <MudText Typo="Typo.body2">IP:</MudText>
+                            <MudText Typo="Typo.caption" Style="font-family: monospace;">@_pgIpAddress</MudText>
+                        </MudItem>
+                        <MudItem xs="4">
+                            <MudText Typo="Typo.body2">Version:</MudText>
+                            <MudText Typo="Typo.caption" Style="font-family: monospace;">@_pgVersion</MudText>
+                        </MudItem>
+                    </MudGrid>
+                    @if (PgDriver.IsPowerOn)
+                    {
+                        <MudDivider Class="my-2" />
+                        <MudText Typo="Typo.body2" Class="mb-1">Power Data (mV)</MudText>
+                        <MudText Typo="Typo.caption" Style="font-family: monospace;">
+                            VCC=@(PgDriver.PowerData.Vcc)
+                            VIN=@(PgDriver.PowerData.Vin)
+                            VDD3=@(PgDriver.PowerData.Vdd3)
+                        </MudText>
+                    }
+                </MudPaper>
+
+                @* Command Input *@
+                <MudPaper Class="pa-3">
+                    <MudText Typo="Typo.subtitle1" Class="mb-2">PG Command</MudText>
+                    <MudSelect T="int" Label="Command" @bind-Value="_selectedPgCmd"
+                               Variant="Variant.Outlined" Margin="Margin.Dense">
+                        @for (int i = 0; i < _pgCmdLabels.Length; i++)
+                        {
+                            var idx = i;
+                            <MudSelectItem T="int" Value="idx">@_pgCmdLabels[idx]</MudSelectItem>
+                        }
+                    </MudSelect>
+                    <MudTextField T="string" @bind-Value="_pgParam" Label="Parameter" Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" Class="mt-2" Placeholder="@GetParamHint()"
+                                  HelperText="@GetParamHint()" />
+                    <div class="d-flex gap-2 mt-2">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                   OnClick="OnSendPgCmd" Disabled="@(_pgCmdBusy || _seqRunning)">
+                            @if (_pgCmdBusy)
+                            {
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" />
+                            }
+                            Send
+                        </MudButton>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="OnClearLog">
+                            Clear Log
+                        </MudButton>
+                    </div>
+                </MudPaper>
+            </MudItem>
+
+            @* ── Right: TX/RX Log ── *@
+            <MudItem xs="6">
+                <MudPaper Class="pa-3" Style="height: 480px; display: flex; flex-direction: column;">
+                    @{
+                        LogEntry[] logSnapshot;
+                        lock (_pgLogLock) { logSnapshot = _pgLog.ToArray(); }
+                    }
+                    <MudText Typo="Typo.subtitle1" Class="mb-2">TX/RX Log (@logSnapshot.Length)</MudText>
+                    <div id="pgLogPanel" style="flex: 1; overflow-y: auto; background: #1a1a1a; padding: 4px 8px; border-radius: 4px;">
+                        @foreach (var entry in logSnapshot)
+                        {
+                            <div style="@GetLogLineStyle(entry.Direction); font-family: 'Consolas', monospace; font-size: 0.75rem; line-height: 1.5; border-bottom: 1px solid #2a2a2a; padding: 1px 0;">
+                                <span style="color: #757575;">@entry.Time</span>
+                                <span style="@GetLogDirectionStyle(entry.Direction); font-weight: 600; margin: 0 4px;">@entry.Direction</span>
+                                <span>@entry.Message</span>
+                            </div>
+                        }
+                        @if (logSnapshot.Length == 0)
+                        {
+                            <div style="color: #616161; font-family: monospace; font-size: 0.75rem; padding: 8px;">(no log)</div>
+                        }
+                    </div>
+                </MudPaper>
+            </MudItem>
+
+            @* ── Test Sequence Panel ── *@
+            <MudItem xs="12">
+                <MudExpansionPanels MultiExpansion="true">
+                    <MudExpansionPanel Text="Test Sequence" Icon="@Icons.Material.Filled.PlaylistPlay">
+                        <MudGrid Spacing="2">
+                            @* File management + Test Count *@
+                            <MudItem xs="12">
+                                <div class="d-flex align-center gap-2">
+                                    <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Filled.FolderOpen"
+                                               OnClick="OnSeqLoad" Disabled="_seqRunning">Load</MudButton>
+                                    <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Filled.Save"
+                                               OnClick="OnSeqSave" Disabled="_seqRunning">Save</MudButton>
+                                    <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Filled.SaveAs"
+                                               OnClick="OnSeqSaveAs" Disabled="_seqRunning">Save As</MudButton>
+                                    @if (!string.IsNullOrEmpty(_seqFilePath))
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Text">@_seqFilePath</MudChip>
+                                    }
+                                    <MudSpacer />
+                                    <MudNumericField T="int" @bind-Value="_seqTestCount" Label="Test Count"
+                                                     Min="1" Max="9999" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                     Style="max-width: 120px;" Disabled="_seqRunning" />
+                                </div>
+                            </MudItem>
+
+                            @* Command text area *@
+                            <MudItem xs="12">
+                                <MudTextField T="string" @bind-Value="_seqText" Label="Commands (one per line, // for comments)"
+                                              Variant="Variant.Outlined" Lines="8" ReadOnly="_seqRunning"
+                                              Style="font-family: 'Consolas', monospace; font-size: 0.85rem;" />
+                            </MudItem>
+
+                            @* Progress *@
+                            @if (_seqRunning)
+                            {
+                                <MudItem xs="12">
+                                    <MudProgressLinear Color="Color.Primary" Striped="true" Size="Size.Medium"
+                                                       Value="@SeqProgressPercent" />
+                                    <MudText Typo="Typo.caption" Style="font-family: monospace;" Class="mt-1">@_seqProgressText</MudText>
+                                </MudItem>
+                            }
+
+                            @* Start / Stop *@
+                            <MudItem xs="12">
+                                <div class="d-flex gap-2">
+                                    <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.PlayArrow"
+                                               OnClick="OnSeqStart" Disabled="@(_seqRunning || _pgCmdBusy)">
+                                        Test Start
+                                    </MudButton>
+                                    <MudButton Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.Stop"
+                                               OnClick="OnSeqStop" Disabled="@(!_seqRunning)">
+                                        Test Stop
+                                    </MudButton>
+                                </div>
+                            </MudItem>
+                        </MudGrid>
+                    </MudExpansionPanel>
+                </MudExpansionPanels>
+            </MudItem>
+        </MudGrid>
+    </MudTabPanel>
+
+    @* ── DIO Test Tab ──────────────────────────────── *@
+    <MudTabPanel Text="DIO Test" Icon="@Icons.Material.Filled.SettingsInputComponent">
+        <MudGrid Spacing="2">
+            <MudItem xs="6">
+                <MudPaper Class="pa-3">
+                    <MudText Typo="Typo.subtitle1" Class="mb-2">DIO Output</MudText>
+                    @for (int bit = 0; bit < 16; bit++)
+                    {
+                        var b = bit;
+                        <MudCheckBox T="bool" Label="@($"OUT {b:D2}")"
+                                     Value="@_dioOutput[b]" ValueChanged="@(v => OnDioOutputChanged(b, v))"
+                                     Dense="true" />
+                    }
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="6">
+                <MudPaper Class="pa-3">
+                    <MudText Typo="Typo.subtitle1" Class="mb-2">DIO Input (Read-Only)</MudText>
+                    @for (int bit = 0; bit < 16; bit++)
+                    {
+                        var b = bit;
+                        <MudCheckBox T="bool" Label="@($"IN {b:D2}")" Value="@_dioInput[b]"
+                                     ReadOnly="true" Dense="true" />
+                    }
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    </MudTabPanel>
+
+    @* ── FTP Test Tab ─────────────────────── *@
+    <MudTabPanel Text="FTP Test" Icon="@Icons.Material.Filled.CloudUpload">
+        @* Row 1: Connection Bar *@
+        <MudPaper Class="pa-2 mb-2">
+            <div class="d-flex align-center gap-3 flex-wrap">
+                <MudSelect T="int" Label="Channel" Value="_ftpSelectedCh" ValueChanged="OnFtpChannelChanged"
+                           Variant="Variant.Outlined" Margin="Margin.Dense" Style="width: 100px;">
+                    <MudSelectItem T="int" Value="0">CH 1</MudSelectItem>
+                    <MudSelectItem T="int" Value="1">CH 2</MudSelectItem>
+                    <MudSelectItem T="int" Value="2">CH 3</MudSelectItem>
+                    <MudSelectItem T="int" Value="3">CH 4</MudSelectItem>
+                </MudSelect>
+                <MudChip T="string" Size="Size.Small"
+                         Color="@(_ftpUseDpdk ? Color.Success : Color.Info)" Variant="Variant.Filled">
+                    @(_ftpUseDpdk ? "DPDK lwIP" : "Socket")
+                </MudChip>
+                <MudText Typo="Typo.body2" Style="font-family: monospace;">
+                    @(PgDrivers[_ftpSelectedCh].PgIpAddress):21
+                </MudText>
+                <MudIcon Icon="@(_ftpConnected ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Cancel)"
+                         Color="@(_ftpConnected ? Color.Success : Color.Default)" Size="Size.Small" />
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                           OnClick="OnFtpConnect" Disabled="@(_ftpConnected || _ftpBusy)">
+                    @if (_ftpBusy && !_ftpConnected) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" /> }
+                    Connect
+                </MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Error" Size="Size.Small"
+                           OnClick="OnFtpDisconnect" Disabled="@(!_ftpConnected || _ftpBusy)">
+                    Disconnect
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                           OnClick="OnFtpRefreshList" Disabled="@(!_ftpConnected || _ftpTransferring)"
+                           StartIcon="@Icons.Material.Filled.Refresh">
+                    Refresh
+                </MudButton>
+                <MudSpacer />
+                <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="OnFtpClearLog">Clear Log</MudButton>
+            </div>
+        </MudPaper>
+
+        @* Row 2: File List + Log *@
+        <MudGrid Spacing="2">
+            <MudItem xs="7">
+                <MudPaper Class="pa-3" Style="height: 340px; display: flex; flex-direction: column;">
+                    <MudText Typo="Typo.subtitle2" Class="mb-1">Remote Files (/home/upload)</MudText>
+                    @if (!_ftpConnected)
+                    {
+                        <MudAlert Severity="Severity.Info" Dense="true" Class="my-2">Connect to PG to browse files</MudAlert>
+                    }
+                    else if (_ftpFiles.Count == 0)
+                    {
+                        <MudAlert Severity="Severity.Normal" Dense="true" Class="my-2">No files (or LIST pending)</MudAlert>
+                    }
+                    <div style="flex: 1; overflow-y: auto;">
+                        <MudSimpleTable Dense="true" Hover="true" Striped="true" Style="font-size: 0.8rem;">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th style="width:80px;">Size</th>
+                                    <th style="width:110px;">Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @{ var filesSnapshot = _ftpFiles.ToArray(); }
+                                @foreach (var f in filesSnapshot)
+                                {
+                                    var isSelected = _ftpSelectedFileEntry == f;
+                                    <tr @onclick="() => OnFileRowClicked(f)"
+                                        style="cursor: pointer; @(isSelected ? "background: rgba(25,118,210,0.2);" : "")">
+                                        <td>
+                                            <MudIcon Icon="@(f.IsDirectory ? Icons.Material.Filled.Folder : Icons.Material.Filled.InsertDriveFile)"
+                                                     Size="Size.Small" Class="mr-1"
+                                                     Color="@(f.IsDirectory ? Color.Warning : Color.Default)" />
+                                            @f.Name
+                                        </td>
+                                        <td>@(f.IsDirectory ? "-" : FormatFileSize(f.Size))</td>
+                                        <td>@f.Date</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </MudSimpleTable>
+                    </div>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="5">
+                <MudPaper Class="pa-3" Style="height: 340px; display: flex; flex-direction: column;">
+                    <MudText Typo="Typo.subtitle2" Class="mb-1">FTP Log</MudText>
+                    <div id="ftpLogPanel" style="flex: 1; overflow-y: auto; background: #1a1a1a; padding: 4px 8px; border-radius: 4px;">
+                        @{ string[] logSnapshot; lock (_ftpLogLock) { logSnapshot = _ftpLog.ToArray(); } }
+                        @foreach (var line in logSnapshot)
+                        {
+                            <div style="font-family: 'Consolas', monospace; font-size: 0.72rem; line-height: 1.4; color: @GetFtpLogColor(line); border-bottom: 1px solid #2a2a2a; padding: 1px 0;">
+                                @line
+                            </div>
+                        }
+                        @if (logSnapshot.Length == 0)
+                        {
+                            <div style="color: #616161; font-family: monospace; font-size: 0.72rem; padding: 8px;">(no log)</div>
+                        }
+                    </div>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+
+        @* Row 3: Download / Upload / Delete *@
+        <MudPaper Class="pa-3 mt-2">
+            <MudGrid Spacing="2">
+                @* Download section *@
+                <MudItem xs="6">
+                    <MudText Typo="Typo.subtitle2" Class="mb-1">Download from PG</MudText>
+                    <div class="d-flex align-center gap-2 mb-1">
+                        <MudTextField T="string" @bind-Value="_ftpDownloadFilename" Label="Remote Filename"
+                                      Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      Placeholder="Select from list or type filename" Style="flex: 1;" />
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                                   OnClick="OnFtpDownloadFile"
+                                   Disabled="@(!_ftpConnected || _ftpTransferring || string.IsNullOrWhiteSpace(_ftpDownloadFilename))">
+                            @if (_ftpTransferring) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" /> }
+                            Download
+                        </MudButton>
+                    </div>
+                    <div class="d-flex align-center gap-2">
+                        <MudTextField T="string" @bind-Value="_ftpSavePath" Label="Save to"
+                                      Variant="Variant.Outlined" Margin="Margin.Dense" Style="flex: 1;" />
+                    </div>
+                </MudItem>
+                @* Upload section *@
+                <MudItem xs="4">
+                    <MudText Typo="Typo.subtitle2" Class="mb-1">Upload to PG</MudText>
+                    <div class="d-flex align-center gap-2">
+                        <MudFileUpload T="IBrowserFile" FilesChanged="OnUploadFileSelected" Accept="*/*">
+                            <ActivatorContent>
+                                <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                                           StartIcon="@Icons.Material.Filled.AttachFile">
+                                    @(_ftpUploadFile?.Name ?? "Choose File")
+                                </MudButton>
+                            </ActivatorContent>
+                        </MudFileUpload>
+                        @if (_ftpUploadFile != null)
+                        {
+                            <MudText Typo="Typo.caption">@FormatFileSize(_ftpUploadFile.Size)</MudText>
+                        }
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                                   OnClick="OnFtpUploadFile"
+                                   Disabled="@(!_ftpConnected || _ftpTransferring || _ftpUploadFile == null)">
+                            Upload
+                        </MudButton>
+                    </div>
+                </MudItem>
+                @* Delete section *@
+                <MudItem xs="2">
+                    <MudText Typo="Typo.subtitle2" Class="mb-1">Delete</MudText>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small"
+                               OnClick="OnFtpDeleteFile"
+                               Disabled="@(!_ftpConnected || _ftpTransferring || string.IsNullOrWhiteSpace(_ftpDownloadFilename))"
+                               StartIcon="@Icons.Material.Filled.Delete">
+                        Delete
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+    </MudTabPanel>
+</MudTabs>
+
+} @* end else _isAuthenticated *@
+
+@code {
+    // =========================================================================
+    // DI Injection
+    // =========================================================================
+    [Inject] private ICommPgDriver[] PgDrivers { get; set; } = default!;
+    [Inject] private ISnackbar Snackbar { get; set; } = default!;
+    [Inject] private IDialogService DialogService { get; set; } = default!;
+    [Inject] private IConfigurationService ConfigSvc { get; set; } = default!;
+
+    private bool _isAuthenticated;
+
+    private async Task OnAdminLoginClick()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small };
+        var dialog = await DialogService.ShowAsync<LoginDialog>("Admin Login", options);
+        var result = await dialog.Result;
+        if (result is not null && !result.Canceled)
+            _isAuthenticated = true;
+    }
+
+    // ── Channel selection for PG comm (Delphi: cboChannelPg) ──
+    private int _selectedPgCh;
+    private ICommPgDriver PgDriver => PgDrivers[_selectedPgCh];
+
+    // =========================================================================
+    // PG Command definitions (Delphi: Mainter.pas MAINT_PG_CMD_xxx)
+    // =========================================================================
+    private const int PgCmdPowerOn      = 0;
+    private const int PgCmdPowerOff     = 1;
+    private const int PgCmdBistOn       = 2;
+    private const int PgCmdBistOff      = 3;
+    private const int PgCmdPatternNum   = 4;
+    private const int PgCmdPatternNext  = 5;
+    private const int PgCmdPatternRgb   = 6;
+    private const int PgCmdBistRgb      = 7;
+    private const int PgCmdTconRead     = 8;
+    private const int PgCmdTconWrite    = 9;
+    private const int PgCmdFlashAllRead = 10;
+    private const int PgCmdDp860Raw     = 11;
+
+    // Delphi: cmbxPgCmd.Items (DP860 only, AF9 excluded)
+    private static readonly string[] _pgCmdLabels =
+    [
+        "Power ON",                            // 0
+        "Power Off",                           // 1
+        "Power BIST ON",                       // 2
+        "Power BIST Off",                      // 3
+        "Pattern (param: index)",              // 4
+        "Pattern NEXT",                        // 5
+        "Pattern RGB (param: R G B)",          // 6
+        "Pattern BIST RGB (param: R G B)",     // 7
+        "TCon Reg Read (param: addr count)",   // 8
+        "TCon Reg Write (param: addr data..)", // 9
+        "Flash ALL Read",                      // 10
+        "DP860 PG Command (param: raw cmd)",   // 11
+    ];
+
+    // Win32 wait result constants (Delphi: WAIT_OBJECT_0 / WAIT_TIMEOUT / WAIT_FAILED)
+    private const uint WaitObject0  = 0x00000000;
+    private const uint WaitTimeout  = 0x00000102;
+    private const uint WaitFailed   = 0xFFFFFFFF;
+
+    // =========================================================================
+    // PG State
+    // =========================================================================
+    private int _selectedPgCmd;
+    private string _pgParam = "";
+    private bool _pgCmdBusy;
+    private readonly List<LogEntry> _pgLog = [];
+    private readonly object _pgLogLock = new();
+
+    private string _pgStatusText = "---";
+    private string _pgIpAddress = "---";
+    private string _pgVersion = "---";
+
+    private System.Threading.Timer? _pgStatusTimer;
+
+    // =========================================================================
+    // Test Sequence State
+    // =========================================================================
+    private string _seqText = "";
+    private int _seqTestCount = 1;
+    private bool _seqRunning;
+    private CancellationTokenSource? _seqCts;
+    private int _seqCurrentLine;
+    private int _seqTotalLines;
+    private int _seqCurrentRound;
+    private string _seqFilePath = "";
+    private string _seqProgressText = "";
+    private double SeqProgressPercent => _seqTotalLines > 0
+        ? (double)((_seqCurrentRound - 1) * _seqTotalLines + _seqCurrentLine) / (_seqTestCount * _seqTotalLines) * 100
+        : 0;
+
+    // =========================================================================
+    // DIO State
+    // =========================================================================
+    private readonly bool[] _dioOutput = new bool[16];
+    private readonly bool[] _dioInput = new bool[16];
+
+    // =========================================================================
+    // Lifecycle
+    // =========================================================================
+
+    protected override void OnInitialized()
+    {
+        // Enable maintenance event logging on initial channel (Delphi: FIsMainter := True)
+        SubscribePgEvents();
+
+        // 1-second timer to refresh PG status display
+        _pgStatusTimer = new System.Threading.Timer(_ =>
+        {
+            RefreshPgStatus();
+            InvokeAsync(StateHasChanged);
+        }, null, 0, 1000);
+    }
+
+    public void Dispose()
+    {
+        _seqCts?.Cancel();
+        _seqCts?.Dispose();
+        _pgStatusTimer?.Dispose();
+        UnsubscribePgEvents();
+        DisposeFtpResources();
+    }
+
+    private void SubscribePgEvents()
+    {
+        PgDriver.IsMainter = true;
+        PgDriver.TxMaintEventPg += OnPgTx;
+        PgDriver.RxMaintEventPg += OnPgRx;
+    }
+
+    private void UnsubscribePgEvents()
+    {
+        PgDriver.TxMaintEventPg -= OnPgTx;
+        PgDriver.RxMaintEventPg -= OnPgRx;
+        PgDriver.IsMainter = false;
+    }
+
+    private void OnPgChannelChanged(int newCh)
+    {
+        if (newCh == _selectedPgCh) return;
+        UnsubscribePgEvents();
+        _selectedPgCh = newCh;
+        SubscribePgEvents();
+        _pgLog.Clear();
+        RefreshPgStatus();
+        StateHasChanged();
+    }
+
+    // =========================================================================
+    // PG Status Refresh
+    // =========================================================================
+
+    private void RefreshPgStatus()
+    {
+        _pgStatusText = PgDriver.Status switch
+        {
+            PgStatus.Disconnected => "Disconnected",
+            PgStatus.Connected    => "Connected",
+            PgStatus.GetPgVersion => "GetVersion",
+            _                     => PgDriver.IsPgReady ? "Ready" : PgDriver.Status.ToString()
+        };
+
+        _pgIpAddress = PgDriver.PgIpAddress;
+
+        var ver = PgDriver.Version;
+        _pgVersion = !string.IsNullOrEmpty(ver.FW)
+            ? $"FW:{ver.FW} HW:{ver.HW}"
+            : "---";
+    }
+
+    private Color GetPgStatusColor() => PgDriver.Status switch
+    {
+        PgStatus.Disconnected => Color.Error,
+        PgStatus.Connected    => Color.Warning,
+        _ => PgDriver.IsPgReady ? Color.Success : Color.Info
+    };
+
+    // =========================================================================
+    // TX/RX Event Handlers (Delphi: DisplayPgLog)
+    // =========================================================================
+
+    private void OnPgTx(int pgIdx, string localPort, string remotePort, string cmd)
+        => AddLog("TX", $"[{localPort}>{remotePort}] {cmd}");
+
+    private void OnPgRx(int pgIdx, string localPort, string remotePort, string resp)
+        => AddLog("RX", $"[{localPort}<{remotePort}] {resp}");
+
+    private void AddLog(string message) => AddLog("--", message);
+
+    private void AddLog(string direction, string message)
+    {
+        lock (_pgLogLock)
+        {
+            _pgLog.Add(new LogEntry(DateTime.Now.ToString("HH:mm:ss.fff"), direction, message));
+            if (_pgLog.Count > 1000) _pgLog.RemoveAt(0);
+        }
+        InvokeAsync(async () =>
+        {
+            StateHasChanged();
+            await Task.Yield();
+            try { await JS.InvokeVoidAsync("eval", "document.getElementById('pgLogPanel')?.scrollTo(0, 999999)"); } catch { }
+        });
+    }
+
+    private static string GetLogLineStyle(string dir) => dir switch
+    {
+        "TX" => "color: #4FC3F7;",
+        "RX" => "color: #81C784;",
+        _    => "color: #BDBDBD;"
+    };
+
+    private static string GetLogDirectionStyle(string dir) => dir switch
+    {
+        "TX" => "color: #29B6F6;",
+        "RX" => "color: #66BB6A;",
+        _    => "color: #9E9E9E;"
+    };
+
+    private record LogEntry(string Time, string Direction, string Message);
+
+    // =========================================================================
+    // Parameter Hint
+    // =========================================================================
+
+    private string GetParamHint() => _selectedPgCmd switch
+    {
+        PgCmdPatternNum  => "Pattern index (e.g. 0)",
+        PgCmdPatternRgb  => "R G B (e.g. 255 0 0)",
+        PgCmdBistRgb     => "R G B (e.g. 255 0 0)",
+        PgCmdTconRead    => "addr count (e.g. 0x0000 4)",
+        PgCmdTconWrite   => "addr data0 [data1..] (e.g. 0x0000 0xFF)",
+        PgCmdDp860Raw    => "raw command (e.g. pg.status)",
+        _                => "(no parameter needed)"
+    };
+
+    // =========================================================================
+    // Send Command (Delphi: PgCmdThread)
+    // =========================================================================
+
+    private async Task OnSendPgCmd()
+    {
+        _pgCmdBusy = true;
+        StateHasChanged();
+
+        try
+        {
+            PgDriver.SetCyclicTimer(false);
+            await Task.Run(() => ExecutePgCommand(_selectedPgCmd, _pgParam.Trim()));
+        }
+        catch (Exception ex)
+        {
+            AddLog($"ERROR: {ex.Message}");
+        }
+        finally
+        {
+            PgDriver.SetCyclicTimer(true);
+            _pgCmdBusy = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void ExecutePgCommand(int cmdIndex, string param)
+    {
+        // Parse parameters: replace "0x" with "$" notation is not needed in C#;
+        // just parse hex (0x prefix) or decimal directly.
+        var paramParts = ParseParams(param);
+
+        switch (cmdIndex)
+        {
+            case PgCmdPowerOn:
+                AddLog("Power ON");
+                PgDriver.SendPowerOn(PgCommandParam.PowerOn);
+                break;
+
+            case PgCmdPowerOff:
+                AddLog("Power Off");
+                PgDriver.SendPowerOn(PgCommandParam.PowerOff);
+                break;
+
+            case PgCmdBistOn:
+                AddLog("Power BIST ON");
+                PgDriver.SendPowerBistOn(PgCommandParam.PowerOn);
+                break;
+
+            case PgCmdBistOff:
+                AddLog("Power BIST Off");
+                PgDriver.SendPowerBistOn(PgCommandParam.PowerOff);
+                break;
+
+            case PgCmdPatternNum:
+            {
+                if (paramParts.Length != 1)
+                {
+                    AddLog("Pattern# ...Parameter Error (Need 1 Parameter)");
+                    return;
+                }
+                var patNum = paramParts[0];
+                AddLog($"Display Pattern# : PatNum({patNum})");
+                var rtn = PgDriver.SendDisplayPatNum(patNum);
+                LogResult("Pattern#", rtn);
+                break;
+            }
+
+            case PgCmdPatternNext:
+            {
+                AddLog("Display NEXT#");
+                var rtn = PgDriver.SendDisplayPatNext();
+                LogResult("Pattern NEXT", rtn);
+                break;
+            }
+
+            case PgCmdPatternRgb:
+            {
+                if (paramParts.Length != 3)
+                {
+                    AddLog("Pattern RGB ...Parameter Error (Need 3 Parameters: R G B)");
+                    return;
+                }
+                AddLog($"Pattern RGB: R({paramParts[0]}) G({paramParts[1]}) B({paramParts[2]})");
+                var rtn = PgDriver.SendDisplayPatRgb(paramParts[0], paramParts[1], paramParts[2]);
+                LogResult("Pattern RGB", rtn);
+                break;
+            }
+
+            case PgCmdBistRgb:
+            {
+                if (paramParts.Length != 3)
+                {
+                    AddLog("BIST RGB ...Parameter Error (Need 3 Parameters: R G B)");
+                    return;
+                }
+                AddLog($"Pattern BIST RGB: R({paramParts[0]}) G({paramParts[1]}) B({paramParts[2]})");
+                var rtn = PgDriver.SendDisplayPatBistRgb(paramParts[0], paramParts[1], paramParts[2]);
+                LogResult("BIST RGB", rtn);
+                break;
+            }
+
+            case PgCmdTconRead:
+            {
+                if (paramParts.Length != 2)
+                {
+                    AddLog("TCon Read ...Parameter Error (Need 2 Parameters: addr count)");
+                    return;
+                }
+                var addr = paramParts[0];
+                var count = paramParts[1];
+                AddLog($"TCON REG READ Addr(0x{addr:X}) DataCnt({count})");
+
+                if (!PgDriver.IsPgReady)
+                {
+                    AddLog("TCON READ ...NG (Check PG Status)");
+                    return;
+                }
+
+                var readBuf = new byte[count];
+                var rtn = PgDriver.SendI2CRead(PgDeviceAddr.TconRegDevice, addr, count, readBuf);
+                if (rtn == WaitObject0)
+                {
+                    var hexStr = string.Join(" ", readBuf.Select(b => $"0x{b:X2}"));
+                    AddLog($"TCON READ OK: [{hexStr}]");
+                }
+                else
+                {
+                    LogResult("TCON READ", rtn);
+                }
+                break;
+            }
+
+            case PgCmdTconWrite:
+            {
+                if (paramParts.Length < 2)
+                {
+                    AddLog("TCon Write ...Parameter Error (Need min 2 Parameters: addr data0 [data1..])");
+                    return;
+                }
+                var addr = paramParts[0];
+                var dataLen = paramParts.Length - 1;
+                var writeData = new byte[dataLen];
+                var dataStr = "";
+                for (int j = 0; j < dataLen; j++)
+                {
+                    writeData[j] = (byte)paramParts[j + 1];
+                    dataStr += $" 0x{writeData[j]:X2}";
+                }
+                AddLog($"TCON WRITE Addr(0x{addr:X}) Data({dataStr.TrimStart()})");
+
+                if (!PgDriver.IsPgReady)
+                {
+                    AddLog("TCON WRITE ...NG (Check PG Status)");
+                    return;
+                }
+
+                var rtn = PgDriver.SendI2CWrite(PgDeviceAddr.TconRegDevice, addr, dataLen, writeData);
+                LogResult("TCON WRITE", rtn);
+                break;
+            }
+
+            case PgCmdFlashAllRead:
+            {
+                AddLog("---------- Flash ALL Read");
+                var dataLen = PgFlashConstants.MaxFlashPucDataSizeByte;
+                var flashBuf = new byte[dataLen];
+                var rtn = PgDriver.SendFlashRead(0, (uint)dataLen, flashBuf, 30000);
+                var ok = rtn == WaitObject0;
+                AddLog($"Flash ALL Read {(ok ? "OK" : "NG")}");
+                break;
+            }
+
+            case PgCmdDp860Raw:
+            {
+                if (string.IsNullOrWhiteSpace(param))
+                {
+                    AddLog("DP860 Command ...Parameter Error (Need command string)");
+                    return;
+                }
+                AddLog($"DP860 CMD: {param}");
+                var rtn = PgDriver.Dp860SendCmd(param, PgCommandParam.CmdIdUnknown,
+                    PgCommandParam.CmdStrUnknown, 600000, 0);
+                LogResult("DP860 CMD", rtn);
+                break;
+            }
+
+            default:
+                AddLog($"Unknown command index: {cmdIndex}");
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Parse space-separated parameters, supporting 0x hex prefix and decimal.
+    /// Delphi: ExtractStrings + StrToIntDef with '$' replacement for '0x'.
+    /// </summary>
+    private static int[] ParseParams(string param)
+    {
+        if (string.IsNullOrWhiteSpace(param)) return [];
+        var parts = param.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var result = new int[parts.Length];
+        for (int i = 0; i < parts.Length; i++)
+        {
+            var s = parts[i].Trim();
+            if (s.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                int.TryParse(s[2..], System.Globalization.NumberStyles.HexNumber, null, out result[i]);
+            else
+                int.TryParse(s, out result[i]);
+        }
+        return result;
+    }
+
+    /// <summary>Log command result (Delphi: WAIT_OBJECT_0 / WAIT_TIMEOUT / WAIT_FAILED check)</summary>
+    private void LogResult(string cmdName, uint rtn)
+    {
+        if (rtn == WaitObject0) return; // success — no extra log needed
+        var suffix = rtn switch
+        {
+            WaitFailed  => "NG (Failed)",
+            WaitTimeout => "NG (Timeout)",
+            _           => $"NG (0x{rtn:X8})"
+        };
+        AddLog($"{cmdName} ...{suffix}");
+    }
+
+    private void OnClearLog()
+    {
+        lock (_pgLogLock) { _pgLog.Clear(); }
+    }
+
+    // =========================================================================
+    // Test Sequence
+    // =========================================================================
+
+    private static readonly string SeqFolderPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "SeqFiles");
+
+    private async Task OnSeqStart()
+    {
+        if (_seqRunning) return;
+        var lines = _seqText.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                            .Select(l => l.Trim())
+                            .Where(l => !string.IsNullOrEmpty(l) && !l.StartsWith("//"))
+                            .ToArray();
+        if (lines.Length == 0)
+        {
+            Snackbar.Add("No commands to execute", Severity.Warning);
+            return;
+        }
+
+        _seqRunning = true;
+        _seqCts = new CancellationTokenSource();
+        _seqTotalLines = lines.Length;
+        _seqCurrentLine = 0;
+        _seqCurrentRound = 1;
+        StateHasChanged();
+
+        try
+        {
+            PgDriver.SetCyclicTimer(false);
+
+            for (_seqCurrentRound = 1; _seqCurrentRound <= _seqTestCount; _seqCurrentRound++)
+            {
+                AddLog("SEQ", $"=== Round {_seqCurrentRound}/{_seqTestCount} START ===");
+
+                for (_seqCurrentLine = 0; _seqCurrentLine < lines.Length; _seqCurrentLine++)
+                {
+                    _seqCts.Token.ThrowIfCancellationRequested();
+                    var cmd = lines[_seqCurrentLine];
+                    _seqProgressText = $"[{_seqCurrentLine + 1}/{lines.Length}] Round {_seqCurrentRound}/{_seqTestCount}: {cmd}";
+                    await InvokeAsync(StateHasChanged);
+
+                    AddLog("SEQ", $">>> {cmd}");
+                    uint rtn = await Task.Run(() =>
+                        PgDriver.Dp860SendCmd(cmd, PgCommandParam.CmdIdUnknown,
+                            PgCommandParam.CmdStrUnknown, 600000, 0));
+                    LogResult(cmd, rtn);
+
+                    if (rtn != WaitObject0)
+                    {
+                        AddLog("SEQ", $"STOPPED: '{cmd}' failed");
+                        return;
+                    }
+                }
+
+                AddLog("SEQ", $"=== Round {_seqCurrentRound}/{_seqTestCount} COMPLETE ===");
+            }
+
+            AddLog("SEQ", $"All {_seqTestCount} round(s) complete");
+            Snackbar.Add($"Test Sequence complete ({_seqTestCount} rounds)", Severity.Success);
+        }
+        catch (OperationCanceledException)
+        {
+            AddLog("SEQ", "Test stopped by user");
+            Snackbar.Add("Test Sequence stopped", Severity.Warning);
+        }
+        catch (Exception ex)
+        {
+            AddLog("SEQ", $"ERROR: {ex.Message}");
+        }
+        finally
+        {
+            PgDriver.SetCyclicTimer(true);
+            _seqRunning = false;
+            _seqProgressText = "";
+            _seqCts?.Dispose();
+            _seqCts = null;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void OnSeqStop()
+    {
+        _seqCts?.Cancel();
+    }
+
+    private async Task OnSeqLoad()
+    {
+        try
+        {
+            Directory.CreateDirectory(SeqFolderPath);
+            var files = Directory.GetFiles(SeqFolderPath, "*.seq")
+                                 .Select(Path.GetFileName)
+                                 .OrderBy(f => f)
+                                 .ToArray();
+
+            if (files.Length == 0)
+            {
+                Snackbar.Add("No .seq files found in SeqFiles/", Severity.Info);
+                return;
+            }
+
+            // Show file selection dialog
+            var parameters = new DialogParameters<SeqFileDialog>
+            {
+                { x => x.Files, files! }
+            };
+            var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small };
+            var dialog = await DialogService.ShowAsync<SeqFileDialog>("Load Sequence", parameters, options);
+            var result = await dialog.Result;
+
+            if (result is not null && !result.Canceled && result.Data is string fileName)
+            {
+                var filePath = Path.Combine(SeqFolderPath, fileName);
+                _seqText = await File.ReadAllTextAsync(filePath);
+                _seqFilePath = fileName;
+                Snackbar.Add($"Loaded: {fileName}", Severity.Success);
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Load error: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task OnSeqSave()
+    {
+        if (string.IsNullOrEmpty(_seqFilePath))
+        {
+            await OnSeqSaveAs();
+            return;
+        }
+
+        try
+        {
+            Directory.CreateDirectory(SeqFolderPath);
+            await File.WriteAllTextAsync(Path.Combine(SeqFolderPath, _seqFilePath), _seqText);
+            Snackbar.Add($"Saved: {_seqFilePath}", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Save error: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task OnSeqSaveAs()
+    {
+        try
+        {
+            var parameters = new DialogParameters<SeqFileNameDialog>
+            {
+                { x => x.CurrentName, _seqFilePath }
+            };
+            var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small };
+            var dialog = await DialogService.ShowAsync<SeqFileNameDialog>("Save Sequence As", parameters, options);
+            var result = await dialog.Result;
+
+            if (result is not null && !result.Canceled && result.Data is string fileName)
+            {
+                if (!fileName.EndsWith(".seq", StringComparison.OrdinalIgnoreCase))
+                    fileName += ".seq";
+
+                Directory.CreateDirectory(SeqFolderPath);
+                await File.WriteAllTextAsync(Path.Combine(SeqFolderPath, fileName), _seqText);
+                _seqFilePath = fileName;
+                Snackbar.Add($"Saved: {fileName}", Severity.Success);
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Save error: {ex.Message}", Severity.Error);
+        }
+    }
+
+    // =========================================================================
+    // DIO (unchanged stubs)
+    // =========================================================================
+
+    private void OnDioOutputChanged(int bit, bool value) => _dioOutput[bit] = value;
+
+    // =========================================================================
+    // FTP Test
+    // =========================================================================
+
+    private record FtpFileEntry(string Name, long Size, string Date, bool IsDirectory);
+
+    private int _ftpSelectedCh;
+    private bool _ftpUseDpdk => ConfigSvc.SystemInfo?.UseDpdk ?? false;
+    private bool _ftpConnected;
+    private bool _ftpBusy;
+    private bool _ftpTransferring;
+    private readonly List<string> _ftpLog = [];
+
+    // File list & selection
+    private List<FtpFileEntry> _ftpFiles = [];
+    private FtpFileEntry? _ftpSelectedFileEntry;
+    private string _ftpDownloadFilename = "";
+    private string _ftpSavePath = @"D:\FTP_Download";
+
+    // Upload
+    private Microsoft.AspNetCore.Components.Forms.IBrowserFile? _ftpUploadFile;
+
+    // Socket mode state
+    private System.Net.Sockets.TcpClient? _ftpTcpClient;
+    private StreamReader? _ftpReader;
+    private StreamWriter? _ftpWriter;
+
+    // DPDK mode state
+    private HwNet.Engine.HwFtpEngine? _ftpEngine;
+    private HwNet.Config.FtpConfig? _ftpConfig;  // stored for ReconnectAsync
+    private IAsyncDisposable? _ftpLease;
+
+    private void OnFtpChannelChanged(int newCh)
+    {
+        if (newCh == _ftpSelectedCh) return;
+        if (_ftpConnected) { _ = OnFtpDisconnect(); return; }
+        _ftpSelectedCh = newCh;
+    }
+
+    private readonly object _ftpLogLock = new();
+
+    private void FtpLog(string msg)
+    {
+        lock (_ftpLogLock)
+        {
+            _ftpLog.Add($"{DateTime.Now:HH:mm:ss.fff} {msg}");
+            if (_ftpLog.Count > 200) _ftpLog.RemoveAt(0);
+        }
+        InvokeAsync(async () =>
+        {
+            StateHasChanged();
+            await Task.Yield();
+            try { await JS.InvokeVoidAsync("eval", "document.getElementById('ftpLogPanel')?.scrollTo(0, 999999)"); } catch { }
+        });
+    }
+
+    private static string GetFtpLogColor(string line)
+    {
+        if (line.Contains("ERROR") || line.Contains("FAIL")) return "#EF5350";
+        if (line.Contains("OK") || line.Contains("SUCCESS") || line.Contains("Connected")) return "#66BB6A";
+        if (line.Contains(">>>")) return "#4FC3F7";
+        return "#BDBDBD";
+    }
+
+    private void OnFtpClearLog() => _ftpLog.Clear();
+
+    // ─── Connect ───────────────────────────────────────
+
+    private async Task OnFtpConnect()
+    {
+        if (_ftpConnected || _ftpBusy) return;
+        _ftpBusy = true;
+        StateHasChanged();
+
+        var pgIp = PgDrivers[_ftpSelectedCh].PgIpAddress;
+        var mode = _ftpUseDpdk ? "DPDK" : "Socket";
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+
+        try
+        {
+            FtpLog($"[{mode}] Connecting to {pgIp}:21...");
+
+            if (_ftpUseDpdk)
+                await Task.Run(ConnectDpdk);
+            else
+                await Task.Run(() => ConnectSocket(pgIp));
+
+            sw.Stop();
+            _ftpConnected = true;
+            FtpLog($"[{mode}] Connected — Elapsed: {sw.ElapsedMilliseconds}ms");
+
+            // Auto LIST after connect
+            await RefreshFileList();
+        }
+        catch (Exception ex)
+        {
+            sw.Stop();
+            FtpLog($"[{mode}] ERROR: {ex.Message}");
+            CleanupFtpState();
+        }
+        finally
+        {
+            _ftpBusy = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void ConnectSocket(string pgIp)
+    {
+        var tcp = new System.Net.Sockets.TcpClient();
+        tcp.ReceiveTimeout = 5000;
+        tcp.SendTimeout = 5000;
+
+        var connectTask = tcp.ConnectAsync(pgIp, 21);
+        if (!connectTask.Wait(5000))
+        {
+            tcp.Dispose();
+            throw new TimeoutException("Connection timeout (5s)");
+        }
+
+        var stream = tcp.GetStream();
+        var reader = new StreamReader(stream, System.Text.Encoding.ASCII);
+        var writer = new StreamWriter(stream, System.Text.Encoding.ASCII) { AutoFlush = true };
+
+        // 220 Welcome
+        var welcome = ReadFtpLine(reader);
+        FtpLog($"<<< {welcome}");
+        if (!welcome.StartsWith("220")) throw new Exception($"Unexpected: {welcome}");
+
+        // Login
+        writer.WriteLine($"USER {Dongaeltek.ITOLED.Core.Definitions.Dp860Ftp.FtpUsername}");
+        FtpLog($">>> USER {Dongaeltek.ITOLED.Core.Definitions.Dp860Ftp.FtpUsername}");
+        var userResp = ReadFtpLine(reader);
+        FtpLog($"<<< {userResp}");
+
+        writer.WriteLine($"PASS {Dongaeltek.ITOLED.Core.Definitions.Dp860Ftp.FtpPassword}");
+        FtpLog(">>> PASS ****");
+        var passResp = ReadFtpLine(reader);
+        FtpLog($"<<< {passResp}");
+        if (!passResp.StartsWith("230")) throw new Exception($"Login failed: {passResp}");
+
+        _ftpTcpClient = tcp;
+        _ftpReader = reader;
+        _ftpWriter = writer;
+    }
+
+    private void ConnectDpdk()
+    {
+        var nic = Program.NicCoordinator;
+        if (nic == null) throw new InvalidOperationException("DPDK NicCoordinator not initialized");
+
+        var lease = nic.AcquireFtpAccessAsync().GetAwaiter().GetResult();
+        FtpLog("[DPDK] NIC lease acquired (PG RX paused)");
+
+        var engine = new HwNet.Engine.HwFtpEngine(HwNet.HwManager.Instance);
+        var pgIp = PgDrivers[_ftpSelectedCh].PgIpAddress;
+        var ftpConfig = new HwNet.Config.FtpConfig
+        {
+            ServerIp = pgIp,
+            ServerPort = 21,
+            Username = Dongaeltek.ITOLED.Core.Definitions.Dp860Ftp.FtpUsername,
+            Password = Dongaeltek.ITOLED.Core.Definitions.Dp860Ftp.FtpPassword,
+            LocalIp = $"{Dongaeltek.ITOLED.Core.Definitions.Dp860Network.NetworkPrefix}.10",
+            Netmask = "255.255.255.0",
+            Gateway = $"{Dongaeltek.ITOLED.Core.Definitions.Dp860Network.NetworkPrefix}.10",
+            TimeoutMs = 10000
+        };
+
+        if (!engine.InitLwip(ftpConfig))
+        {
+            lease.DisposeAsync().GetAwaiter().GetResult();
+            throw new Exception($"lwIP init failed: {engine.LastError}");
+        }
+        FtpLog("[DPDK] lwIP initialized");
+
+        if (!engine.ConnectAsync(pgIp, 21,
+            Dongaeltek.ITOLED.Core.Definitions.Dp860Ftp.FtpUsername,
+            Dongaeltek.ITOLED.Core.Definitions.Dp860Ftp.FtpPassword, 10000).GetAwaiter().GetResult())
+        {
+            engine.StopLwip();
+            engine.Dispose();
+            lease.DisposeAsync().GetAwaiter().GetResult();
+            throw new Exception($"FTP connect failed: {engine.LastError}");
+        }
+
+        _ftpEngine = engine;
+        _ftpConfig = ftpConfig;
+        _ftpLease = lease;
+    }
+
+    // ─── Disconnect ────────────────────────────────────
+
+    private async Task OnFtpDisconnect()
+    {
+        if (!_ftpConnected || _ftpBusy) return;
+        _ftpBusy = true;
+        StateHasChanged();
+
+        try
+        {
+            await Task.Run(DisconnectFtp);
+            FtpLog("Disconnected");
+        }
+        catch (Exception ex)
+        {
+            FtpLog($"Disconnect ERROR: {ex.Message}");
+        }
+        finally
+        {
+            CleanupFtpState();
+            _ftpConnected = false;
+            _ftpBusy = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void DisconnectFtp()
+    {
+        if (_ftpUseDpdk)
+        {
+            _ftpEngine?.DisconnectAsync().GetAwaiter().GetResult();
+            _ftpEngine?.StopLwip();
+            _ftpEngine?.Dispose();
+            _ftpLease?.DisposeAsync().GetAwaiter().GetResult();
+            FtpLog("[DPDK] NIC lease released (PG RX resumed)");
+        }
+        else
+        {
+            try { _ftpWriter?.WriteLine("QUIT"); } catch { }
+            FtpLog(">>> QUIT");
+            _ftpTcpClient?.Close();
+        }
+    }
+
+    private void CleanupFtpState()
+    {
+        _ftpEngine = null;
+        _ftpConfig = null;
+        _ftpLease = null;
+        try { _ftpTcpClient?.Dispose(); } catch { }
+        _ftpTcpClient = null;
+        _ftpReader = null;
+        _ftpWriter = null;
+    }
+
+    // ─── DPDK Reconnect ─────────────────────────────────
+
+    private async Task<bool> TryReconnectAsync()
+    {
+        if (!_ftpUseDpdk || _ftpEngine == null || _ftpConfig == null) return false;
+
+        FtpLog("[DPDK] Connection lost — attempting reconnect...");
+        bool ok = await _ftpEngine.ReconnectAsync(_ftpConfig);
+        if (ok)
+        {
+            FtpLog("[DPDK] Reconnect OK");
+            return true;
+        }
+        else
+        {
+            FtpLog("[DPDK] Reconnect FAIL — please Disconnect and Connect again");
+            _ftpConnected = false;
+            await InvokeAsync(StateHasChanged);
+            return false;
+        }
+    }
+
+    // ─── File List (LIST) ──────────────────────────────
+
+    private async Task OnFtpRefreshList()
+    {
+        if (!_ftpConnected || _ftpTransferring) return;
+        await RefreshFileList();
+    }
+
+    private async Task RefreshFileList()
+    {
+        _ftpTransferring = true;
+        StateHasChanged();
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+
+        try
+        {
+            FtpLog("[LIST] Fetching directory listing...");
+            var listing = await Task.Run(FetchFileList);
+            sw.Stop();
+
+            if (listing != null)
+            {
+                _ftpFiles = ParseFtpListing(listing);
+                FtpLog($"[LIST] OK — {_ftpFiles.Count} entries — {sw.ElapsedMilliseconds}ms");
+            }
+            else
+            {
+                _ftpFiles.Clear();
+                FtpLog($"[LIST] Failed — {sw.ElapsedMilliseconds}ms");
+            }
+        }
+        catch (Exception ex)
+        {
+            sw.Stop();
+            FtpLog($"[LIST] ERROR: {ex.Message}");
+            _ftpFiles.Clear();
+        }
+        finally
+        {
+            _ftpTransferring = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private string? FetchFileList()
+    {
+        if (_ftpUseDpdk)
+        {
+            var listing = _ftpEngine!.ListAsync(10000).GetAwaiter().GetResult();
+            if (listing == null)
+            {
+                // Reconnect and retry
+                if (TryReconnectAsync().GetAwaiter().GetResult())
+                    listing = _ftpEngine!.ListAsync(10000).GetAwaiter().GetResult();
+            }
+            return listing;
+        }
+        else
+        {
+            _ftpWriter!.WriteLine("PASV");
+            FtpLog(">>> PASV");
+            var pasvResp = ReadFtpLine(_ftpReader!);
+            FtpLog($"<<< {pasvResp}");
+            var (host, port) = ParsePasvResponse(pasvResp);
+
+            using var dataClient = new System.Net.Sockets.TcpClient();
+            dataClient.Connect(host, port);
+
+            _ftpWriter.WriteLine("LIST");
+            FtpLog(">>> LIST");
+            var listResp = ReadFtpLine(_ftpReader!);
+            FtpLog($"<<< {listResp}");
+
+            using var ds = dataClient.GetStream();
+            using var sr = new StreamReader(ds, System.Text.Encoding.ASCII);
+            var listing = sr.ReadToEnd();
+            dataClient.Close();
+
+            var doneResp = ReadFtpLine(_ftpReader!);
+            FtpLog($"<<< {doneResp}");
+            return listing;
+        }
+    }
+
+    private List<FtpFileEntry> ParseFtpListing(string listing)
+    {
+        var entries = new List<FtpFileEntry>();
+        var lines = listing.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        foreach (var line in lines)
+        {
+            if (string.IsNullOrWhiteSpace(line)) continue;
+            var parts = line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length < 9) continue;
+            try
+            {
+                bool isDir = parts[0].StartsWith('d');
+                long size = long.TryParse(parts[4], out long s) ? s : 0;
+                string date = $"{parts[5]} {parts[6]} {parts[7]}";
+                string name = string.Join(' ', parts, 8, parts.Length - 8);
+                if (name == "." || name == "..") continue;
+                entries.Add(new FtpFileEntry(name, size, date, isDir));
+            }
+            catch { }
+        }
+        entries.Sort((a, b) =>
+        {
+            if (a.IsDirectory != b.IsDirectory) return a.IsDirectory ? -1 : 1;
+            return string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase);
+        });
+        return entries;
+    }
+
+    private void OnFileRowClicked(FtpFileEntry entry)
+    {
+        _ftpSelectedFileEntry = entry;
+        if (!entry.IsDirectory)
+            _ftpDownloadFilename = entry.Name;
+    }
+
+    private static string FormatFileSize(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
+        return $"{bytes / (1024.0 * 1024.0):F1} MB";
+    }
+
+    // ─── Download File ──────────────────────────────────
+
+    private async Task OnFtpDownloadFile()
+    {
+        var filename = _ftpDownloadFilename?.Trim();
+        if (string.IsNullOrEmpty(filename) || !_ftpConnected || _ftpTransferring) return;
+        _ftpTransferring = true;
+        StateHasChanged();
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        try
+        {
+            FtpLog($"[Download] Downloading '{filename}'...");
+
+            // Ensure save directory exists
+            if (!Directory.Exists(_ftpSavePath))
+                Directory.CreateDirectory(_ftpSavePath);
+
+            var data = await Task.Run(() => DownloadFileData(filename));
+            sw.Stop();
+
+            if (data == null || data.Length == 0)
+            {
+                FtpLog($"[Download] FAIL — file not found or empty");
+                return;
+            }
+
+            var localPath = Path.Combine(_ftpSavePath, filename);
+            File.WriteAllBytes(localPath, data);
+            FtpLog($"[Download] SUCCESS — '{filename}' ({FormatFileSize(data.Length)}) → {localPath} — {sw.ElapsedMilliseconds}ms");
+        }
+        catch (Exception ex)
+        {
+            sw.Stop();
+            FtpLog($"[Download] ERROR: {ex.Message}");
+        }
+        finally
+        {
+            _ftpTransferring = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private byte[]? DownloadFileData(string filename)
+    {
+        if (_ftpUseDpdk)
+        {
+            var data = _ftpEngine!.DownloadAsync(filename, 30000).GetAwaiter().GetResult();
+            if (data == null)
+            {
+                FtpLog($"[Download] Failed — attempting reconnect...");
+                if (TryReconnectAsync().GetAwaiter().GetResult())
+                {
+                    FtpLog($"[Download] Retrying RETR {filename}...");
+                    data = _ftpEngine!.DownloadAsync(filename, 30000).GetAwaiter().GetResult();
+                }
+            }
+            return data;
+        }
+        else
+        {
+            _ftpWriter!.WriteLine("TYPE I");
+            FtpLog(">>> TYPE I");
+            var typeResp = ReadFtpLine(_ftpReader!);
+            FtpLog($"<<< {typeResp}");
+
+            _ftpWriter.WriteLine("PASV");
+            FtpLog(">>> PASV");
+            var pasvResp = ReadFtpLine(_ftpReader!);
+            FtpLog($"<<< {pasvResp}");
+            var (host, port) = ParsePasvResponse(pasvResp);
+
+            using var dataClient = new System.Net.Sockets.TcpClient();
+            dataClient.Connect(host, port);
+
+            _ftpWriter.WriteLine($"RETR {filename}");
+            FtpLog($">>> RETR {filename}");
+            var retrResp = ReadFtpLine(_ftpReader!);
+            FtpLog($"<<< {retrResp}");
+            if (!retrResp.StartsWith("150") && !retrResp.StartsWith("125"))
+                throw new Exception($"RETR failed: {retrResp}");
+
+            using var ds = dataClient.GetStream();
+            using var ms = new MemoryStream();
+            ds.CopyTo(ms);
+            dataClient.Close();
+
+            var doneResp = ReadFtpLine(_ftpReader!);
+            FtpLog($"<<< {doneResp}");
+            return ms.ToArray();
+        }
+    }
+
+    // ─── Upload File ────────────────────────────────────
+
+    private void OnUploadFileSelected(Microsoft.AspNetCore.Components.Forms.IBrowserFile? file)
+    {
+        _ftpUploadFile = file;
+        if (file != null)
+            FtpLog($"[Upload] Selected: {file.Name} ({FormatFileSize(file.Size)})");
+    }
+
+    private async Task OnFtpUploadFile()
+    {
+        if (_ftpUploadFile == null || !_ftpConnected || _ftpTransferring) return;
+        _ftpTransferring = true;
+        StateHasChanged();
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        try
+        {
+            var filename = _ftpUploadFile.Name;
+            FtpLog($"[Upload] Reading '{filename}'...");
+
+            using var stream = _ftpUploadFile.OpenReadStream(maxAllowedSize: 64 * 1024 * 1024);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            var data = ms.ToArray();
+
+            FtpLog($"[Upload] Uploading '{filename}' ({FormatFileSize(data.Length)})...");
+            await Task.Run(() => UploadFileData(filename, data));
+            sw.Stop();
+            FtpLog($"[Upload] SUCCESS — '{filename}' ({FormatFileSize(data.Length)}) — {sw.ElapsedMilliseconds}ms");
+
+            _ftpUploadFile = null;
+            await RefreshFileList();
+        }
+        catch (Exception ex)
+        {
+            sw.Stop();
+            FtpLog($"[Upload] ERROR: {ex.Message}");
+        }
+        finally
+        {
+            _ftpTransferring = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void UploadFileData(string filename, byte[] data)
+    {
+        if (_ftpUseDpdk)
+        {
+            if (!_ftpEngine!.UploadAsync(filename, data, 30000).GetAwaiter().GetResult())
+            {
+                FtpLog($"[Upload] Failed — attempting reconnect...");
+                if (TryReconnectAsync().GetAwaiter().GetResult())
+                {
+                    FtpLog($"[Upload] Retrying STOR {filename}...");
+                    if (!_ftpEngine!.UploadAsync(filename, data, 30000).GetAwaiter().GetResult())
+                        throw new Exception($"Upload failed after reconnect: {_ftpEngine.LastError}");
+                }
+                else
+                {
+                    throw new Exception($"Upload failed: {_ftpEngine.LastError}");
+                }
+            }
+        }
+        else
+        {
+            _ftpWriter!.WriteLine("TYPE I");
+            FtpLog(">>> TYPE I");
+            var typeResp = ReadFtpLine(_ftpReader!);
+            FtpLog($"<<< {typeResp}");
+
+            _ftpWriter.WriteLine("PASV");
+            FtpLog(">>> PASV");
+            var pasvResp = ReadFtpLine(_ftpReader!);
+            FtpLog($"<<< {pasvResp}");
+            var (host, port) = ParsePasvResponse(pasvResp);
+
+            using var dataClient = new System.Net.Sockets.TcpClient();
+            dataClient.Connect(host, port);
+
+            _ftpWriter.WriteLine($"STOR {filename}");
+            FtpLog($">>> STOR {filename}");
+            var storResp = ReadFtpLine(_ftpReader!);
+            FtpLog($"<<< {storResp}");
+
+            using var ds = dataClient.GetStream();
+            ds.Write(data, 0, data.Length);
+            dataClient.Close();
+
+            var doneResp = ReadFtpLine(_ftpReader!);
+            FtpLog($"<<< {doneResp}");
+        }
+    }
+
+    // ─── Delete File ────────────────────────────────────
+
+    private async Task OnFtpDeleteFile()
+    {
+        var filename = _ftpDownloadFilename?.Trim();
+        if (string.IsNullOrEmpty(filename) || !_ftpConnected || _ftpTransferring) return;
+        _ftpTransferring = true;
+        StateHasChanged();
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        try
+        {
+            FtpLog($"[Delete] Deleting '{filename}'...");
+            await Task.Run(() => DeleteRemoteFile(filename));
+            sw.Stop();
+            FtpLog($"[Delete] SUCCESS — '{filename}' — {sw.ElapsedMilliseconds}ms");
+            _ftpDownloadFilename = "";
+            _ftpSelectedFileEntry = null;
+            await RefreshFileList();
+        }
+        catch (Exception ex)
+        {
+            sw.Stop();
+            FtpLog($"[Delete] ERROR: {ex.Message}");
+        }
+        finally
+        {
+            _ftpTransferring = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void DeleteRemoteFile(string filename)
+    {
+        if (_ftpUseDpdk)
+        {
+            throw new NotSupportedException("DPDK FTP engine does not support DELE command");
+        }
+        else
+        {
+            _ftpWriter!.WriteLine($"DELE {filename}");
+            FtpLog($">>> DELE {filename}");
+            var resp = ReadFtpLine(_ftpReader!);
+            FtpLog($"<<< {resp}");
+            if (!resp.StartsWith("250"))
+                throw new Exception($"Delete failed: {resp}");
+        }
+    }
+
+    // ─── FTP Helpers ───────────────────────────────────
+
+    private static string ReadFtpLine(StreamReader reader)
+    {
+        var line = reader.ReadLine();
+        return line ?? throw new Exception("FTP connection closed");
+    }
+
+    private static (string host, int port) ParsePasvResponse(string response)
+    {
+        // Parse "227 Entering Passive Mode (h1,h2,h3,h4,p1,p2)"
+        var start = response.IndexOf('(');
+        var end = response.IndexOf(')');
+        if (start < 0 || end < 0) throw new Exception($"Invalid PASV response: {response}");
+        var parts = response[(start + 1)..end].Split(',');
+        if (parts.Length != 6) throw new Exception($"Invalid PASV format: {response}");
+        var host = $"{parts[0]}.{parts[1]}.{parts[2]}.{parts[3]}";
+        var port = int.Parse(parts[4]) * 256 + int.Parse(parts[5]);
+        return (host, port);
+    }
+
+    // ─── Dispose cleanup ───────────────────────────────
+
+    private void DisposeFtpResources()
+    {
+        if (_ftpConnected)
+        {
+            try { DisconnectFtp(); } catch { }
+            CleanupFtpState();
+            _ftpConnected = false;
+        }
+        _ftpFiles.Clear();
+        _ftpUploadFile = null;
+    }
+}
