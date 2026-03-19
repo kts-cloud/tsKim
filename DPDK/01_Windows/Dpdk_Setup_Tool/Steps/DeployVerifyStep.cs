@@ -12,6 +12,34 @@ public class DeployVerifyStep : SetupStepBase
     // Shared deploy folder path — created in Step 1, used by Step 3 to add HwNet.dll
     private string _deployDir = "";
 
+    /// <summary>
+    /// 앱에 필요한 DLL 목록 (HwManager.CoreLibs와 동기화).
+    /// 이 목록에 없는 DLL은 drivers.dat에 포함하지 않음.
+    /// rte_bus_vdev 제외: EAL bus scan 시 자동 로드되어 크래시 유발.
+    /// 불필요한 crypto/compress/DMA 드라이버 제외: mempool ops 테이블 오염 위험.
+    /// </summary>
+    private static readonly HashSet<string> RequiredDlls = new(StringComparer.OrdinalIgnoreCase)
+    {
+        // EAL 코어 (순서 중요)
+        "rte_log-26.dll", "rte_kvargs-26.dll", "rte_argparse-26.dll",
+        "rte_telemetry-26.dll", "rte_eal-26.dll",
+        "rte_ring-26.dll", "rte_rcu-26.dll",
+        "rte_mempool-26.dll", "rte_mbuf-26.dll", "rte_pci-26.dll",
+        "rte_net-26.dll", "rte_meter-26.dll", "rte_ethdev-26.dll",
+        "rte_hash-26.dll", "rte_security-26.dll",
+        "rte_cryptodev-26.dll",  // rte_security 의존성
+        // 버스 드라이버 (PCI만 — vdev 제외!)
+        "rte_bus_pci-26.dll",
+        // 메모리풀
+        "rte_mempool_ring-26.dll",
+        // Intel NIC PMD 드라이버
+        "rte_net_ixgbe-26.dll", "rte_net_i40e-26.dll",
+        "rte_net_ice-26.dll", "rte_net_iavf-26.dll",
+        "rte_net_e1000-26.dll",
+        // Shim
+        "hwio.dll",
+    };
+
     public override async Task ExecuteAsync(CancellationToken ct)
     {
         string root = GetProjectRoot();
@@ -31,33 +59,64 @@ public class DeployVerifyStep : SetupStepBase
 
         int collected = 0;
 
-        // Collect from dpdk-src/build/lib or _build (fallback)
-        string dllSourceDir;
-        if (Directory.Exists(buildLib))
-            dllSourceDir = buildLib;
-        else if (Directory.Exists(buildOutputDir) && Directory.GetFiles(buildOutputDir, "rte_*.dll").Length > 0)
-            dllSourceDir = buildOutputDir;
-        else
-            throw new Exception($"DLL 소스 폴더가 없습니다.\n  1차: {buildLib}\n  2차: {buildOutputDir}");
+        // 우선순위: _build/verified_dlls/ (동작 검증된 DLL) → dpdk-src/build/ (새 빌드)
+        string verifiedDir = Path.Combine(buildOutputDir, "verified_dlls");
+        bool useVerified = Directory.Exists(verifiedDir) &&
+                           Directory.GetFiles(verifiedDir, "rte_*.dll").Length > 0;
 
-        foreach (var dll in Directory.GetFiles(dllSourceDir, "*.dll"))
+        if (useVerified)
         {
-            File.Copy(dll, Path.Combine(_deployDir, Path.GetFileName(dll)), true);
-            collected++;
-        }
-        LogInfo($"  소스(lib): {dllSourceDir} → {collected}개");
-
-        // Collect from dpdk-src/build/drivers
-        if (Directory.Exists(buildDrivers))
-        {
-            int driverCount = 0;
-            foreach (var dll in Directory.GetFiles(buildDrivers, "*.dll"))
+            foreach (var dll in Directory.GetFiles(verifiedDir, "*.dll"))
             {
-                File.Copy(dll, Path.Combine(_deployDir, Path.GetFileName(dll)), true);
-                driverCount++;
+                string name = Path.GetFileName(dll);
+                if (!RequiredDlls.Contains(name))
+                {
+                    LogInfo($"  건너뜀 (불필요): {name}");
+                    continue;
+                }
+                File.Copy(dll, Path.Combine(_deployDir, name), true);
                 collected++;
             }
-            LogInfo($"  소스(drivers): {buildDrivers} → {driverCount}개");
+            LogSuccess($"  소스: verified_dlls (검증된 DLL) → {collected}개");
+        }
+        else
+        {
+            // Fallback: dpdk-src/build/lib + drivers
+            string dllSourceDir;
+            if (Directory.Exists(buildLib))
+                dllSourceDir = buildLib;
+            else if (Directory.Exists(buildOutputDir) && Directory.GetFiles(buildOutputDir, "rte_*.dll").Length > 0)
+                dllSourceDir = buildOutputDir;
+            else
+                throw new Exception($"DLL 소스 폴더가 없습니다.\n  1차: {verifiedDir}\n  2차: {buildLib}\n  3차: {buildOutputDir}");
+
+            foreach (var dll in Directory.GetFiles(dllSourceDir, "*.dll"))
+            {
+                string name = Path.GetFileName(dll);
+                if (!RequiredDlls.Contains(name))
+                    continue;
+                File.Copy(dll, Path.Combine(_deployDir, name), true);
+                collected++;
+            }
+            LogInfo($"  소스(lib): {dllSourceDir} → {collected}개 (필터링 적용)");
+
+            // Collect from dpdk-src/build/drivers (필수 DLL만)
+            if (Directory.Exists(buildDrivers))
+            {
+                int driverCount = 0;
+                foreach (var dll in Directory.GetFiles(buildDrivers, "*.dll"))
+                {
+                    string name = Path.GetFileName(dll);
+                    if (!RequiredDlls.Contains(name))
+                        continue;
+                    File.Copy(dll, Path.Combine(_deployDir, name), true);
+                    driverCount++;
+                    collected++;
+                }
+                LogInfo($"  소스(drivers): {buildDrivers} → {driverCount}개 (필터링 적용)");
+            }
+
+            LogWarning("  ⚠ 새 빌드 DLL 사용 — 검증된 DLL은 _build/verified_dlls/ 에 배치하세요");
         }
 
         // Copy hwio.dll
@@ -88,20 +147,20 @@ public class DeployVerifyStep : SetupStepBase
         LogInfo("[3/5] drivers.dat 암호화 아카이브 생성...");
         await GenerateDriversDat(root, _deployDir, ct);
 
-        // drivers.dat 생성 완료 → 배포 폴더에서 rte_*.dll 제거 (drivers.dat에 포함됨)
-        // hwio.dll, HwNet.dll은 앱 실행에 직접 필요하므로 유지
+        // drivers.dat 생성 완료 → 배포 폴더에서 개별 DLL 제거 (drivers.dat에 포함됨)
+        // hwio.dll도 drivers.dat에 포함 → SetDllDirectory(tempDir)로 로드되므로 별도 유지 불필요
+        // HwNet.dll만 앱에서 직접 참조하므로 유지
         int removed = 0;
         foreach (var dll in Directory.GetFiles(_deployDir, "*.dll"))
         {
             string name = Path.GetFileName(dll);
-            if (name.Equals("HwNet.dll", StringComparison.OrdinalIgnoreCase) ||
-                name.Equals("hwio.dll", StringComparison.OrdinalIgnoreCase))
+            if (name.Equals("HwNet.dll", StringComparison.OrdinalIgnoreCase))
                 continue;
             File.Delete(dll);
             removed++;
         }
         if (removed > 0)
-            LogInfo($"  배포 폴더에서 rte_*.dll {removed}개 제거 (drivers.dat에 포함)");
+            LogInfo($"  배포 폴더에서 DLL {removed}개 제거 (drivers.dat에 포함)");
 
         ct.ThrowIfCancellationRequested();
 
@@ -124,7 +183,8 @@ public class DeployVerifyStep : SetupStepBase
         var deployFiles = Directory.GetFiles(_deployDir);
         long totalSize = deployFiles.Sum(f => new FileInfo(f).Length);
         LogInfo($"  ★ 파일 {deployFiles.Length}개, 총 {totalSize / 1024 / 1024} MB");
-        LogInfo($"  ★ 앱 실행 폴더에 drivers.dat + HwNet.dll만 복사하면 됩니다.");
+        LogInfo($"  ★ 앱 실행 폴더에 drivers.dat + HwNet.dll 복사 (hwio.dll은 drivers.dat에 포함)");
+        LogWarning("  ★ 앱 폴더에 기존 rte_*.dll이 있으면 반드시 삭제하세요 (이중 로드 방지)!");
     }
 
     /// <summary>

@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
+using Microsoft.Win32.SafeHandles;
 using HwNet.Interop;
 using HwNet.Models;
 using HwNet.Utilities;
@@ -17,6 +18,36 @@ namespace HwNet
 
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
         private static extern bool SetDllDirectoryW(string? lpPathName);
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Ansi, SetLastError = true)]
+        private static extern uint GetModuleFileNameA(IntPtr hModule, byte[] lpFilename, uint nSize);
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern SafeFileHandle CreateFileW(
+            string lpFileName, uint dwDesiredAccess, uint dwShareMode,
+            IntPtr lpSecurityAttributes, uint dwCreationDisposition,
+            uint dwFlagsAndAttributes, IntPtr hTemplateFile);
+
+        [DllImport("setupapi.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern IntPtr SetupDiGetClassDevsW(
+            ref Guid classGuid, IntPtr enumerator, IntPtr hwndParent, uint flags);
+
+        [DllImport("setupapi.dll", SetLastError = true)]
+        private static extern bool SetupDiDestroyDeviceInfoList(IntPtr deviceInfoSet);
+
+        [DllImport("setupapi.dll", SetLastError = true)]
+        private static extern bool SetupDiEnumDeviceInterfaces(
+            IntPtr deviceInfoSet, IntPtr deviceInfoData, ref Guid interfaceClassGuid,
+            uint memberIndex, ref SP_DEVICE_INTERFACE_DATA deviceInterfaceData);
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct SP_DEVICE_INTERFACE_DATA
+        {
+            public int cbSize;
+            public Guid InterfaceClassGuid;
+            public int Flags;
+            public IntPtr Reserved;
+        }
 
         private static readonly Lazy<HwManager> _instance = new(() => new HwManager());
         public static HwManager Instance => _instance.Value;
@@ -64,8 +95,9 @@ namespace HwNet
             "rte_mempool-26.dll", "rte_mbuf-26.dll", "rte_pci-26.dll",
             "rte_net-26.dll", "rte_meter-26.dll", "rte_ethdev-26.dll",
             "rte_hash-26.dll", "rte_security-26.dll",
+            "rte_cryptodev-26.dll",  // rte_security 의존성
             // 버스 드라이버
-            "rte_bus_pci-26.dll", "rte_bus_vdev-26.dll",
+            "rte_bus_pci-26.dll",
             // 메모리풀
             "rte_mempool_ring-26.dll",
             // Intel NIC PMD 드라이버
@@ -119,11 +151,94 @@ namespace HwNet
             catch { }
         }
 
+        /// <summary>
+        /// netuio 바인딩 사전 확인 — EAL init 전에 device interface 존재 여부 체크.
+        /// netuio가 NIC에 바인딩되어 있으면 device interface가 등록됨.
+        /// </summary>
+        /// <returns>true if netuio device found, false otherwise.</returns>
+        private bool CheckNetuioBinding()
+        {
+            // netuio PCI device interface GUID
+            var netuioGuid = new Guid("08336f60-0679-4c6c-85d2-ae7ced65fff7");
+            const uint DIGCF_PRESENT = 0x02;
+            const uint DIGCF_DEVICEINTERFACE = 0x10;
+
+            try
+            {
+                IntPtr devInfoSet = SetupDiGetClassDevsW(
+                    ref netuioGuid, IntPtr.Zero, IntPtr.Zero,
+                    DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
+
+                if (devInfoSet == IntPtr.Zero || devInfoSet == new IntPtr(-1))
+                {
+                    RaiseStatus(HwState.Initializing,
+                        "[WARN] netuio device interface 조회 실패 (SetupDi)");
+                    return false;
+                }
+
+                try
+                {
+                    var interfaceData = new SP_DEVICE_INTERFACE_DATA();
+                    interfaceData.cbSize = Marshal.SizeOf(interfaceData);
+
+                    bool found = SetupDiEnumDeviceInterfaces(
+                        devInfoSet, IntPtr.Zero, ref netuioGuid, 0, ref interfaceData);
+
+                    if (found)
+                    {
+                        RaiseStatus(HwState.Initializing,
+                            "netuio 바인딩 확인 OK — NIC device interface 발견");
+                        return true;
+                    }
+                    else
+                    {
+                        RaiseStatus(HwState.Initializing,
+                            "[WARN] netuio device interface 없음 — NIC가 netuio에 바인딩되지 않았습니다");
+                        return false;
+                    }
+                }
+                finally
+                {
+                    SetupDiDestroyDeviceInfoList(devInfoSet);
+                }
+            }
+            catch (Exception ex)
+            {
+                RaiseStatus(HwState.Initializing,
+                    $"[WARN] netuio 확인 중 예외: {ex.Message}");
+                return false; // 확인 불가 시 계속 진행 (EAL에서 실패하도록)
+            }
+        }
+
+        private static string GetModulePath(IntPtr hModule)
+        {
+            var buf = new byte[260];
+            uint len = GetModuleFileNameA(hModule, buf, (uint)buf.Length);
+            return len > 0 ? System.Text.Encoding.ASCII.GetString(buf, 0, (int)len) : "(unknown)";
+        }
+
         private void PreloadDrivers()
         {
             string baseDir = AppDomain.CurrentDomain.BaseDirectory;
             string archivePath = Path.Combine(baseDir, "drivers.dat");
             bool useEncryptedArchive = File.Exists(archivePath);
+
+            // 이중 로드 방지: drivers.dat 사용 시 앱 폴더의 rte_*.dll 경고
+            if (useEncryptedArchive)
+            {
+                var looseRteDlls = Directory.GetFiles(baseDir, "rte_*-26.dll");
+                if (looseRteDlls.Length > 0)
+                {
+                    RaiseStatus(HwState.Initializing,
+                        $"[WARN] 앱 폴더에 rte_*.dll {looseRteDlls.Length}개 + drivers.dat 공존 → 이중 로드 위험!");
+                    RaiseStatus(HwState.Initializing,
+                        "  drivers.dat 사용 시 앱 폴더의 rte_*.dll을 삭제하세요.");
+                    // drivers.dat를 무시하고 앱 폴더 DLL 직접 사용 (이중 로드 방지)
+                    useEncryptedArchive = false;
+                    RaiseStatus(HwState.Initializing,
+                        "  → drivers.dat 무시, 앱 폴더 DLL 직접 로드로 전환");
+                }
+            }
 
             // 이전 세션 잔여 temp 폴더 정리
             CleanupStaleDriverDirs();
@@ -163,19 +278,25 @@ namespace HwNet
             }
 
             // 코어 라이브러리 로드 (순서 중요)
-            RaiseStatus(HwState.Initializing, "코어 라이브러리 로드 중...");
+            RaiseStatus(HwState.Initializing, $"코어 라이브러리 로드 중... (dllDir={dllDir}, useArchive={useEncryptedArchive})");
             int coreLoaded = 0;
             foreach (string lib in CoreLibs)
             {
                 string path = Path.Combine(dllDir, lib);
                 if (!File.Exists(path)) continue;
-                IntPtr handle = LoadLibraryA(path);
+                IntPtr handle = LoadLibraryA(lib);     // 파일명만! SetDllDirectory로 검색 → 단일 인스턴스 보장
                 if (handle != IntPtr.Zero)
                 {
                     _loadedHandles.Add(handle);
                     coreLoaded++;
+                    string loadedFrom = GetModulePath(handle);
+                    RaiseStatus(HwState.Initializing, $"  [OK] {lib} → {loadedFrom}");
                 }
-                else RaiseStatus(HwState.Initializing, $"  [WARN] {lib} 로드 실패");
+                else
+                {
+                    int err = Marshal.GetLastWin32Error();
+                    RaiseStatus(HwState.Initializing, $"  [WARN] {lib} 로드 실패 (err={err}, 0x{err:X})");
+                }
             }
             RaiseStatus(HwState.Initializing, $"코어 라이브러리 {coreLoaded}개 로드 완료");
 
@@ -183,14 +304,17 @@ namespace HwNet
             // (불필요한 DLL을 명시적 LoadLibraryA하면 tailq 이중 등록 PANIC 발생)
 
             // hwio.dll 명시적 로드 (P/Invoke 전에 미리 로드)
-            string hwioPath = Path.Combine(dllDir, "hwio.dll");
-            if (File.Exists(hwioPath))
+            // 파일명만으로 LoadLibraryA → SetDllDirectory(dllDir)에서 검색
+            // (전체 경로 로드 시 P/Invoke "hwio.dll" 해석과 모듈명 불일치 → DllNotFoundException)
+            string hwioFullPath = Path.Combine(dllDir, "hwio.dll");
+            if (File.Exists(hwioFullPath))
             {
-                IntPtr hwioHandle = LoadLibraryA(hwioPath);
+                IntPtr hwioHandle = LoadLibraryA("hwio.dll");
                 if (hwioHandle != IntPtr.Zero)
                 {
                     _loadedHandles.Add(hwioHandle);
-                    RaiseStatus(HwState.Initializing, "  hwio.dll 로드 완료");
+                    string hwioFrom = GetModulePath(hwioHandle);
+                    RaiseStatus(HwState.Initializing, $"  hwio.dll 로드 완료 → {hwioFrom}");
                 }
                 else
                 {
@@ -222,6 +346,14 @@ namespace HwNet
 
                 try
                 {
+                    // netuio 바인딩 사전 확인 — EAL init 크래시 없이 조기 실패 가능
+                    if (!CheckNetuioBinding())
+                    {
+                        SetError("NIC가 netuio에 바인딩되지 않았습니다. " +
+                                 "Dpdk_Setup_Tool의 'NIC 바인딩' 스텝을 실행하세요.");
+                        return;
+                    }
+
                     PreloadDrivers();
 
                     try
@@ -298,8 +430,7 @@ namespace HwNet
                                 "ITOLED_OC",
                                 "-l", coreMask,
                                 "-m", memoryMb.ToString(),
-                                $"--log-level={options.LogLevel}",
-                                "--no-shconf"
+                                $"--log-level={options.LogLevel}"
                             };
                             if (!string.IsNullOrEmpty(options.FilePrefix))
                                 ealArgList.AddRange(new[] { "--file-prefix", options.FilePrefix });
@@ -405,8 +536,10 @@ namespace HwNet
 
                     try
                     {
+                        // cache_size=0: 비-EAL 스레드(C# main/UI)에서 mbuf 할당 가능
+                        // (cache_size>0이면 lcore_id 기반 캐시 접근 → 비-EAL 스레드에서 크래시)
                         MbufPool = HwInterop.hw_pktmbuf_pool_create_safe(
-                            "MBUF_POOL", options.MbufPoolSize, 256, 0, 2048 + 128, 0);
+                            "MBUF_POOL", options.MbufPoolSize, 0, 0, 2048 + 128, 0);
                     }
                     catch (Exception ex)
                     {

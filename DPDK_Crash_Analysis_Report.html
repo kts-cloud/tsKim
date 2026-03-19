@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DPDK hwio.dll SEH 크래시 원인 분석 리포트</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700;800&family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-0: #06080c;
+    --bg-1: #0c0e14;
+    --bg-2: #12151c;
+    --bg-3: #181c24;
+    --bg-4: #1e222c;
+    --border-1: #1a1e28;
+    --border-2: #252a36;
+    --border-3: #303844;
+    --tx-1: #e8eaf0;
+    --tx-2: #a0a4b4;
+    --tx-3: #686c80;
+    --tx-4: #484c5c;
+    --amber: #f0a830;
+    --amber-dim: rgba(240,168,48,0.10);
+    --amber-border: rgba(240,168,48,0.22);
+    --red: #e85050;
+    --red-dim: rgba(232,80,80,0.10);
+    --red-border: rgba(232,80,80,0.20);
+    --green: #40c880;
+    --green-dim: rgba(64,200,128,0.10);
+    --green-border: rgba(64,200,128,0.20);
+    --blue: #5090e8;
+    --blue-dim: rgba(80,144,232,0.10);
+    --blue-border: rgba(80,144,232,0.20);
+    --cyan: #48b8c8;
+    --cyan-dim: rgba(72,184,200,0.08);
+    --violet: #9878d8;
+    --violet-dim: rgba(152,120,216,0.10);
+    --violet-border: rgba(152,120,216,0.20);
+    --mono: 'JetBrains Mono', 'Consolas', monospace;
+    --sans: 'Noto Sans KR', -apple-system, sans-serif;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: var(--bg-0);
+    color: var(--tx-1);
+    font-family: var(--sans);
+    font-size: 13.5px;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before {
+    content:'';
+    position:fixed; inset:0;
+    background: repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.015) 3px,rgba(0,0,0,0.015) 4px);
+    pointer-events:none; z-index:9999;
+  }
+  .wrap { max-width:1100px; margin:0 auto; padding:56px 44px 120px; }
+
+  /* ── Header ── */
+  .hdr { border-bottom:1px solid var(--border-1); padding-bottom:44px; margin-bottom:52px; position:relative; }
+  .hdr::after { content:''; position:absolute; bottom:-1px; left:0; width:240px; height:2px; background:linear-gradient(90deg,var(--red),transparent); }
+  .badge {
+    display:inline-flex; align-items:center; gap:8px;
+    font-family:var(--mono); font-size:10px; font-weight:700;
+    letter-spacing:2.5px; text-transform:uppercase;
+    color:var(--red); background:var(--red-dim);
+    border:1px solid var(--red-border); padding:5px 14px; margin-bottom:24px;
+  }
+  .badge::before { content:''; width:6px; height:6px; background:var(--red); border-radius:50%; animation:blink 1.8s ease-in-out infinite; }
+  .badge-ok {
+    display:inline-flex; align-items:center; gap:8px;
+    font-family:var(--mono); font-size:10px; font-weight:700;
+    letter-spacing:2.5px; text-transform:uppercase;
+    color:var(--green); background:var(--green-dim);
+    border:1px solid var(--green-border); padding:5px 14px; margin-bottom:24px;
+  }
+  .badge-ok::before { content:''; width:6px; height:6px; background:var(--green); border-radius:50%; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+  .hdr h1 { font-size:30px; font-weight:900; letter-spacing:-0.5px; line-height:1.25; margin-bottom:10px; }
+  .hdr h1 em { font-style:normal; color:var(--red); }
+  .hdr h1 small { font-size:16px; font-weight:400; color:var(--tx-3); display:block; margin-top:4px; }
+  .hdr .sub { font-size:14px; color:var(--tx-2); font-weight:300; max-width:720px; }
+  .meta { display:flex; gap:36px; margin-top:22px; font-family:var(--mono); font-size:10.5px; color:var(--tx-4); flex-wrap:wrap; }
+  .meta dt { color:var(--tx-3); margin-bottom:1px; } .meta dd { color:var(--tx-1); font-weight:500; }
+
+  /* ── Section ── */
+  .sec { margin-bottom:52px; }
+  .sec-label { font-family:var(--mono); font-size:9.5px; font-weight:700; letter-spacing:3px; text-transform:uppercase; color:var(--tx-4); margin-bottom:6px; }
+  .sec-title { font-size:20px; font-weight:700; margin-bottom:18px; padding-bottom:10px; border-bottom:1px solid var(--border-1); position:relative; }
+  .sec-title::after { content:''; position:absolute; bottom:-1px; left:0; width:50px; height:1px; background:var(--amber); }
+  p { margin-bottom:10px; color:var(--tx-2); }
+  p strong { color:var(--tx-1); }
+  p code, li code { font-family:var(--mono); font-size:11.5px; background:var(--bg-3); color:var(--cyan); padding:1px 5px; border-radius:2px; }
+
+  /* ── Architecture Diagram / Log Box ── */
+  .arch-box {
+    background:var(--bg-2); border:1px solid var(--border-2); padding:28px 32px; margin:16px 0 24px;
+    font-family:var(--mono); font-size:12px; line-height:1.8; white-space:pre; overflow-x:auto;
+    color:var(--tx-2); position:relative;
+  }
+  .arch-box::before {
+    content:attr(data-title);
+    position:absolute; top:0; right:0;
+    font-size:9px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase;
+    color:var(--tx-4); background:var(--bg-3); padding:4px 12px;
+    border-left:1px solid var(--border-2); border-bottom:1px solid var(--border-2);
+  }
+  .arch-box .hi { color:var(--amber); font-weight:600; }
+  .arch-box .g { color:var(--green); }
+  .arch-box .r { color:var(--red); font-weight:600; }
+  .arch-box .d { color:var(--tx-4); }
+  .arch-box .c { color:var(--cyan); }
+  .arch-box .v { color:var(--violet); }
+
+  /* ── Table ── */
+  table.tbl { width:100%; border-collapse:collapse; font-size:12.5px; margin-bottom:8px; }
+  .tbl thead th {
+    font-family:var(--mono); font-size:9px; font-weight:700;
+    letter-spacing:1.5px; text-transform:uppercase; color:var(--tx-4);
+    text-align:left; padding:9px 14px;
+    border-bottom:1px solid var(--border-2); background:var(--bg-3);
+  }
+  .tbl tbody td { padding:10px 14px; border-bottom:1px solid var(--border-1); vertical-align:top; color:var(--tx-2); }
+  .tbl tbody tr:hover { background:rgba(240,168,48,0.015); }
+  .tbl .idx { font-family:var(--mono); font-size:11px; color:var(--tx-4); width:36px; }
+  .risk { font-family:var(--mono); font-size:9.5px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding:3px 10px; border-radius:2px; display:inline-block; white-space:nowrap; }
+  .risk-h { color:var(--red); background:var(--red-dim); border:1px solid var(--red-border); }
+  .risk-m { color:var(--amber); background:var(--amber-dim); border:1px solid var(--amber-border); }
+  .risk-l { color:var(--green); background:var(--green-dim); border:1px solid var(--green-border); }
+  .status-ok { color:var(--green); }
+  .status-fail { color:var(--red); }
+
+  /* ── Step Headers ── */
+  .step-hdr {
+    display:flex; align-items:center; gap:14px;
+    margin:40px 0 20px; padding-bottom:12px;
+    border-bottom:1px solid var(--border-1);
+  }
+  .step-badge {
+    font-family:var(--mono); font-size:11px; font-weight:800;
+    letter-spacing:1.5px; padding:5px 14px; border-radius:2px;
+  }
+  .step-fail .step-badge { background:var(--red-dim); color:var(--red); border:1px solid var(--red-border); }
+  .step-ok .step-badge { background:var(--green-dim); color:var(--green); border:1px solid var(--green-border); }
+  .step-key .step-badge { background:var(--amber-dim); color:var(--amber); border:1px solid var(--amber-border); }
+  .step-hdr h3 { font-size:16px; font-weight:700; }
+  .step-hdr .step-sub { margin-left:auto; font-family:var(--mono); font-size:10.5px; color:var(--tx-4); }
+
+  /* ── Card ── */
+  .card { background:var(--bg-2); border:1px solid var(--border-1); margin-bottom:18px; overflow:hidden; }
+  .card-hdr {
+    display:flex; align-items:center; gap:12px;
+    padding:14px 22px; background:var(--bg-3); border-bottom:1px solid var(--border-1);
+  }
+  .card-num {
+    font-family:var(--mono); font-size:10px; font-weight:800;
+    padding:2px 8px; border-radius:2px;
+  }
+  .card-num.cn-red { color:var(--red); background:var(--red-dim); }
+  .card-num.cn-green { color:var(--green); background:var(--green-dim); }
+  .card-num.cn-amber { color:var(--amber); background:var(--amber-dim); }
+  .card-num.cn-blue { color:var(--blue); background:var(--blue-dim); }
+  .card-num.cn-violet { color:var(--violet); background:var(--violet-dim); }
+  .card-hdr h4 { font-size:13.5px; font-weight:600; }
+  .card-body { padding:18px 22px; }
+
+  /* ── Change List ── */
+  .cl { list-style:none; margin-bottom:14px; }
+  .cl li { padding:3px 0; color:var(--tx-2); font-size:12.5px; display:flex; align-items:baseline; gap:8px; }
+  .cl li::before { content:'→'; color:var(--amber); font-family:var(--mono); font-weight:700; flex-shrink:0; }
+
+  /* ── Code Block ── */
+  .code {
+    background:var(--bg-0); border:1px solid var(--border-1); padding:16px 20px; margin:10px 0;
+    font-family:var(--mono); font-size:11px; line-height:1.85; overflow-x:auto; position:relative;
+    white-space:pre;
+  }
+  .code::before {
+    content:attr(data-label);
+    position:absolute; top:0; right:0;
+    font-size:8.5px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase;
+    color:var(--tx-4); background:var(--bg-3); padding:3px 10px;
+    border-left:1px solid var(--border-1); border-bottom:1px solid var(--border-1);
+  }
+  .code .kw { color:var(--violet); }
+  .code .fn { color:var(--cyan); }
+  .code .str { color:var(--green); }
+  .code .cm { color:var(--tx-4); font-style:italic; }
+  .code .old { color:var(--red); text-decoration:line-through; opacity:0.55; }
+  .code .new { color:var(--green); font-weight:500; }
+  .code .num { color:var(--amber); }
+  .code .r { color:var(--red); font-weight:600; }
+  .code .g { color:var(--green); font-weight:500; }
+
+  /* ── Callout ── */
+  .callout {
+    border-left:3px solid var(--amber); background:var(--amber-dim);
+    padding:14px 20px; margin:16px 0; font-size:12.5px; color:var(--tx-2);
+  }
+  .callout strong { color:var(--amber); }
+  .callout-red {
+    border-left:3px solid var(--red); background:var(--red-dim);
+    padding:14px 20px; margin:16px 0; font-size:12.5px; color:var(--tx-2);
+  }
+  .callout-red strong { color:var(--red); }
+  .callout-green {
+    border-left:3px solid var(--green); background:var(--green-dim);
+    padding:14px 20px; margin:16px 0; font-size:12.5px; color:var(--tx-2);
+  }
+  .callout-green strong { color:var(--green); }
+
+  /* ── Flow Diagram ── */
+  .flow {
+    background:var(--bg-2); border:1px solid var(--border-2); padding:28px 32px; margin:16px 0 24px;
+    font-family:var(--mono); font-size:11.5px; line-height:2; white-space:pre; overflow-x:auto;
+    color:var(--tx-2); position:relative;
+  }
+  .flow::before {
+    content:attr(data-title);
+    position:absolute; top:0; right:0;
+    font-size:9px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase;
+    color:var(--tx-4); background:var(--bg-3); padding:4px 12px;
+    border-left:1px solid var(--border-2); border-bottom:1px solid var(--border-2);
+  }
+
+  /* ── Numbered list ── */
+  .nlist { list-style:none; counter-reset:ncount; margin:12px 0 20px; }
+  .nlist li { padding:6px 0; color:var(--tx-2); font-size:12.5px; display:flex; align-items:baseline; gap:12px; counter-increment:ncount; }
+  .nlist li::before {
+    content:counter(ncount); font-family:var(--mono); font-size:10px; font-weight:800;
+    color:var(--amber); background:var(--amber-dim); border:1px solid var(--amber-border);
+    padding:1px 7px; border-radius:2px; flex-shrink:0;
+  }
+
+  /* ── Footer ── */
+  .footer {
+    margin-top:60px; padding-top:20px; border-top:1px solid var(--border-1);
+    font-family:var(--mono); font-size:10px; color:var(--tx-4); text-align:center;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ════════ HEADER ════════ -->
+  <header class="hdr">
+    <div class="badge">SEH Crash Resolved</div>
+    <h1>DPDK <em>hwio.dll</em> SEH 크래시 원인 분석<small>__declspec(dllimport) 누락으로 인한 데이터 심볼 주소 오류</small></h1>
+    <p class="sub">C# P/Invoke → hwio.dll → DPDK inline 함수 호출 시 <code>rte_mempool_ops_table</code>, <code>rte_eth_fp_ops</code> 글로벌 데이터 심볼의 주소가 코드 영역으로 해석되어 Access Violation 발생. 근본 원인 분석 및 해결 과정 기록.</p>
+    <dl class="meta">
+      <div><dt>DATE</dt><dd>2026-03-19</dd></div>
+      <div><dt>SYSTEM</dt><dd>ITOLED_OC (IT OLED 검사기)</dd></div>
+      <div><dt>TARGET</dt><dd>DPDK 기반 PG 통신</dd></div>
+      <div><dt>FIELD PC</dt><dd>\\10.10.5.35 (X3584)</dd></div>
+      <div><dt>STATUS</dt><dd style="color:var(--green);">RESOLVED</dd></div>
+    </dl>
+  </header>
+
+  <!-- ════════ 1. 증상 ════════ -->
+  <section class="sec">
+    <div class="sec-label">Section 01</div>
+    <h2 class="sec-title">증상</h2>
+
+    <ul class="cl">
+      <li><code>rte_pktmbuf_alloc</code> 호출 시 <strong>SEH Access Violation</strong> (fault address: <code>0xFFFFFFFFFFFFFFFF</code>)</li>
+      <li><code>rte_eth_rx_burst</code>, <code>rte_eth_tx_burst</code>도 동일한 SEH 크래시</li>
+      <li><code>dpdk_diag.exe</code> (native C 테스트 프로그램)는 동일 DLL로 <strong style="color:var(--green)">정상 동작</strong></li>
+      <li>C# 앱(ITOLED.OC)에서 hwio.dll P/Invoke 경유 시에만 발생</li>
+    </ul>
+
+    <div class="callout-red">
+      <strong>핵심 모순:</strong> 동일한 hwio.dll + rte_*.dll 조합인데, dpdk_diag.exe에서는 정상 — ITOLED.OC에서만 크래시. DLL 자체 결함이 아닌 <strong>빌드/링킹 차이</strong>가 원인.
+    </div>
+  </section>
+
+  <!-- ════════ 2. 디버깅 과정 ════════ -->
+  <section class="sec">
+    <div class="sec-label">Section 02</div>
+    <h2 class="sec-title">디버깅 과정</h2>
+
+    <!-- 2.1 -->
+    <div class="step-hdr step-fail">
+      <span class="step-badge">2.1</span>
+      <h3>초기 가설: LoadLibraryA 전체 경로 → DLL 이중 로드</h3>
+      <span class="step-sub status-fail">REJECTED</span>
+    </div>
+
+    <div class="card">
+      <div class="card-hdr">
+        <span class="card-num cn-amber">HYPOTHESIS</span>
+        <h4>HwManager.cs의 LoadLibraryA(fullPath) → DLL 이중 인스턴스</h4>
+      </div>
+      <div class="card-body">
+        <p><strong>가설:</strong> <code>LoadLibraryA(fullPath)</code>로 rte_*.dll을 로드하면 Windows loader cache에서 별도 인스턴스로 취급 → <code>rte_mempool_ring-26.dll</code>의 RTE_INIT constructor가 한 인스턴스에 등록하고, 실제 사용은 다른 인스턴스 참조.</p>
+        <p><strong>검증:</strong> <code>LoadLibraryA(lib)</code> (파일명만)으로 변경 + <code>GetModuleFileNameA</code> 진단 로그 추가.</p>
+      </div>
+    </div>
+
+    <div class="arch-box" data-title="진단 로그 — DLL 로드 경로 확인">
+<span class="g">[OK]</span> rte_mempool-26.dll      → C:\Users\kts\...\Temp\hw_xxx\rte_mempool-26.dll
+<span class="g">[OK]</span> rte_mempool_ring-26.dll → C:\Users\kts\...\Temp\hw_xxx\rte_mempool_ring-26.dll
+<span class="g">[OK]</span> hwio.dll 로드 완료       → C:\Users\kts\...\Temp\hw_xxx\hwio.dll</div>
+
+    <div class="callout">
+      <strong>결과:</strong> 모든 DLL이 같은 temp 디렉토리에서 로드됨을 확인. 이중 로드가 아님. <strong>가설 기각.</strong>
+    </div>
+
+    <!-- 2.2 -->
+    <div class="step-hdr step-fail">
+      <span class="step-badge">2.2</span>
+      <h3>hwio.dll 로드 경로 문제</h3>
+      <span class="step-sub status-fail">REJECTED</span>
+    </div>
+
+    <div class="card">
+      <div class="card-hdr">
+        <span class="card-num cn-amber">HYPOTHESIS</span>
+        <h4>앱 폴더의 구버전 hwio.dll 우선 로드</h4>
+      </div>
+      <div class="card-body">
+        <p><strong>가설:</strong> 앱 폴더의 구버전 hwio.dll이 로드되어 rte_*.dll과 구조체 레이아웃 불일치.</p>
+        <p><strong>검증:</strong> <code>LoadLibraryA(hwioPath)</code> (전체 경로)로 temp dir의 hwio.dll 강제 로드.</p>
+        <p><strong>결과:</strong> <span class="status-fail">실패</span> — 동일 디렉토리의 hwio.dll을 로드해도 크래시 지속.</p>
+      </div>
+    </div>
+
+    <!-- 2.3 -->
+    <div class="step-hdr step-key">
+      <span class="step-badge">2.3</span>
+      <h3>hw_dump_pool_ops 진단 추가 — 핵심 단서 발견</h3>
+      <span class="step-sub" style="color:var(--amber);">KEY FINDING</span>
+    </div>
+
+    <div class="card">
+      <div class="card-hdr">
+        <span class="card-num cn-red">CRITICAL</span>
+        <h4>rte_mempool_ops_table이 코드 영역 주소를 가리킴</h4>
+      </div>
+      <div class="card-body">
+        <p>hwio.c에 <code>rte_mempool_get_ops(mp->ops_index)</code> 결과를 덤프하는 진단 함수 추가:</p>
+
+        <div class="code" data-label="hw_diag.log">pool_create: ops_index=<span class="num">0</span>
+pool_create: ops=<span class="r">00007FFA9B2A4020</span> name='<span class="r">가비지</span>'
+pool_create: ops->alloc=<span class="r">4808245C89480000</span>
+              dequeue=<span class="r">E8C933F18B4CF28B</span>    <span class="cm">← 0xFFFF... 크래시 원인</span>
+              enqueue=<span class="r">EC8348564120247C</span>
+pool_create: sizeof(rte_mempool_ops)=<span class="num">128</span> sizeof(rte_mempool)=<span class="num">192</span></div>
+
+        <div class="callout-red">
+          <strong>핵심 발견:</strong> ops 포인터가 <strong>x86 기계어 코드 영역</strong>을 가리킴 (데이터가 아닌 코드 주소). <code>rte_mempool_ops_table</code>의 주소가 완전히 잘못 해석되고 있음. <code>dequeue</code> 값 <code>0xE8C933F1...</code>은 유효한 함수 포인터가 아니라 기계어 명령어 바이트.
+        </div>
+      </div>
+    </div>
+
+    <!-- 2.4 -->
+    <div class="step-hdr step-ok">
+      <span class="step-badge">2.4</span>
+      <h3>근본 원인 확정: __declspec(dllimport) 누락</h3>
+      <span class="step-sub status-ok">ROOT CAUSE CONFIRMED</span>
+    </div>
+
+    <div class="card">
+      <div class="card-hdr">
+        <span class="card-num cn-red">ROOT CAUSE</span>
+        <h4>clang -shared 빌드에서 DPDK 데이터 심볼의 dllimport 누락</h4>
+      </div>
+      <div class="card-body">
+
+        <table class="tbl">
+          <thead>
+            <tr><th>항목</th><th>dpdk_diag.exe</th><th>hwio.dll</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>빌드 도구</td>
+              <td>meson/ninja (DPDK 빌드 시스템)</td>
+              <td>clang -shared (ShimBuildStep)</td>
+            </tr>
+            <tr>
+              <td>링크 방식</td>
+              <td>DPDK 빌드 시스템이 관리</td>
+              <td>수동 .lib 링크</td>
+            </tr>
+            <tr>
+              <td>데이터 심볼</td>
+              <td class="status-ok">올바른 dllimport 처리</td>
+              <td class="status-fail"><strong>auto-import 실패</strong></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p style="margin-top:16px;">DPDK 헤더에서 문제의 데이터 심볼 선언:</p>
+
+        <div class="code" data-label="dpdk headers">
+<span class="cm">// rte_mempool.h</span>
+<span class="kw">extern</span> <span class="kw">struct</span> rte_mempool_ops_table <span class="fn">rte_mempool_ops_table</span>;  <span class="cm">← __declspec(dllimport) 없음</span>
+
+<span class="cm">// rte_ethdev.h</span>
+<span class="kw">extern</span> <span class="kw">struct</span> rte_eth_fp_ops <span class="fn">rte_eth_fp_ops</span>[];              <span class="cm">← __declspec(dllimport) 없음</span></div>
+
+      </div>
+    </div>
+
+    <!-- Root Cause Mechanism Diagram -->
+    <div class="card">
+      <div class="card-hdr">
+        <span class="card-num cn-red">MECHANISM</span>
+        <h4>문제의 메커니즘 (단계별)</h4>
+      </div>
+      <div class="card-body">
+        <ol class="nlist">
+          <li>DPDK의 <code>rte_pktmbuf_alloc</code>은 <code>static inline</code> 함수 → <strong>hwio.dll에 인라인 컴파일됨</strong></li>
+          <li>인라인 코드가 <code>rte_mempool_ops_table</code> (rte_mempool-26.dll의 <strong>DATA export</strong>) 접근</li>
+          <li><code>__declspec(dllimport)</code> 없이 컴파일 → 컴파일러가 <strong>직접 주소 참조</strong> 코드 생성</li>
+          <li>lld-link(clang 링커)의 데이터 auto-import가 <strong class="status-fail">실패</strong> → IAT 간접 참조 미생성</li>
+          <li>런타임에 <code>rte_mempool_ops_table</code> 주소로 <strong>코드 영역 주소</strong>를 읽음</li>
+          <li><code>ops->dequeue</code> = 가비지 (기계어 코드 바이트) → <strong>SEH Access Violation</strong></li>
+        </ol>
+
+        <div class="flow" data-title="Crash Flow">
+<span class="v">hwio.dll</span> (clang -shared)
+  │
+  ├─ <span class="fn">rte_pktmbuf_alloc()</span>  <span class="cm">← static inline, hwio.dll에 인라인됨</span>
+  │   └─ <span class="fn">rte_mempool_ops_table</span><span class="r">[ops_index]</span>
+  │       │
+  │       ├─ <span class="g">정상: IAT → rte_mempool-26.dll DATA 섹션 → 유효한 ops 구조체</span>
+  │       │
+  │       └─ <span class="r">실제: 직접 참조 → 코드 영역 주소 → x86 기계어 바이트 → CRASH</span>
+  │                                    ↓
+  │                         <span class="r">ops->dequeue = 0xE8C933F1... (기계어)</span>
+  │                                    ↓
+  │                         <span class="r">SEH Access Violation (0xFFFFFFFFFFFFFFFF)</span>
+  │
+  ├─ <span class="fn">rte_eth_rx_burst()</span>  <span class="cm">← 동일 문제: rte_eth_fp_ops 배열</span>
+  └─ <span class="fn">rte_eth_tx_burst()</span>  <span class="cm">← 동일 문제</span></div>
+
+        <p><strong>영향받는 함수들:</strong></p>
+        <ul class="cl">
+          <li><code>rte_pktmbuf_alloc/free</code> → <code>rte_mempool_ops_table</code> 접근 (alloc/free 크래시)</li>
+          <li><code>rte_eth_rx_burst/tx_burst</code> → <code>rte_eth_fp_ops</code> 접근 (rx/tx 크래시)</li>
+        </ul>
+
+        <div class="callout-green">
+          <strong>dpdk_diag.exe가 정상인 이유:</strong> meson 빌드 시스템이 내부적으로 올바른 dllimport 처리를 하거나, EXE 링킹 시 auto-import가 정상 동작. hwio.dll은 <code>clang -shared</code>로 별도 빌드되어 이 처리가 누락됨.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════ 3. 해결 방안 ════════ -->
+  <section class="sec">
+    <div class="sec-label">Section 03</div>
+    <h2 class="sec-title">해결 방안</h2>
+
+    <!-- 실패한 접근들 -->
+    <div class="step-hdr step-fail">
+      <span class="step-badge">3.1</span>
+      <h3>시도했으나 실패한 접근들</h3>
+      <span class="step-sub status-fail">FAILED</span>
+    </div>
+
+    <table class="tbl">
+      <thead>
+        <tr><th>접근</th><th>실패 이유</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>__declspec(dllimport)</code> 사전 선언</td>
+          <td>clang이 재선언 시 dllimport 속성을 <strong>삭제</strong> (<code>-Winconsistent-dllimport</code>)</td>
+        </tr>
+        <tr>
+          <td><code>#define rte_mempool_ops_table</code> (헤더 전)</td>
+          <td>struct 정의 이름까지 치환되어 컴파일 에러</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- 적용된 해결 -->
+    <div class="step-hdr step-ok">
+      <span class="step-badge">3.2</span>
+      <h3>적용된 해결: hw_ring_ops.h (DPDK 헤더 이후 호출 사이트 오버라이드)</h3>
+      <span class="step-sub status-ok">APPLIED</span>
+    </div>
+
+    <div class="callout">
+      <strong>원리:</strong> DPDK 헤더의 인라인 함수는 이미 깨진 auto-import로 컴파일되지만, hwio.c/dpdk_netif.c의 <strong>직접 호출 사이트</strong>를 매크로로 오버라이드하여 우회.
+    </div>
+
+    <!-- Part 1 -->
+    <div class="card">
+      <div class="card-hdr">
+        <span class="card-num cn-green">PART 1</span>
+        <h4>mempool alloc/free — 직접 ring 접근</h4>
+      </div>
+      <div class="card-body">
+        <p><code>rte_mempool_ops_table</code>을 완전 우회. <code>mp->pool_data</code> (rte_ring 포인터)에서 직접 <code>rte_ring_mc_dequeue</code> / <code>rte_ring_mp_enqueue</code> 호출.</p>
+
+        <div class="code" data-label="hw_ring_ops.h — alloc">
+<span class="cm">// rte_pktmbuf_alloc 대체</span>
+<span class="kw">static inline struct</span> rte_mbuf *<span class="fn">_hw_pktmbuf_alloc</span>(<span class="kw">struct</span> rte_mempool *mp) {
+    <span class="kw">void</span> *obj = NULL;
+    <span class="kw">if</span> (<span class="fn">rte_ring_mc_dequeue</span>((<span class="kw">struct</span> rte_ring *)mp->pool_data, &amp;obj) != <span class="num">0</span>)
+        <span class="kw">return</span> NULL;
+    <span class="kw">struct</span> rte_mbuf *m = (<span class="kw">struct</span> rte_mbuf *)obj;
+    <span class="fn">rte_pktmbuf_reset</span>(m);
+    <span class="kw">return</span> m;
+}
+<span class="kw">#define</span> <span class="fn">rte_pktmbuf_alloc</span>(mp)  <span class="fn">_hw_pktmbuf_alloc</span>(mp)</div>
+
+        <p><code>rte_ring_*</code> 함수는 header-only로 ring 구조체만 접근 — 외부 글로벌 변수 참조 없음 → auto-import 문제 없음.</p>
+      </div>
+    </div>
+
+    <!-- Part 2 -->
+    <div class="card">
+      <div class="card-hdr">
+        <span class="card-num cn-green">PART 2</span>
+        <h4>rx/tx burst — GetProcAddress 런타임 해석</h4>
+      </div>
+      <div class="card-body">
+        <p><code>rte_eth_fp_ops</code>는 배열이라 <code>#define</code> 우회 불가 → <code>GetProcAddress</code>로 런타임에 정확한 주소 취득.</p>
+
+        <div class="code" data-label="hw_ring_ops.h — rx/tx">
+<span class="kw">static struct</span> rte_eth_fp_ops *<span class="fn">_hw_fp_ops</span> = NULL;
+
+<span class="kw">static inline void</span> <span class="fn">_hw_init_fp_ops</span>(<span class="kw">void</span>) {
+    HMODULE h = <span class="fn">GetModuleHandleA</span>(<span class="str">"rte_ethdev-26.dll"</span>);
+    <span class="kw">if</span> (h) _hw_fp_ops = (<span class="kw">struct</span> rte_eth_fp_ops *)<span class="fn">GetProcAddress</span>(h, <span class="str">"rte_eth_fp_ops"</span>);
+}
+
+<span class="kw">static inline</span> uint16_t <span class="fn">_hw_rx_burst</span>(uint16_t port_id, uint16_t queue_id,
+        <span class="kw">struct</span> rte_mbuf **rx_pkts, uint16_t nb_pkts) {
+    <span class="kw">struct</span> rte_eth_fp_ops *p = &amp;_hw_fp_ops[port_id];
+    <span class="kw">return</span> p-><span class="fn">rx_pkt_burst</span>(p->rxq.data[queue_id], rx_pkts, nb_pkts);
+}
+<span class="kw">#define</span> <span class="fn">rte_eth_rx_burst</span>(p,q,r,n)  <span class="fn">_hw_rx_burst</span>(p,q,r,n)</div>
+      </div>
+    </div>
+
+    <!-- 수정된 파일 목록 -->
+    <div class="step-hdr step-ok">
+      <span class="step-badge">3.3</span>
+      <h3>수정된 파일 목록</h3>
+    </div>
+
+    <table class="tbl">
+      <thead>
+        <tr><th>파일</th><th>변경 내용</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>DpdkShim/hw_ring_ops.h</code></td>
+          <td><span class="risk risk-l">NEW</span> alloc/free ring 우회 + rx/tx GetProcAddress 해석</td>
+        </tr>
+        <tr>
+          <td><code>DpdkShim/hwio.c</code></td>
+          <td>hw_ring_ops.h include (DPDK 헤더 뒤), <code>_hw_init_fp_ops()</code> 호출</td>
+        </tr>
+        <tr>
+          <td><code>DpdkShim/dpdk_netif.c</code></td>
+          <td>hw_ring_ops.h include, <code>_hw_init_fp_ops()</code> 호출</td>
+        </tr>
+        <tr>
+          <td><code>DpdkNet/Core/HwManager.cs</code></td>
+          <td>hwio.dll 로드를 파일명만(<code>LoadLibraryA("hwio.dll")</code>)으로 변경 — drivers.dat 추출 temp dir에서 <code>SetDllDirectory</code> 경유 로드. 전체 경로 로드 시 P/Invoke 모듈명 불일치로 <code>DllNotFoundException</code> 발생 방지</td>
+        </tr>
+        <tr>
+          <td><code>Dpdk_Setup_Tool/Steps/DeployVerifyStep.cs</code></td>
+          <td>배포 폴더에서 hwio.dll 별도 유지 제거 — drivers.dat에 포함되므로 HwNet.dll만 유지</td>
+        </tr>
+        <tr>
+          <td><code>ITOLED.OC/Program.cs</code></td>
+          <td>DPDK 실패 시 Socket 폴백 제거</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ════════ 4. 검증 결과 ════════ -->
+  <section class="sec">
+    <div class="sec-label">Section 04</div>
+    <h2 class="sec-title">검증 결과</h2>
+
+    <!-- Before -->
+    <div class="card">
+      <div class="card-hdr">
+        <span class="card-num cn-red">BEFORE</span>
+        <h4>수정 전 (구 hwio.dll)</h4>
+      </div>
+      <div class="card-body">
+        <div class="code" data-label="crash log">
+<span class="r">[HW] pool_create: ops=00007FFA8E72516A name='가비지'</span>     <span class="cm">← 코드 주소</span>
+<span class="r">[HW] SEH: hw_pktmbuf_alloc fallback also crashed!</span>        <span class="cm">← alloc 크래시</span>
+<span class="r">[HW] SEH: hw_tx_burst crashed! port=0 queue=0</span>            <span class="cm">← tx 크래시</span>
+<span class="r">[HW] SEH: hw_rx_burst crashed! port=0 queue=0</span>            <span class="cm">← rx 크래시</span>
+
+AppLog: <span class="r">AllocMbuf returned NULL (무한 반복)</span></div>
+      </div>
+    </div>
+
+    <!-- After -->
+    <div class="card">
+      <div class="card-hdr">
+        <span class="card-num cn-green">AFTER</span>
+        <h4>수정 후 (신 hwio.dll)</h4>
+      </div>
+      <div class="card-body">
+        <div class="code" data-label="success log">
+<span class="g">[HW] dllimport fix: fp_ops=00007FFA8DEDDB40</span>               <span class="cm">← 정상 주소</span>
+<span class="g">[HW] rte_eal_init returned 5</span>                               <span class="cm">← EAL 정상</span>
+
+<span class="g">AppLog: ARP 요청 전송 완료</span>                                  <span class="cm">← alloc 성공!</span>
+<span class="g">AppLog: ARP 응답 대기 (timeout=3000ms)...</span>                   <span class="cm">← tx_burst 성공!</span>
+AppLog: ARP attempt 1 failed (3초 후 타임아웃)                <span class="cm">← rx_burst 정상 (PG 미연결)</span></div>
+
+        <div class="callout-green">
+          <strong>alloc, tx_burst, rx_burst 모두 정상 동작 확인.</strong> ARP 실패는 PG 미연결(Link DOWN)이 원인이며 정상적인 동작.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════ 5. 교훈 및 권장사항 ════════ -->
+  <section class="sec">
+    <div class="sec-label">Section 05</div>
+    <h2 class="sec-title">교훈 및 권장사항</h2>
+
+    <div class="card">
+      <div class="card-hdr">
+        <span class="card-num cn-amber">1</span>
+        <h4>clang -shared 빌드 시 dllimport 필수</h4>
+      </div>
+      <div class="card-body">
+        <p>Windows에서 <code>clang -shared</code>로 DLL 빌드 시 DPDK와 같은 외부 라이브러리의 <strong>데이터 심볼</strong>에 <code>__declspec(dllimport)</code> 필요. meson 빌드 시스템 외부에서 빌드하면 자동 처리 안 됨.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hdr">
+        <span class="card-num cn-amber">2</span>
+        <h4>DPDK 버전 업그레이드 시 호환성 확인</h4>
+      </div>
+      <div class="card-body">
+        <p>향후 DPDK 버전 업그레이드 시 <code>hw_ring_ops.h</code>의 <code>rte_eth_fp_ops</code> 구조체 레이아웃 호환성 확인 필요. 특히 <code>rxq.data[]</code>, <code>rx_pkt_burst</code> 필드 위치.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hdr">
+        <span class="card-num cn-amber">3</span>
+        <h4>hwio.dll은 drivers.dat에만 포함</h4>
+      </div>
+      <div class="card-body">
+        <p>hwio.dll은 drivers.dat 안에 포함되어 런타임에 temp dir로 추출 → <code>SetDllDirectory</code> 경유 로드. 앱 실행 폴더에 hwio.dll을 별도로 두면 Windows DLL 검색 순서상 앱 폴더가 우선되어 <strong>구버전이 로드될 위험</strong>이 있음. 배포 시 앱 폴더에는 <code>drivers.dat</code> + <code>HwNet.dll</code>만 복사.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hdr">
+        <span class="card-num cn-amber">4</span>
+        <h4>LoadLibraryA 전체 경로 vs 파일명만</h4>
+      </div>
+      <div class="card-body">
+        <p><code>LoadLibraryA("C:\temp\hw_xxx\hwio.dll")</code> (전체 경로)로 로드하면 .NET P/Invoke의 <code>[DllImport("hwio.dll")]</code> 해석 시 모듈명 불일치로 DLL을 찾지 못함. <code>SetDllDirectory</code> 설정 후 <code>LoadLibraryA("hwio.dll")</code> (파일명만)으로 로드해야 P/Invoke와 일치.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════ Footer ════════ -->
+  <div class="footer">
+    DPDK CRASH ANALYSIS REPORT &mdash; ITOLED_OC &mdash; 2026-03-19
+  </div>
+
+</div>
+</body>
+</html>
