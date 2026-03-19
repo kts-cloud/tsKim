@@ -3,7 +3,7 @@
    ============================================================================= */
 
 html, body {
-    font-family: 'Roboto', sans-serif;
+    font-family: 'Segoe UI', 'Malgun Gothic', sans-serif;
     margin: 0;
     padding: 0;
 }
@@ -132,25 +132,25 @@ html, body {
 
 /* Text/element selection highlight */
 ::selection {
-    background: rgba(120, 144, 156, 0.4);
-    color: #CFD8DC;
+    background: rgba(66, 165, 245, 0.4);
+    color: #E3F2FD;
 }
 
 /* MudBlazor list item / table row selected state */
 .mud-selected-item,
 .mud-list-item-clickable.mud-selected-item,
 .mud-table-row.mud-selected-item {
-    background-color: rgba(120, 144, 156, 0.15) !important;
+    background-color: rgba(66, 165, 245, 0.15) !important;
 }
 
 /* MudButton focus-visible outline */
 .mud-button-root:focus-visible {
-    outline: 2px solid rgba(120, 144, 156, 0.5);
+    outline: 2px solid rgba(66, 165, 245, 0.5);
     outline-offset: 2px;
 }
 
 /* MudChip selected */
 .mud-chip.mud-chip-selected {
-    background-color: rgba(120, 144, 156, 0.25) !important;
-    color: #CFD8DC !important;
+    background-color: rgba(66, 165, 245, 0.25) !important;
+    color: #E3F2FD !important;
 }

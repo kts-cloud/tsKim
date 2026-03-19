@@ -38,26 +38,26 @@ public partial class MainLayout : IDisposable
         },
         PaletteDark = new PaletteDark
         {
-            Primary = "#78909C",
-            Secondary = "#90A4AE",
-            AppbarBackground = "#1C2833",
-            Background = "#0E1621",
-            Surface = "#172130",
-            DrawerBackground = "#141E2B",
-            TextPrimary = "#CFD8DC",
-            TextSecondary = "#90A4AE",
-            ActionDefault = "#78909C",
-            ActionDisabled = "#455A64",
-            ActionDisabledBackground = "#1E2D3D",
-            LinesDefault = "#37474F",
-            TableLines = "#263238",
-            Divider = "#263238",
+            Primary = "#42A5F5",
+            Secondary = "#64B5F6",
+            AppbarBackground = "#0D1B2A",
+            Background = "#0B1929",
+            Surface = "#122338",
+            DrawerBackground = "#0F1E30",
+            TextPrimary = "#E3F2FD",
+            TextSecondary = "#90CAF9",
+            ActionDefault = "#64B5F6",
+            ActionDisabled = "#1E3A5F",
+            ActionDisabledBackground = "#0F2137",
+            LinesDefault = "#1A3A5C",
+            TableLines = "#152D4A",
+            Divider = "#1A3A5C",
             HoverOpacity = 0.08,
             RippleOpacity = 0.12,
         },
         Typography = new Typography
         {
-            Default = new DefaultTypography { FontFamily = ["Roboto", "sans-serif"] }
+            Default = new DefaultTypography { FontFamily = ["Segoe UI", "Malgun Gothic", "sans-serif"] }
         }
     };
 
