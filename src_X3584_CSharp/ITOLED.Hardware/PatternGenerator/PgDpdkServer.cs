@@ -67,6 +67,7 @@ public sealed class PgDpdkServer : IPgTransport
     /// <summary>TX serialization (DPDK TX queue is not thread-safe).</summary>
     private readonly object _txLock = new();
 
+
     /// <summary>RX polling thread.</summary>
     private Thread? _rxThread;
     private volatile bool _running;
@@ -829,27 +830,45 @@ public sealed class PgDpdkServer : IPgTransport
         // Send ARP request
         lock (_txLock)
         {
-            var mbuf = _dpdk.AllocMbuf();
-            if (mbuf == IntPtr.Zero) return null;
-
-            var dataPtr = _dpdk.AppendMbuf(mbuf, (ushort)arpPktLen);
-            if (dataPtr == IntPtr.Zero)
+            try
             {
-                _dpdk.FreeMbuf(mbuf);
+                var mbuf = _dpdk.AllocMbuf();
+                if (mbuf == IntPtr.Zero)
+                {
+                    _logger.Error("[PgDpdkServer] ResolveDestMac: AllocMbuf returned NULL");
+                    return null;
+                }
+
+                var dataPtr = _dpdk.AppendMbuf(mbuf, (ushort)arpPktLen);
+                if (dataPtr == IntPtr.Zero)
+                {
+                    _dpdk.FreeMbuf(mbuf);
+                    _logger.Error("[PgDpdkServer] ResolveDestMac: AppendMbuf returned NULL");
+                    return null;
+                }
+
+                Marshal.Copy(arpPkt, 0, dataPtr, arpPktLen);
+                var txPkts = new IntPtr[] { mbuf };
+                var sent = _dpdk.TxBurst(txPkts, 1);
+                if (sent == 0)
+                {
+                    _dpdk.FreeMbuf(mbuf);
+                    _logger.Warn("[PgDpdkServer] ResolveDestMac: ARP tx_burst sent=0");
+                }
+                else
+                {
+                    _logger.Info("[PgDpdkServer] ResolveDestMac: ARP 요청 전송 완료");
+                }
+            }
+            catch (AccessViolationException ex)
+            {
+                _logger.Error($"[PgDpdkServer] ResolveDestMac: ARP TX AccessViolation: {ex.Message}");
                 return null;
             }
-
-            Marshal.Copy(arpPkt, 0, dataPtr, arpPktLen);
-            var txPkts = new IntPtr[] { mbuf };
-            var sent = _dpdk.TxBurst(txPkts,1);
-            if (sent == 0)
+            catch (Exception ex)
             {
-                _dpdk.FreeMbuf(mbuf);
-                _logger.Warn("[PgDpdkServer] ResolveDestMac: ARP tx_burst sent=0");
-            }
-            else
-            {
-                _logger.Info("[PgDpdkServer] ResolveDestMac: ARP 요청 전송 완료");
+                _logger.Error($"[PgDpdkServer] ResolveDestMac: ARP TX error: {ex.Message}");
+                return null;
             }
         }
 

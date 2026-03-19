@@ -430,7 +430,8 @@ namespace HwNet
                                 "ITOLED_OC",
                                 "-l", coreMask,
                                 "-m", memoryMb.ToString(),
-                                $"--log-level={options.LogLevel}"
+                                $"--log-level={options.LogLevel}",
+                                "--no-shconf"
                             };
                             if (!string.IsNullOrEmpty(options.FilePrefix))
                                 ealArgList.AddRange(new[] { "--file-prefix", options.FilePrefix });
