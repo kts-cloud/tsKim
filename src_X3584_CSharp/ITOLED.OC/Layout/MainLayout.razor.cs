@@ -47,8 +47,13 @@ public partial class MainLayout : IDisposable
             TextPrimary = "#CFD8DC",
             TextSecondary = "#90A4AE",
             ActionDefault = "#78909C",
+            ActionDisabled = "#455A64",
+            ActionDisabledBackground = "#1E2D3D",
+            LinesDefault = "#37474F",
             TableLines = "#263238",
             Divider = "#263238",
+            HoverOpacity = 0.08,
+            RippleOpacity = 0.12,
         },
         Typography = new Typography
         {

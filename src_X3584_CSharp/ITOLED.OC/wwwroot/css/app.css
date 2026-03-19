@@ -125,3 +125,32 @@ html, body {
     font-size: 0.72rem !important;
     font-family: 'Consolas', monospace;
 }
+
+/* =============================================================================
+   Dark theme: button/selection color fixes
+   ============================================================================= */
+
+/* Text/element selection highlight */
+::selection {
+    background: rgba(120, 144, 156, 0.4);
+    color: #CFD8DC;
+}
+
+/* MudBlazor list item / table row selected state */
+.mud-selected-item,
+.mud-list-item-clickable.mud-selected-item,
+.mud-table-row.mud-selected-item {
+    background-color: rgba(120, 144, 156, 0.15) !important;
+}
+
+/* MudButton focus-visible outline */
+.mud-button-root:focus-visible {
+    outline: 2px solid rgba(120, 144, 156, 0.5);
+    outline-offset: 2px;
+}
+
+/* MudChip selected */
+.mud-chip.mud-chip-selected {
+    background-color: rgba(120, 144, 156, 0.25) !important;
+    color: #CFD8DC !important;
+}
