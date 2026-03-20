@@ -46,6 +46,16 @@
         <StatusRow Label="DIO Status" IsOn="@_dioConnected" Value="@_dioStatusText" />
         <StatusRow Label="ECS Status" IsOn="@_ecsConnected" Value="@_ecsStatusText" />
         <StatusRow Label="IR Temp" IsOn="@_irTempConnected" Value="@_irTempText" />
+
+        @* PG Transport mode (DPDK / Socket / Socket fallback) *@
+        <div class="status-row">
+            <MudText Typo="Typo.caption" Class="status-label">PG Transport</MudText>
+            <MudChip T="string" Size="Size.Small" Variant="Variant.Filled"
+                     Color="@(UiService.IsDpdkFallback ? Color.Warning : (UiService.PgTransportMode == "DPDK" ? Color.Success : Color.Info))"
+                     Style="font-size: 0.65rem; height: 20px; margin: 0; padding: 0 6px;">
+                @UiService.PgTransportMode
+            </MudChip>
+        </div>
     </MudPaper>
 
     <MudDivider Class="my-1" />

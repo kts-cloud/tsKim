@@ -715,6 +715,9 @@ public class Program
                 var pgLogger = sp.GetRequiredService<IAppLogger>();
                 bool useDpdk = configSvc.SystemInfo?.UseDpdk ?? false;
 
+                bool dpdkFailed = false;
+                string? dpdkFailReason = null;
+
                 if (useDpdk)
                 {
                     try
@@ -793,36 +796,38 @@ public class Program
                             string debugLog = HwManager.ReadDebugLog(4096);
                             if (!string.IsNullOrEmpty(debugLog))
                                 pgLogger.Error($"[DPDK] EAL Debug Log:\n{debugLog}");
-                            string debugSection = string.IsNullOrEmpty(debugLog)
-                                ? ""
-                                : $"\n\n--- EAL Debug Log (tail) ---\n{debugLog}";
 
-                            MessageBox.Show(
-                                $"DPDK 초기화 실패:\n{errMsg}\n\nNIC가 netuio에 바인딩되었는지 확인하세요.\nUSE_DPDK=0 으로 변경하면 Socket UDP로 동작합니다.{debugSection}",
-                                "DPDK Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                            return;
+                            dpdkFailed = true;
+                            dpdkFailReason = errMsg;
                         }
-
-                        pgLogger.Info("[DPDK] Step 2: PgDpdkServer 생성 시작...");
-                        pgTransport = new PgDpdkServer(pgLogger, concretePgArray,
-                            HwManager.Instance, configSvc.SystemInfo?.UseCh,
-                            configSvc.SystemInfo?.PGEnableDpdkWarmup ?? true);
-                        pgLogger.Info("[DPDK] Step 3: PgDpdkServer 생성 완료 — PG transport: DPDK (kernel bypass)");
+                        else
+                        {
+                            pgLogger.Info("[DPDK] Step 2: PgDpdkServer 생성 시작...");
+                            pgTransport = new PgDpdkServer(pgLogger, concretePgArray,
+                                HwManager.Instance, configSvc.SystemInfo?.UseCh,
+                                configSvc.SystemInfo?.PGEnableDpdkWarmup ?? true);
+                            pgLogger.Info("[DPDK] Step 3: PgDpdkServer 생성 완료 — PG transport: DPDK (kernel bypass)");
+                        }
                     }
                     catch (Exception ex)
                     {
                         pgLogger.Error($"[DPDK] 예외: {ex.GetType().Name}: {ex.Message}");
                         pgLogger.Error($"[DPDK] StackTrace: {ex.StackTrace}");
-                        MessageBox.Show(
-                            $"DPDK 초기화 중 예외 발생:\n{ex.Message}\n\nUSE_DPDK=0 으로 변경하면 Socket UDP로 동작합니다.",
-                            "DPDK Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        return;
+                        dpdkFailed = true;
+                        dpdkFailReason = ex.Message;
                     }
                 }
-                else
+
+                // DPDK 실패 시 PG 통신 없이 진행 (Socket 폴백 제거 — IP 미설정으로 연결 불가)
+                if (dpdkFailed)
                 {
-                    splash.UpdateProgress("Setting up PG communication...", 70);
-                    pgTransport = new PgUdpServer(pgLogger, concretePgArray);
+                    pgLogger.Error($"[DPDK] PG 통신 불가 — DPDK 실패: {dpdkFailReason}");
+                    uiService.PgTransportMode = "DPDK 실패 (PG 미연결)";
+                    uiService.IsDpdkFallback = true;
+                }
+                else if (pgTransport != null)
+                {
+                    uiService.PgTransportMode = "DPDK";
                 }
 
                 // Connect each driver to the shared transport and start monitoring

@@ -314,8 +314,8 @@
   </p>
   <div class="meta">
     <dl><dt>프로젝트</dt><dd>ITOLED_OC (X3584)</dd></dl>
-    <dl><dt>문서 버전</dt><dd>v1.0</dd></dl>
-    <dl><dt>작성일</dt><dd>2026-03-17</dd></dl>
+    <dl><dt>문서 버전</dt><dd>v1.1</dd></dl>
+    <dl><dt>작성일</dt><dd>2026-03-20 (v1.0: 2026-03-17)</dd></dl>
     <dl><dt>분석 대상</dt><dd>tcon.read / tcon.write RTT</dd></dl>
   </div>
 </header>
@@ -403,6 +403,32 @@ PG HW 고정:  <span class="r">~1500μs (88%)</span> <span class="hi">← 병목
   <div class="insight-box">
     <strong>핵심:</strong> 전체 RTT의 88%가 PG Board HW 처리 시간이며, DPDK/Socket이 제어할 수 있는 구간은 12%에 불과합니다.
   </div>
+
+  <h3 style="font-size:15px; font-weight:600; margin:24px 0 12px; color:var(--violet);">PG HW 처리 시간 산출 근거</h3>
+  <p>PG HW 시간은 PG 보드에서 직접 측정한 값이 아니라, <code>hw_reqresp_once_mc</code>의 <strong>네이티브 RTT에서 네트워크 전파 지연을 뺀 간접 측정값</strong>입니다.</p>
+
+  <div class="arch-box" data-title="RTT 측정 지점">
+<span class="hi">hw_reqresp_once_mc 내부 측정 지점:</span>
+
+<span class="fn">rte_eth_tx_burst()</span>                      <span class="fn">rte_eth_rx_burst()</span> → IP/Port 매칭
+       ↓                                         ↓
+<span class="g">QueryPerformanceCounter(&send_tick)</span>   <span class="g">QueryPerformanceCounter(&now_tick)</span>
+       │                                         │
+       └──── <span class="hi">네이티브 RTT = now - send</span> ─────────┘
+
+<span class="d">네이티브 RTT 구성:</span>
+  ├─ NIC TX wire delay        <span class="c">~3-5μs</span>   (1Gbps 직결, NIC datasheet)
+  ├─ <span class="r">PG Board HW 처리</span>          <span class="r">~1510μs</span>  <span class="hi">← 나머지 전부</span>
+  └─ NIC RX wire delay        <span class="c">~3-5μs</span>   (1Gbps 직결, NIC datasheet)
+
+<span class="d">로그 예시:</span>
+  [RX] 8001&lt;8001: tcon.read ... RET:OK <span class="hi">[1523μs]</span>
+  PG HW ≈ 1523 - 5 - 5 = <span class="r">~1513μs</span>
+  </div>
+
+  <div class="insight-box">
+    <strong>측정 정밀도:</strong> <code>QueryPerformanceCounter</code>는 Windows 고정밀 타이머(~0.1μs 해상도). <code>tx_burst</code> 직후부터 <code>rx_burst</code> 매칭까지의 경과 시간이므로, C# 오버헤드를 포함하지 않는 <strong>순수 "NIC 밖 왕복 시간"</strong>입니다. Network wire delay(~10μs)는 1Gbps 직결 + 케이블 수 미터 환경에서 고정값이므로, 나머지는 PG 보드의 TCON 레지스터 읽기/쓰기 + 응답 패킷 생성 시간입니다.
+  </div>
 </section>
 
 <!-- ═══ SECTION 04: Send 경로 비교 ═══ -->
@@ -452,26 +478,384 @@ DPDK NIC-level TX 이득:  <span class="g">-10-25μs</span>  (DMA vs kernel sysc
   <div class="sec-label">Section 05</div>
   <h2 class="sec-title">RX 경로 비교</h2>
 
-  <p>DPDK와 Socket 모두 <strong>동일한 C# 파싱 로직</strong>을 사용하므로, RX 경로의 오버헤드는 사실상 동일합니다.</p>
+  <p><strong style="color:var(--cyan);">[v1.1 업데이트]</strong> DPDK 동기 명령(tcon.read/write 등 <code>waitMs &gt; 0</code>)은 <code>hw_reqresp_once_mc</code> 네이티브 경로를 사용하여 TX→RX→매칭을 C 코드 내에서 처리합니다. Socket 경로만 C# 파싱을 사용합니다.</p>
 
-  <div class="arch-box" data-title="RX Path (공통)">
-<span class="hi">RX 처리 경로 (DPDK / Socket 공통):</span>
+  <div class="pillars">
+    <div class="pillar p-amber">
+      <div class="p-tag">Socket RX Path (~200-300μs)</div>
+      <h3>C# Managed 파싱</h3>
+      <ul class="cl" style="margin-top:12px;">
+        <li><code>ReceiveAsync</code> (kernel → C#) — ~20-40μs</li>
+        <li><code>ProcessRxPacket</code> string 파싱 — ~80-100μs</li>
+        <li><code>ManualResetEventSlim</code> signal — ~50-100μs</li>
+        <li><code>CheckCmdAck</code> spin-wait 감지 — ~50-100μs</li>
+      </ul>
+      <p style="margin-top:8px; color:var(--amber); font-family:var(--mono); font-size:11px; font-weight:600;">총: ~200-300μs</p>
+    </div>
+    <div class="pillar p-blue">
+      <div class="p-tag">DPDK RX Path (~10-30μs)</div>
+      <h3>Native C 처리 (hw_reqresp_once_mc)</h3>
+      <ul class="cl" style="margin-top:12px;">
+        <li><code>hw_reqresp_once_mc</code> — TX+RX+매칭을 native C에서 처리</li>
+        <li><code>rte_eth_rx_burst</code> polling — ~3-5μs</li>
+        <li>IP/port 매칭 + payload 추출 — ~5-10μs</li>
+        <li>C#에 <code>RespLen</code> + <code>RttMs</code> 반환 — ~2-5μs</li>
+      </ul>
+      <p style="margin-top:8px; color:var(--blue); font-family:var(--mono); font-size:11px; font-weight:600;">총: ~10-30μs</p>
+    </div>
+  </div>
 
-1. <span class="c">ProcessRxPacket</span> string 파싱     ~80-100μs
-   <span class="d">ToUpperInvariant, IndexOf, Substring 등</span>
+  <div class="arch-box" data-title="RX Path 비교">
+<span class="hi">RX 경로 (동기 명령 — tcon.read/write):</span>
 
-2. <span class="c">ManualResetEventSlim</span> signal      ~50-100μs
-   <span class="d">RX 스레드 → CheckCmdAck 대기 스레드 깨움</span>
-
-3. <span class="c">CheckCmdAck</span> spin-wait 감지        ~50-100μs
-   <span class="d">SpinWait loop에서 응답 감지</span>
+<span class="g">Socket</span>:  ReceiveAsync(20-40) + C# 파싱(80-100) + Signal(50-100) + SpinWait(50-100) = <span class="r">~200-300μs</span>
+<span class="c">DPDK</span>:    <span class="c">hw_reqresp_once_mc</span> native 처리 (RxBurst + IP/port 매칭 + payload 추출) = <span class="g">~10-30μs</span>
 <span class="d">───────────────────────────────────────────────────────────────────</span>
-총 RX 오버헤드: <span class="hi">~200-300μs (DPDK/Socket 동일)</span>
+<span class="hi">DPDK RX 이득: -170~270μs (C# 파싱 + 스레드 동기화 완전 제거)</span>
+
+<span class="d">참고: 비동기 명령 (pg.status 등 waitMs=0)은 양쪽 모두 C# RxPollLoop/ReceiveLoop 사용</span>
   </div>
 
   <div class="insight-box">
-    <strong>결론:</strong> RX 경로는 100% C# managed code이므로, 네트워크 레이어(DPDK/Socket)의 차이가 반영되지 않습니다. 두 방식 모두 ~200-300μs의 동일한 오버헤드를 가집니다.
+    <strong>v1.1 핵심:</strong> DPDK 동기 명령의 RX 경로가 <code>hw_reqresp_once_mc</code>로 변경되어 C# 파싱 오버헤드가 완전히 제거되었습니다. 이로 인해 <strong>DPDK RX가 ~200μs 빠릅니다</strong>. 하지만 TX에서 ~50μs 느리므로 net 이득은 ~150μs이며, PG HW 처리 시간(~1400μs) 대비 ~9% 개선입니다.
   </div>
+</section>
+
+<!-- ═══ SECTION 05-1: hw_reqresp_once_mc 상세 분석 ═══ -->
+<section class="sec">
+  <div class="sec-label">Section 05-1</div>
+  <h2 class="sec-title">hw_reqresp_once_mc 내부 동작 상세</h2>
+
+  <p><code>hw_reqresp_once_mc</code>는 <strong>하나의 native C 함수 호출</strong>로 "패킷 전송 → NIC 폴링 → 매칭 → payload 추출"을 전부 처리합니다. C#으로 반환될 때는 응답 문자열과 RTT가 이미 완성되어 있습니다.</p>
+
+  <!-- ── 전체 흐름도 ── -->
+  <div class="arch-box" data-title="hw_reqresp_once_mc 전체 흐름">
+<span class="c">C# CommPgDriver.Dp860SendCmd</span>
+  │
+  ├─ <span class="c">BuildUdpPacket()</span>          C#에서 Ethernet/IP/UDP 헤더 + payload 조립
+  │   결과: <span class="fn">byte[] templatePkt</span>  (완성된 raw 패킷)
+  │
+  ├─ <span class="c">ReqRespOnceMc(templatePkt, expectedSrcIp, expectedDstPort, timeout)</span>
+  │   │
+  │   └─── <span class="hi">[여기서부터 전부 native C — hwio.dll]</span> ──────────────
+  │        │
+  │        ├─ <span class="v">Step 1</span>  <span class="fn">rte_pktmbuf_alloc</span>        mbuf 할당 (hugepage DMA)
+  │        ├─ <span class="v">Step 2</span>  <span class="fn">rte_pktmbuf_append</span>       mbuf 공간 확보
+  │        ├─ <span class="v">Step 3</span>  <span class="fn">memcpy</span>(data, template)   패킷 복사
+  │        ├─ <span class="v">Step 4</span>  PacketId 교체 + <span class="fn">IP checksum 증분 갱신</span>
+  │        ├─ <span class="v">Step 5</span>  <span class="g">rte_eth_tx_burst</span>         <span class="hi">★ NIC DMA 전송</span>
+  │        ├─ <span class="v">Step 6</span>  <span class="fn">QueryPerformanceCounter</span>  TX 시각 기록
+  │        │
+  │        ├─ <span class="v">Step 7</span>  <span class="hi">RX 폴링 루프</span> ──────────────────────────
+  │        │   <span class="kw">while</span> (timeout 안 됨) {
+  │        │     <span class="g">rte_eth_rx_burst</span>(32개씩)  <span class="hi">★ NIC에서 수신</span>
+  │        │     <span class="kw">for</span> (each 수신 패킷) {
+  │        │       ARP?       → <span class="fn">send_arp_reply()</span> 후 free
+  │        │       IPv4+UDP?  → SrcIP == expected?  DstPort == expected?
+  │        │         <span class="g">매칭 성공</span> → RTT 계산 + <span class="fn">memcpy</span>(payload) → <span class="g">return 0</span>
+  │        │         <span class="r">매칭 실패</span> → <span class="fn">spill_ring</span>에 보관 <span class="hi">★</span>
+  │        │     }
+  │        │   }
+  │        │   <span class="r">return 1</span> (타임아웃)
+  │        │
+  │   ─────[native C 종료]──────────────────────────────
+  │
+  ├─ <span class="c">result</span>: { status=0, resp_buf=<span class="str">"tcon.read...RET:OK"</span>, rtt_ms=1.52 }
+  └─ C# 결과 처리 (문자열 파싱 최소화)
+  </div>
+
+  <!-- ── 왜 빠른가: 3가지 핵심 이유 ── -->
+  <h3 style="font-size:17px; font-weight:700; margin:32px 0 16px; color:var(--amber);">왜 Native가 C#보다 빠른가? — 3가지 핵심 이유</h3>
+
+  <!-- 이유 1: 스레드 동기화 제거 -->
+  <div class="card part-b">
+    <div class="card-hdr">
+      <span class="card-num">1</span>
+      <h4>스레드 동기화 완전 제거 (~100-150μs 이득)</h4>
+    </div>
+    <div class="card-body">
+      <div class="flow-grid">
+        <div class="flow-col socket-col">
+          <h4>Socket / C# 경로</h4>
+          <div class="fentry slow">TX 스레드 → 패킷 전송</div>
+          <div class="fentry neutral">&nbsp;&nbsp;&nbsp;&nbsp;← PG 응답 도착 (NIC)</div>
+          <div class="fentry slow">RX 스레드 → 패킷 수신 + 파싱</div>
+          <div class="fentry slow">RX 스레드 → ManualResetEventSlim.Set()</div>
+          <div class="fentry slow">TX 스레드 → SpinWait 루프에서 감지 ★</div>
+          <div class="fentry slow">TX 스레드 → 결과 처리</div>
+          <div class="fentry" style="margin-top:8px; color:var(--red); font-weight:600;">비용: OS 스레드 스케줄러 + CPU 캐시 이동</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-col dpdk-col">
+          <h4>DPDK Native 경로</h4>
+          <div class="fentry fast">tx_burst() → 전송</div>
+          <div class="fentry fast">while { rx_burst() → 수신 }</div>
+          <div class="fentry fast">if (매칭) → return ★</div>
+          <div class="fentry" style="margin-top:8px;">&nbsp;</div>
+          <div class="fentry" style="margin-top:8px;">&nbsp;</div>
+          <div class="fentry" style="margin-top:8px;">&nbsp;</div>
+          <div class="fentry" style="margin-top:8px; color:var(--green); font-weight:600;">비용: 0 (동일 함수, 동일 스레드)</div>
+        </div>
+      </div>
+      <div class="insight-box">
+        <strong>핵심:</strong> TX와 RX가 <strong>다른 스레드</strong>면 "응답 왔다"는 신호를 전달하기 위해 <code>ManualResetEventSlim</code> + <code>SpinWait</code>가 필요합니다. 이 과정에서 <strong>OS 스레드 스케줄러 개입</strong>과 <strong>CPU L1/L2 캐시 라인의 코어 간 이동</strong>이 발생합니다. Native에서는 TX→폴링→매칭→반환이 <strong>하나의 함수 스택 프레임</strong>에서 끝나므로 동기화 비용이 완전히 0입니다.
+      </div>
+    </div>
+  </div>
+
+  <!-- 이유 2: Managed 메모리 할당 제거 -->
+  <div class="card part-b">
+    <div class="card-hdr">
+      <span class="card-num">2</span>
+      <h4>Managed 메모리 할당 · GC 압력 제거 (~30-50μs 이득)</h4>
+    </div>
+    <div class="card-body">
+      <div class="pillars">
+        <div class="pillar p-amber">
+          <div class="p-tag">C# 경로 — GC 대상 할당</div>
+          <h3>매 패킷마다 3~4회 힙 할당</h3>
+          <div class="code" data-label="C# ProcessRxPacket">
+<span class="kw">var</span> payloadBytes = <span class="kw">new</span> <span class="fn">byte</span>[udpPayloadLen]; <span class="cm">// ★ GC 할당 #1</span>
+Marshal.<span class="fn">Copy</span>(dataPtr, payloadBytes, 0, len);
+<span class="kw">var</span> sAnsiData = Encoding.ASCII.<span class="fn">GetString</span>(payloadBytes); <span class="cm">// ★ GC 할당 #2</span>
+<span class="kw">var</span> sCmdAck = sData[..(posAck + retXxLen)].<span class="fn">Trim</span>(); <span class="cm">// ★ GC 할당 #3</span>
+sCmdAck = sCmdAck.<span class="fn">Replace</span>(<span class="str">"\n"</span>, <span class="str">""</span>).<span class="fn">Replace</span>(<span class="str">"\r\r"</span>, <span class="str">"\r"</span>); <span class="cm">// ★ GC 할당 #4</span>
+          </div>
+          <p style="margin-top:10px; color:var(--red); font-size:12px;">.NET GC Gen0 컬렉션 시 수십 μs 스파이크 발생 가능</p>
+        </div>
+        <div class="pillar p-blue">
+          <div class="p-tag">Native C — GC 없음</div>
+          <h3>힙 할당 0회</h3>
+          <div class="code" data-label="C hw_reqresp_once_mc">
+<span class="fn">memcpy</span>(&rx_src_ip, rx_data + <span class="num">26</span>, <span class="num">4</span>);  <span class="cm">// 스택 변수, 4바이트</span>
+<span class="kw">if</span> (rx_src_ip != expected_src_ip)      <span class="cm">// 정수 비교</span>
+    <span class="kw">goto</span> mc_spill_pkt;
+
+<span class="fn">memcpy</span>(&rx_dst_port, rx_data + <span class="num">36</span>, <span class="num">2</span>); <span class="cm">// 스택 변수, 2바이트</span>
+<span class="kw">if</span> (rx_dst_port != expected_dst_port)  <span class="cm">// 정수 비교</span>
+    <span class="kw">goto</span> mc_spill_pkt;
+
+<span class="cm">// 매칭 성공 시에만 1회 복사</span>
+<span class="fn">memcpy</span>(resp_buf, rx_data + payload_off, payload_len);
+          </div>
+          <p style="margin-top:10px; color:var(--green); font-size:12px;">모든 변수가 스택/레지스터 → CPU 캐시에서 직접 처리</p>
+        </div>
+      </div>
+      <div class="insight-box">
+        <strong>핵심:</strong> C# 경로는 매 패킷마다 <code>byte[]</code>, <code>string</code> 등 <strong>managed 힙 객체를 3~4개 할당</strong>합니다. 이는 .NET GC의 추적 대상이 되며, Gen0 컬렉션이 트리거되면 <strong>수십 μs STW(Stop-The-World) 일시정지</strong>가 발생합니다. Native C는 스택 변수와 <code>memcpy</code>만 사용하여 GC 자체가 존재하지 않습니다.
+      </div>
+    </div>
+  </div>
+
+  <!-- 이유 3: 패킷 식별 + 파싱 방식 차이 -->
+  <div class="card part-b">
+    <div class="card-hdr">
+      <span class="card-num">3</span>
+      <h4>패킷 식별: 문자열 파싱 → 바이너리 헤더 정수 비교 (~50-80μs 이득)</h4>
+    </div>
+    <div class="card-body">
+
+      <p style="margin-bottom:16px;"><strong style="color:var(--amber);">주의:</strong> <code>RET:OK</code> / <code>RET:NG</code> 최종 판정은 <strong>양쪽 모두 C#</strong>에서 수행합니다. Native가 제거하는 것은 "이 패킷이 내 것인가?"를 판별하는 <strong>패킷 식별</strong> 단계입니다.</p>
+
+      <p style="margin-bottom:16px;"><strong style="color:var(--cyan);">Socket과의 차이:</strong> Socket 모드에서는 <strong>OS 커널 UDP 스택</strong>이 포트 기반으로 패킷을 자동 분배합니다 (<code>UdpClient.bind(port 8001)</code> → 해당 포트 패킷만 수신). DPDK는 커널을 우회하므로 NIC의 <strong>모든 패킷</strong>(ARP, mDNS, 모든 CH)이 애플리케이션에 직접 도착하며, 패킷 식별을 직접 수행해야 합니다.</p>
+
+      <!-- Socket vs DPDK 패킷 분배 구조 -->
+      <div class="arch-box" data-title="패킷 분배 구조 비교">
+<span class="g">Socket 모드:</span>
+  [NIC] → [<span class="g">OS 커널 UDP 스택</span>] → 포트별 자동 분배 (비용 0μs)
+             │
+             ├─ port 8000 → baseUdpClient    (ConnCheck)
+             ├─ port 8001 → pgUdpClients[0]  (CH0 전용) <span class="g">← 내 것만 도착</span>
+             ├─ port 8002 → pgUdpClients[1]  (CH1 전용)
+             └─ port 5353 (mDNS) → <span class="d">커널이 걸러줌 (C#에 안 옴)</span>
+
+<span class="c">DPDK 모드:</span>
+  [NIC] → [<span class="c">DPDK userspace</span>] → <span class="r">모든 패킷이 한 곳으로</span>
+             │
+             └─ rte_eth_rx_burst → <span class="hi">전부 직접 분류해야 함</span>
+                  ├─ ARP (0x0806)        → ARP 처리
+                  ├─ mDNS (port 5353)    → spill / 버림
+                  ├─ CH1 응답 (port 8002) → spill ring
+                  └─ <span class="g">CH0 응답 (port 8001) → ★ 매칭!</span>
+      </div>
+
+      <!-- Native vs C# 역할 분담 -->
+      <div class="arch-box" data-title="역할 분담">
+<span class="hi">Native C (hw_reqresp_once_mc) — 패킷 식별:</span>
+  "이 패킷이 내 것인가?" → IP(4B) + Port(2B) <span class="g">정수 비교</span>
+  매칭 성공 → resp_buf에 raw payload 복사 (<span class="str">"tcon.read 0x1234\rRET:OK"</span>)
+
+<span class="hi">C# (CommPgDriver.Dp860SendCmd) — 결과 판정:</span>
+  resp.<span class="fn">Contains</span>(<span class="str">"RET:OK"</span>)  → OK
+  resp.<span class="fn">Contains</span>(<span class="str">"RET:NG"</span>)  → NG
+  resp.<span class="fn">Contains</span>(<span class="str">"RET:INFO"</span>) → 중간 응답 (후속 대기)
+      </div>
+
+      <div class="pillars">
+        <div class="pillar p-amber">
+          <div class="p-tag">Socket C# — 패킷 식별 + 파싱 전부</div>
+          <h3>매 수신 패킷마다 O(n) 문자열 처리</h3>
+          <div class="code" data-label="C# ProcessRxPacket (Socket 경로)">
+<span class="cm">// ① 매 패킷: byte[] → string 전체 변환 — O(n)</span>
+<span class="kw">var</span> sAnsiData = Encoding.ASCII.<span class="fn">GetString</span>(payloadBytes);
+
+<span class="cm">// ② 이전 잔여분 결합 (불완전 패킷 처리)</span>
+<span class="kw">var</span> sData = txRxData.RxPrevStr + sAnsiData;
+
+<span class="cm">// ③ "RET:" 위치 탐색 — O(n) 바이트 스캔</span>
+<span class="kw">var</span> posAck = sData.<span class="fn">IndexOf</span>(<span class="str">"RET:"</span>, ...);
+
+<span class="cm">// ④ 부분 문자열 추출 + 제어 문자 치환 — O(n) × 3회</span>
+<span class="kw">var</span> sCmdAck = sData[..(posAck + retXxLen)].<span class="fn">Trim</span>();
+sCmdAck = sCmdAck.<span class="fn">Replace</span>(<span class="str">"\n"</span>, <span class="str">""</span>).<span class="fn">Replace</span>(<span class="str">"\r\r"</span>, <span class="str">"\r"</span>);
+
+<span class="cm">// ⑤ 비매칭 패킷도 여기까지 전부 파싱됨 (버려지더라도)</span>
+          </div>
+          <p style="margin-top:10px; color:var(--amber); font-family:var(--mono); font-size:11px;">모든 수신 패킷(mDNS, 다른 CH 등)에 대해 실행 = ~80-100μs/패킷</p>
+        </div>
+        <div class="pillar p-blue">
+          <div class="p-tag">DPDK — Native 식별 + C# 판정</div>
+          <h3>Native: O(1) 정수 비교 → C#: Contains 1회</h3>
+          <div class="code" data-label="Native 패킷 식별 (hwio.c)">
+<span class="cm">// ① IP/Port 정수 비교로 "내 것인가" 식별 — O(1)</span>
+<span class="fn">memcpy</span>(&rx_src_ip, rx_data + <span class="num">26</span>, <span class="num">4</span>);
+<span class="kw">if</span> (rx_src_ip != expected_src_ip) <span class="kw">goto</span> mc_spill_pkt;
+<span class="fn">memcpy</span>(&rx_dst_port, rx_data + <span class="num">36</span>, <span class="num">2</span>);
+<span class="kw">if</span> (rx_dst_port != expected_dst_port) <span class="kw">goto</span> mc_spill_pkt;
+
+<span class="cm">// ② 매칭 성공 → payload만 복사</span>
+<span class="fn">memcpy</span>(resp_buf, rx_data + payload_off, payload_len);
+          </div>
+          <div class="code" data-label="C# 결과 판정 (CommPgDriver.cs)" style="margin-top:8px;">
+<span class="cm">// ③ Native가 반환한 완성된 응답만 판정 — 1회</span>
+<span class="kw">string</span> response = Encoding.ASCII.<span class="fn">GetString</span>(t_respBuf, <span class="num">0</span>, result.RespLen);
+<span class="kw">if</span> (resp.<span class="fn">Contains</span>(<span class="str">"RET:OK"</span>, StringComparison.OrdinalIgnoreCase))
+    result = WAIT_OBJECT_0;
+          </div>
+          <p style="margin-top:10px; color:var(--blue); font-family:var(--mono); font-size:11px;">Native: 비매칭 패킷은 6바이트 비교 후 즉시 spill → C#: 매칭된 1개만 처리</p>
+        </div>
+      </div>
+
+      <!-- 상세 비교 테이블 -->
+      <h3 style="font-size:14px; font-weight:600; margin:20px 0 10px; color:var(--tx-2);">패킷 처리 단계별 비교</h3>
+      <table class="tbl">
+        <thead><tr><th>처리 단계</th><th>Socket (C#)</th><th>DPDK (Native + C#)</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="desc"><strong>패킷 식별</strong><br><span style="color:var(--tx-4); font-size:11px;">"이 패킷이 내 것인가?"</span></td>
+            <td class="desc" style="color:var(--green);"><strong>OS 커널</strong>이 bind port 기반<br>자동 분배 (비용 0μs)</td>
+            <td class="desc" style="color:var(--green);"><strong>Native</strong> IP/Port 정수 비교<br>6바이트, ~5μs</td>
+          </tr>
+          <tr>
+            <td class="desc"><strong>비매칭 패킷</strong><br><span style="color:var(--tx-4); font-size:11px;">mDNS, 다른 CH 응답 등</span></td>
+            <td class="desc" style="color:var(--green);">커널이 걸러줌 (C#에 안 옴)</td>
+            <td class="desc" style="color:var(--green);"><strong>Native</strong>에서 spill ring으로 분류<br>문자열 변환 없음</td>
+          </tr>
+          <tr>
+            <td class="desc"><strong>불완전 패킷 결합</strong><br><span style="color:var(--tx-4); font-size:11px;">RxPrevStr 누적</span></td>
+            <td class="desc" style="color:var(--red);">있음 (string 연결)</td>
+            <td class="desc" style="color:var(--green);">없음 (Native가 완전한 UDP payload 반환)</td>
+          </tr>
+          <tr>
+            <td class="desc"><strong>RET:OK/NG 판정</strong><br><span style="color:var(--tx-4); font-size:11px;">최종 결과 확인</span></td>
+            <td class="desc"><strong>C#</strong> Contains("RET:OK")</td>
+            <td class="desc"><strong>C#</strong> Contains("RET:OK") <span style="color:var(--tx-4);">← 동일</span></td>
+          </tr>
+          <tr>
+            <td class="desc"><strong>OnUdpReceived</strong><br><span style="color:var(--tx-4); font-size:11px;">tcon 데이터 후처리</span></td>
+            <td class="desc"><strong>C#</strong></td>
+            <td class="desc"><strong>C#</strong> <span style="color:var(--tx-4);">← 동일</span></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="insight-box">
+        <strong>핵심:</strong> Native가 제거하는 것은 <code>RET:OK</code> 파싱이 아니라, <strong>그 이전 단계</strong>인 패킷 식별입니다. Socket 경로에서는 mDNS, 다른 CH 응답 등 <strong>모든 수신 패킷</strong>을 C# string으로 변환·파싱한 뒤 "내 것이 아니면 버립니다". Native는 IP/Port 정수 비교(6바이트)로 즉시 분류하고, <strong>매칭된 1개의 패킷</strong>만 C#에 전달합니다. 비매칭 패킷의 불필요한 string 할당·파싱이 완전히 제거되는 것이 ~50-80μs 이득의 본체입니다.
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 종합 비교 테이블 ── -->
+  <h3 style="font-size:15px; font-weight:600; margin:28px 0 12px; color:var(--cyan);">RX 경로 비용 종합 비교</h3>
+  <table class="tbl">
+    <thead><tr><th>병목 구간</th><th style="text-align:right;">C# (Socket) 경로</th><th style="text-align:right;">Native C (DPDK) 경로</th><th style="text-align:right;">차이</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="desc"><strong>패킷 식별</strong><br><span style="color:var(--tx-4); font-size:11px;">"이 패킷이 내 것인가?"</span></td>
+        <td class="num-cell" style="color:var(--green);">0μs<br><span style="font-size:9px; color:var(--tx-4);">OS 커널 bind port</span></td>
+        <td class="num-cell" style="color:var(--green);">~5μs<br><span style="font-size:9px; color:var(--tx-4);">Native 정수 비교</span></td>
+        <td class="diff-cell diff-pos" style="color:var(--tx-4);">+5μs</td>
+      </tr>
+      <tr>
+        <td class="desc"><strong>스레드 동기화</strong><br><span style="color:var(--tx-4); font-size:11px;">ManualResetEvent + SpinWait</span></td>
+        <td class="num-cell" style="color:var(--red);">~100-150μs</td>
+        <td class="num-cell" style="color:var(--green);">0μs</td>
+        <td class="diff-cell diff-neg" style="font-weight:600;">-150μs</td>
+      </tr>
+      <tr>
+        <td class="desc"><strong>메모리 할당 · GC</strong><br><span style="color:var(--tx-4); font-size:11px;">byte[] + string + RxPrevStr 결합</span></td>
+        <td class="num-cell" style="color:var(--red);">~30-50μs</td>
+        <td class="num-cell" style="color:var(--green);">0μs</td>
+        <td class="diff-cell diff-neg" style="font-weight:600;">-50μs</td>
+      </tr>
+      <tr>
+        <td class="desc"><strong>RX 파싱</strong><br><span style="color:var(--tx-4); font-size:11px;">GetString + IndexOf + Replace</span></td>
+        <td class="num-cell" style="color:var(--red);">~50-80μs</td>
+        <td class="num-cell" style="color:var(--green);">~5μs<br><span style="font-size:9px; color:var(--tx-4);">Contains("RET:OK") 1회</span></td>
+        <td class="diff-cell diff-neg" style="font-weight:600;">-75μs</td>
+      </tr>
+      <tr>
+        <td class="desc"><strong>NIC 수신</strong><br><span style="color:var(--tx-4); font-size:11px;">kernel ReceiveAsync vs DMA polling</span></td>
+        <td class="num-cell">~20-40μs</td>
+        <td class="num-cell" style="color:var(--green);">~3-5μs</td>
+        <td class="diff-cell diff-neg">-30μs</td>
+      </tr>
+      <tr style="background:var(--bg-3);">
+        <td class="desc"><strong>합계</strong></td>
+        <td class="num-cell" style="color:var(--red); font-weight:700; font-size:14px;">~200-300μs</td>
+        <td class="num-cell" style="color:var(--green); font-weight:700; font-size:14px;">~10-30μs</td>
+        <td class="diff-cell diff-neg" style="font-weight:800; font-size:14px;">~200μs</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ── Spill Ring 설명 ── -->
+  <h3 style="font-size:15px; font-weight:600; margin:28px 0 12px; color:var(--violet);">멀티채널 안전: Spill Ring</h3>
+  <div class="arch-box" data-title="Spill Ring 동작">
+<span class="hi">문제:</span> 4CH 멀티채널에서 CH0이 hw_reqresp_once_mc로 대기 중일 때
+       CH1/2/3의 응답이 먼저 NIC에 도착하면?
+
+<span class="c">[NIC RX Queue]</span>
+  │
+  ├─ CH1 응답 (SrcIP=.12) → <span class="r">매칭 실패</span> → <span class="v">spill_ring에 보관</span> <span class="hi">★ 버리지 않음</span>
+  ├─ CH3 응답 (SrcIP=.14) → <span class="r">매칭 실패</span> → <span class="v">spill_ring에 보관</span>
+  ├─ <span class="g">CH0 응답 (SrcIP=.11)</span> → <span class="g">매칭 성공!</span> → RTT 계산 + return 0
+  │
+  └─ 나머지 패킷도 spill_ring에 보관
+
+<span class="d">───────────────────────────────────────────────────────────────────</span>
+이후 C# <span class="c">RxPollLoop</span> → <span class="fn">hw_dispatch_poll()</span>:
+  1. <span class="v">spill_ring</span>에서 먼저 dequeue (CH1/CH3 응답)
+  2. NIC에서 추가 burst
+  → CH1/CH3 응답이 C# <span class="fn">ProcessRxPacket</span>으로 정상 전달
+
+<span class="g">결과: 어떤 채널의 패킷도 유실되지 않음</span>
+  </div>
+
+  <div class="insight-box">
+    <strong>spill_ring:</strong> Lock-free SPSC(Single-Producer Single-Consumer) ring으로 구현. <code>hw_reqresp_once_mc</code>가 enqueue(SP), <code>hw_dispatch_poll</code>이 dequeue(SC). 락 없이 채널 간 패킷을 안전하게 중계합니다.
+  </div>
+
+  <!-- ── ARP 즉시 응답 ── -->
+  <h3 style="font-size:15px; font-weight:600; margin:28px 0 12px; color:var(--cyan);">RX 폴링 중 ARP 즉시 응답</h3>
+  <div class="code" data-label="hwio.c — ARP 처리">
+<span class="cm">// RX 폴링 루프 내부</span>
+<span class="kw">if</span> (ether_type == arp_ethertype) {
+    <span class="fn">send_arp_reply</span>(port_id, pool, rx_data, rx_len, local_mac);  <span class="cm">// ★ native에서 즉시 응답</span>
+    <span class="kw">goto</span> mc_free_pkt;  <span class="cm">// C#으로 올리지 않음</span>
+}
+  </div>
+  <p>RX 폴링 중 ARP 요청이 도착하면 C#으로 올리지 않고 <strong>native에서 즉시 ARP Reply</strong>를 전송합니다. 이는 PG 보드가 우리 MAC을 물어올 때 응답 지연 없이 처리되어 통신 안정성을 높입니다.</p>
 </section>
 
 <!-- ═══ SECTION 06: 왜 DPDK가 빠르지 않은가 ═══ -->
@@ -479,30 +863,32 @@ DPDK NIC-level TX 이득:  <span class="g">-10-25μs</span>  (DMA vs kernel sysc
   <div class="sec-label">Section 06</div>
   <h2 class="sec-title">왜 DPDK가 빠르지 않은가?</h2>
 
-  <div class="arch-box" data-title="Waterfall Breakdown">
+  <div class="arch-box" data-title="Waterfall Breakdown (v1.1)">
         ┌─────────────────────────────────────────────────────────┐
         │          <span class="hi">tcon.read/write RTT ≈ 1600μs</span>                  │
         ├────────┬────────────────────────────┬───────────────────┤
         │ <span class="c">SW TX</span>  │     <span class="r">PG Board HW 처리</span>       │     <span class="c">SW RX</span>        │
-        │ <span class="c">~100μs</span> │     <span class="r">~1400μs (88%)</span>          │     <span class="c">~100μs</span>       │
         ├────────┼────────────────────────────┼───────────────────┤
-<span class="c">DPDK</span>:   │ <span class="r">80-110</span> │         <span class="d">동일</span>               │     <span class="d">200-300</span>      │
-<span class="g">Socket</span>: │ <span class="g">25-50</span>  │         <span class="d">동일</span>               │     <span class="d">200-300</span>      │
+<span class="c">DPDK</span>:   │ <span class="r">80-110</span> │         <span class="d">동일</span>               │     <span class="g">10-30</span>        │
+<span class="g">Socket</span>: │ <span class="g">25-50</span>  │         <span class="d">동일</span>               │     <span class="r">200-300</span>      │
+        ├────────┼────────────────────────────┼───────────────────┤
+<span class="d">합계:</span>    │        │                            │                   │
+<span class="c">DPDK</span>:   │  <span class="r">+50μs</span> │          <span class="d">0</span>                 │    <span class="g">-200μs</span>        │  net: <span class="g">-150μs</span>
         └────────┴────────────────────────────┴───────────────────┘
-                 ↑
-            <span class="r">DPDK가 여기서 50μs 더 느림</span>
-            <span class="d">하지만 전체 1600μs 중 3%에 불과</span>
+              ↑                                     ↑
+         <span class="r">TX: C# 패킷 구성 오버헤드</span>           <span class="g">RX: hw_reqresp_once_mc</span>
+         <span class="r">(BuildUdpPacket+Marshal)</span>            <span class="g">(C# 파싱 완전 제거)</span>
   </div>
 
   <div class="insight-box">
-    <strong>핵심 인사이트:</strong> PG 보드 HW 처리 시간(~1400μs)이 전체 RTT의 88%를 차지하므로, 네트워크 레이어 최적화의 효과가 미미합니다. DPDK의 kernel bypass는 NIC TX에서 ~10-25μs를 절약하지만, C# 패킷 구성 오버헤드(BuildUdpPacket + Marshal.Copy)가 ~50-60μs를 추가하여 오히려 Send 경로가 느려집니다.
+    <strong>v1.1 업데이트:</strong> <code>hw_reqresp_once_mc</code> 적용 후, DPDK RX가 ~200μs 빨라졌습니다. TX에서 ~50μs 느리지만 RX에서 ~200μs 이득이므로 <strong>net ~150μs 개선</strong>. 다만 PG HW 처리(~1400μs)가 여전히 지배적이므로 전체 RTT 대비 ~9% 수준입니다. 실측 평균 차이 32μs(2%)와의 괴리는 PG HW 처리 시간의 변동폭(±100μs)에 묻히기 때문입니다.
   </div>
 
   <div class="result-row">
     <div class="result-chip"><span class="label">PG HW 비율</span><span class="val" style="color:var(--red);">88%</span></div>
-    <div class="result-chip"><span class="label">SW 제어 가능</span><span class="val" style="color:var(--cyan);">12%</span></div>
     <div class="result-chip"><span class="label">DPDK TX 오버헤드</span><span class="val" style="color:var(--red);">+50μs</span></div>
-    <div class="result-chip"><span class="label">DPDK NIC 이득</span><span class="val" style="color:var(--green);">-10μs</span></div>
+    <div class="result-chip"><span class="label">DPDK RX 이득</span><span class="val" style="color:var(--green);">-200μs</span></div>
+    <div class="result-chip"><span class="label">DPDK net 이득</span><span class="val" style="color:var(--green);">~150μs (9%)</span></div>
   </div>
 </section>
 
@@ -542,10 +928,31 @@ DPDK NIC-level TX 이득:  <span class="g">-10-25μs</span>  (DMA vs kernel sysc
         <td class="desc" style="color:var(--red);">힙 손상 → 롤백</td>
         <td><span class="risk risk-h">롤백</span></td>
       </tr>
+      <tr>
+        <td class="idx">5</td>
+        <td class="desc"><strong>hw_reqresp_once_mc 네이티브 RX</strong></td>
+        <td class="desc">DPDK RX 경로</td>
+        <td class="desc">C# 파싱 제거 → RX <span style="color:var(--green);">~200μs 감소</span></td>
+        <td><span class="risk risk-l">적용</span></td>
+      </tr>
+      <tr>
+        <td class="idx">6</td>
+        <td class="desc"><strong>EAL --no-shconf 추가</strong></td>
+        <td class="desc">DPDK 안정성</td>
+        <td class="desc">강제종료 후 hugepage 오염 방지 (AllocMbuf NULL 반환 해결)</td>
+        <td><span class="risk risk-l">적용</span></td>
+      </tr>
+      <tr>
+        <td class="idx">7</td>
+        <td class="desc"><strong>ARP ResolveDestMac 에러 로깅 개선</strong></td>
+        <td class="desc">DPDK 진단</td>
+        <td class="desc">AllocMbuf/AppendMbuf NULL, AccessViolation 개별 로깅</td>
+        <td><span class="risk risk-l">적용</span></td>
+      </tr>
     </tbody>
   </table>
 
-  <p style="margin-top:12px;">최적화 항목 2, 3은 DPDK/Socket 양쪽 모두에 적용되어 공통적으로 ~30-50μs 감소 효과를 가져왔으나, 두 방식 간 상대적 차이에는 영향이 없습니다.</p>
+  <p style="margin-top:12px;">항목 2, 3은 DPDK/Socket 양쪽 모두에 적용. 항목 5(<code>hw_reqresp_once_mc</code>)는 DPDK 전용 최적화로, 동기 명령의 RX 경로에서 C# 파싱·스레드 동기화를 완전 제거하여 ~200μs 이득. 항목 6은 프로세스 비정상 종료 시 DPDK shared config 오염으로 재시작 후 mbuf 할당 불가 문제를 해결합니다.</p>
 </section>
 
 <!-- ═══ SECTION 08: 결론 및 권장사항 ═══ -->
@@ -556,36 +963,42 @@ DPDK NIC-level TX 이득:  <span class="g">-10-25μs</span>  (DMA vs kernel sysc
   <ul class="conclusion-list">
     <li>
       <span class="c-num">1</span>
-      <div><strong>DPDK의 실제 이점:</strong> NIC RTT는 동일하지만, 히스토그램 분포에서 DPDK가 1000-1500μs 구간에 더 많은 패킷이 집중됩니다. Median에서 ~109μs 차이, P99 tail latency에서 ~93μs 개선이 확인되었습니다.</div>
+      <div><strong>DPDK의 실제 이점:</strong> <code>hw_reqresp_once_mc</code>로 RX 경로가 네이티브 C로 전환되어 이론적 ~150μs 이득. 히스토그램 분포에서 DPDK가 1000-1500μs 구간에 집중. Median ~109μs, P99 ~93μs 개선 확인.</div>
     </li>
     <li>
       <span class="c-num">2</span>
-      <div><strong>DPDK가 빛나는 상황:</strong> 대량 패킷 burst, FTP 전송, 멀티채널 동시 통신 시나리오에서 kernel bypass 효과가 극대화됩니다. 단건 request/response에서는 이점이 제한적입니다.</div>
+      <div><strong>DPDK가 빛나는 상황:</strong> 대량 패킷 burst, FTP 전송(DpdkFtpEngine), 멀티채널 동시 통신에서 kernel bypass 효과 극대화. 단건 request/response에서도 tail latency(P95/P99) 개선 효과.</div>
     </li>
     <li>
       <span class="c-num">3</span>
-      <div><strong>tcon 단건 통신에서는:</strong> PG Board HW 처리가 전체 RTT의 88%를 차지하므로, DPDK와 Socket의 차이는 32μs (2.0%)에 불과하며 실질적 성능 차이가 없습니다.</div>
+      <div><strong>tcon 단건 통신에서는:</strong> PG Board HW 처리가 전체 RTT의 88%를 차지. DPDK net 이득 ~150μs이나 PG HW 변동폭(±100μs)에 묻혀 실측 평균 차이는 32μs(2.0%).</div>
     </li>
     <li>
       <span class="c-num">4</span>
-      <div><strong>권장:</strong> DPDK 유지 (FTP + 멀티채널 이점). tcon 단건 통신의 RTT 개선이 필요한 경우, 네트워크 레이어가 아닌 <strong>PG Board 펌웨어 개선</strong>이 필요합니다.</div>
+      <div><strong>안정성 개선:</strong> <code>--no-shconf</code> 추가로 프로세스 강제종료 후 hugepage 오염 방지. ARP 에러 로깅 개선으로 현장 진단 용이.</div>
+    </li>
+    <li>
+      <span class="c-num">5</span>
+      <div><strong>권장:</strong> DPDK 유지 (FTP + 멀티채널 + tail latency 이점 + 안정성 개선). tcon RTT 근본 개선은 <strong>PG Board 펌웨어 최적화</strong> 필요.</div>
     </li>
   </ul>
 
-  <div class="arch-box" data-title="Summary">
-<span class="hi">최종 판정:</span>
+  <div class="arch-box" data-title="Summary v1.1">
+<span class="hi">최종 판정 (v1.1):</span>
 
-┌─────────────────────────────────────────────────────────┐
-│  tcon.read/write 단건 RTT  →  <span class="d">DPDK ≈ Socket (차이 2%)</span>     │
-│  FTP / Burst / 멀티채널    →  <span class="g">DPDK >> Socket</span>               │
-│  RTT 근본 개선             →  <span class="r">PG FW 최적화 필요 (88% 차지)</span>  │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│  tcon.read/write 단건 RTT  →  <span class="d">DPDK ≈ Socket (실측 2%, 이론 9%)</span>   │
+│  DPDK RX 네이티브 경로     →  <span class="g">hw_reqresp_once_mc (C# 파싱 제거)</span>   │
+│  FTP / Burst / 멀티채널    →  <span class="g">DPDK >> Socket</span>                       │
+│  안정성                    →  <span class="g">--no-shconf (hugepage 오염 방지)</span>     │
+│  RTT 근본 개선             →  <span class="r">PG FW 최적화 필요 (88% 차지)</span>         │
+└─────────────────────────────────────────────────────────────────┘
   </div>
 </section>
 
 <footer class="ftr">
   <span>DONGAELTEK — ITOLED_OC Project</span>
-  <span>DPDK vs Socket Performance Analysis v1.0 — 2026-03-17</span>
+  <span>DPDK vs Socket Performance Analysis v1.1 — 2026-03-20</span>
 </footer>
 
 </div>

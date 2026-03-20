@@ -30,6 +30,7 @@ public partial class SystemStatusPanel : IDisposable
     [Inject] private IDfsService? Dfs { get; set; }
     [Inject] private IPathManager PathManager { get; set; } = default!;
     [Inject] private IDllManager DllManager { get; set; } = default!;
+    [Inject] private Services.UiUpdateService UiService { get; set; } = default!;
 
     // ── Section 1: System Information ───────────────────────────
     private readonly bool[] _ca410Connected = new bool[4];

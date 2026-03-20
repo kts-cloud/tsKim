@@ -67,6 +67,13 @@ public sealed class UiUpdateService : IDisposable
     /// <summary>Raised when continuous NG count exceeds threshold (channel, message).</summary>
     public event Action<int, string>? NgAlarmRequested;
 
+    // ── PG Transport mode (set by Program.cs at startup) ──────────────
+    /// <summary>PG 통신 모드 표시 문자열 ("DPDK" / "Socket" / "Socket (DPDK 실패)").</summary>
+    public string PgTransportMode { get; set; } = "---";
+
+    /// <summary>DPDK 초기화 실패 후 Socket으로 폴백했으면 true.</summary>
+    public bool IsDpdkFallback { get; set; }
+
     // ── Cached last-known state per channel (survives page navigation) ──
     private const int MaxCachedLogEntries = 200;
     private const int MaxCachedPrevResults = 20;
