@@ -238,7 +238,8 @@ public sealed class OcFlowOrchestrator : IDisposable
             ClearChannelRtb(channel);
 
             // Create CompensationFlow instance via reflection
-            var flow = CreateFlowInstance(flowType, channel);
+            // parameter = "PID,SerialNumber,UserID,Equipment\0"
+            var flow = CreateFlowInstance(flowType, channel, parameter);
             if (flow == null)
             {
                 _logger.Error($"StartFlow: Failed to create {config.ClassName} for CH{channel}");
@@ -368,7 +369,7 @@ public sealed class OcFlowOrchestrator : IDisposable
                 var flowType = factory.Asm.GetType(factory.Config.ClassName);
                 if (flowType == null) return "";
 
-                var tempFlow = CreateFlowInstance(flowType, 0);
+                var tempFlow = CreateFlowInstance(flowType, 0, null);
                 if (tempFlow != null)
                 {
                     var version = tempFlow.Get_DllVersion() ?? "";
@@ -495,12 +496,21 @@ public sealed class OcFlowOrchestrator : IDisposable
     /// Creates a CompensationFlow instance by discovering the best-matching
     /// constructor via reflection.
     /// </summary>
-    private ICompensationFlow? CreateFlowInstance(Type flowType, int channel)
+    private ICompensationFlow? CreateFlowInstance(Type flowType, int channel, string? parameter)
     {
         if (_bridges == null) return null;
 
         var bridge = _bridges[channel];
         var ctors = flowType.GetConstructors(BindingFlags.Public | BindingFlags.Instance);
+
+        // parameter = "PID,SerialNumber,UserID,Equipment\0" → 분해
+        // Delphi 생성자: (X2146_API api, int channel_num, string _PID, string _SerialNumber,
+        //                 string _User_ID, string _Model_Name, string _Equipment)
+        var paramParts = parameter?.TrimEnd('\0').Split(',') ?? Array.Empty<string>();
+        string pid = paramParts.Length > 0 ? paramParts[0] : "";
+        string serialNumber = paramParts.Length > 1 ? paramParts[1] : "";
+        string userId = paramParts.Length > 2 ? paramParts[2] : "";
+        string equipment = paramParts.Length > 3 ? paramParts[3] : "";
 
         // Log available constructors for debugging
         foreach (var c in ctors)
@@ -522,13 +532,43 @@ public sealed class OcFlowOrchestrator : IDisposable
             var args = new object?[prms.Length];
             args[0] = bridge;
 
-            // Fill remaining parameters with defaults
+            // Fill remaining parameters — match by name for string params
+            // Delphi ctor: (api, channel_num, _PID, _SerialNumber, _User_ID, _Model_Name, _Equipment)
             bool canCreate = true;
+            int stringIdx = 0;
             for (int i = 1; i < prms.Length; i++)
             {
                 var pt = prms[i].ParameterType;
+                var name = prms[i].Name?.ToLowerInvariant() ?? "";
+
                 if (pt == typeof(string))
-                    args[i] = _modelName;
+                {
+                    // 이름 기반 매칭 → 순서 기반 폴백
+                    if (name.Contains("pid"))
+                        args[i] = pid;
+                    else if (name.Contains("serial"))
+                        args[i] = serialNumber;
+                    else if (name.Contains("user"))
+                        args[i] = userId;
+                    else if (name.Contains("model"))
+                        args[i] = _modelName ?? "";
+                    else if (name.Contains("equip"))
+                        args[i] = equipment;
+                    else
+                    {
+                        // 순서 기반: PID, SerialNumber, UserID, ModelName, Equipment
+                        args[i] = stringIdx switch
+                        {
+                            0 => pid,
+                            1 => serialNumber,
+                            2 => userId,
+                            3 => _modelName ?? "",
+                            4 => equipment,
+                            _ => ""
+                        };
+                    }
+                    stringIdx++;
+                }
                 else if (pt == typeof(int))
                     args[i] = channel;
                 else if (pt == typeof(bool))

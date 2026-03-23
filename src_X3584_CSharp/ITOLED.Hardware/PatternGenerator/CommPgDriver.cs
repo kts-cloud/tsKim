@@ -106,6 +106,11 @@ public sealed class CommPgDriver : ICommPgDriver
     private Dongaeltek.ITOLED.Core.Definitions.FlashRead _flashRead = new();
     private Dongaeltek.ITOLED.Core.Definitions.FlashData _flashData = new();
 
+    // FTP 세션 — 드라이버 수명 동안 유지 (Delphi FFTPClient 패턴, lwIP 크래시 방지)
+    private HwNet.Engine.HwFtpEngine? _ftpEngine;
+    private IAsyncDisposable? _ftpLease;
+    private bool _ftpConnected;
+
     private bool _disposed;
 
     // =========================================================================
@@ -143,12 +148,12 @@ public sealed class CommPgDriver : ICommPgDriver
         var upperModel = ModelTypeName.ToUpperInvariant();
         if (upperModel.Contains("X3584") || upperModel.Contains("X3585"))
         {
-            _addrFormat = "0x{0:X8}";
+            _addrFormat = "0x{0:x8}";
             _modelType = 1;
         }
         else
         {
-            _addrFormat = "0x{0:X4}";
+            _addrFormat = "0x{0:x4}";
             _modelType = 0;
         }
 
@@ -215,6 +220,8 @@ public sealed class CommPgDriver : ICommPgDriver
     {
         if (_disposed) return;
         _disposed = true;
+
+        DisposeFtpSession();
 
         _connCheckTimer?.Dispose();
         _connCheckTimer = null;
@@ -330,14 +337,19 @@ public sealed class CommPgDriver : ICommPgDriver
     public void WarmupTransport() => _transport?.Warmup();
 
     /// <summary>
+    /// Sets the flash directory for FTP download/upload temp files.
+    /// Called for both Socket and DPDK modes (EXE경로\LOG\FLASH\).
+    /// </summary>
+    public void SetFlashDir(string flashDir) => _flashDir = flashDir;
+
+    /// <summary>
     /// Sets the DPDK NIC coordinator and DpdkManager for DPDK FTP flash operations.
     /// Called after PgDpdkServer construction.
     /// </summary>
-    public void SetDpdkFtpAccess(IDpdkNicCoordinator coordinator, HwNet.HwManager dpdkManager, string flashDir)
+    public void SetDpdkFtpAccess(IDpdkNicCoordinator coordinator, HwNet.HwManager dpdkManager)
     {
         _nicCoordinator = coordinator;
         _dpdkManager = dpdkManager;
-        _flashDir = flashDir;
     }
 
     /// <summary>
@@ -353,12 +365,12 @@ public sealed class CommPgDriver : ICommPgDriver
         var upperModel = ModelTypeName.ToUpperInvariant();
         if (upperModel.Contains("X3584") || upperModel.Contains("X3585"))
         {
-            _addrFormat = "0x{0:X8}";
+            _addrFormat = "0x{0:x8}";
             _modelType = 1;
         }
         else
         {
-            _addrFormat = "0x{0:X4}";
+            _addrFormat = "0x{0:x4}";
             _modelType = 0;
         }
         _logger.Info(PgIndex, $"PG ModelType updated: '{ModelTypeName}' type={_modelType} addrFmt={_addrFormat} modelFile='{_modelFileName}'");
@@ -800,18 +812,37 @@ public sealed class CommPgDriver : ICommPgDriver
                         var resp = nr.response.TrimEnd('\r', '\n', ' ');
                         txRxData.RxAckStr = resp;
 
-                        // RET:INFO = 중간 응답 (DFU, flash 등)
-                        // → 대기 상태는 이미 설정됨, RxPollLoop가 후속 RET:OK를 ProcessCmdAck으로 처리
-                        if (resp.Contains("RET:INFO", StringComparison.OrdinalIgnoreCase))
+                        if (resp.Contains("RET:OK", StringComparison.OrdinalIgnoreCase) ||
+                                 resp.Contains("RET:00", StringComparison.OrdinalIgnoreCase))
                         {
+                            // 최종 응답: RET:OK
+                            txRxData.CmdResult = PgCmdResult.Ok;
+                            result = WAIT_OBJECT_0;
                             OnUdpReceived(resp, Dp860Network.PcPortBase + 1 + PgIndex, PgIpPort);
+                        }
+                        else if (resp.Contains("RET:NG", StringComparison.OrdinalIgnoreCase))
+                        {
+                            // 최종 응답: RET:NG
+                            txRxData.CmdResult = PgCmdResult.Ng;
+                            result = WAIT_FAILED;
+                            OnUdpReceived(resp, Dp860Network.PcPortBase + 1 + PgIndex, PgIpPort);
+                        }
+                        else
+                        {
+                            // 중간 응답 (RET:INFO, progress, empty 등)
+                            // → _waitEvent=true 상태에서 RxPollLoop이 후속 RET:OK를 수신하면
+                            //   OnUdpReceived → CmdResult=Ok → _cmdAckEvent.Set()
                             int elapsed = (int)(nr.rttUs / 1000);
                             int remainMs = Math.Max(waitMs - elapsed, 100);
 
-                            // RET:OK가 이미 도착했을 수 있으므로 먼저 확인
+                            // RxPollLoop이 이미 처리했을 수 있으므로 먼저 확인
                             if (txRxData.CmdResult == PgCmdResult.Ok)
                             {
                                 result = WAIT_OBJECT_0;
+                            }
+                            else if (txRxData.CmdResult == PgCmdResult.Ng)
+                            {
+                                result = WAIT_FAILED;
                             }
                             else
                             {
@@ -826,19 +857,6 @@ public sealed class CommPgDriver : ICommPgDriver
                                     result = WAIT_TIMEOUT;
                                 }
                             }
-                        }
-                        else if (resp.Contains("RET:OK", StringComparison.OrdinalIgnoreCase) ||
-                                 resp.Contains("RET:00", StringComparison.OrdinalIgnoreCase))
-                        {
-                            txRxData.CmdResult = PgCmdResult.Ok;
-                            result = WAIT_OBJECT_0;
-                            OnUdpReceived(resp, Dp860Network.PcPortBase + 1 + PgIndex, PgIpPort);
-                        }
-                        else
-                        {
-                            txRxData.CmdResult = PgCmdResult.Ng;
-                            result = WAIT_FAILED;
-                            OnUdpReceived(resp, Dp860Network.PcPortBase + 1 + PgIndex, PgIpPort);
                         }
                     }
                     else
@@ -1624,11 +1642,11 @@ public sealed class CommPgDriver : ICommPgDriver
 
     /// <inheritdoc/>
     public uint SendDimming(int dimming, int waitMs = 3000, int retry = 0)
-        => Dp860SendSimpleCmd(Dp860Commands.CmdIdAlpdpDbv, Dp860Commands.CmdStrAlpdpDbv, $"0x{dimming:X}", "alpdp.dbv", waitMs, retry);
+        => Dp860SendSimpleCmd(Dp860Commands.CmdIdAlpdpDbv, Dp860Commands.CmdStrAlpdpDbv, $"0x{dimming:x}", "alpdp.dbv", waitMs, retry);
 
     /// <inheritdoc/>
     public uint SendDimmingBist(int dimming, int waitMs = 3000, int retry = 0)
-        => Dp860SendSimpleCmd(Dp860Commands.CmdIdBistDbv, Dp860Commands.CmdStrBistDbv, $"0x{dimming:X}", "bist.dbv", waitMs, retry);
+        => Dp860SendSimpleCmd(Dp860Commands.CmdIdBistDbv, Dp860Commands.CmdStrBistDbv, $"0x{dimming:x}", "bist.dbv", waitMs, retry);
 
     /// <inheritdoc/>
     public uint SendPocbOnOff(bool on, int waitMs = 3000, int retry = 0)
@@ -1763,7 +1781,10 @@ public sealed class CommPgDriver : ICommPgDriver
     {
         if (!_appConfig.FeatureFlashAccess) return WAIT_FAILED;
 
-        var sFunc = $"FlashRead(Addr={addr},Size={size})";
+        var sFunc = $"FlashRead(Addr=0x{addr:X},Size={size})";
+        var caller = new System.Diagnostics.StackTrace().GetFrame(1)?.GetMethod();
+        var callerName = caller != null ? $"{caller.DeclaringType?.Name}.{caller.Name}" : "unknown";
+        _logger.Info(PgIndex, $"[FlashRead] {sFunc} readMode={readMode} caller={callerName}");
 
         try
         {
@@ -1802,7 +1823,7 @@ public sealed class CommPgDriver : ICommPgDriver
             else
             {
                 // --- File-based read: NVM readfile → FTP download ---
-                var remoteFile = $"FlashR_A0x{addr:X}_L{size}.bin";
+                var remoteFile = $"FlashR_A0x{addr:x}_L{size}.bin";
                 var result = Dp860SendNvmReadFile(addr, size, remoteFile, waitMs, retry);
                 if (result != WAIT_OBJECT_0) return result;
 
@@ -1825,6 +1846,8 @@ public sealed class CommPgDriver : ICommPgDriver
 
                 // Read downloaded file into data buffer
                 var fileData = File.ReadAllBytes(localFile);
+                if (fileData.Length != (int)size)
+                    AddLog($"{sFunc} WARNING: file size {fileData.Length} != requested {size}");
                 Array.Copy(fileData, 0, data, 0, Math.Min(fileData.Length, (int)size));
 
                 return WAIT_OBJECT_0;
@@ -1862,7 +1885,7 @@ public sealed class CommPgDriver : ICommPgDriver
             for (int nTry = 0; nTry <= retry; nTry++)
             {
                 var remotePath = "/home/upload";
-                var remoteFile = $"FlashW_A0x{addr:X}_L{size}.bin";
+                var remoteFile = $"FlashW_A0x{addr:x}_L{size}.bin";
                 var flashDir = _flashDir;
                 var localFile = Path.Combine(flashDir, $"CH{PgIndex + 1}_{remoteFile}");
 
@@ -2042,7 +2065,7 @@ public sealed class CommPgDriver : ICommPgDriver
     private uint Dp860SendI2CRead(int devAddr, int regAddr, int dataCnt, byte[] readData,
         int waitMs = 2000, int retry = 0, int debugLog = 0)
     {
-        var cmd = $"{Dp860Commands.CmdStrI2cRead} 4 0x{devAddr:X4} 0x{regAddr:X4} {dataCnt}";
+        var cmd = $"{Dp860Commands.CmdStrI2cRead} 4 0x{devAddr:x4} 0x{regAddr:x4} {dataCnt}";
         var result = Dp860SendCmd(cmd, Dp860Commands.CmdIdI2cRead, Dp860Commands.CmdStrI2cRead, waitMs, retry);
 
         TconRwCount.TconReadTx++;
@@ -2092,12 +2115,12 @@ public sealed class CommPgDriver : ICommPgDriver
             int crcData = 0;
             for (int i = 0; i < chunkCount; i++)
             {
-                sb.Append($" 0x{writeData[chunkStart + i]:X2}");
+                sb.Append($" 0x{writeData[chunkStart + i]:x2}");
                 crcData += writeData[chunkStart + i];
             }
 
             crcData = 0xFFFF & (crcData + curAddr);
-            sb.Append($" 0x{crcData:X4}");
+            sb.Append($" 0x{crcData:x4}");
 
             var result = Dp860SendCmd(sb.ToString(), Dp860Commands.CmdIdTconWrite, Dp860Commands.CmdStrTconWrite, waitMs, retry);
             TconRwCount.TconWriteTx++;
@@ -2118,7 +2141,7 @@ public sealed class CommPgDriver : ICommPgDriver
         var sb = new System.Text.StringBuilder();
         sb.Append($"{Dp860Commands.CmdStrTconOcWrite} {FormatAddr(regAddr)} {dataCnt}");
         for (int i = 0; i < dataCnt; i++)
-            sb.Append($" 0x{writeData[i]:X2}");
+            sb.Append($" 0x{writeData[i]:x2}");
 
         var result = Dp860SendCmd(sb.ToString(), Dp860Commands.CmdIdTconOcWrite, Dp860Commands.CmdStrTconOcWrite, waitMs, retry);
         TconRwCount.TconOcWriteTx++;
@@ -2132,7 +2155,7 @@ public sealed class CommPgDriver : ICommPgDriver
         var sb = new System.Text.StringBuilder();
         sb.Append($"{Dp860Commands.CmdStrTconMultiWrite} {dataCnt}");
         for (int i = 0; i < dataCnt; i++)
-            sb.Append($" {FormatAddr(regAddrs[i])} 0x{writeData[i]:X2}");
+            sb.Append($" {FormatAddr(regAddrs[i])} 0x{writeData[i]:x2}");
 
         var result = Dp860SendCmd(sb.ToString(), Dp860Commands.CmdIdTconMultiWrite, Dp860Commands.CmdStrTconMultiWrite, waitMs, retry);
         TconRwCount.TconMultiWriteDllCall++;
@@ -2149,7 +2172,7 @@ public sealed class CommPgDriver : ICommPgDriver
 
         for (int i = 0; i < dataCnt; i++)
         {
-            dataSb.Append($" {FormatAddr(regAddrs[i])} {writeData[i]:X2}");
+            dataSb.Append($" {FormatAddr(regAddrs[i])} {writeData[i]:x2}");
             crcAddr += regAddrs[i];
             crcData += writeData[i];
         }
@@ -2157,7 +2180,7 @@ public sealed class CommPgDriver : ICommPgDriver
         crcAddr = 0xFFFF & crcAddr;
         crcData = 0xFF & crcData;
 
-        var cmd = $"{Dp860Commands.CmdStrTconSeqWrite} {mode} {seqIdx} {dataCnt} {crcAddr:X4} {crcData:X2}{dataSb}";
+        var cmd = $"{Dp860Commands.CmdStrTconSeqWrite} {mode} {seqIdx} {dataCnt} {crcAddr:x4} {crcData:x2}{dataSb}";
         var result = Dp860SendCmd(cmd, Dp860Commands.CmdIdTconSeqWrite, Dp860Commands.CmdStrTconSeqWrite, waitMs, retry);
 
 
@@ -2173,11 +2196,11 @@ public sealed class CommPgDriver : ICommPgDriver
         sb.Append($"{Dp860Commands.CmdStrTconWriteRead} {verify} {FormatAddr(regAddr)} {dataCnt}");
         for (int i = 0; i < dataCnt; i++)
         {
-            sb.Append($" 0x{writeData[i]:X2}");
+            sb.Append($" 0x{writeData[i]:x2}");
             crcData += writeData[i];
         }
         crcData = 0xFFFF & (crcData + regAddr);
-        sb.Append($" 0x{crcData:X4}");
+        sb.Append($" 0x{crcData:x4}");
 
         var result = Dp860SendCmd(sb.ToString(), Dp860Commands.CmdIdTconWriteRead, Dp860Commands.CmdStrTconWriteRead, waitMs, retry);
         TconRwCount.TconWriteTx++;
@@ -2189,9 +2212,9 @@ public sealed class CommPgDriver : ICommPgDriver
         int waitMs = 2000, int retry = 0)
     {
         var sb = new System.Text.StringBuilder();
-        sb.Append($"{Dp860Commands.CmdStrReprograming} 0x{devAddr:X2} 0x{regAddr:X4} {dataCnt}");
+        sb.Append($"{Dp860Commands.CmdStrReprograming} 0x{devAddr:x2} 0x{regAddr:x4} {dataCnt}");
         for (int i = 0; i < dataCnt; i++)
-            sb.Append($" {writeData[i]:X2}");
+            sb.Append($" {writeData[i]:x2}");
 
         return Dp860SendCmd(sb.ToString(), Dp860Commands.CmdIdReprograming, Dp860Commands.CmdStrReprograming, waitMs, retry);
     }
@@ -2203,7 +2226,8 @@ public sealed class CommPgDriver : ICommPgDriver
     private uint Dp860SendNvmReadFile(uint addr, uint size, string remoteFile, int waitMs, int retry)
     {
         // Delphi: nvm.readfile <filename.bin> <hex_addr> <length>
-        var cmd = $"{Dp860Commands.CmdStrNvmReadFile} {remoteFile} 0x{addr:X} {size}";
+        // Delphi Format('%s 0x%x %d') → 소문자 hex
+        var cmd = $"{Dp860Commands.CmdStrNvmReadFile} {remoteFile} 0x{addr:x} {size}";
         // Adjust waitMs based on flash read speed
         int flashReadKbPerSec = PgFlashConstants.FlashReadKbPerSecDefault;
         waitMs = (int)(((size / (flashReadKbPerSec * 1024)) + 1) * 1000) + waitMs;
@@ -2225,7 +2249,7 @@ public sealed class CommPgDriver : ICommPgDriver
         // Delphi: nvm.writefile <filename.bin> <hex_addr> <length> <option1> <option2>
         var eraseOpt = erase ? "erase" : "0";
         var verifyOpt = verify ? "verify" : "0";
-        var cmd = $"{Dp860Commands.CmdStrNvmWriteFile} {remoteFile} 0x{addr:X} {size} {eraseOpt} {verifyOpt}";
+        var cmd = $"{Dp860Commands.CmdStrNvmWriteFile} {remoteFile} 0x{addr:x} {size} {eraseOpt} {verifyOpt}";
 
         // Adjust waitMs based on flash write speed
         int flashWriteKbPerSec = PgFlashConstants.FlashWriteKbPerSecDefault;
@@ -2247,7 +2271,7 @@ public sealed class CommPgDriver : ICommPgDriver
     /// </summary>
     private uint Dp860SendNvmRead(uint addr, uint size, byte[] data, int waitMs, int retry)
     {
-        var cmd = $"{Dp860Commands.CmdStrNvmRead} 0x{addr:X} {size}";
+        var cmd = $"{Dp860Commands.CmdStrNvmRead} 0x{addr:x} {size}";
         try
         {
             _isOnFlashAccess = true;
@@ -2316,120 +2340,120 @@ public sealed class CommPgDriver : ICommPgDriver
 
     /// <summary>
     /// DPDK FTP download using HwFtpEngine (lwIP).
-    /// Acquires NIC lease → InitLwip → Connect → CWD → Download → Disconnect → StopLwip → Release lease.
+    /// FTP 세션을 드라이버 수명 동안 유지하여 lwIP TCP 리소스 고갈 방지 (Delphi FFTPClient 패턴).
     /// </summary>
     private uint DpdkFtpDownload(string remotePath, string remoteFile, string localFullName, bool clearAfterGet)
     {
         try
         {
-            var lease = _nicCoordinator!.AcquireFtpAccessAsync().GetAwaiter().GetResult();
-            try
-            {
-                var ftpEngine = new HwFtpEngine(_dpdkManager!, PgIndex);
-                try
-                {
-                    var ftpConfig = CreatePgFtpConfig();
-                    if (!ftpEngine.InitLwip(ftpConfig))
-                    {
-                        AddLog($"<PG> FTP lwIP init failed: {ftpEngine.LastError}");
-                        return WAIT_FAILED;
-                    }
-
-                    if (!ftpEngine.ConnectAsync(PgIpAddress, 21,
-                        Dp860Ftp.FtpUsername, Dp860Ftp.FtpPassword, 10000).GetAwaiter().GetResult())
-                    {
-                        AddLog($"<PG> FTP connect failed: {ftpEngine.LastError}");
-                        return WAIT_FAILED;
-                    }
-
-                    // FTP user 'upload' home dir is /home/upload — file is directly accessible
-                    // No CWD needed; download by filename only
-                    var data = ftpEngine.DownloadAsync(remoteFile, 30000).GetAwaiter().GetResult();
-                    if (data == null)
-                    {
-                        AddLog($"<PG> FTP download failed: {ftpEngine.LastError}");
-                        return WAIT_FAILED;
-                    }
-
-                    File.WriteAllBytes(localFullName, data);
-                    AddLog($"<PG> FTP downloaded {remoteFile} ({data.Length} bytes)");
-
-                    ftpEngine.DisconnectAsync().GetAwaiter().GetResult();
-                    return WAIT_OBJECT_0;
-                }
-                finally
-                {
-                    ftpEngine.StopLwip();
-                    ftpEngine.Dispose();
-                }
-            }
-            finally
-            {
-                lease.DisposeAsync().GetAwaiter().GetResult();
-            }
+            EnsureFtpSession();
+            return DpdkFtpDownloadWithEngine(_ftpEngine!, remoteFile, localFullName);
         }
         catch (Exception ex)
         {
             _logger.Error($"<PG> DPDK FTP download error: {ex.Message}", ex);
+            // 에러 시 세션 해제 — 다음 호출에서 재생성
+            DisposeFtpSession();
             return WAIT_FAILED;
+        }
+    }
+
+    private uint DpdkFtpDownloadWithEngine(HwFtpEngine ftpEngine, string remoteFile, string localFullName)
+    {
+        var data = ftpEngine.DownloadAsync(remoteFile, 30000).GetAwaiter().GetResult();
+        if (data == null)
+        {
+            AddLog($"<PG> FTP download failed: {ftpEngine.LastError}");
+            return WAIT_FAILED;
+        }
+        File.WriteAllBytes(localFullName, data);
+        AddLog($"<PG> FTP downloaded {remoteFile} ({data.Length} bytes)");
+        return WAIT_OBJECT_0;
+    }
+
+    /// <summary>
+    /// FTP 세션이 없거나 끊어졌으면 새로 생성/연결. 이미 연결되어 있으면 재사용.
+    /// Delphi FFTPClient 패턴: 드라이버 수명 동안 1회 생성, 에러 시에만 재생성.
+    /// </summary>
+    private void EnsureFtpSession()
+    {
+        if (_ftpEngine != null && _ftpConnected)
+            return;
+
+        // 기존 엔진이 있지만 연결이 끊어진 경우 → 정리 후 재생성
+        if (_ftpEngine != null)
+            DisposeFtpSession();
+
+        var lease = _nicCoordinator!.AcquireFtpAccessAsync().GetAwaiter().GetResult();
+        var ftpEngine = new HwFtpEngine(_dpdkManager!, PgIndex);
+
+        var ftpConfig = CreatePgFtpConfig();
+        if (!ftpEngine.InitLwip(ftpConfig))
+        {
+            ftpEngine.Dispose();
+            lease.DisposeAsync().GetAwaiter().GetResult();
+            throw new InvalidOperationException($"FTP lwIP init failed: {ftpEngine.LastError}");
+        }
+
+        if (!ftpEngine.ConnectAsync(PgIpAddress, 21,
+            Dp860Ftp.FtpUsername, Dp860Ftp.FtpPassword, 10000).GetAwaiter().GetResult())
+        {
+            ftpEngine.StopLwip();
+            ftpEngine.Dispose();
+            lease.DisposeAsync().GetAwaiter().GetResult();
+            throw new InvalidOperationException($"FTP connect failed: {ftpEngine.LastError}");
+        }
+
+        _ftpEngine = ftpEngine;
+        _ftpLease = lease;
+        _ftpConnected = true;
+        AddLog($"<PG> FTP session created (driver-lifetime, PG{PgIndex})");
+    }
+
+    /// <summary>FTP 세션 해제 — Dispose() 및 에러 복구 시 호출</summary>
+    private void DisposeFtpSession()
+    {
+        _ftpConnected = false;
+        if (_ftpEngine != null)
+        {
+            try { _ftpEngine.DisconnectAsync().GetAwaiter().GetResult(); } catch { }
+            try { _ftpEngine.StopLwip(); } catch { }
+            try { _ftpEngine.Dispose(); } catch { }
+            _ftpEngine = null;
+        }
+        if (_ftpLease != null)
+        {
+            try { _ftpLease.DisposeAsync().GetAwaiter().GetResult(); } catch { }
+            _ftpLease = null;
         }
     }
 
     /// <summary>
     /// DPDK FTP upload using HwFtpEngine (lwIP).
+    /// FTP 세션을 드라이버 수명 동안 유지하여 lwIP TCP 리소스 고갈 방지 (Delphi FFTPClient 패턴).
     /// </summary>
     private uint DpdkFtpUpload(string localFullName, string remotePath, string remoteFile, bool clearBeforePut)
     {
         try
         {
-            var lease = _nicCoordinator!.AcquireFtpAccessAsync().GetAwaiter().GetResult();
-            try
+            EnsureFtpSession();
+
+            var fileData = File.ReadAllBytes(localFullName);
+            if (!_ftpEngine!.UploadAsync(remoteFile, fileData, 30000).GetAwaiter().GetResult())
             {
-                var ftpEngine = new HwFtpEngine(_dpdkManager!, PgIndex);
-                try
-                {
-                    var ftpConfig = CreatePgFtpConfig();
-                    if (!ftpEngine.InitLwip(ftpConfig))
-                    {
-                        AddLog($"<PG> FTP lwIP init failed: {ftpEngine.LastError}");
-                        return WAIT_FAILED;
-                    }
-
-                    if (!ftpEngine.ConnectAsync(PgIpAddress, 21,
-                        Dp860Ftp.FtpUsername, Dp860Ftp.FtpPassword, 10000).GetAwaiter().GetResult())
-                    {
-                        AddLog($"<PG> FTP connect failed: {ftpEngine.LastError}");
-                        return WAIT_FAILED;
-                    }
-
-                    // FTP user 'upload' home dir is /home/upload — upload by filename only
-                    var fileData = File.ReadAllBytes(localFullName);
-
-                    if (!ftpEngine.UploadAsync(remoteFile, fileData, 30000).GetAwaiter().GetResult())
-                    {
-                        AddLog($"<PG> FTP upload failed: {ftpEngine.LastError}");
-                        return WAIT_FAILED;
-                    }
-
-                    AddLog($"<PG> FTP uploaded {remoteFile} ({fileData.Length} bytes)");
-
-                    ftpEngine.DisconnectAsync().GetAwaiter().GetResult();
-                    return WAIT_OBJECT_0;
-                }
-                finally
-                {
-                    ftpEngine.StopLwip();
-                    ftpEngine.Dispose();
-                }
+                AddLog($"<PG> FTP upload failed: {_ftpEngine.LastError}");
+                // 업로드 실패 시 세션 해제 → 다음 호출에서 재생성
+                DisposeFtpSession();
+                return WAIT_FAILED;
             }
-            finally
-            {
-                lease.DisposeAsync().GetAwaiter().GetResult();
-            }
+
+            AddLog($"<PG> FTP uploaded {remoteFile} ({fileData.Length} bytes)");
+            return WAIT_OBJECT_0;
         }
         catch (Exception ex)
         {
             _logger.Error($"<PG> DPDK FTP upload error: {ex.Message}", ex);
+            DisposeFtpSession();
             return WAIT_FAILED;
         }
     }

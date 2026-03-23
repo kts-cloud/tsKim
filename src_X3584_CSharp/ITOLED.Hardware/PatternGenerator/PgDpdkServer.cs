@@ -318,7 +318,6 @@ public sealed class PgDpdkServer : IPgTransport
                     out result, _localMac, _localIpNet);
             }
 
-            // Extract ASCII response from raw UDP payload
             string response = result.RespLen > 0
                 ? Encoding.ASCII.GetString(t_respBuf, 0, result.RespLen)
                 : string.Empty;
@@ -330,7 +329,6 @@ public sealed class PgDpdkServer : IPgTransport
                 DebugLog(pgIndex, DebugLogMsgTypeInspect, "RX", localPort.ToString(),
                     peerPort.ToString(), $"{response.TrimEnd()} [{rttUs}\u03BCs]");
 
-            // Maintenance RX event
             if (ret == 0 && driver.IsMainter)
                 driver.RaiseRxMaintEventPg(pgIndex, localPort.ToString(), peerPort.ToString(), response.TrimEnd());
 
@@ -342,6 +340,107 @@ public sealed class PgDpdkServer : IPgTransport
                 peerPort.ToString(), data + " ...REQRESP_NG: " + ex.Message);
             return (-1, string.Empty, 0);
         }
+    }
+
+    /// <summary>
+    /// RX-only wait: polls NIC for a matching response without sending TX.
+    /// Used after RET:INFO to wait for subsequent RET:OK/RET:NG.
+    /// </summary>
+    public (int status, string response, long rttUs) WaitForResponse(int pgIndex, int timeoutMs)
+    {
+        if (_disposed || pgIndex < 0 || pgIndex >= _pgDrivers.Length)
+            return (-1, string.Empty, 0);
+
+        var driver = _pgDrivers[pgIndex];
+        var expectedSrcIp = NetUtils.IpToUint(driver.PgIpAddress);
+        var expectedDstPort = (ushort)_localPorts[pgIndex];
+        int localPort = _localPorts[pgIndex];
+        int peerPort = driver.PgIpPort;
+
+        t_respBuf ??= new byte[4096];
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var rxPkts = new IntPtr[32];
+
+        // RxPollLoop 차단: 전체 대기 기간 동안 _rxExclusiveLock 유지
+        // (hw_reqresp_once_mc와 동일 패턴 — RxPollLoop가 RET:OK를 가로채는 것 방지)
+        lock (_rxExclusiveLock)
+        {
+            while (sw.ElapsedMilliseconds < timeoutMs)
+            {
+                ushort nbRx;
+                try
+                {
+                    nbRx = _dpdk.DispatchPoll(rxPkts, 32, out _);
+                }
+                catch
+                {
+                    Thread.SpinWait(100);
+                    continue;
+                }
+
+                for (int i = 0; i < nbRx; i++)
+                {
+                    try
+                    {
+                        var dataPtr = _dpdk.GetMbufData(rxPkts[i]);
+                        var dataLen = _dpdk.GetMbufDataLen(rxPkts[i]);
+                        if (dataPtr == IntPtr.Zero || dataLen < EtherHdr.Size + Ipv4Hdr.Size + UdpHdr.Size)
+                            continue;
+
+                        var etherType = (ushort)(Marshal.ReadByte(dataPtr, 12) << 8 | Marshal.ReadByte(dataPtr, 13));
+                        if (etherType == 0x0806) { HandleArpPacket(dataPtr, dataLen); continue; }
+                        if (etherType != 0x0800) continue;
+
+                        byte proto = Marshal.ReadByte(dataPtr, EtherHdr.Size + 9);
+                        if (proto != IpProtoUdp) continue;
+
+                        uint srcIpNet = ReadUInt32BE(dataPtr, EtherHdr.Size + 12);
+                        if (!_ipToPgMap.TryGetValue(srcIpNet, out int rxPgIdx) || rxPgIdx != pgIndex)
+                            continue;
+
+                        int udpOff = EtherHdr.Size + Ipv4Hdr.Size;
+                        int dstPort = NetUtils.Ntohs((ushort)Marshal.ReadInt16(dataPtr, udpOff + 2));
+                        if (dstPort != expectedDstPort && dstPort != Dp860Network.PcPortBase) continue;
+
+                        ushort udpLenNet = (ushort)Marshal.ReadInt16(dataPtr, udpOff + 4);
+                        int payloadLen = NetUtils.Ntohs(udpLenNet) - UdpHdr.Size;
+                        if (payloadLen <= 0) continue;
+
+                        var payloadBytes = new byte[payloadLen];
+                        Marshal.Copy(dataPtr + udpOff + UdpHdr.Size, payloadBytes, 0, payloadLen);
+                        var response = Encoding.ASCII.GetString(payloadBytes);
+                        long rttUs = sw.ElapsedMilliseconds * 1000;
+
+                        // RET:INFO 또는 RET: 없는 중간 패킷은 무시하고 계속 대기
+                        if (!response.Contains("RET:OK", StringComparison.OrdinalIgnoreCase) &&
+                            !response.Contains("RET:NG", StringComparison.OrdinalIgnoreCase) &&
+                            !response.Contains("RET:00", StringComparison.OrdinalIgnoreCase))
+                        {
+                            DebugLog(pgIndex, DebugLogMsgTypeInspect, "RX", localPort.ToString(),
+                                peerPort.ToString(), $"{response.TrimEnd()} (intermediate, waiting...)");
+                            continue;
+                        }
+
+                        // 최종 응답 (RET:OK / RET:NG) 수신
+                        DebugLog(pgIndex, DebugLogMsgTypeInspect, "RX", localPort.ToString(),
+                            peerPort.ToString(), $"{response.TrimEnd()} [{rttUs}\u03BCs]");
+
+                        if (driver.IsMainter)
+                            driver.RaiseRxMaintEventPg(pgIndex, localPort.ToString(), peerPort.ToString(), response.TrimEnd());
+
+                        return (0, response, rttUs);
+                    }
+                    finally
+                    {
+                        _dpdk.FreeMbuf(rxPkts[i]);
+                    }
+                }
+
+                if (nbRx == 0) Thread.SpinWait(10);
+            }
+        } // _rxExclusiveLock 해제
+
+        return (1, string.Empty, timeoutMs * 1000); // timeout
     }
 
     /// <inheritdoc/>

@@ -818,12 +818,26 @@ public class Program
                     }
                 }
 
-                // DPDK 실패 시 PG 통신 없이 진행 (Socket 폴백 제거 — IP 미설정으로 연결 불가)
-                if (dpdkFailed)
+                // DPDK 미사용 또는 실패 시 Socket UDP 폴백
+                if (!useDpdk || dpdkFailed)
                 {
-                    pgLogger.Error($"[DPDK] PG 통신 불가 — DPDK 실패: {dpdkFailReason}");
-                    uiService.PgTransportMode = "DPDK 실패 (PG 미연결)";
-                    uiService.IsDpdkFallback = true;
+                    if (dpdkFailed)
+                        pgLogger.Error($"[DPDK] DPDK 실패: {dpdkFailReason} — Socket UDP 폴백 시도");
+
+                    try
+                    {
+                        pgLogger.Info("[Socket] PgUdpServer 생성 시작...");
+                        pgTransport = new PgUdpServer(pgLogger, concretePgArray);
+                        pgLogger.Info("[Socket] PgUdpServer 생성 완료 — PG transport: Socket UDP");
+                        uiService.PgTransportMode = dpdkFailed ? "Socket (DPDK 실패)" : "Socket";
+                        uiService.IsDpdkFallback = dpdkFailed;
+                    }
+                    catch (Exception ex)
+                    {
+                        pgLogger.Error($"[Socket] PgUdpServer 생성 실패: {ex.Message}");
+                        uiService.PgTransportMode = "PG 미연결";
+                        uiService.IsDpdkFallback = true;
+                    }
                 }
                 else if (pgTransport != null)
                 {
@@ -843,8 +857,9 @@ public class Program
                 foreach (var pg in concretePgArray)
                 {
                     pg.SetTransport(pgTransport);
+                    pg.SetFlashDir(flashDir);
                     if (nicCoordinator != null && pgTransport is PgDpdkServer dpdk)
-                        pg.SetDpdkFtpAccess(nicCoordinator, dpdk.Dpdk, flashDir);
+                        pg.SetDpdkFtpAccess(nicCoordinator, dpdk.Dpdk);
                     pg.SetCyclicTimer(true);
                 }
             }

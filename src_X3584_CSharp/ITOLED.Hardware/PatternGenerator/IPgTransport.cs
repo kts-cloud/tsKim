@@ -45,4 +45,13 @@ public interface IPgTransport : IDisposable
     /// <returns>(status: 0=success/1=timeout/-1=error, response: ASCII payload, rttUs: measured RTT)</returns>
     (int status, string response, long rttUs) SendAndReceive(int bindIdx, int pgIndex, string data, int timeoutMs)
         => (-1, string.Empty, 0); // default: not supported
+
+    /// <summary>
+    /// RX-only wait: blocks until a matching response arrives or timeout.
+    /// Used after RET:INFO to wait for subsequent RET:OK/RET:NG without re-sending TX.
+    /// DPDK: uses hw_reqresp_once_mc with empty TX (RX polling only).
+    /// Socket: not supported (uses CheckCmdAck pattern).
+    /// </summary>
+    (int status, string response, long rttUs) WaitForResponse(int pgIndex, int timeoutMs)
+        => (-1, string.Empty, 0); // default: not supported
 }

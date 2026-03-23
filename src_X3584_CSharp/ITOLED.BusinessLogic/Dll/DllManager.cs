@@ -324,11 +324,12 @@ public sealed class DllManager : IDllManager
             _currentBand[channel] = 0;
             _countInspections[channel] = 0;
 
-            // Compute CRC16 checksum
-            var checkSum = ComputeCrc16(parameter, parameter.Length);
+            // Compute CRC16 checksum — Delphi: crc16(sParameter, Length(sParameter)-1)
+            // null 문자(\0) 제외한 길이로 계산 (Delphi Length는 null 미포함이지만 sParameter에 #0 추가됨)
+            var checkSum = ComputeCrc16(parameter, parameter.Length - 1);
 
-            // Start flow via orchestrator
-            var result = _orchestrator.StartFlow(dllType, channel, parameter, parameter.Length, checkSum);
+            // Start flow via orchestrator — paramLength도 null 제외
+            var result = _orchestrator.StartFlow(dllType, channel, parameter, parameter.Length - 1, checkSum);
             if (result != 0)
                 return 2;
 

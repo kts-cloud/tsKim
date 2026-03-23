@@ -76,11 +76,14 @@ public class HardwareBridge : X2146_API
 
     public override void FlashWrite_Data(int StartSeg, int EndSeg, byte[] data)
     {
+        // X2146_API는 segment 단위(0x1000=4096), SendFlashWrite는 byte 주소
+        uint addr = (uint)StartSeg * 0x1000;
         int length = data.Length;
-        int nResult = (int)_pg.SendFlashWrite((uint)StartSeg, (uint)length, data);
+        _logCallback?.Invoke(_channel, $"[LGD_DLL→FlashWrite_Data] StartSeg=0x{StartSeg:X} → Addr=0x{addr:X} Len={length}");
+        int nResult = (int)_pg.SendFlashWrite(addr, (uint)length, data);
         if (nResult != WaitObject0)
         {
-            nResult = (int)_pg.SendFlashWrite((uint)StartSeg, (uint)length, data);
+            nResult = (int)_pg.SendFlashWrite(addr, (uint)length, data);
             if (nResult != WaitObject0)
                 _logCallback?.Invoke(_channel, $"FlashWrite_Data NG CH : {_channel}");
         }
@@ -88,14 +91,17 @@ public class HardwareBridge : X2146_API
 
     public override void FlashRead_File(int StartSeg, int EndSeg, string filePath)
     {
-        // Not used — file-based flash operations are unused in current OC flow
+        _logCallback?.Invoke(_channel, $"[LGD_DLL→FlashRead_File] StartSeg=0x{StartSeg:X} EndSeg=0x{EndSeg:X} path={filePath}");
     }
 
     public override void FlashRead_Data(int StartSeg, int EndSeg, ref byte[] data)
     {
+        // X2146_API는 segment 단위(0x1000=4096), Delphi 콜백은 byte 주소 단위
+        // StartSeg × 0x1000 = byte address (예: 0x7F6 × 0x1000 = 0x7F6000)
+        uint addr = (uint)StartSeg * 0x1000;
         int length = data.Length;
         var buf = new byte[length];
-        int nResult = (int)_pg.SendFlashRead((uint)StartSeg, (uint)length, buf, 5000, 1, false, false);
+        int nResult = (int)_pg.SendFlashRead(addr, (uint)length, buf, 5000, 1, false, false);
         if (nResult != WaitObject0)
             _logCallback?.Invoke(_channel, $"FlashRead_Data NG CH : {_channel}");
         Array.Copy(buf, data, length);
@@ -103,8 +109,11 @@ public class HardwareBridge : X2146_API
 
     public override void FlashErase(int StartSeg, int EndSeg)
     {
+        // X2146_API는 segment 단위(0x1000=4096)
+        uint addr = (uint)StartSeg * 0x1000;
         int length = EndSeg;
-        var command = $"{Dp860Commands.CmdStrNvmErase} 0x{StartSeg:X} {length}";
+        _logCallback?.Invoke(_channel, $"[LGD_DLL→FlashErase] StartSeg=0x{StartSeg:X} → Addr=0x{addr:X} Len={length}");
+        var command = $"{Dp860Commands.CmdStrNvmErase} 0x{addr:x} {length}";
         int waitMs = (((length / (PgFlashConstants.FlashEraseKbPerSecDefault * 1024)) + 1) * 1000)
                      + PgFlashConstants.FlashEraseWaitMsMinimum;
         _pg.Dp860SendCmd(command, Dp860Commands.CmdIdNvmErase, Dp860Commands.CmdStrNvmErase, waitMs, 0);

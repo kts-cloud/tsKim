@@ -152,15 +152,12 @@ else
                                               Style="font-family: 'Consolas', monospace; font-size: 0.85rem;" />
                             </MudItem>
 
-                            @* Progress *@
-                            @if (_seqRunning)
-                            {
-                                <MudItem xs="12">
-                                    <MudProgressLinear Color="Color.Primary" Striped="true" Size="Size.Medium"
-                                                       Value="@SeqProgressPercent" />
-                                    <MudText Typo="Typo.caption" Style="font-family: monospace;" Class="mt-1">@_seqProgressText</MudText>
-                                </MudItem>
-                            }
+                            @* Progress — 항상 렌더링하여 DOM 구조 고정 (conditional @if 시 sequence number 밀림 → 이벤트 핸들러 오매핑 방지) *@
+                            <MudItem xs="12" Style="@(_seqRunning ? "" : "display:none")">
+                                <MudProgressLinear Color="Color.Primary" Striped="true" Size="Size.Medium"
+                                                   Value="@SeqProgressPercent" />
+                                <MudText Typo="Typo.caption" Style="font-family: monospace;" Class="mt-1">@_seqProgressText</MudText>
+                            </MudItem>
 
                             @* Start / Stop *@
                             <MudItem xs="12">
