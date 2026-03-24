@@ -378,18 +378,14 @@ public class Program
                     sp.GetRequiredService<IPlcService>(),
                     sp.GetRequiredService<IDaeDioDriver>()));
 
-            // PG DebugLog — CommLogger for PG communication logs per channel
-            // Delphi: PGLogger := TLogger.Create(4096, MAX_PG_CNT, sFileNames, 10*1024*1024)
-            // Files: LOG\DebugLog\{yyyyMMdd}\DebugLog_{EQPID}_{date}_Ch{N}.txt
-            services.AddSingleton<CommLogger>(sp =>
+            // ── DebugLogWriter — PG 통신/하드웨어 디버그 로그
+            // Files: LOG\DebugLog\{yyyyMMdd}\DebugLog_{EQPID}_{date}_{AM/PM}_Ch{N}.txt
+            services.AddSingleton<DebugLogWriter>(sp =>
             {
                 var pm = sp.GetRequiredService<IPathManager>();
                 var cfg = sp.GetRequiredService<IConfigurationService>();
                 var eqpId = cfg.SystemInfo?.EQPId ?? "OC";
-                var debugLogger = new CommLogger(4, pm.DebugLogDir, eqpId);
-                debugLogger.LogPrefix = "DebugLog_";
-                debugLogger.SystemLogPrefix = "DebugLog_System_";
-                return debugLogger;
+                return new DebugLogWriter(4, pm.DebugLogDir, eqpId);
             });
 
             // CommPgDriver — 4 instances (CH1~CH4), matching Delphi PG[CH1..MAX_CH]
@@ -400,11 +396,11 @@ public class Program
                 var logger = sp.GetRequiredService<IAppLogger>();
                 var cfg = sp.GetRequiredService<IConfigurationService>();
                 var status = sp.GetRequiredService<ISystemStatusService>();
-                var debugLogger = sp.GetRequiredService<CommLogger>();
+                var debugLogWriter = sp.GetRequiredService<DebugLogWriter>();
                 var drivers = new ICommPgDriver[4];
                 for (int i = 0; i < 4; i++)
                     drivers[i] = new CommPgDriver(i, string.Empty, bus, logger, cfg, status,
-                        debugLogger: debugLogger);
+                        debugLogWriter: debugLogWriter);
                 return drivers;
             });
 
@@ -482,23 +478,28 @@ public class Program
                     pg: sp.GetRequiredService<ICommPgDriver[]>());
             });
 
-            // ── Script Engine — 4 instances (CH1~CH4), matching Delphi PasScr[CH1..MAX_CH]
-            services.AddSingleton<IScriptRunner[]>(sp =>
+            // ── MLogWriter — UI 표시용 검사 로그 (ScriptEngine + UiUpdateService 공유)
+            // Files: LOG\MLog\{yyyyMMdd}\MLog_{EQPID}_{date}_{AM/PM}_Ch{N}.txt
+            services.AddSingleton<MLogWriter>(sp =>
             {
-                // MLog CommLogger — per-channel inspection logs
-                // Files: LOG\MLog\{yyyyMMdd}\MLog_{EQPID}_{date}_{AM/PM}_Ch{N}.txt
                 var pm = sp.GetRequiredService<IPathManager>();
                 var cfgSvc = sp.GetRequiredService<IConfigurationService>();
                 var eqpId = cfgSvc.SystemInfo?.EQPId ?? "OC";
-                var mLogLogger = new CommLogger(4, pm.MLogDir, eqpId);
+                return new MLogWriter(4, pm.MLogDir, eqpId);
+            });
+
+            // ── Script Engine — 4 instances (CH1~CH4), matching Delphi PasScr[CH1..MAX_CH]
+            services.AddSingleton<IScriptRunner[]>(sp =>
+            {
+                var mLogWriter = sp.GetRequiredService<MLogWriter>();
 
                 var runners = new IScriptRunner[4];
                 for (int i = 0; i < 4; i++)
                     runners[i] = new ScriptEngine(
                         i,
-                        cfgSvc,
+                        sp.GetRequiredService<IConfigurationService>(),
                         sp.GetRequiredService<ISystemStatusService>(),
-                        pm,
+                        sp.GetRequiredService<IPathManager>(),
                         sp.GetRequiredService<IMessageBus>(),
                         sp.GetRequiredService<IAppLogger>(),
                         sp.GetRequiredService<ICommPgDriver[]>(),
@@ -508,7 +509,7 @@ public class Program
                         sp.GetService<IPlcEcsDriver>(),
                         new[] { sp.GetRequiredService<IDfsService>() },
                         sp.GetRequiredService<IModelInfoService>(),
-                        mLogLogger);
+                        mLogWriter);
                 return runners;
             });
 
@@ -537,7 +538,10 @@ public class Program
             });
 
             // ── UI Services ────────────────────────────────────────────────
-            services.AddSingleton<UiUpdateService>();
+            services.AddSingleton<UiUpdateService>(sp =>
+                new UiUpdateService(
+                    sp.GetRequiredService<IMessageBus>(),
+                    sp.GetRequiredService<MLogWriter>()));
 
             // ── Build & Run ────────────────────────────────────────────────
             // NOTE: UiUpdateService NG alarm threshold is set after config load (below)

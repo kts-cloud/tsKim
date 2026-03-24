@@ -53,7 +53,7 @@ public class ScriptGlobals
     private readonly IPlcEcsDriver? _plc;
     private readonly IDfsService[] _dfs;
     private readonly IModelInfoService _modelInfo;
-    private readonly CommLogger? _mLogLogger;
+    private readonly MLogWriter? _mLogLogger;
     private readonly int _pgNo; // FPgNo - channel index
 
     // =========================================================================
@@ -74,7 +74,7 @@ public class ScriptGlobals
         IPlcEcsDriver? plc,
         IDfsService[] dfs,
         IModelInfoService modelInfo,
-        CommLogger? mLogLogger = null)
+        MLogWriter? mLogLogger = null)
     {
         _pgNo = pgNo;
         _config = config;
@@ -1386,7 +1386,7 @@ public class ScriptGlobals
     public void f_LogM(string sMsg, int nOption = 0)
     {
         SendGuiMessage(MessageConstants.MsgModeWorking, sMsg, logType: nOption);
-        _mLogLogger?.MLog(_pgNo, sMsg);
+        _mLogLogger?.Write(_pgNo, sMsg);
     }
 
     /// <summary>

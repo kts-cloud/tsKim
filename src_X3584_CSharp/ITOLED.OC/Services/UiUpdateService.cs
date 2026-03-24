@@ -6,6 +6,7 @@
 
 using Dongaeltek.ITOLED.Core.Definitions;
 using Dongaeltek.ITOLED.Core.Interfaces;
+using Dongaeltek.ITOLED.Core.Logging;
 using Dongaeltek.ITOLED.BusinessLogic.Scripting;
 using Dongaeltek.ITOLED.Hardware.Plc;
 using Dongaeltek.ITOLED.Messaging;
@@ -20,6 +21,7 @@ namespace Dongaeltek.ITOLED.OC.Services;
 public sealed class UiUpdateService : IDisposable
 {
     private readonly IMessageBus _bus;
+    private readonly MLogWriter? _mLog;
     private readonly List<IDisposable> _subscriptions = [];
 
     /// <summary>Raised when PLC status changes.</summary>
@@ -135,9 +137,10 @@ public sealed class UiUpdateService : IDisposable
         }
     }
 
-    public UiUpdateService(IMessageBus bus)
+    public UiUpdateService(IMessageBus bus, MLogWriter? mLog = null)
     {
         _bus = bus;
+        _mLog = mLog;
 
         // Subscribe to CA-410 events from the message bus
         _subscriptions.Add(
@@ -318,8 +321,11 @@ public sealed class UiUpdateService : IDisposable
                 if (msg.Channel >= 0 && msg.Channel < 4)
                     UpdateStagePhase(msg.Channel, 3); // OC
                 // Delphi: AddLog('[DLL] ' + sMsg, nCh, nTemp)
-                CacheChannelLog(msg.Channel, $"[DLL] {msg.Message}");
-                ChannelLogAdded?.Invoke(msg.Channel, $"[DLL] {msg.Message}");
+                var dllMsg = $"[DLL] {msg.Message}";
+                CacheChannelLog(msg.Channel, dllMsg);
+                ChannelLogAdded?.Invoke(msg.Channel, dllMsg);
+                // mlog 파일 기록 (Delphi: Common.AddLog → MLog 파일에도 기록)
+                _mLog?.Write(msg.Channel, dllMsg);
                 break;
 
             case MsgMode.WorkDone:
@@ -327,6 +333,7 @@ public sealed class UiUpdateService : IDisposable
                 var dllDoneMsg = $"DLL DONE : {msg.Channel + 1}, NG Code={msg.Param}";
                 CacheChannelLog(msg.Channel, dllDoneMsg);
                 ChannelLogAdded?.Invoke(msg.Channel, dllDoneMsg);
+                _mLog?.Write(msg.Channel, dllDoneMsg);
                 // Cache + result UI update (ngCode → PASS/NG display)
                 if (msg.Channel >= 0 && msg.Channel < 4)
                 {

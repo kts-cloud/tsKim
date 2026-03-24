@@ -10,6 +10,7 @@
 // =============================================================================
 
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using Dongaeltek.ITOLED.Core.Definitions;
 using Dongaeltek.ITOLED.Core.Interfaces;
@@ -62,6 +63,12 @@ public sealed class OcFlowOrchestrator : IDisposable
     private System.Windows.Forms.ApplicationContext? _rtbAppContext;
     private int[]? _rtbPreviousLength;
 
+    // GC pinning — LGD DLL (.NET Framework 4.8 CLR) 이 delegate/객체 포인터를 내부 캐시하므로
+    // GC가 이동/수집하면 dangling pointer → Access Violation 크래시 발생.
+    // GCHandle.Alloc(Normal)로 GC root를 유지하여 수집 방지.
+    private readonly List<GCHandle> _gcRoots = new();
+    private EventHandler[]? _textChangedHandlers;
+
     public OcFlowOrchestrator(ILogger logger)
     {
         _logger = logger;
@@ -89,12 +96,15 @@ public sealed class OcFlowOrchestrator : IDisposable
         _modelName = modelName;
         _configs = configs;
         _logCallback = logCallback;
+        // GC root로 고정 — LGD DLL이 delegate 포인터를 내부 캐시하므로 GC 이동/수집 방지
+        _gcRoots.Add(GCHandle.Alloc(logCallback));
 
         var afmLock = new object();
         _bridges = new HardwareBridge[channelCount];
         _richTextBoxes = new System.Windows.Forms.RichTextBox[channelCount];
         _measurements = new OcMeasurementBridge[channelCount];
         _rtbPreviousLength = new int[channelCount];
+        _textChangedHandlers = new EventHandler[channelCount];
 
         // 1. Create RichTextBoxes on a dedicated STA thread with Win32 message pump.
         //    The Factory DLL (CompensationFlow) writes progress logs to these controls
@@ -112,7 +122,8 @@ public sealed class OcFlowOrchestrator : IDisposable
                     var rtb = new System.Windows.Forms.RichTextBox { Visible = false };
                     _ = rtb.Handle; // force HWND creation on this STA thread
 
-                    rtb.TextChanged += (_, _) =>
+                    // TextChanged 핸들러를 필드에 보관 → GC 수집 방지
+                    _textChangedHandlers![ch] = (_, _) =>
                     {
                         try
                         {
@@ -142,6 +153,7 @@ public sealed class OcFlowOrchestrator : IDisposable
                         }
                         catch { /* must not crash the message pump */ }
                     };
+                    rtb.TextChanged += _textChangedHandlers[ch];
 
                     _richTextBoxes![i] = rtb;
                 }
@@ -165,6 +177,7 @@ public sealed class OcFlowOrchestrator : IDisposable
         rtbReady.Dispose();
 
         // 2. Per-channel: MeasurementBridge + HardwareBridge (uses RTBs from STA thread)
+        //    GCHandle로 고정 — LGD DLL이 X2146_API 파생 객체를 내부 참조하므로 GC 이동 방지
         for (int ch = 0; ch < channelCount; ch++)
         {
             _measurements[ch] = new OcMeasurementBridge(ch, caSdk2, afmLock, logCallback);
@@ -172,6 +185,9 @@ public sealed class OcFlowOrchestrator : IDisposable
                 _richTextBoxes[ch], _measurements[ch],
                 ch < pgs.Length ? pgs[ch] : pgs[0],
                 ch, logCallback);
+            _gcRoots.Add(GCHandle.Alloc(_bridges[ch]));
+            _gcRoots.Add(GCHandle.Alloc(_measurements[ch]));
+            _gcRoots.Add(GCHandle.Alloc(_richTextBoxes[ch]));
         }
 
         // 2. Per-config: load Factory DLL via custom ALC
@@ -458,7 +474,16 @@ public sealed class OcFlowOrchestrator : IDisposable
 
         _rtbAppContext = null;
         _rtbPumpThread = null;
+        _textChangedHandlers = null;
         _loadedFactories.Clear();
+
+        // GC root 해제
+        foreach (var handle in _gcRoots)
+        {
+            if (handle.IsAllocated)
+                handle.Free();
+        }
+        _gcRoots.Clear();
     }
 
     // =========================================================================

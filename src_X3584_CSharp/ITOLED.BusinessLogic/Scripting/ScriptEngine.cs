@@ -54,7 +54,7 @@ public sealed class ScriptEngine : IScriptRunner
     private readonly IPlcEcsDriver? _plc;
     private readonly IDfsService[] _dfs;
     private readonly IModelInfoService _modelInfo;
-    private readonly CommLogger? _mLogLogger;
+    private readonly MLogWriter? _mLogLogger;
 
     /// <summary>
     /// Sequence status array indexed by sequence key (0..SeqMax).
@@ -202,7 +202,7 @@ public sealed class ScriptEngine : IScriptRunner
         IPlcEcsDriver? plc,
         IDfsService[] dfs,
         IModelInfoService modelInfo,
-        CommLogger? mLogLogger = null)
+        MLogWriter? mLogLogger = null)
     {
         _pgNo = pgNo;
         _config = config;

@@ -76,6 +76,8 @@ public sealed class DllManager : IDllManager
 
     // ---- OcFlowOrchestrator ----
     private OcFlowOrchestrator? _orchestrator;
+    // GC pinning — LGD DLL에 전달하는 delegate를 필드에 유지하여 GC 수집 방지
+    private Action<int, string>? _dllLogCallback;
 
     // ---- DLL directory ----
     private readonly string _dllPath;
@@ -269,6 +271,8 @@ public sealed class DllManager : IDllManager
             }
 
             // Create and initialize orchestrator
+            // delegate를 필드에 보관 → GC가 수집하지 못하도록 (LGD DLL 내부 캐시 포인터 보호)
+            _dllLogCallback = (ch, msg) => PublishTestFormMessage(ch, MsgMode.Working, msg);
             _orchestrator = new OcFlowOrchestrator(_logger);
             _orchestrator.Initialize(
                 _dllPath,
@@ -277,7 +281,7 @@ public sealed class DllManager : IDllManager
                 configs,
                 _pg,
                 _caSdk2,
-                (ch, msg) => PublishTestFormMessage(ch, MsgMode.Working, msg));
+                _dllLogCallback);
 
             // Retrieve versions for each DLL index
             ProcessFactoryConfigVersions(configs);
@@ -561,6 +565,10 @@ public sealed class DllManager : IDllManager
             }
             finally
             {
+                // DLL flow 완료 → Flash 작업용 FTP 세션 해제 (lwIP external RX 비활성화)
+                if (channel < _pg.Length)
+                    _pg[channel].ReleaseFlashFtpSession();
+
                 _isProcessDone[channel] = true;
                 PublishTestFormMessage(channel, MsgMode.WorkDone, "OKFLOW_END", ngCode);
             }

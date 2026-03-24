@@ -48,6 +48,7 @@ public partial class Dashboard : IDisposable
 
     // ── System state ─────────────────────────────────────────
     private bool _autoMode;
+    private bool _autoRepeat;
     private bool _canInitialize;
     private bool _initializing;
     private readonly double[] _tactTime = new double[4];
@@ -117,6 +118,7 @@ public partial class Dashboard : IDisposable
     private void RefreshFromStatus()
     {
         _autoMode = Status.AutoMode;
+        _autoRepeat = Status.AutoRepeatTest;
         _canInitialize = AppInit.CanInitialize;
         _isLoggedIn = Status.IsLoggedIn;
         _loginButtonText = _isLoggedIn ? "Log Out" : "Log In";
@@ -223,6 +225,9 @@ public partial class Dashboard : IDisposable
 
     private async Task OnStartClick()
     {
+        // Auto Repeat 상태를 Status에 동기화
+        Status.AutoRepeatTest = _autoRepeat;
+
         try
         {
             // ── Phase 1: 전 채널 공통 셋업 (PLC/Robot/PG 체크 + 채널 데이터 초기화) ──
@@ -280,20 +285,21 @@ public partial class Dashboard : IDisposable
                         // ── Mode 2: Detected → Start Inspection ──
                         UiService.NotifyLog($"Jig {(char)('A' + group)}: Start Inspection (CH{ch1 + 1}, CH{ch2 + 1})");
 
-                        // Set Running status immediately (like Test4ChPage.StartSingleChannel)
+                        // Set Running status immediately
                         foreach (var chIdx in new[] { ch1, ch2 })
                         {
-                            if (setupResults[chIdx] == null) // setup 성공 채널만
+                            if (setupResults[chIdx] == null)
                             {
                                 _channelStatus[chIdx] = 1;
                                 _channelStatusText[chIdx] = "Running";
                                 _channelNg[chIdx] = false;
                                 _channelResult[chIdx] = "---";
-                                UiService.NotifyChannelStatus(chIdx, 1); // also sets stage phase
+                                UiService.NotifyChannelStatus(chIdx, 1);
                             }
                         }
                         StateHasChanged();
 
+                        // Seq_Key_Start 실행 (Auto Repeat 재시작은 FlowCompletionCoordinator에서 처리)
                         await Task.WhenAll(
                             Task.Run(() => ScriptRunners[ch1].RunSequence(1)),
                             Task.Run(() => ScriptRunners[ch2].RunSequence(1)));
@@ -317,8 +323,16 @@ public partial class Dashboard : IDisposable
         }
     }
 
+    private void OnAutoRepeatChanged(bool value)
+    {
+        _autoRepeat = value;
+        Status.AutoRepeatTest = value; // 싱글턴에 즉시 동기화 → 페이지 이동 후에도 유지
+    }
+
     private async Task OnStopClick()
     {
+        Status.AutoRepeatTest = false; // Auto Repeat 루프 탈출 보장
+        _autoRepeat = false;
         await Task.Run(() => Plc.Stop());
     }
 

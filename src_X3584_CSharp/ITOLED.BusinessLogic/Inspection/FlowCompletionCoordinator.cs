@@ -22,6 +22,7 @@ public sealed class FlowCompletionCoordinator : IDisposable
     private readonly IDllManager _dll;
     private readonly IScriptRunner[] _scripts;
     private readonly IConfigurationService _config;
+    private readonly ISystemStatusService _status;
     private readonly ILogger _logger;
     private readonly IDisposable _subscription;
 
@@ -30,11 +31,13 @@ public sealed class FlowCompletionCoordinator : IDisposable
         IDllManager dll,
         IScriptRunner[] scripts,
         IConfigurationService config,
+        ISystemStatusService status,
         ILogger logger)
     {
         _dll = dll ?? throw new ArgumentNullException(nameof(dll));
         _scripts = scripts ?? throw new ArgumentNullException(nameof(scripts));
         _config = config ?? throw new ArgumentNullException(nameof(config));
+        _status = status ?? throw new ArgumentNullException(nameof(status));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
         _subscription = bus.Subscribe<DllEventMessage>(OnDllEvent);
@@ -59,6 +62,9 @@ public sealed class FlowCompletionCoordinator : IDisposable
             {
                 _logger.Info($"CH{ch} InlineGIB → Process_Finish");
                 _scripts[ch].RunSequence(DefScript.SeqFinish);
+
+                // Auto Repeat: Process_Finish 완료 후 자동 재시작
+                TryAutoRepeatRestart(ch);
             }
             _dll.SetProcessDone(ch, false);
         }
@@ -92,12 +98,81 @@ public sealed class FlowCompletionCoordinator : IDisposable
                 // Reset flags
                 _dll.SetProcessDone(pairStart, false);
                 _dll.SetProcessDone(pairEnd, false);
+
+                // Auto Repeat: Process_Finish 완료 후 자동 재시작 (pair 단위)
+                TryAutoRepeatRestart(pairStart, pairEnd);
             }
             else
             {
                 _logger.Debug($"CH{ch} done, waiting for pair partner (pair={pairStart},{pairEnd})");
             }
         }
+    }
+
+    /// <summary>
+    /// Auto Repeat 모드일 때 Process_Finish 스크립트 완료 대기 후 Seq_Key_Start 자동 재실행.
+    /// 별도 스레드에서 실행하여 OnDllEvent 콜백을 블로킹하지 않음.
+    /// </summary>
+    private bool ShouldAutoRepeat => _status.AutoRepeatTest && !_status.AutoMode && !_status.IsClosing;
+
+    private void TryAutoRepeatRestart(int chStart, int chEnd = -1)
+    {
+        if (chEnd < 0) chEnd = chStart;
+
+        if (!ShouldAutoRepeat)
+            return;
+
+        // 별도 스레드에서 SeqFinish 완료 대기 후 재시작
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                // Process_Finish 스크립트 스레드 완료 대기 (최대 60초)
+                int waitMs = 0;
+                while (waitMs < 60000 && ShouldAutoRepeat)
+                {
+                    bool allDone = true;
+                    for (int i = chStart; i <= chEnd; i++)
+                    {
+                        if (_scripts[i].IsInUse && _scripts[i].IsScriptRunning())
+                        {
+                            allDone = false;
+                            break;
+                        }
+                    }
+                    if (allDone) break;
+                    Thread.Sleep(200);
+                    waitMs += 200;
+                }
+
+                // 최종 확인: Stop/종료로 취소되지 않았는지
+                if (!ShouldAutoRepeat)
+                {
+                    _logger.Info($"<AUTO REPEAT> cancelled (AutoRepeat={_status.AutoRepeatTest}, AutoMode={_status.AutoMode})");
+                    return;
+                }
+
+                _logger.Info($"<AUTO REPEAT> auto restart CH{chStart + 1}~CH{chEnd + 1}");
+
+                for (int i = chStart; i <= chEnd; i++)
+                {
+                    if (_scripts[i].IsInUse)
+                    {
+                        _scripts[i].ExecuteAutoStart();
+                        _scripts[i].RunSequence(DefScript.SeqKeyStart);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"<AUTO REPEAT> restart error: {ex.Message}", ex);
+            }
+        })
+        {
+            IsBackground = true,
+            Name = $"AutoRepeat_CH{chStart}-{chEnd}"
+        };
+        thread.Start();
     }
 
     public void Dispose() => _subscription.Dispose();

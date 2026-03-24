@@ -45,7 +45,7 @@ public sealed class CommPgDriver : ICommPgDriver
 
     private readonly IMessageBus _messageBus;
     private readonly ILogger _logger;
-    private readonly CommLogger? _debugLogger;
+    private readonly DebugLogWriter? _debugLogWriter;
     private readonly IConfigurationService _configService;
     private readonly ISystemStatusService _systemStatus;
     private readonly IAf9FpgaDriver? _af9Driver;
@@ -106,7 +106,8 @@ public sealed class CommPgDriver : ICommPgDriver
     private Dongaeltek.ITOLED.Core.Definitions.FlashRead _flashRead = new();
     private Dongaeltek.ITOLED.Core.Definitions.FlashData _flashData = new();
 
-    // FTP 세션 — 드라이버 수명 동안 유지 (Delphi FFTPClient 패턴, lwIP 크래시 방지)
+    // FTP 세션 — DLL flow 기간 동안 유지 (FlashRead_Data 수백 회 반복 호출 시 재사용)
+    // InitFlashRead에서 이전 세션 정리, DLL WorkDone에서 ReleaseFlashFtpSession() 호출
     private HwNet.Engine.HwFtpEngine? _ftpEngine;
     private IAsyncDisposable? _ftpLease;
     private bool _ftpConnected;
@@ -129,11 +130,11 @@ public sealed class CommPgDriver : ICommPgDriver
         IConfigurationService configService,
         ISystemStatusService systemStatus,
         IAf9FpgaDriver? af9Driver = null,
-        CommLogger? debugLogger = null)
+        DebugLogWriter? debugLogWriter = null)
     {
         _messageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _debugLogger = debugLogger;
+        _debugLogWriter = debugLogWriter;
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));
         _systemStatus = systemStatus ?? throw new ArgumentNullException(nameof(systemStatus));
         _af9Driver = af9Driver;
@@ -412,7 +413,7 @@ public sealed class CommPgDriver : ICommPgDriver
     internal void AddLog(string log)
     {
         _logger.Info(PgIndex, log);
-        _debugLogger?.MLog(PgIndex, log);
+        _debugLogWriter?.Write(PgIndex, log);
     }
 
     /// <summary>
@@ -521,9 +522,16 @@ public sealed class CommPgDriver : ICommPgDriver
     /// <inheritdoc/>
     public void InitFlashRead()
     {
+        DisposeFtpSession(); // 이전 Flash 작업의 FTP 세션 정리
         _isOnFlashAccess = false;
         _flashRead = new Dongaeltek.ITOLED.Core.Definitions.FlashRead();
     }
+
+    /// <summary>
+    /// Flash 작업 완료 후 FTP 세션 해제. DLL flow 종료 시 호출.
+    /// FlashRead_Data/FlashWrite_Data 반복 호출 동안 세션 재사용 후 마지막에 정리.
+    /// </summary>
+    public void ReleaseFlashFtpSession() => DisposeFtpSession();
 
     // =========================================================================
     // Timer Control
@@ -2340,7 +2348,7 @@ public sealed class CommPgDriver : ICommPgDriver
 
     /// <summary>
     /// DPDK FTP download using HwFtpEngine (lwIP).
-    /// FTP 세션을 드라이버 수명 동안 유지하여 lwIP TCP 리소스 고갈 방지 (Delphi FFTPClient 패턴).
+    /// FTP 세션을 DLL flow 기간 동안 유지하여 lwIP TCP 리소스 고갈 방지.
     /// </summary>
     private uint DpdkFtpDownload(string remotePath, string remoteFile, string localFullName, bool clearAfterGet)
     {
@@ -2364,6 +2372,8 @@ public sealed class CommPgDriver : ICommPgDriver
         if (data == null)
         {
             AddLog($"<PG> FTP download failed: {ftpEngine.LastError}");
+            // 다운로드 실패 시 세션 리셋 → 다음 호출에서 재생성
+            DisposeFtpSession();
             return WAIT_FAILED;
         }
         File.WriteAllBytes(localFullName, data);

@@ -114,6 +114,9 @@
                            Disabled="@(!_autoMode)" OnClick="OnStopClick">
                     AUTO STOP
                 </MudButton>
+                <MudSwitch T="bool" Value="_autoRepeat" ValueChanged="OnAutoRepeatChanged"
+                           Label="Auto Repeat" Color="Color.Success" Disabled="@_autoMode"
+                           Class="mt-1 mb-0" />
                 <MudDivider />
                 <MudButton Variant="Variant.Filled"
                            Color="@(_isLoggedIn ? Color.Warning : Color.Info)"

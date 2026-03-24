@@ -157,6 +157,9 @@ public interface ICommPgDriver : IDisposable
     /// <summary>Init flash read state. Delphi: InitFlashRead (FEATURE_FLASH_ACCESS)</summary>
     void InitFlashRead();
 
+    /// <summary>Flash 작업 완료 후 FTP 세션 해제. DLL flow 종료 시 호출.</summary>
+    void ReleaseFlashFtpSession();
+
     // =========================================================================
     // Timer Control
     // =========================================================================
