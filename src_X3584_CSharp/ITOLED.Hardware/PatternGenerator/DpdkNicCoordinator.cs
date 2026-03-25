@@ -1,9 +1,8 @@
 // =============================================================================
 // DpdkNicCoordinator.cs
 // Coordinates DPDK NIC access between PG UDP and FTP (lwIP).
-// With the unified dispatcher (shim_dispatch_poll), RX polling continues
-// during FTP — only lwIP external RX mode is toggled.
-// Supports concurrent multi-channel FTP via reference counting.
+// SetLwipExternalRx는 앱 시작/종료 시 1회만 토글 (hwio.dll 힙 손상 방지).
+// FTP lease는 레퍼런스 카운팅으로 관리.
 // =============================================================================
 
 using Dongaeltek.ITOLED.Core.Interfaces;
@@ -11,9 +10,9 @@ using Dongaeltek.ITOLED.Core.Interfaces;
 namespace Dongaeltek.ITOLED.Hardware.PatternGenerator;
 
 /// <summary>
-/// Coordinates DPDK NIC access. FTP operations acquire a lease that enables
-/// lwIP external RX mode (dispatcher feeds TCP/ARP to lwIP while UDP continues).
-/// Multiple channels can FTP simultaneously — lwIP supports multiple TCP connections.
+/// Coordinates DPDK NIC access. lwIP external RX mode is enabled once at startup
+/// and disabled at shutdown — never toggled during OC flow to avoid hwio.dll heap corruption.
+/// FTP operations acquire/release leases for reference counting only.
 /// </summary>
 public sealed class DpdkNicCoordinator : IDpdkNicCoordinator
 {
@@ -30,46 +29,39 @@ public sealed class DpdkNicCoordinator : IDpdkNicCoordinator
     /// <inheritdoc/>
     public bool IsFtpActive => _ftpActiveCount > 0;
 
+    /// <summary>
+    /// 앱 시작 시 1회 호출 — lwIP external RX 모드 활성화.
+    /// 이후 FTP lease 획득/해제 시 토글하지 않음.
+    /// </summary>
+    public void EnableLwipMode()
+    {
+        _pgServer.Dpdk.SetLwipExternalRx(true);
+        _logger.Info("[NicCoordinator] lwIP external RX 활성화 (앱 시작 — 1회)");
+    }
+
+    /// <summary>
+    /// 앱 종료 시 1회 호출 — lwIP external RX 모드 비활성화.
+    /// </summary>
+    public void DisableLwipMode()
+    {
+        _pgServer.Dpdk.SetLwipExternalRx(false);
+        _logger.Info("[NicCoordinator] lwIP external RX 비활성화 (앱 종료)");
+    }
+
     /// <inheritdoc/>
     public Task<IAsyncDisposable> AcquireFtpAccessAsync(CancellationToken ct = default)
     {
         int count = Interlocked.Increment(ref _ftpActiveCount);
-        _logger.Info($"[NicCoordinator] FTP 활성화 (activeCount={count})");
-
-        try
-        {
-            // First session: enable lwIP external RX
-            if (count == 1)
-            {
-                _pgServer.Dpdk.SetLwipExternalRx(true);
-                _logger.Info("[NicCoordinator] external RX 활성화 (첫 FTP 세션)");
-            }
-            return Task.FromResult<IAsyncDisposable>(new FtpLease(this));
-        }
-        catch
-        {
-            Interlocked.Decrement(ref _ftpActiveCount);
-            throw;
-        }
+        _logger.Info($"[NicCoordinator] FTP lease 획득 (activeCount={count})");
+        return Task.FromResult<IAsyncDisposable>(new FtpLease(this));
     }
 
     private void ReleaseFtpAccess()
     {
         int count = Interlocked.Decrement(ref _ftpActiveCount);
-        _logger.Info($"[NicCoordinator] FTP 해제 (activeCount={count})");
-
-        // Last session: disable lwIP external RX
-        if (count == 0)
-        {
-            _pgServer.Dpdk.SetLwipExternalRx(false);
-            _logger.Info("[NicCoordinator] external RX 비활성화 (마지막 FTP 세션 종료)");
-        }
+        _logger.Info($"[NicCoordinator] FTP lease 해제 (activeCount={count})");
     }
 
-    /// <summary>
-    /// Disposable lease returned by <see cref="AcquireFtpAccessAsync"/>.
-    /// Disposing decrements the FTP active count and disables lwIP when last.
-    /// </summary>
     private sealed class FtpLease : IAsyncDisposable
     {
         private readonly DpdkNicCoordinator _coordinator;
@@ -80,9 +72,7 @@ public sealed class DpdkNicCoordinator : IDpdkNicCoordinator
         public ValueTask DisposeAsync()
         {
             if (Interlocked.CompareExchange(ref _disposed, 1, 0) == 0)
-            {
                 _coordinator.ReleaseFtpAccess();
-            }
             return ValueTask.CompletedTask;
         }
     }

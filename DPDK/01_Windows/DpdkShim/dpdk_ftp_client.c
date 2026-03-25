@@ -678,6 +678,7 @@ void ftp_disconnect(ftp_client_t *ftp)
     if (ftp->ctrl_pcb) {
         tcp_arg(ftp->ctrl_pcb, NULL);
         tcp_recv(ftp->ctrl_pcb, NULL);
+        tcp_sent(ftp->ctrl_pcb, NULL);
         tcp_err(ftp->ctrl_pcb, NULL);
         tcp_close(ftp->ctrl_pcb);
         ftp->ctrl_pcb = NULL;

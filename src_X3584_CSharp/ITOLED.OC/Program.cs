@@ -853,8 +853,10 @@ public class Program
                 IDpdkNicCoordinator? nicCoordinator = null;
                 if (pgTransport is PgDpdkServer dpdkServer)
                 {
-                    nicCoordinator = new DpdkNicCoordinator(dpdkServer, pgLogger);
-                    NicCoordinator = nicCoordinator;
+                    var coordinator = new DpdkNicCoordinator(dpdkServer, pgLogger);
+                    coordinator.EnableLwipMode(); // lwIP external RX 1회 활성화 (앱 수명 동안 유지)
+                    nicCoordinator = coordinator;
+                    NicCoordinator = coordinator;
                 }
 
                 var flashDir = sp.GetRequiredService<IPathManager>().FlashDir;
@@ -949,7 +951,10 @@ public class Program
             heartbeatTimer?.Dispose();
 
             // ── DPDK 정리 (DI dispose 전에 수행) ──
-            // 순서: PgDpdkServer(RX 스레드 정지) → HwManager(ETH stop/close + EAL cleanup + hugepage 해제)
+            // 순서: lwIP 비활성화 → PgDpdkServer(RX 스레드 정지) → HwManager(ETH stop/close + EAL cleanup)
+            try { (NicCoordinator as DpdkNicCoordinator)?.DisableLwipMode(); }
+            catch { /* lwIP 비활성화 실패 시 무시 */ }
+
             try { pgTransport?.Dispose(); }
             catch { /* PG transport 정리 실패 시 무시 */ }
 

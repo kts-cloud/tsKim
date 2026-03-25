@@ -108,6 +108,7 @@ public sealed class CommPgDriver : ICommPgDriver
 
     // FTP 세션 — DLL flow 기간 동안 유지 (FlashRead_Data 수백 회 반복 호출 시 재사용)
     // InitFlashRead에서 이전 세션 정리, DLL WorkDone에서 ReleaseFlashFtpSession() 호출
+    // SetLwipExternalRx는 앱 시작 시 1회 활성화 (NicCoordinator.EnableLwipMode)
     private HwNet.Engine.HwFtpEngine? _ftpEngine;
     private IAsyncDisposable? _ftpLease;
     private bool _ftpConnected;
@@ -2417,7 +2418,7 @@ public sealed class CommPgDriver : ICommPgDriver
         _ftpEngine = ftpEngine;
         _ftpLease = lease;
         _ftpConnected = true;
-        AddLog($"<PG> FTP session created (driver-lifetime, PG{PgIndex})");
+        AddLog($"<PG> FTP session created (PG{PgIndex})");
     }
 
     /// <summary>FTP 세션 해제 — Dispose() 및 에러 복구 시 호출</summary>

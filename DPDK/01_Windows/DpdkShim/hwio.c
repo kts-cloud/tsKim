@@ -12,6 +12,8 @@
 #include <rte_pause.h>
 #include <rte_spinlock.h>
 #include <rte_ring.h>
+#include <rte_mempool.h>
+#include "hw_ring_ops.h"  // AFTER DPDK headers: overrides alloc/free/rx/tx at call sites
 
 // Windows DLL Export Macro
 #define DPDK_API __declspec(dllexport)
@@ -201,6 +203,11 @@ DPDK_API int hw_eal_init(int argc, char **argv) {
         return -99;
     }
     hw_dbg("[HW] rte_eal_init returned %d\n", ret);
+
+    // Resolve rte_eth_fp_ops via GetProcAddress (dllimport workaround)
+    _hw_init_fp_ops();
+    hw_dbg("[HW] dllimport fix: fp_ops=%p\n", (void*)_hw_fp_ops);
+
     // 성공/실패 모두 1로 설정 — 실패 시에도 부분 할당된 hugepage를 cleanup하기 위함
     g_eal_initialized = 1;
     return ret;
@@ -257,19 +264,33 @@ DPDK_API uint16_t hw_pktmbuf_data_len(struct rte_mbuf *m) {
     return rte_pktmbuf_data_len(m);
 }
 
-// 5. Mbuf Free Wrapper
+// 5. Mbuf Free Wrapper (SEH protected)
 DPDK_API void hw_pktmbuf_free(struct rte_mbuf *m) {
-    rte_pktmbuf_free(m);
+    __try {
+        rte_pktmbuf_free(m);
+    } __except(1) {
+        hw_dbg("[HW] SEH: hw_pktmbuf_free crashed! m=%p\n", (void*)m);
+    }
 }
 
-// 6. Mbuf Allocation Wrapper
+// 6. Mbuf Allocation Wrapper (SEH protected)
 DPDK_API struct rte_mbuf* hw_pktmbuf_alloc(struct rte_mempool *mp) {
-    return rte_pktmbuf_alloc(mp);
+    __try {
+        return rte_pktmbuf_alloc(mp);
+    } __except(1) {
+        hw_dbg("[HW] SEH: hw_pktmbuf_alloc crashed! pool=%p\n", (void*)mp);
+        return NULL;
+    }
 }
 
-// 7. Mbuf Append Wrapper (for TX packet construction)
+// 7. Mbuf Append Wrapper (SEH protected)
 DPDK_API char* hw_pktmbuf_append(struct rte_mbuf *m, uint16_t len) {
-    return rte_pktmbuf_append(m, len);
+    __try {
+        return rte_pktmbuf_append(m, len);
+    } __except(1) {
+        hw_dbg("[HW] SEH: hw_pktmbuf_append crashed! m=%p len=%u\n", (void*)m, len);
+        return NULL;
+    }
 }
 
 // 8. Mbuf Packet Length Wrapper
@@ -320,12 +341,42 @@ DPDK_API int hw_eth_link_get_nowait(uint16_t port_id, struct rte_eth_link *link)
     }
 }
 
+// Diagnostic: dump mempool ops table state
+static void hw_dump_pool_ops(struct rte_mempool *mp, const char *label) {
+    if (!mp) { hw_dbg("[HW] %s: pool is NULL\n", label); return; }
+    hw_dbg("[HW] %s: pool=%p size=%u cache_size=%u ops_index=%d\n",
+        label, (void*)mp, mp->size, mp->cache_size, mp->ops_index);
+    __try {
+        struct rte_mempool_ops *ops = rte_mempool_get_ops(mp->ops_index);
+        hw_dbg("[HW] %s: ops=%p name='%.32s'\n", label, (void*)ops, ops->name);
+        hw_dbg("[HW] %s: ops->alloc=%p dequeue=%p enqueue=%p\n",
+            label, (void*)(uintptr_t)ops->alloc,
+            (void*)(uintptr_t)ops->dequeue,
+            (void*)(uintptr_t)ops->enqueue);
+        // Raw hex dump of first 96 bytes of ops entry
+        unsigned char *raw = (unsigned char*)ops;
+        hw_dbg("[HW] %s: raw[0..47]= ", label);
+        for (int i = 0; i < 48; i++) hw_dbg("%02X ", raw[i]);
+        hw_dbg("\n");
+        hw_dbg("[HW] %s: raw[48..95]=", label);
+        for (int i = 48; i < 96; i++) hw_dbg("%02X ", raw[i]);
+        hw_dbg("\n");
+    } __except(1) {
+        hw_dbg("[HW] %s: ops access SEH EXCEPTION\n", label);
+    }
+    // Also dump sizeof for struct verification
+    hw_dbg("[HW] %s: sizeof(rte_mempool_ops)=%zu sizeof(rte_mempool)=%zu\n",
+        label, sizeof(struct rte_mempool_ops), sizeof(struct rte_mempool));
+}
+
 // 9e. Mbuf pool create (SEH protected)
 DPDK_API struct rte_mempool* hw_pktmbuf_pool_create_safe(
     const char *name, unsigned int n, unsigned int cache_size,
     uint16_t priv_size, uint16_t data_room_size, int socket_id) {
     __try {
-        return rte_pktmbuf_pool_create(name, n, cache_size, priv_size, data_room_size, socket_id);
+        struct rte_mempool *mp = rte_pktmbuf_pool_create(name, n, cache_size, priv_size, data_room_size, socket_id);
+        hw_dump_pool_ops(mp, "pool_create");
+        return mp;
     } __except(1) {
         hw_dbg("[HW] rte_pktmbuf_pool_create SEH EXCEPTION\n");
         return NULL;
@@ -416,60 +467,79 @@ DPDK_API int hw_simple_port_setup(uint16_t port_id, struct rte_mempool *mbuf_poo
     // Link speed: 0 = autoneg, otherwise RTE_ETH_LINK_SPEED_FIXED | speed
     if (link_speeds != 0)
         port_conf.link_speeds = link_speeds;
-    fprintf(stderr, "HW: link_speeds=0x%08X (%s)\n", port_conf.link_speeds,
-            port_conf.link_speeds == 0 ? "autoneg" : "fixed");
-    fprintf(stderr, "HW: port_setup start (port=%u, pool=%p)\n", port_id, (void*)mbuf_pool);
-    fflush(stderr);
+    hw_dbg("[HW] port_setup start (port=%u, pool=%p, link_speeds=0x%08X)\n",
+           port_id, (void*)mbuf_pool, port_conf.link_speeds);
 
     if (!rte_eth_dev_is_valid_port(port_id)) {
-        fprintf(stderr, "HW: invalid port %u\n", port_id);
+        hw_dbg("[HW] port %u: invalid port\n", port_id);
         return -1;
     }
-    fprintf(stderr, "HW: [1/7] valid port OK\n"); fflush(stderr);
+    hw_dbg("[HW] port %u: [1/7] valid port OK\n", port_id);
 
     memset(&dev_info, 0, sizeof(dev_info));
     retval = rte_eth_dev_info_get(port_id, &dev_info);
-    if (retval != 0) { fprintf(stderr, "HW: [2/7] dev_info_get FAIL=%d\n", retval); return retval; }
-    fprintf(stderr, "HW: [2/7] dev_info OK (max_rx_q=%u, max_tx_q=%u)\n",
-            dev_info.max_rx_queues, dev_info.max_tx_queues); fflush(stderr);
+    if (retval != 0) { hw_dbg("[HW] port %u: [2/7] dev_info_get FAIL=%d\n", port_id, retval); return retval; }
+    hw_dbg("[HW] port %u: [2/7] dev_info OK (driver=%s, max_rx_q=%u, max_tx_q=%u)\n",
+           port_id, dev_info.driver_name ? dev_info.driver_name : "NULL",
+           dev_info.max_rx_queues, dev_info.max_tx_queues);
 
     // Configure the Ethernet device (minimal config, no offloads)
     retval = rte_eth_dev_configure(port_id, rx_rings, tx_rings, &port_conf);
-    if (retval != 0) { fprintf(stderr, "HW: [3/7] dev_configure FAIL=%d\n", retval); return retval; }
-    fprintf(stderr, "HW: [3/7] dev_configure OK\n"); fflush(stderr);
+    if (retval != 0) { hw_dbg("[HW] port %u: [3/7] dev_configure FAIL=%d\n", port_id, retval); return retval; }
+    hw_dbg("[HW] port %u: [3/7] dev_configure OK\n", port_id);
 
     retval = rte_eth_dev_adjust_nb_rx_tx_desc(port_id, &nb_rxd, &nb_txd);
-    if (retval != 0) { fprintf(stderr, "HW: [4/7] adjust_desc FAIL=%d\n", retval); return retval; }
-    fprintf(stderr, "HW: [4/7] adjust_desc OK (rxd=%u, txd=%u)\n", nb_rxd, nb_txd); fflush(stderr);
+    if (retval != 0) { hw_dbg("[HW] port %u: [4/7] adjust_desc FAIL=%d\n", port_id, retval); return retval; }
+    hw_dbg("[HW] port %u: [4/7] adjust_desc OK (rxd=%u, txd=%u)\n", port_id, nb_rxd, nb_txd);
 
     // Windows에서 NUMA 미감지 시 socket_id가 -1이 되므로 0으로 보정
     int socket_id = rte_eth_dev_socket_id(port_id);
     if (socket_id < 0) socket_id = 0;
-    fprintf(stderr, "HW: socket_id=%d\n", socket_id); fflush(stderr);
+    hw_dbg("[HW] port %u: socket_id=%d\n", port_id, socket_id);
 
     // RX queue setup
     retval = rte_eth_rx_queue_setup(port_id, 0, nb_rxd, socket_id, NULL, mbuf_pool);
-    if (retval < 0) { fprintf(stderr, "HW: [5/7] rx_queue_setup FAIL=%d\n", retval); return retval; }
-    fprintf(stderr, "HW: [5/7] rx_queue_setup OK\n"); fflush(stderr);
+    if (retval < 0) { hw_dbg("[HW] port %u: [5/7] rx_queue_setup FAIL=%d\n", port_id, retval); return retval; }
+    hw_dbg("[HW] port %u: [5/7] rx_queue_setup OK\n", port_id);
 
     // TX queue setup
     txconf = dev_info.default_txconf;
     txconf.offloads = port_conf.txmode.offloads;
     retval = rte_eth_tx_queue_setup(port_id, 0, nb_txd, socket_id, &txconf);
-    if (retval < 0) { fprintf(stderr, "HW: [6/7] tx_queue_setup FAIL=%d\n", retval); return retval; }
-    fprintf(stderr, "HW: [6/7] tx_queue_setup OK\n"); fflush(stderr);
+    if (retval < 0) { hw_dbg("[HW] port %u: [6/7] tx_queue_setup FAIL=%d\n", port_id, retval); return retval; }
+    hw_dbg("[HW] port %u: [6/7] tx_queue_setup OK\n", port_id);
 
     // Start the Ethernet port (Windows SEH로 크래시 보호)
-    fprintf(stderr, "HW: [7/7] dev_start calling...\n"); fflush(stderr);
-    __try {
-        retval = rte_eth_dev_start(port_id);
-    } __except(1) {
-        fprintf(stderr, "HW: [7/7] dev_start SEH EXCEPTION caught!\n");
-        fflush(stderr);
-        return -99;
+    hw_dbg("[HW] port %u: [7/7] dev_start calling...\n", port_id);
+    {
+        DWORD _seh_code = 0; void *_seh_addr = NULL; void *_seh_fault = NULL;
+        __try {
+            retval = rte_eth_dev_start(port_id);
+        } __except(
+            _seh_code = GetExceptionInformation()->ExceptionRecord->ExceptionCode,
+            _seh_addr = (void*)GetExceptionInformation()->ExceptionRecord->ExceptionAddress,
+            _seh_fault = GetExceptionInformation()->ExceptionRecord->NumberParameters >= 2
+                ? (void*)GetExceptionInformation()->ExceptionRecord->ExceptionInformation[1] : NULL,
+            EXCEPTION_EXECUTE_HANDLER) {
+            // Identify crash module from instruction address
+            HMODULE hMod = NULL; char modName[MAX_PATH] = "unknown";
+            if (GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+                                   GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                                   (LPCSTR)_seh_addr, &hMod)) {
+                GetModuleFileNameA(hMod, modName, MAX_PATH);
+                char *slash = strrchr(modName, '\\');
+                if (slash) memmove(modName, slash+1, strlen(slash+1)+1);
+            }
+            hw_dbg("[HW] port %u: [7/7] dev_start SEH EXCEPTION! code=0x%08X\n", port_id, _seh_code);
+            hw_dbg("[HW]   instruction at : %p\n", _seh_addr);
+            hw_dbg("[HW]   fault address  : %p\n", _seh_fault);
+            hw_dbg("[HW]   crash module   : %s + 0x%llX\n", modName,
+                   (unsigned long long)((char*)_seh_addr - (char*)hMod));
+            return -99;
+        }
     }
-    if (retval < 0) { fprintf(stderr, "HW: [7/7] dev_start FAIL=%d\n", retval); return retval; }
-    fprintf(stderr, "HW: [7/7] dev_start OK\n"); fflush(stderr);
+    if (retval < 0) { hw_dbg("[HW] port %u: [7/7] dev_start FAIL=%d\n", port_id, retval); return retval; }
+    hw_dbg("[HW] port %u: [7/7] dev_start OK\n", port_id);
 
     // Enable Promiscuous mode
     rte_eth_promiscuous_enable(port_id);
@@ -1173,10 +1243,9 @@ static volatile int g_lwip_ref_count = 0;
 static rte_spinlock_t g_lwip_poll_lock = RTE_SPINLOCK_INITIALIZER;
 
 static void lwip_poll_once_safe(void) {
-    if (rte_spinlock_trylock(&g_lwip_poll_lock)) {
-        dpdk_lwip_poll_once();
-        rte_spinlock_unlock(&g_lwip_poll_lock);
-    }
+    rte_spinlock_lock(&g_lwip_poll_lock);
+    dpdk_lwip_poll_once();
+    rte_spinlock_unlock(&g_lwip_poll_lock);
 }
 
 /* --- Helper: poll until op_done or timeout (per-session) --- */
@@ -1196,6 +1265,7 @@ static int ftp_poll_wait_session(ftp_client_t *ftp, int timeout_ms)
             hw_dbg("[HW] ftp_poll_wait: state %d -> %d\n", last_state, ftp->state);
             last_state = ftp->state;
         }
+        Sleep(1); /* CPU 양보 — busy loop 방지 */
     }
     return ftp->op_result;
 }
@@ -1235,26 +1305,37 @@ DPDK_API int hw_lwip_poll(int max_ms)
 }
 
 /* --- lwIP reference-counted init/stop for multi-session FTP --- */
+/* Protected by g_lwip_poll_lock to prevent race between concurrent init/stop calls */
 DPDK_API int hw_lwip_init_ref(uint16_t port_id, void *pool,
     uint32_t ip, uint32_t mask, uint32_t gw, const uint8_t *mac)
 {
+    rte_spinlock_lock(&g_lwip_poll_lock);
     if (g_lwip_ref_count == 0) {
         int ret = dpdk_lwip_init(port_id, (struct rte_mempool *)pool, ip, mask, gw, mac);
-        if (ret != 0) return ret;
+        if (ret != 0) {
+            rte_spinlock_unlock(&g_lwip_poll_lock);
+            return ret;
+        }
     }
     g_lwip_ref_count++;
     hw_dbg("[HW] lwip_init_ref: ref_count=%d\n", g_lwip_ref_count);
+    rte_spinlock_unlock(&g_lwip_poll_lock);
     return 0;
 }
 
 DPDK_API void hw_lwip_stop_ref(void)
 {
-    if (g_lwip_ref_count <= 0) return;
+    rte_spinlock_lock(&g_lwip_poll_lock);
+    if (g_lwip_ref_count <= 0) {
+        rte_spinlock_unlock(&g_lwip_poll_lock);
+        return;
+    }
     g_lwip_ref_count--;
     hw_dbg("[HW] lwip_stop_ref: ref_count=%d\n", g_lwip_ref_count);
     if (g_lwip_ref_count == 0) {
         dpdk_lwip_stop();
     }
+    rte_spinlock_unlock(&g_lwip_poll_lock);
 }
 
 /* ================================================================
@@ -1807,8 +1888,10 @@ DPDK_API uint16_t hw_dispatch_poll(
     }
 
     /* 4. Process lwIP timers (with external_rx=1, dpdk_netif_poll returns 0) */
+    /* Must use lwip_poll_once_safe() to prevent concurrent sys_check_timeouts
+     * with FTP threads — race condition causes TCP state corruption → heap damage */
     if (dpdk_lwip_is_running())
-        dpdk_lwip_poll_once();
+        lwip_poll_once_safe();
 
     if (out_lwip_count)
         *out_lwip_count = lwip_count;

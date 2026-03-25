@@ -15,7 +15,6 @@ static void preload_pmd_drivers(void)
 {
     const char *drivers[] = {
         "rte_bus_pci-26.dll",
-        "rte_bus_vdev-26.dll",
         "rte_mempool_ring-26.dll",
         "rte_mempool_stack-26.dll",
         "rte_net_ixgbe-26.dll",
@@ -27,6 +26,8 @@ static void preload_pmd_drivers(void)
     };
 
     fprintf(stderr, "[0] Preloading PMD drivers...\n");
+    /* Suppress Windows "DLL not found" error dialog */
+    UINT oldMode = SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
     int loaded = 0;
     for (int i = 0; drivers[i]; i++) {
         HMODULE h = LoadLibraryA(drivers[i]);
@@ -37,6 +38,7 @@ static void preload_pmd_drivers(void)
             fprintf(stderr, "   [--] %s (not found)\n", drivers[i]);
         }
     }
+    SetErrorMode(oldMode); /* Restore original error mode */
     fprintf(stderr, "   Loaded %d drivers\n", loaded);
     fflush(stderr);
 }

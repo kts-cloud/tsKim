@@ -15,6 +15,7 @@
 #include <rte_mbuf.h>
 #include <rte_ethdev.h>
 #include <rte_pause.h>
+#include "hw_ring_ops.h"  // AFTER DPDK headers: overrides alloc/free/rx/tx at call sites
 
 #include "lwip/init.h"
 #include "lwip/netif.h"
@@ -135,6 +136,9 @@ int dpdk_lwip_init(uint16_t port_id, struct rte_mempool *pool,
 {
     g_port_id = port_id;
     g_pool    = pool;
+
+    // Resolve rte_eth_fp_ops for this compilation unit
+    _hw_init_fp_ops();
 
     lwip_init();
 
