@@ -569,8 +569,8 @@ else
     {
         lock (_pgLogLock)
         {
+            if (_pgLog.Count >= 1000) _pgLog.Clear();
             _pgLog.Add(new LogEntry(DateTime.Now.ToString("HH:mm:ss.fff"), direction, message));
-            if (_pgLog.Count > 1000) _pgLog.RemoveAt(0);
         }
         InvokeAsync(async () =>
         {

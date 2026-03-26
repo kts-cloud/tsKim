@@ -94,6 +94,7 @@ public class ShimBuildStep : SetupStepBase
         var clangArgs = new List<string>
         {
             "-shared",
+            "-O2",
             "-m64",
             "-march=native",
             "-mssse3",

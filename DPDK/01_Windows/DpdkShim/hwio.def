@@ -45,3 +45,11 @@ EXPORTS
     hw_check_hugepage           @43 NONAME
     hw_dispatch_poll            @44 NONAME
     hw_lwip_set_external_rx     @45 NONAME
+    hw_nic_thread_start         @46 NONAME
+    hw_nic_thread_stop          @47 NONAME
+    hw_reqresp_submit           @48 NONAME
+    hw_udp_rx_drain             @49 NONAME
+    hw_ftp_connect_submit       @50 NONAME
+    hw_ftp_download_submit      @51 NONAME
+    hw_ftp_upload_submit        @52 NONAME
+    hw_ftp_disconnect_submit    @53 NONAME

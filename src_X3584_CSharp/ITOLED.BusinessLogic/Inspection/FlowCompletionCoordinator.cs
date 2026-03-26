@@ -152,10 +152,21 @@ public sealed class FlowCompletionCoordinator : IDisposable
                     return;
                 }
 
+                // SeqFinish 완료 후 재시작 전 지연 — Stop 버튼 반영 시간 확보
+                Thread.Sleep(1000);
+
+                // 재시작 직전 최종 확인
+                if (!ShouldAutoRepeat)
+                {
+                    _logger.Info($"<AUTO REPEAT> cancelled before restart (AutoRepeat={_status.AutoRepeatTest})");
+                    return;
+                }
+
                 _logger.Info($"<AUTO REPEAT> auto restart CH{chStart + 1}~CH{chEnd + 1}");
 
                 for (int i = chStart; i <= chEnd; i++)
                 {
+                    if (!ShouldAutoRepeat) break; // 채널 간에도 체크
                     if (_scripts[i].IsInUse)
                     {
                         _scripts[i].ExecuteAutoStart();
