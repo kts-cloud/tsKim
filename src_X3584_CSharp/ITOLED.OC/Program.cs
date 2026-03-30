@@ -717,12 +717,29 @@ public class Program
 
                 // Create PG transport — DPDK or Socket UDP based on config
                 var pgLogger = sp.GetRequiredService<IAppLogger>();
+                bool usePipeline = configSvc.SystemInfo?.UsePipeline ?? false;
                 bool useDpdk = configSvc.SystemInfo?.UseDpdk ?? false;
 
                 bool dpdkFailed = false;
                 string? dpdkFailReason = null;
 
-                if (useDpdk)
+                // Pipeline transport (System.IO.Pipelines + NetCoreServer)
+                if (usePipeline)
+                {
+                    try
+                    {
+                        splash.UpdateProgress("Pipeline 전송 초기화 중...", 68);
+                        pgLogger.Info("[Pipeline] PgPipelineServer 생성 시작...");
+                        pgTransport = new PgPipelineServer(pgLogger, concretePgArray);
+                        pgLogger.Info("[Pipeline] PgPipelineServer 생성 완료 — PG transport: Pipeline (NetCoreServer)");
+                    }
+                    catch (Exception ex)
+                    {
+                        pgLogger.Error($"[Pipeline] 예외: {ex.GetType().Name}: {ex.Message}");
+                        pgLogger.Info("[Pipeline] Socket UDP 폴백 시도");
+                    }
+                }
+                else if (useDpdk)
                 {
                     try
                     {
@@ -822,8 +839,8 @@ public class Program
                     }
                 }
 
-                // DPDK 미사용 또는 실패 시 Socket UDP 폴백
-                if (!useDpdk || dpdkFailed)
+                // DPDK/Pipeline 미사용 또는 실패 시 Socket UDP 폴백
+                if (pgTransport == null && (!useDpdk || dpdkFailed))
                 {
                     if (dpdkFailed)
                         pgLogger.Error($"[DPDK] DPDK 실패: {dpdkFailReason} — Socket UDP 폴백 시도");
@@ -842,6 +859,10 @@ public class Program
                         uiService.PgTransportMode = "PG 미연결";
                         uiService.IsDpdkFallback = true;
                     }
+                }
+                else if (pgTransport is PgPipelineServer)
+                {
+                    uiService.PgTransportMode = "Pipeline";
                 }
                 else if (pgTransport != null)
                 {

@@ -3,13 +3,6 @@
 #define _WINSOCKAPI_
 #include <windows.h>
 #include <psapi.h>
-#include <intrin.h>  /* _mm_pause, _InterlockedExchange */
-
-/* timeBeginPeriod/timeEndPeriod — runtime load to avoid winmm.lib link dependency */
-typedef UINT (WINAPI *PFN_timeBeginPeriod)(UINT);
-typedef UINT (WINAPI *PFN_timeEndPeriod)(UINT);
-static PFN_timeBeginPeriod pfn_timeBeginPeriod;
-static PFN_timeEndPeriod   pfn_timeEndPeriod;
 #include <rte_common.h>
 #include <rte_eal.h>
 #include <rte_mbuf.h>
@@ -25,86 +18,15 @@ static PFN_timeEndPeriod   pfn_timeEndPeriod;
 // Windows DLL Export Macro
 #define DPDK_API __declspec(dllexport)
 
-// ─── Legacy spill buffer (kept for backward compat, will be removed) ───
+// ─── Multi-channel spill buffer for hw_reqresp_once_mc ───
+// Lock-free SPSC ring: reqresp_once_mc enqueues non-matching packets,
+// hw_rx_burst / dispatch_poll dequeues before NIC burst.
+// g_rx_lock still protects rte_eth_rx_burst (single-consumer NIC queue rule).
 static struct rte_ring *g_spill_ring = NULL;
-static rte_spinlock_t g_rx_lock = RTE_SPINLOCK_INITIALIZER;
-static volatile int g_ftp_active = 0;
+rte_spinlock_t g_rx_lock = RTE_SPINLOCK_INITIALIZER;  /* non-static: dpdk_netif.c에서도 사용 */
 
 // Track EAL init state for DllMain safety net
 static volatile int g_eal_initialized = 0;
-
-// ═══════════════════════════════════════════════════════════════════
-// NIC Owner Thread Architecture — 크래시 근본 해결
-//
-// 핵심 원칙: rte_eth_rx_burst, rte_eth_tx_burst, lwIP 전체를
-// 단일 스레드(NIC Owner)에서만 호출. 다른 스레드는 Command Ring을
-// 통해 요청을 제출하고 완료를 대기.
-//
-// 이것으로 해결되는 문제:
-// 1. lwIP NO_SYS=1 멀티스레드 호출 → TCP PCB 손상
-// 2. mbuf pool 동시 접근 → ixgbe descriptor corruption
-// 3. SPSC ring 다수 consumer → 정의되지 않은 동작
-// ═══════════════════════════════════════════════════════════════════
-
-// --- Command types ---
-typedef enum {
-    NIC_CMD_REQRESP = 0,   // UDP request/response
-    NIC_CMD_FTP_CONNECT,   // FTP connect + login
-    NIC_CMD_FTP_DOWNLOAD,  // FTP RETR
-    NIC_CMD_FTP_UPLOAD,    // FTP STOR
-    NIC_CMD_FTP_DISCONNECT,// FTP QUIT + disconnect
-    NIC_CMD_SHUTDOWN,      // Stop NIC thread
-} nic_cmd_type_t;
-
-// --- Command structure (pre-allocated, no malloc) ---
-typedef struct {
-    nic_cmd_type_t type;
-    volatile int   done;       // 0=pending, 1=complete (set by NIC thread)
-    int            result;     // command result
-
-    // REQRESP fields
-    uint16_t       port_id;
-    struct rte_mempool *pool;
-    uint8_t        template_pkt[2048];
-    uint16_t       pkt_len;
-    uint16_t       packet_id;
-    uint32_t       expected_src_ip;
-    uint16_t       expected_dst_port;
-    int            timeout_ms;
-    uint8_t        local_mac[6];
-    uint32_t       local_ip;
-    hw_reqresp_result_t rr_result;
-    uint8_t        resp_buf[4096];
-    uint16_t       resp_buf_size;
-
-    // FTP fields
-    int            ftp_session_id;
-    char           ftp_server_ip[64];
-    uint16_t       ftp_port;
-    char           ftp_user[64];
-    char           ftp_pass[64];
-    char           ftp_path[512];
-    uint8_t       *ftp_buf;
-    int            ftp_buf_size;
-    int            ftp_timeout_ms;
-    const uint8_t *ftp_upload_data;
-    int            ftp_upload_len;
-    int            ftp_out_len;
-} nic_cmd_t;
-
-#define NIC_CMD_POOL_SIZE 8
-static nic_cmd_t g_nic_cmd_pool[NIC_CMD_POOL_SIZE];
-static struct rte_ring *g_nic_cmd_ring = NULL;   // MPSC: 여러 스레드 → NIC thread
-static struct rte_ring *g_nic_cmd_free = NULL;   // MPMC: free slot 반환
-static struct rte_ring *g_udp_rx_ring = NULL;    // SPSC: NIC thread → C# RxPollLoop
-static HANDLE g_nic_thread = NULL;
-static volatile int g_nic_running = 0;
-static uint16_t g_nic_port_id = 0;
-static struct rte_mempool *g_nic_pool = NULL;
-
-// DPDK 전용 코어 격리: 프로세스의 다른 스레드가 이 코어를 사용하지 못하도록 예약
-static int g_dpdk_core = -1;           // 격리된 코어 번호 (-1 = 미설정)
-static DWORD_PTR g_original_affinity;  // 원래 프로세스 affinity 백업
 
 // Debug log path — resolved once from DLL location
 static char g_dbg_path[MAX_PATH] = {0};
@@ -288,52 +210,6 @@ DPDK_API int hw_eal_init(int argc, char **argv) {
 
     // 성공/실패 모두 1로 설정 — 실패 시에도 부분 할당된 hugepage를 cleanup하기 위함
     g_eal_initialized = 1;
-
-    if (ret >= 0) {
-        /* ── 시스템 튜닝 (EAL 초기화 성공 후) ── */
-
-        /* Windows 타이머 해상도 → 1ms (기본 15.6ms → Sleep 정밀도 개선) */
-        {
-            HMODULE hWinmm = LoadLibraryA("winmm.dll");
-            if (hWinmm) {
-                pfn_timeBeginPeriod = (PFN_timeBeginPeriod)GetProcAddress(hWinmm, "timeBeginPeriod");
-                pfn_timeEndPeriod   = (PFN_timeEndPeriod)GetProcAddress(hWinmm, "timeEndPeriod");
-                if (pfn_timeBeginPeriod) pfn_timeBeginPeriod(1);
-            }
-        }
-
-        /* 프로세스 우선순위: HIGH + 동적 부스트 비활성화 (지터 감소) */
-        SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS);
-        SetProcessPriorityBoost(GetCurrentProcess(), TRUE);
-
-        /* CPU 코어 격리: 마지막 코어를 DPDK reqresp 전용으로 예약
-         * 프로세스의 다른 스레드(UI, .NET GC, lwIP 등)가 이 코어를 사용하지 못하도록
-         * 프로세스 affinity에서 제외. reqresp 스레드만 이 코어에 고정. */
-        {
-            SYSTEM_INFO si;
-            GetSystemInfo(&si);
-            DWORD num_cores = si.dwNumberOfProcessors;
-            if (num_cores >= 4) {
-                /* 마지막 코어를 DPDK 전용으로 사용 (예: 8코어 → core 7) */
-                g_dpdk_core = (int)(num_cores - 1);
-                DWORD_PTR dpdk_mask = (DWORD_PTR)1 << g_dpdk_core;
-                DWORD_PTR proc_mask, sys_mask;
-                if (GetProcessAffinityMask(GetCurrentProcess(), &proc_mask, &sys_mask)) {
-                    g_original_affinity = proc_mask;
-                    /* 프로세스에서 DPDK 코어 제외 */
-                    DWORD_PTR new_mask = proc_mask & ~dpdk_mask;
-                    if (new_mask != 0) {
-                        SetProcessAffinityMask(GetCurrentProcess(), new_mask);
-                        hw_dbg("[HW] CPU isolation: core %d reserved for DPDK (process mask: 0x%llx → 0x%llx)\n",
-                               g_dpdk_core, (unsigned long long)proc_mask, (unsigned long long)new_mask);
-                    }
-                }
-            }
-        }
-
-        hw_dbg("[HW] system tuning: timeBeginPeriod(1), HIGH_PRIORITY_CLASS, boost disabled\n");
-    }
-
     return ret;
 }
 
@@ -531,11 +407,6 @@ DPDK_API int hw_eth_dev_close(uint16_t port_id) {
 DPDK_API int hw_eal_cleanup(void) {
     if (!g_eal_initialized) return 0;  // 중복 호출 보호
     g_eal_initialized = 0;  // prevent DllMain double-cleanup
-
-    /* 시스템 튜닝 해제 */
-    if (pfn_timeEndPeriod) pfn_timeEndPeriod(1);
-    if (g_original_affinity)
-        SetProcessAffinityMask(GetCurrentProcess(), g_original_affinity);
 
     // Free spill ring before EAL cleanup
     if (g_spill_ring) {
@@ -846,7 +717,9 @@ DPDK_API int hw_reqresp_once(
     uint16_t arp_ethertype = rte_cpu_to_be_16(0x0806);
 
     while (1) {
+        rte_spinlock_lock(&g_rx_lock);
         nb_rx = rte_eth_rx_burst(port_id, 0, rx_pkts, 32);
+        rte_spinlock_unlock(&g_rx_lock);
 
         if (nb_rx == 0) {
             rte_pause();
@@ -959,7 +832,6 @@ DPDK_API int hw_reqresp_once_mc(
     uint32_t local_ip)
 {
     static LARGE_INTEGER cached_freq_mc = {0};
-    static volatile int s_pinned = 0;
     LARGE_INTEGER send_tick, now_tick;
     struct rte_mbuf *rx_pkts[32];
     uint16_t nb_rx;
@@ -969,17 +841,6 @@ DPDK_API int hw_reqresp_once_mc(
 
     if (cached_freq_mc.QuadPart == 0)
         QueryPerformanceFrequency(&cached_freq_mc);
-
-    /* DPDK 전용 코어에 고정 + 최고 우선순위 (1회만 실행) */
-    if (!s_pinned) {
-        if (g_dpdk_core >= 0) {
-            DWORD_PTR dpdk_mask = (DWORD_PTR)1 << g_dpdk_core;
-            SetThreadAffinityMask(GetCurrentThread(), dpdk_mask);
-            hw_dbg("[HW] reqresp thread pinned to isolated core %d\n", g_dpdk_core);
-        }
-        SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
-        s_pinned = 1;
-    }
 
     memset(result, 0, sizeof(*result));
 
@@ -1035,14 +896,8 @@ DPDK_API int hw_reqresp_once_mc(
     uint16_t arp_ethertype = rte_cpu_to_be_16(0x0806);
 
     while (1) {
-        /* FTP/lwIP 활성 시 NIC RX를 건드리지 않고 대기 — mbuf pool 동시 접근 방지 */
-        if (g_ftp_active) {
-            Sleep(1);
-            goto mc_check_timeout;
-        }
-
         rte_spinlock_lock(&g_rx_lock);
-        nb_rx = rte_eth_rx_burst(port_id, 0, rx_pkts, 16);
+        nb_rx = rte_eth_rx_burst(port_id, 0, rx_pkts, 32);
         rte_spinlock_unlock(&g_rx_lock);
 
         if (nb_rx == 0) {
@@ -1240,7 +1095,9 @@ DPDK_API int hw_reqresp_batch(
     struct rte_mbuf *rx_pkts[32];
 
     while (received < total_sent) {
+        rte_spinlock_lock(&g_rx_lock);
         uint16_t nb_rx = rte_eth_rx_burst(port_id, 0, rx_pkts, 32);
+        rte_spinlock_unlock(&g_rx_lock);
 
         if (nb_rx == 0) {
             rte_pause();
@@ -1808,8 +1665,7 @@ set_binary_ex:
         }
     }
 
-    _InterlockedIncrement((volatile long *)&g_ftp_active);
-    hw_dbg("[HW] ftp_connect_ex[%d]: logged in OK (binary mode, ftp_active=%d)\n", session_id, g_ftp_active);
+    hw_dbg("[HW] ftp_connect_ex[%d]: logged in OK (binary mode)\n", session_id);
     return 0;
 }
 
@@ -1823,12 +1679,10 @@ DPDK_API int hw_ftp_disconnect_ex(int session_id)
         ftp->op_result = 0;
         ftp_send_cmd(ftp, "QUIT\r\n");
         DWORD start = (DWORD)GetTickCount64();
-        DWORD start = (DWORD)GetTickCount64();
         while (!ftp->op_done && (int)((DWORD)GetTickCount64() - start) < 2000)
             lwip_poll_once_safe();
     }
     ftp_disconnect(ftp);
-    _InterlockedDecrement((volatile long *)&g_ftp_active);
     return 0;
 }
 
@@ -1974,13 +1828,10 @@ DPDK_API uint16_t hw_dispatch_poll(
         }
     }
 
-    /* 2. Burst from NIC (trylock — reqresp_once_mc has priority over dispatch) */
-    /* reqresp가 NIC을 사용 중이면 이번 poll은 spill ring만 처리하고 skip */
-    uint16_t nb_rx = 0;
-    if (rte_spinlock_trylock(&g_rx_lock)) {
-        nb_rx = rte_eth_rx_burst(port_id, queue_id, rx_pkts, 64);
-        rte_spinlock_unlock(&g_rx_lock);
-    }
+    /* 2. Burst from NIC (lock protects single-consumer NIC queue) */
+    rte_spinlock_lock(&g_rx_lock);
+    uint16_t nb_rx = rte_eth_rx_burst(port_id, queue_id, rx_pkts, 64);
+    rte_spinlock_unlock(&g_rx_lock);
 
     /* 3. Classify each packet by protocol (with prefetch) */
     for (uint16_t i = 0; i < nb_rx; i++) {
@@ -2069,553 +1920,6 @@ DPDK_API void hw_lwip_set_external_rx(int enabled)
 }
 
 /* ============================================================ */
-
-/* ═══════════════════════════════════════════════════════════════════
- * NIC Owner Thread — 모든 rte_eth_rx/tx_burst + lwIP를 독점
- * ═══════════════════════════════════════════════════════════════════ */
-
-// --- Command slot alloc/free ---
-static nic_cmd_t *nic_cmd_alloc(void) {
-    void *obj;
-    for (int i = 0; i < 100000; i++) {
-        if (rte_ring_mc_dequeue(g_nic_cmd_free, &obj) == 0)
-            return (nic_cmd_t *)obj;
-        rte_pause();
-    }
-    return NULL;
-}
-
-// --- Route packet: UDP → g_udp_rx_ring, TCP/ARP → lwIP ---
-static void nic_route_packet(struct rte_mbuf *pkt) {
-    uint8_t *data = rte_pktmbuf_mtod(pkt, uint8_t *);
-    uint16_t len = rte_pktmbuf_data_len(pkt);
-
-    if (len < 14) { rte_pktmbuf_free(pkt); return; }
-
-    uint16_t eth_type = (uint16_t)((data[12] << 8) | data[13]);
-
-    if (eth_type == 0x0800 && len >= 34 && data[23] == 17) {
-        /* UDP → C# RxPollLoop via ring */
-        if (rte_ring_sp_enqueue(g_udp_rx_ring, pkt) != 0)
-            rte_pktmbuf_free(pkt);
-    }
-    else if (eth_type == 0x0806 ||
-             (eth_type == 0x0800 && len >= 34 && data[23] != 17)) {
-        /* ARP / TCP / ICMP → lwIP (same thread = safe) */
-        if (dpdk_lwip_is_running())
-            dpdk_netif_input_mbuf(pkt);
-        else
-            rte_pktmbuf_free(pkt);
-    }
-    else {
-        rte_pktmbuf_free(pkt);
-    }
-}
-
-// --- Execute REQRESP on NIC thread (sole NIC owner) ---
-static void nic_execute_reqresp(nic_cmd_t *cmd) {
-    LARGE_INTEGER freq, send_tick, now_tick;
-    QueryPerformanceFrequency(&freq);
-
-    memset(&cmd->rr_result, 0, sizeof(cmd->rr_result));
-
-    // Alloc + build TX packet
-    struct rte_mbuf *mbuf = rte_pktmbuf_alloc(cmd->pool);
-    if (!mbuf) { cmd->rr_result.status = -1; return; }
-
-    char *pkt_data = rte_pktmbuf_append(mbuf, cmd->pkt_len);
-    if (!pkt_data) { rte_pktmbuf_free(mbuf); cmd->rr_result.status = -1; return; }
-    memcpy(pkt_data, cmd->template_pkt, cmd->pkt_len);
-
-    // Update IP ID + UDP checksum (same as hw_reqresp_once_mc)
-    if (cmd->pkt_len >= 42) {
-        pkt_data[18] = (char)(cmd->packet_id >> 8);
-        pkt_data[19] = (char)(cmd->packet_id & 0xFF);
-        pkt_data[40] = 0; pkt_data[41] = 0; // zero UDP checksum
-    }
-
-    // TX (no lock needed — sole owner)
-    struct rte_mbuf *tx[1] = { mbuf };
-    if (rte_eth_tx_burst(cmd->port_id, 0, tx, 1) == 0) {
-        rte_pktmbuf_free(mbuf);
-        cmd->rr_result.status = -2;
-        return;
-    }
-
-    QueryPerformanceCounter(&send_tick);
-
-    // RX poll loop (sole consumer — no lock, no race)
-    double timeout_sec = cmd->timeout_ms / 1000.0;
-    uint16_t expected_port_net = rte_cpu_to_be_16(cmd->expected_dst_port);
-    uint16_t ipv4_type = rte_cpu_to_be_16(0x0800);
-    uint16_t arp_type = rte_cpu_to_be_16(0x0806);
-    struct rte_mbuf *rx_pkts[32];
-    int empty_polls = 0;
-
-    while (1) {
-        uint16_t nb_rx = rte_eth_rx_burst(cmd->port_id, 0, rx_pkts, 32);
-
-        if (nb_rx == 0) {
-            rte_pause();
-            if (++empty_polls < 64) continue;
-            empty_polls = 0;
-            goto reqresp_check_timeout;
-        }
-        empty_polls = 0;
-
-        for (int i = 0; i < nb_rx; i++) {
-            uint8_t *rx_data = rte_pktmbuf_mtod(rx_pkts[i], uint8_t *);
-            uint16_t rx_len = rte_pktmbuf_data_len(rx_pkts[i]);
-
-            // Check: IPv4 UDP, matching src IP + dst port
-            if (rx_len >= 42) {
-                uint16_t eth_type;
-                memcpy(&eth_type, rx_data + 12, 2);
-
-                if (eth_type == ipv4_type && rx_data[23] == 17) {
-                    uint32_t src_ip;
-                    memcpy(&src_ip, rx_data + 26, 4);
-                    uint16_t dst_port;
-                    memcpy(&dst_port, rx_data + 36, 2);
-
-                    if (src_ip == cmd->expected_src_ip && dst_port == expected_port_net) {
-                        // Match! Fill result
-                        QueryPerformanceCounter(&now_tick);
-                        cmd->rr_result.status = 0;
-                        cmd->rr_result.rtt_ms = (double)(now_tick.QuadPart - send_tick.QuadPart)
-                                                * 1000.0 / freq.QuadPart;
-                        uint16_t payload_off = 42;
-                        uint16_t payload_len = rx_len - payload_off;
-                        cmd->rr_result.resp_len = payload_len;
-                        if (payload_len > 0 && payload_len <= cmd->resp_buf_size)
-                            memcpy(cmd->resp_buf, rx_data + payload_off, payload_len);
-                        rte_pktmbuf_free(rx_pkts[i]);
-                        // Route remaining packets
-                        for (int j = i + 1; j < nb_rx; j++)
-                            nic_route_packet(rx_pkts[j]);
-                        return;
-                    }
-                }
-
-                // ARP auto-reply (same as hw_reqresp_once_mc)
-                if (eth_type == arp_type && rx_len >= 42) {
-                    uint16_t arp_op;
-                    memcpy(&arp_op, rx_data + 20, 2);
-                    if (rte_be_to_cpu_16(arp_op) == 1) {
-                        uint32_t target_ip;
-                        memcpy(&target_ip, rx_data + 38, 4);
-                        if (target_ip == cmd->local_ip) {
-                            // Build ARP reply (same as existing code)
-                            struct rte_mbuf *arp_reply = rte_pktmbuf_alloc(cmd->pool);
-                            if (arp_reply) {
-                                char *arp_data = rte_pktmbuf_append(arp_reply, 42);
-                                if (arp_data) {
-                                    memcpy(arp_data, rx_data + 6, 6);
-                                    memcpy(arp_data + 6, cmd->local_mac, 6);
-                                    arp_data[12] = 0x08; arp_data[13] = 0x06;
-                                    arp_data[14] = 0; arp_data[15] = 1;
-                                    arp_data[16] = 0x08; arp_data[17] = 0;
-                                    arp_data[18] = 6; arp_data[19] = 4;
-                                    arp_data[20] = 0; arp_data[21] = 2;
-                                    memcpy(arp_data + 22, cmd->local_mac, 6);
-                                    memcpy(arp_data + 28, &cmd->local_ip, 4);
-                                    memcpy(arp_data + 32, rx_data + 22, 6);
-                                    memcpy(arp_data + 38, rx_data + 28, 4);
-                                    struct rte_mbuf *arp_tx[1] = { arp_reply };
-                                    if (rte_eth_tx_burst(cmd->port_id, 0, arp_tx, 1) == 0)
-                                        rte_pktmbuf_free(arp_reply);
-                                } else {
-                                    rte_pktmbuf_free(arp_reply);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Non-matching packet → route
-            nic_route_packet(rx_pkts[i]);
-        }
-
-    reqresp_check_timeout:
-        // Run lwIP timers during wait (keeps TCP alive for FTP)
-        if (dpdk_lwip_is_running())
-            dpdk_lwip_poll_once();
-
-        QueryPerformanceCounter(&now_tick);
-        if ((double)(now_tick.QuadPart - send_tick.QuadPart) / freq.QuadPart >= timeout_sec)
-            break;
-    }
-
-    cmd->rr_result.status = 1; // timeout
-    cmd->rr_result.rtt_ms = (double)cmd->timeout_ms;
-}
-
-// --- Execute FTP command on NIC thread ---
-static int nic_ftp_poll_inline(ftp_client_t *ftp, int timeout_ms) {
-    DWORD start = (DWORD)GetTickCount64();
-    struct rte_mbuf *rx_pkts[32];
-
-    while (!ftp->op_done) {
-        if ((int)((DWORD)GetTickCount64() - start) >= timeout_ms) {
-            ftp->op_result = 1;
-            return 1;
-        }
-        // RX + route (sole owner)
-        uint16_t nb_rx = rte_eth_rx_burst(g_nic_port_id, 0, rx_pkts, 32);
-        for (uint16_t i = 0; i < nb_rx; i++)
-            nic_route_packet(rx_pkts[i]);
-        // lwIP timers (sole owner)
-        if (dpdk_lwip_is_running())
-            dpdk_lwip_poll_once();
-        if (nb_rx == 0)
-            SwitchToThread();
-    }
-    return ftp->op_result;
-}
-
-static void nic_execute_ftp(nic_cmd_t *cmd) {
-    ftp_client_t *ftp = get_session(cmd->ftp_session_id);
-    if (!ftp) { cmd->result = -1; return; }
-
-    switch (cmd->type) {
-    case NIC_CMD_FTP_CONNECT: {
-        ftp_client_init(ftp);
-        uint32_t ip = parse_ip_str(cmd->ftp_server_ip);
-        if (ip == 0) { cmd->result = -1; return; }
-        if (ftp_connect(ftp, ip, cmd->ftp_port) != 0) { cmd->result = -1; return; }
-        if (nic_ftp_poll_inline(ftp, cmd->ftp_timeout_ms) != 0) { ftp_disconnect(ftp); cmd->result = -1; return; }
-        // USER
-        { char c[256]; snprintf(c, sizeof(c), "USER %s\r\n", cmd->ftp_user);
-          ftp->state = FTP_STATE_WAIT_USER;
-          if (ftp_send_cmd(ftp, c) != 0 || nic_ftp_poll_inline(ftp, cmd->ftp_timeout_ms) != 0) { ftp_disconnect(ftp); cmd->result = -1; return; }
-        }
-        if (ftp->response_code != 230) {
-            // PASS
-            char c[256]; snprintf(c, sizeof(c), "PASS %s\r\n", cmd->ftp_pass);
-            ftp->state = FTP_STATE_WAIT_PASS;
-            if (ftp_send_cmd(ftp, c) != 0 || nic_ftp_poll_inline(ftp, cmd->ftp_timeout_ms) != 0) { ftp_disconnect(ftp); cmd->result = -1; return; }
-        }
-        // TYPE I
-        ftp->state = FTP_STATE_READY;
-        if (ftp_send_cmd(ftp, "TYPE I\r\n") != 0 || nic_ftp_poll_inline(ftp, cmd->ftp_timeout_ms) != 0) { ftp_disconnect(ftp); cmd->result = -1; return; }
-        cmd->result = 0;
-        hw_dbg("[HW-NIC] FTP connect OK (session=%d)\n", cmd->ftp_session_id);
-        break;
-    }
-    case NIC_CMD_FTP_DOWNLOAD: {
-        if (ftp->state != FTP_STATE_READY) { cmd->result = -1; return; }
-        if (ftp_start_retr(ftp, cmd->ftp_path, cmd->ftp_buf, (uint32_t)cmd->ftp_buf_size) != 0) { cmd->result = -1; return; }
-        if (nic_ftp_poll_inline(ftp, cmd->ftp_timeout_ms) != 0) { ftp_cleanup_data(ftp); cmd->result = -1; return; }
-        cmd->ftp_out_len = (int)ftp->recv_len;
-        cmd->result = 0;
-        break;
-    }
-    case NIC_CMD_FTP_UPLOAD: {
-        if (ftp->state != FTP_STATE_READY) { cmd->result = -1; return; }
-        if (ftp_start_stor(ftp, cmd->ftp_path, cmd->ftp_upload_data, (uint32_t)cmd->ftp_upload_len) != 0) { cmd->result = -1; return; }
-        if (nic_ftp_poll_inline(ftp, cmd->ftp_timeout_ms) != 0) { ftp_cleanup_data(ftp); cmd->result = -1; return; }
-        cmd->result = 0;
-        break;
-    }
-    case NIC_CMD_FTP_DISCONNECT: {
-        if (ftp->ctrl_pcb) {
-            ftp->op_done = 0; ftp->op_result = 0;
-            ftp_send_cmd(ftp, "QUIT\r\n");
-            nic_ftp_poll_inline(ftp, 2000);
-        }
-        ftp_disconnect(ftp);
-        cmd->result = 0;
-        hw_dbg("[HW-NIC] FTP disconnect (session=%d)\n", cmd->ftp_session_id);
-        break;
-    }
-    default:
-        cmd->result = -1;
-        break;
-    }
-}
-
-// --- NIC Owner Thread main loop ---
-static DWORD WINAPI nic_owner_thread_func(LPVOID arg) {
-    (void)arg;
-
-    // Pin to isolated core
-    if (g_dpdk_core >= 0) {
-        SetThreadAffinityMask(GetCurrentThread(), (DWORD_PTR)1 << g_dpdk_core);
-        hw_dbg("[HW-NIC] thread pinned to core %d\n", g_dpdk_core);
-    }
-    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
-    hw_dbg("[HW-NIC] owner thread started\n");
-
-    struct rte_mbuf *rx_pkts[64];
-    int idle_count = 0;
-
-    while (g_nic_running) {
-        int did_work = 0;
-
-        // 1. Check command ring
-        void *obj;
-        if (rte_ring_sc_dequeue(g_nic_cmd_ring, &obj) == 0) {
-            nic_cmd_t *cmd = (nic_cmd_t *)obj;
-            did_work = 1;
-
-            if (cmd->type == NIC_CMD_SHUTDOWN) {
-                _InterlockedExchange((volatile long *)&cmd->done, 1);
-                break;
-            }
-            else if (cmd->type == NIC_CMD_REQRESP) {
-                nic_execute_reqresp(cmd);
-                _InterlockedExchange((volatile long *)&cmd->done, 1);
-            }
-            else {
-                nic_execute_ftp(cmd);
-                _InterlockedExchange((volatile long *)&cmd->done, 1);
-            }
-        }
-
-        // 2. RX burst (sole consumer — no lock)
-        uint16_t nb_rx = rte_eth_rx_burst(g_nic_port_id, 0, rx_pkts, 64);
-        if (nb_rx > 0) did_work = 1;
-
-        // 3. Route packets
-        for (uint16_t i = 0; i < nb_rx; i++)
-            nic_route_packet(rx_pkts[i]);
-
-        // 4. lwIP timers (sole owner)
-        if (dpdk_lwip_is_running())
-            dpdk_lwip_poll_once();
-
-        // 5. Idle management
-        if (!did_work) {
-            if (++idle_count < 64)
-                rte_pause();
-            else {
-                idle_count = 0;
-                SwitchToThread();
-            }
-        } else {
-            idle_count = 0;
-        }
-    }
-
-    hw_dbg("[HW-NIC] owner thread exiting\n");
-    return 0;
-}
-
-// --- Public API: Start/Stop NIC thread ---
-DPDK_API int hw_nic_thread_start(uint16_t port_id, void *pool) {
-    if (g_nic_running) return 0; // already running
-
-    g_nic_port_id = port_id;
-    g_nic_pool = (struct rte_mempool *)pool;
-
-    // Create rings
-    g_nic_cmd_ring = rte_ring_create("nic_cmd", 16, 0, RING_F_SC_DEQ); // MPSC
-    g_nic_cmd_free = rte_ring_create("nic_free", 16, 0, 0);             // MPMC
-    g_udp_rx_ring = rte_ring_create("udp_rx", 2048, 0,
-                                     RING_F_SP_ENQ | RING_F_SC_DEQ);    // SPSC
-
-    if (!g_nic_cmd_ring || !g_nic_cmd_free || !g_udp_rx_ring) {
-        hw_dbg("[HW-NIC] ring creation failed\n");
-        return -1;
-    }
-
-    // Pre-populate free pool
-    for (int i = 0; i < NIC_CMD_POOL_SIZE; i++) {
-        memset(&g_nic_cmd_pool[i], 0, sizeof(nic_cmd_t));
-        rte_ring_mp_enqueue(g_nic_cmd_free, &g_nic_cmd_pool[i]);
-    }
-
-    g_nic_running = 1;
-    g_nic_thread = CreateThread(NULL, 0, nic_owner_thread_func, NULL, 0, NULL);
-    if (!g_nic_thread) {
-        g_nic_running = 0;
-        hw_dbg("[HW-NIC] thread creation failed\n");
-        return -1;
-    }
-
-    hw_dbg("[HW-NIC] started (port=%u)\n", port_id);
-    return 0;
-}
-
-DPDK_API void hw_nic_thread_stop(void) {
-    if (!g_nic_running) return;
-
-    // Send shutdown command
-    nic_cmd_t *cmd = nic_cmd_alloc();
-    if (cmd) {
-        cmd->type = NIC_CMD_SHUTDOWN;
-        cmd->done = 0;
-        rte_ring_mp_enqueue(g_nic_cmd_ring, cmd);
-    }
-
-    g_nic_running = 0;
-    if (g_nic_thread) {
-        WaitForSingleObject(g_nic_thread, 5000);
-        CloseHandle(g_nic_thread);
-        g_nic_thread = NULL;
-    }
-
-    // Drain UDP RX ring
-    if (g_udp_rx_ring) {
-        void *obj;
-        while (rte_ring_sc_dequeue(g_udp_rx_ring, &obj) == 0)
-            rte_pktmbuf_free((struct rte_mbuf *)obj);
-    }
-
-    hw_dbg("[HW-NIC] stopped\n");
-}
-
-// --- Public API: Submit REQRESP (called from any thread) ---
-DPDK_API int hw_reqresp_submit(
-    uint16_t port_id, void *pool,
-    const uint8_t *template_pkt, uint16_t pkt_len,
-    uint16_t packet_id, uint32_t expected_src_ip,
-    uint16_t expected_dst_port, int timeout_ms,
-    uint8_t *resp_buf, uint16_t resp_buf_size,
-    hw_reqresp_result_t *result,
-    const uint8_t *local_mac, uint32_t local_ip)
-{
-    if (!g_nic_running) {
-        // Fallback to legacy direct call if NIC thread not running
-        return hw_reqresp_once_mc(port_id, pool, template_pkt, pkt_len,
-            packet_id, expected_src_ip, expected_dst_port, timeout_ms,
-            resp_buf, resp_buf_size, result, local_mac, local_ip);
-    }
-
-    nic_cmd_t *cmd = nic_cmd_alloc();
-    if (!cmd) { result->status = -1; return -1; }
-
-    cmd->type = NIC_CMD_REQRESP;
-    cmd->port_id = port_id;
-    cmd->pool = (struct rte_mempool *)pool;
-    memcpy(cmd->template_pkt, template_pkt, pkt_len > 2048 ? 2048 : pkt_len);
-    cmd->pkt_len = pkt_len;
-    cmd->packet_id = packet_id;
-    cmd->expected_src_ip = expected_src_ip;
-    cmd->expected_dst_port = expected_dst_port;
-    cmd->timeout_ms = timeout_ms;
-    cmd->resp_buf_size = resp_buf_size;
-    memcpy(cmd->local_mac, local_mac, 6);
-    cmd->local_ip = local_ip;
-    cmd->done = 0;
-
-    rte_ring_mp_enqueue(g_nic_cmd_ring, cmd);
-
-    // Spin-wait for completion
-    while (!cmd->done)
-        _mm_pause();
-
-    *result = cmd->rr_result;
-    if (result->status == 0 && cmd->rr_result.resp_len > 0) {
-        uint16_t copy_len = cmd->rr_result.resp_len;
-        if (copy_len > resp_buf_size) copy_len = resp_buf_size;
-        memcpy(resp_buf, cmd->resp_buf, copy_len);
-    }
-
-    rte_ring_mp_enqueue(g_nic_cmd_free, cmd);
-    return result->status;
-}
-
-// --- Public API: Drain UDP packets (called from C# RxPollLoop) ---
-DPDK_API uint16_t hw_udp_rx_drain(struct rte_mbuf **out_pkts, uint16_t max_pkts) {
-    if (!g_udp_rx_ring) return 0;
-    uint16_t count = 0;
-    void *obj;
-    while (count < max_pkts && rte_ring_sc_dequeue(g_udp_rx_ring, &obj) == 0)
-        out_pkts[count++] = (struct rte_mbuf *)obj;
-    return count;
-}
-
-// --- Public API: FTP submit wrappers ---
-DPDK_API int hw_ftp_connect_submit(int session_id,
-    const char *server_ip, uint16_t port,
-    const char *user, const char *pass, int timeout_ms)
-{
-    if (!g_nic_running)
-        return hw_ftp_connect_sync_ex(session_id, server_ip, port, user, pass, timeout_ms);
-
-    nic_cmd_t *cmd = nic_cmd_alloc();
-    if (!cmd) return -1;
-    cmd->type = NIC_CMD_FTP_CONNECT;
-    cmd->ftp_session_id = session_id;
-    strncpy(cmd->ftp_server_ip, server_ip, 63);
-    cmd->ftp_port = port;
-    strncpy(cmd->ftp_user, user, 63);
-    strncpy(cmd->ftp_pass, pass, 63);
-    cmd->ftp_timeout_ms = timeout_ms;
-    cmd->done = 0;
-    rte_ring_mp_enqueue(g_nic_cmd_ring, cmd);
-    while (!cmd->done) Sleep(1);
-    int ret = cmd->result;
-    rte_ring_mp_enqueue(g_nic_cmd_free, cmd);
-    return ret;
-}
-
-DPDK_API int hw_ftp_download_submit(int session_id,
-    const char *path, uint8_t *buf, int buf_size,
-    int *out_len, int timeout_ms)
-{
-    if (!g_nic_running)
-        return hw_ftp_download_sync_ex(session_id, path, buf, buf_size, out_len, timeout_ms);
-
-    nic_cmd_t *cmd = nic_cmd_alloc();
-    if (!cmd) return -1;
-    cmd->type = NIC_CMD_FTP_DOWNLOAD;
-    cmd->ftp_session_id = session_id;
-    strncpy(cmd->ftp_path, path, 511);
-    cmd->ftp_buf = buf;
-    cmd->ftp_buf_size = buf_size;
-    cmd->ftp_timeout_ms = timeout_ms;
-    cmd->done = 0;
-    rte_ring_mp_enqueue(g_nic_cmd_ring, cmd);
-    while (!cmd->done) Sleep(1);
-    if (out_len) *out_len = cmd->ftp_out_len;
-    int ret = cmd->result;
-    rte_ring_mp_enqueue(g_nic_cmd_free, cmd);
-    return ret;
-}
-
-DPDK_API int hw_ftp_upload_submit(int session_id,
-    const char *path, const uint8_t *data, int data_len,
-    int timeout_ms)
-{
-    if (!g_nic_running)
-        return hw_ftp_upload_sync_ex(session_id, path, data, data_len, timeout_ms);
-
-    nic_cmd_t *cmd = nic_cmd_alloc();
-    if (!cmd) return -1;
-    cmd->type = NIC_CMD_FTP_UPLOAD;
-    cmd->ftp_session_id = session_id;
-    strncpy(cmd->ftp_path, path, 511);
-    cmd->ftp_upload_data = data;
-    cmd->ftp_upload_len = data_len;
-    cmd->ftp_timeout_ms = timeout_ms;
-    cmd->done = 0;
-    rte_ring_mp_enqueue(g_nic_cmd_ring, cmd);
-    while (!cmd->done) Sleep(1);
-    int ret = cmd->result;
-    rte_ring_mp_enqueue(g_nic_cmd_free, cmd);
-    return ret;
-}
-
-DPDK_API int hw_ftp_disconnect_submit(int session_id) {
-    if (!g_nic_running)
-        return hw_ftp_disconnect_ex(session_id);
-
-    nic_cmd_t *cmd = nic_cmd_alloc();
-    if (!cmd) return -1;
-    cmd->type = NIC_CMD_FTP_DISCONNECT;
-    cmd->ftp_session_id = session_id;
-    cmd->done = 0;
-    rte_ring_mp_enqueue(g_nic_cmd_ring, cmd);
-    while (!cmd->done) Sleep(1);
-    int ret = cmd->result;
-    rte_ring_mp_enqueue(g_nic_cmd_free, cmd);
-    return ret;
-}
-
-/* ═══════════════════════════════════════════════════════════════════ */
 
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) {
     (void)lpvReserved;

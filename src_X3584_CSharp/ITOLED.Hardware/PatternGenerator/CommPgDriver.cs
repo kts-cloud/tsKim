@@ -2427,6 +2427,19 @@ public sealed class CommPgDriver : ICommPgDriver
         _ftpConnected = false;
         if (_ftpEngine != null)
         {
+            // lease가 없는 상태(Dispose 경로 등)에서도 RX 폴링 일시정지 보장
+            // — hw_lwip_stop_ref()와 hw_dispatch_poll() 동시 실행 방지
+            bool needDirectPause = _ftpLease == null && _nicCoordinator != null;
+            if (needDirectPause)
+            {
+                try
+                {
+                    // lease 없이 직접 RX 정지 (임시 lease 획득으로 Pause 트리거)
+                    _ftpLease = _nicCoordinator!.AcquireFtpAccessAsync().GetAwaiter().GetResult();
+                }
+                catch { }
+            }
+
             try { _ftpEngine.DisconnectAsync().GetAwaiter().GetResult(); } catch { }
             try { _ftpEngine.StopLwip(); } catch { }
             try { _ftpEngine.Dispose(); } catch { }

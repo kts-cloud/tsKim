@@ -15,7 +15,11 @@
 #include <rte_mbuf.h>
 #include <rte_ethdev.h>
 #include <rte_pause.h>
+#include <rte_spinlock.h>
 #include "hw_ring_ops.h"  // AFTER DPDK headers: overrides alloc/free/rx/tx at call sites
+
+/* hwio.c에서 정의된 RX 보호 spinlock — 모든 rte_eth_rx_burst 호출 보호 */
+extern rte_spinlock_t g_rx_lock;
 
 #include "lwip/init.h"
 #include "lwip/netif.h"
@@ -106,7 +110,9 @@ int dpdk_netif_poll(void)
     if (g_lwip_external_rx) return 0;
 
     struct rte_mbuf *rx_pkts[32];
+    rte_spinlock_lock(&g_rx_lock);
     uint16_t nb_rx = rte_eth_rx_burst(g_port_id, 0, rx_pkts, 32);
+    rte_spinlock_unlock(&g_rx_lock);
 
     for (uint16_t i = 0; i < nb_rx; i++) {
         uint8_t *data = rte_pktmbuf_mtod(rx_pkts[i], uint8_t *);

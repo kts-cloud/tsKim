@@ -9,7 +9,8 @@ namespace Dongaeltek.ITOLED.Hardware.PatternGenerator;
 
 /// <summary>
 /// Transport layer interface for PG communication.
-/// Implemented by <see cref="PgUdpServer"/> (Socket UDP) and <see cref="PgDpdkServer"/> (DPDK).
+/// Implemented by <see cref="PgUdpServer"/> (Socket UDP), <see cref="PgDpdkServer"/> (DPDK),
+/// and <see cref="PgPipelineServer"/> (Pipeline: NetCoreServer + System.IO.Pipelines).
 /// </summary>
 public interface IPgTransport : IDisposable
 {

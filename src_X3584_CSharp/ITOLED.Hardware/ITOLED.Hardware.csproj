@@ -14,8 +14,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="System.IO.Pipelines" Version="10.0.3" />
     <PackageReference Include="System.IO.Ports" Version="10.0.3" />
     <PackageReference Include="System.Text.Encoding.CodePages" Version="8.0.0" />
+    <PackageReference Include="NetCoreServer" Version="8.0.7" />
   </ItemGroup>
 
   <!-- CASDK2Net.dll managed assembly reference -->

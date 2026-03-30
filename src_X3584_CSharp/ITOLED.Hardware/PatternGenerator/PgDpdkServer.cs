@@ -75,6 +75,27 @@ public sealed class PgDpdkServer : IPgTransport
     private readonly object _pauseLock = new();
     private bool _disposed;
 
+    /// <summary>pg.status 전용 로그 writer</summary>
+    private static StreamWriter? _pgStatusLog;
+    private static readonly object _pgStatusLogLock = new();
+    /// <summary>per-PG pg.status TX 타임스탬프 (RTT 계산용)</summary>
+    private long[] _pgStatusTxTicks = Array.Empty<long>();
+
+    private static void PgStatusLog(int ch, string direction, int srcPort, int dstPort, string data)
+    {
+        lock (_pgStatusLogLock)
+        {
+            if (_pgStatusLog == null)
+            {
+                var dir = Path.Combine(AppContext.BaseDirectory, "LOG", "PgStatus");
+                Directory.CreateDirectory(dir);
+                var path = Path.Combine(dir, $"PgStatus_{DateTime.Now:yyyyMMdd}.log");
+                _pgStatusLog = new StreamWriter(path, append: true) { AutoFlush = true };
+            }
+            _pgStatusLog.WriteLine($"{DateTime.Now:HH:mm:ss.fff} [CH{ch}] [{direction}] {srcPort}>{dstPort}: {data}");
+        }
+    }
+
     // =========================================================================
     // Constructor
     // =========================================================================
@@ -111,6 +132,7 @@ public sealed class PgDpdkServer : IPgTransport
             _localPorts[i] = Dp860Network.PcPortBase + 1 + i;
         }
         _sendTimestamps = new long[pgDrivers.Length];
+        _pgStatusTxTicks = new long[pgDrivers.Length];
         for (int i = 0; i < pgDrivers.Length; i++)
         {
             var ipBe = NetUtils.Htonl(NetUtils.IpToUint(pgDrivers[i].PgIpAddress));
@@ -216,8 +238,14 @@ public sealed class PgDpdkServer : IPgTransport
         else
             return;
 
-        // Debug log (skip pg.status)
-        if (!data.Contains("pg.status", StringComparison.OrdinalIgnoreCase))
+        // Debug log
+        if (data.Contains("pg.status", StringComparison.OrdinalIgnoreCase))
+        {
+            if (pgIndex >= 0 && pgIndex < _pgStatusTxTicks.Length)
+                Interlocked.Exchange(ref _pgStatusTxTicks[pgIndex], Stopwatch.GetTimestamp());
+            PgStatusLog(pgIndex, "TX", localPort, peerPort, data.TrimEnd());
+        }
+        else
         {
             DebugLog(pgIndex, DebugLogMsgTypeInspect, "TX",
                 localPort.ToString(), peerPort.ToString(), data);
@@ -279,7 +307,9 @@ public sealed class PgDpdkServer : IPgTransport
             : _localPorts[bindIdx];
 
         // Debug log TX
-        if (!data.Contains("pg.status", StringComparison.OrdinalIgnoreCase))
+        if (data.Contains("pg.status", StringComparison.OrdinalIgnoreCase))
+            PgStatusLog(pgIndex, "TX", localPort, peerPort, data.TrimEnd());
+        else
             DebugLog(pgIndex, DebugLogMsgTypeInspect, "TX", localPort.ToString(), peerPort.ToString(), data);
 
         // Maintenance TX event
@@ -325,9 +355,14 @@ public sealed class PgDpdkServer : IPgTransport
             long rttUs = (long)(result.RttMs * 1000);
 
             // Debug log RX
-            if (ret == 0 && !data.Contains("pg.status", StringComparison.OrdinalIgnoreCase))
-                DebugLog(pgIndex, DebugLogMsgTypeInspect, "RX", localPort.ToString(),
-                    peerPort.ToString(), $"{response.TrimEnd()} [{rttUs}\u03BCs]");
+            if (ret == 0)
+            {
+                if (data.Contains("pg.status", StringComparison.OrdinalIgnoreCase))
+                    PgStatusLog(pgIndex, "RX", localPort, peerPort, $"{response.TrimEnd()} [{rttUs}\u03BCs]");
+                else
+                    DebugLog(pgIndex, DebugLogMsgTypeInspect, "RX", localPort.ToString(),
+                        peerPort.ToString(), $"{response.TrimEnd()} [{rttUs}\u03BCs]");
+            }
 
             if (ret == 0 && driver.IsMainter)
                 driver.RaiseRxMaintEventPg(pgIndex, localPort.ToString(), peerPort.ToString(), response.TrimEnd());
@@ -773,6 +808,22 @@ public sealed class PgDpdkServer : IPgTransport
         var driver = _pgDrivers[pgIndex];
         int localPort = dstPort;
         int peerPort = srcPort;
+
+        // pg.status 응답 로그 (base port로 수신된 패킷) + RTT 계산
+        if (localPort == Dp860Network.PcPortBase)
+        {
+            long txTick = (pgIndex >= 0 && pgIndex < _pgStatusTxTicks.Length)
+                ? Interlocked.Read(ref _pgStatusTxTicks[pgIndex]) : 0;
+            if (txTick > 0)
+            {
+                long rttUs = (Stopwatch.GetTimestamp() - txTick) * 1_000_000 / Stopwatch.Frequency;
+                PgStatusLog(pgIndex, "RX", localPort, peerPort, $"{sAnsiData.TrimEnd()} [{rttUs}\u03BCs]");
+            }
+            else
+            {
+                PgStatusLog(pgIndex, "RX", localPort, peerPort, sAnsiData.TrimEnd());
+            }
+        }
 
         // Parse response — same logic as PgUdpServer.ReceiveLoop
         var txRxData = (localPort == Dp860Network.PcPortBase)

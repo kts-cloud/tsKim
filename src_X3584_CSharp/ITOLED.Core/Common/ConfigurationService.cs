@@ -447,6 +447,7 @@ public class ConfigurationService : IConfigurationService
         // ---- AA mode ----
         SystemInfo.UseInLineAAMode = fSys.ReadBool(S, "USE_INLINE_AAMODE", false);
         SystemInfo.UseDpdk = fSys.ReadBool(S, "USE_DPDK", false);
+        SystemInfo.UsePipeline = fSys.ReadBool(S, "USE_PIPELINE", false);
         SystemInfo.DpdkCoreMask = fSys.ReadString(S, "DPDK_CORE_MASK", "auto");
         SystemInfo.DpdkMemoryMb = fSys.ReadInteger(S, "DPDK_MEMORY_MB", 256);
         SystemInfo.DpdkPortId = (ushort)fSys.ReadInteger(S, "DPDK_PORT_ID", 0);

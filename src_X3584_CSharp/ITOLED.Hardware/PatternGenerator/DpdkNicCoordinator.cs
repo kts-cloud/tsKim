@@ -52,14 +52,30 @@ public sealed class DpdkNicCoordinator : IDpdkNicCoordinator
     public Task<IAsyncDisposable> AcquireFtpAccessAsync(CancellationToken ct = default)
     {
         int count = Interlocked.Increment(ref _ftpActiveCount);
-        _logger.Info($"[NicCoordinator] FTP lease 획득 (activeCount={count})");
+        if (count == 1)
+        {
+            _pgServer.PauseRxPolling();
+            _logger.Info($"[NicCoordinator] FTP lease 획득 — RX polling 일시정지 (activeCount={count})");
+        }
+        else
+        {
+            _logger.Info($"[NicCoordinator] FTP lease 획득 (activeCount={count})");
+        }
         return Task.FromResult<IAsyncDisposable>(new FtpLease(this));
     }
 
     private void ReleaseFtpAccess()
     {
         int count = Interlocked.Decrement(ref _ftpActiveCount);
-        _logger.Info($"[NicCoordinator] FTP lease 해제 (activeCount={count})");
+        if (count == 0)
+        {
+            _pgServer.ResumeRxPolling();
+            _logger.Info($"[NicCoordinator] FTP lease 해제 — RX polling 재개 (activeCount={count})");
+        }
+        else
+        {
+            _logger.Info($"[NicCoordinator] FTP lease 해제 (activeCount={count})");
+        }
     }
 
     private sealed class FtpLease : IAsyncDisposable

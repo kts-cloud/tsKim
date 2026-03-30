@@ -727,6 +727,12 @@ namespace Dongaeltek.ITOLED.Core.Models
         public bool UseDpdk { get; set; }
 
         /// <summary>
+        /// Use Pipeline transport (System.IO.Pipelines + NetCoreServer) for PG communication.
+        /// <para>INI key: USE_PIPELINE</para>
+        /// </summary>
+        public bool UsePipeline { get; set; }
+
+        /// <summary>
         /// DPDK EAL core mask (e.g. "0" = core 0 only, "0x3" = cores 0-1).
         /// <para>INI key: DPDK_CORE_MASK, default "0"</para>
         /// </summary>
