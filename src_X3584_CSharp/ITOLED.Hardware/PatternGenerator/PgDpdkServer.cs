@@ -73,7 +73,11 @@ public sealed class PgDpdkServer : IPgTransport
     private volatile bool _running;
     private volatile bool _txPaused;
     private readonly object _pauseLock = new();
+    private readonly ManualResetEventSlim _shutdownEvent = new(false);
     private bool _disposed;
+
+    /// <summary>Native SEH 크래시 카운터 — hw_reqresp_once_mc가 -99 반환 시 증가</summary>
+    private volatile int _sehCrashCount;
 
     /// <summary>pg.status 전용 로그 writer</summary>
     private static StreamWriter? _pgStatusLog;
@@ -185,9 +189,13 @@ public sealed class PgDpdkServer : IPgTransport
         lock (_pauseLock)
         {
             if (!_running) return;
+            _shutdownEvent.Reset();
             _running = false;
             _txPaused = true;
-            _rxThread?.Join(5000);
+            // RxPollLoop가 _running=false 감지 후 _shutdownEvent.Set() 호출
+            // Join(5000) 대신 시그널 기반 대기 → 최대 500ms
+            if (!_shutdownEvent.Wait(500))
+                _rxThread?.Join(200); // 시그널 실패 시 짧은 Join fallback
             _rxThread = null;
             _logger.Info("[PgDpdkServer] RX polling paused for FTP");
         }
@@ -348,6 +356,18 @@ public sealed class PgDpdkServer : IPgTransport
                     out result, _localMac, _localIpNet);
             }
 
+            // Native SEH 크래시 감지 — hw_reqresp_once_mc가 AV를 SEH로 잡고 -99 반환
+            if (ret == -99)
+            {
+                int count = Interlocked.Increment(ref _sehCrashCount);
+                _logger.Error($"[PgDpdkServer] CRITICAL: hw_reqresp_once_mc SEH crash #{count} for PG{pgIndex}. " +
+                              "Native spinlock safely released. Returning as timeout.");
+                if (count >= 3)
+                    _logger.Error("[PgDpdkServer] 3+ SEH crashes detected — native memory corruption likely. " +
+                                  "Process restart recommended.");
+                return (1, string.Empty, 0); // timeout으로 반환 — 호출자 재시도 가능
+            }
+
             string response = result.RespLen > 0
                 ? Encoding.ASCII.GetString(t_respBuf, 0, result.RespLen)
                 : string.Empty;
@@ -396,84 +416,91 @@ public sealed class PgDpdkServer : IPgTransport
         var sw = System.Diagnostics.Stopwatch.StartNew();
         var rxPkts = new IntPtr[32];
 
-        // RxPollLoop 차단: 전체 대기 기간 동안 _rxExclusiveLock 유지
-        // (hw_reqresp_once_mc와 동일 패턴 — RxPollLoop가 RET:OK를 가로채는 것 방지)
-        lock (_rxExclusiveLock)
+        // Per-burst 단위 lock: RxPollLoop가 burst 사이에 다른 채널 RX 처리 가능
+        // (기존: 전체 timeout 동안 lock 점유 → 4채널 RX 차단)
+        while (sw.ElapsedMilliseconds < timeoutMs)
         {
-            while (sw.ElapsedMilliseconds < timeoutMs)
+            ushort nbRx = 0;
+
+            if (!Monitor.TryEnter(_rxExclusiveLock, 1))
             {
-                ushort nbRx;
+                Thread.SpinWait(10);
+                continue;
+            }
+            try
+            {
+                nbRx = _dpdk.DispatchPoll(rxPkts, 32, out _);
+            }
+            catch
+            {
+                Thread.SpinWait(100);
+                continue;
+            }
+            finally
+            {
+                Monitor.Exit(_rxExclusiveLock);
+            }
+
+            for (int i = 0; i < nbRx; i++)
+            {
                 try
                 {
-                    nbRx = _dpdk.DispatchPoll(rxPkts, 32, out _);
-                }
-                catch
-                {
-                    Thread.SpinWait(100);
-                    continue;
-                }
+                    var dataPtr = _dpdk.GetMbufData(rxPkts[i]);
+                    var dataLen = _dpdk.GetMbufDataLen(rxPkts[i]);
+                    if (dataPtr == IntPtr.Zero || dataLen < EtherHdr.Size + Ipv4Hdr.Size + UdpHdr.Size)
+                        continue;
 
-                for (int i = 0; i < nbRx; i++)
-                {
-                    try
+                    var etherType = (ushort)(Marshal.ReadByte(dataPtr, 12) << 8 | Marshal.ReadByte(dataPtr, 13));
+                    if (etherType == 0x0806) { HandleArpPacket(dataPtr, dataLen); continue; }
+                    if (etherType != 0x0800) continue;
+
+                    byte proto = Marshal.ReadByte(dataPtr, EtherHdr.Size + 9);
+                    if (proto != IpProtoUdp) continue;
+
+                    uint srcIpNet = ReadUInt32BE(dataPtr, EtherHdr.Size + 12);
+                    if (!_ipToPgMap.TryGetValue(srcIpNet, out int rxPgIdx) || rxPgIdx != pgIndex)
+                        continue;
+
+                    int udpOff = EtherHdr.Size + Ipv4Hdr.Size;
+                    int dstPort = NetUtils.Ntohs((ushort)Marshal.ReadInt16(dataPtr, udpOff + 2));
+                    if (dstPort != expectedDstPort && dstPort != Dp860Network.PcPortBase) continue;
+
+                    ushort udpLenNet = (ushort)Marshal.ReadInt16(dataPtr, udpOff + 4);
+                    int payloadLen = NetUtils.Ntohs(udpLenNet) - UdpHdr.Size;
+                    if (payloadLen <= 0) continue;
+
+                    var payloadBytes = new byte[payloadLen];
+                    Marshal.Copy(dataPtr + udpOff + UdpHdr.Size, payloadBytes, 0, payloadLen);
+                    var response = Encoding.ASCII.GetString(payloadBytes);
+                    long rttUs = sw.ElapsedMilliseconds * 1000;
+
+                    // RET:INFO 또는 RET: 없는 중간 패킷은 무시하고 계속 대기
+                    if (!response.Contains("RET:OK", StringComparison.OrdinalIgnoreCase) &&
+                        !response.Contains("RET:NG", StringComparison.OrdinalIgnoreCase) &&
+                        !response.Contains("RET:00", StringComparison.OrdinalIgnoreCase))
                     {
-                        var dataPtr = _dpdk.GetMbufData(rxPkts[i]);
-                        var dataLen = _dpdk.GetMbufDataLen(rxPkts[i]);
-                        if (dataPtr == IntPtr.Zero || dataLen < EtherHdr.Size + Ipv4Hdr.Size + UdpHdr.Size)
-                            continue;
-
-                        var etherType = (ushort)(Marshal.ReadByte(dataPtr, 12) << 8 | Marshal.ReadByte(dataPtr, 13));
-                        if (etherType == 0x0806) { HandleArpPacket(dataPtr, dataLen); continue; }
-                        if (etherType != 0x0800) continue;
-
-                        byte proto = Marshal.ReadByte(dataPtr, EtherHdr.Size + 9);
-                        if (proto != IpProtoUdp) continue;
-
-                        uint srcIpNet = ReadUInt32BE(dataPtr, EtherHdr.Size + 12);
-                        if (!_ipToPgMap.TryGetValue(srcIpNet, out int rxPgIdx) || rxPgIdx != pgIndex)
-                            continue;
-
-                        int udpOff = EtherHdr.Size + Ipv4Hdr.Size;
-                        int dstPort = NetUtils.Ntohs((ushort)Marshal.ReadInt16(dataPtr, udpOff + 2));
-                        if (dstPort != expectedDstPort && dstPort != Dp860Network.PcPortBase) continue;
-
-                        ushort udpLenNet = (ushort)Marshal.ReadInt16(dataPtr, udpOff + 4);
-                        int payloadLen = NetUtils.Ntohs(udpLenNet) - UdpHdr.Size;
-                        if (payloadLen <= 0) continue;
-
-                        var payloadBytes = new byte[payloadLen];
-                        Marshal.Copy(dataPtr + udpOff + UdpHdr.Size, payloadBytes, 0, payloadLen);
-                        var response = Encoding.ASCII.GetString(payloadBytes);
-                        long rttUs = sw.ElapsedMilliseconds * 1000;
-
-                        // RET:INFO 또는 RET: 없는 중간 패킷은 무시하고 계속 대기
-                        if (!response.Contains("RET:OK", StringComparison.OrdinalIgnoreCase) &&
-                            !response.Contains("RET:NG", StringComparison.OrdinalIgnoreCase) &&
-                            !response.Contains("RET:00", StringComparison.OrdinalIgnoreCase))
-                        {
-                            DebugLog(pgIndex, DebugLogMsgTypeInspect, "RX", localPort.ToString(),
-                                peerPort.ToString(), $"{response.TrimEnd()} (intermediate, waiting...)");
-                            continue;
-                        }
-
-                        // 최종 응답 (RET:OK / RET:NG) 수신
                         DebugLog(pgIndex, DebugLogMsgTypeInspect, "RX", localPort.ToString(),
-                            peerPort.ToString(), $"{response.TrimEnd()} [{rttUs}\u03BCs]");
-
-                        if (driver.IsMainter)
-                            driver.RaiseRxMaintEventPg(pgIndex, localPort.ToString(), peerPort.ToString(), response.TrimEnd());
-
-                        return (0, response, rttUs);
+                            peerPort.ToString(), $"{response.TrimEnd()} (intermediate, waiting...)");
+                        continue;
                     }
-                    finally
-                    {
-                        _dpdk.FreeMbuf(rxPkts[i]);
-                    }
+
+                    // 최종 응답 (RET:OK / RET:NG) 수신
+                    DebugLog(pgIndex, DebugLogMsgTypeInspect, "RX", localPort.ToString(),
+                        peerPort.ToString(), $"{response.TrimEnd()} [{rttUs}\u03BCs]");
+
+                    if (driver.IsMainter)
+                        driver.RaiseRxMaintEventPg(pgIndex, localPort.ToString(), peerPort.ToString(), response.TrimEnd());
+
+                    return (0, response, rttUs);
                 }
-
-                if (nbRx == 0) Thread.SpinWait(10);
+                finally
+                {
+                    _dpdk.FreeMbuf(rxPkts[i]);
+                }
             }
-        } // _rxExclusiveLock 해제
+
+            if (nbRx == 0) Thread.SpinWait(10);
+        }
 
         return (1, string.Empty, timeoutMs * 1000); // timeout
     }
@@ -639,17 +666,23 @@ public sealed class PgDpdkServer : IPgTransport
                 }
             }
 
-            // Phase 2: Wait for NIC/DMA processing
-            Thread.Sleep(50);
-
-            // Phase 3: Drain RX buffer (warmup responses + stale packets)
+            // Phase 2+3: Drain RX buffer with polling (Thread.Sleep(50) 제거)
+            // 최대 50ms, 패킷 없으면 early exit
             var rxPkts = new IntPtr[MaxRxBurst];
-            for (int drain = 0; drain < 10; drain++)
+            var warmupSw = Stopwatch.StartNew();
+            int emptyCount = 0;
+            while (warmupSw.ElapsedMilliseconds < 50)
             {
-                var nbRx = _dpdk.RxBurst(rxPkts,MaxRxBurst);
+                var nbRx = _dpdk.RxBurst(rxPkts, MaxRxBurst);
                 for (int i = 0; i < nbRx; i++)
                     _dpdk.FreeMbuf(rxPkts[i]);
-                if (nbRx == 0) break;
+                if (nbRx == 0)
+                {
+                    if (++emptyCount >= 3) break; // 3회 연속 empty → NIC 안정
+                    Thread.SpinWait(100);
+                }
+                else
+                    emptyCount = 0;
             }
 
             _logger.Info("[PgDpdkServer] DPDK Warmup 완료");
@@ -740,6 +773,7 @@ public sealed class PgDpdkServer : IPgTransport
                 }
             }
         }
+        _shutdownEvent.Set(); // PauseRxPolling 시그널
         _logger.Info("[PgDpdkServer] RxPollLoop 스레드 종료");
     }
 

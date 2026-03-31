@@ -2427,21 +2427,27 @@ public sealed class CommPgDriver : ICommPgDriver
         _ftpConnected = false;
         if (_ftpEngine != null)
         {
-            // lease가 없는 상태(Dispose 경로 등)에서도 RX 폴링 일시정지 보장
-            // — hw_lwip_stop_ref()와 hw_dispatch_poll() 동시 실행 방지
-            bool needDirectPause = _ftpLease == null && _nicCoordinator != null;
-            if (needDirectPause)
-            {
-                try
-                {
-                    // lease 없이 직접 RX 정지 (임시 lease 획득으로 Pause 트리거)
-                    _ftpLease = _nicCoordinator!.AcquireFtpAccessAsync().GetAwaiter().GetResult();
-                }
-                catch { }
-            }
-
+            // Step 1: Disconnect — RX 스레드(dispatch_poll) 실행 중, external_rx=1 상태에서
+            // dispatch_poll이 TCP 패킷을 lwIP에 피딩하므로 FTP QUIT 핸드셰이크 정상 동작
             try { _ftpEngine.DisconnectAsync().GetAwaiter().GetResult(); } catch { }
+
+            // Step 2: RX 스레드 정지 — dispatch_poll 완전 종료 후 external_rx 변경
+            // 순서 중요: SetLwipExternalRx(false) 전에 RX 스레드 중지해야 함
+            // (동시 실행 시 dispatch_poll 내 lwip_poll_once_safe()가 2번째 rx_burst 수행 →
+            //  UDP 패킷이 lwIP TCP 스택에 주입 → TCP 상태 손상 → 힙 손상 → AV)
+            var coordinator = _nicCoordinator as DpdkNicCoordinator;
+            try { coordinator?.PauseForLwipStop(); } catch { }
+
+            // Step 3: 이제 안전 — external_rx 해제하여 StopLwip의 자체 폴링 활성화
+            try { _dpdkManager?.SetLwipExternalRx(false); } catch { }
+
+            // Step 4: StopLwip — dpdk_netif_poll()이 자체 rx_burst로 TCP cleanup
             try { _ftpEngine.StopLwip(); } catch { }
+
+            // Step 5: 복원 + RX 스레드 재시작
+            try { _dpdkManager?.SetLwipExternalRx(true); } catch { }
+            try { coordinator?.ResumeAfterLwipStop(); } catch { }
+
             try { _ftpEngine.Dispose(); } catch { }
             _ftpEngine = null;
         }

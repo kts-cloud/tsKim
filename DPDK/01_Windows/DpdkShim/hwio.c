@@ -25,6 +25,13 @@
 static struct rte_ring *g_spill_ring = NULL;
 rte_spinlock_t g_rx_lock = RTE_SPINLOCK_INITIALIZER;  /* non-static: dpdk_netif.c에서도 사용 */
 
+/* TLS flag: tracks whether current thread holds g_rx_lock.
+ * rte_spinlock_t has no owner field, so SEH handler needs this to safely release. */
+static __declspec(thread) int tls_rx_lock_held = 0;
+#define RX_LOCK_ACQUIRE()         do { rte_spinlock_lock(&g_rx_lock); tls_rx_lock_held = 1; } while(0)
+#define RX_LOCK_RELEASE()         do { tls_rx_lock_held = 0; rte_spinlock_unlock(&g_rx_lock); } while(0)
+#define RX_LOCK_RELEASE_IF_HELD() do { if (tls_rx_lock_held) { tls_rx_lock_held = 0; rte_spinlock_unlock(&g_rx_lock); } } while(0)
+
 // Track EAL init state for DllMain safety net
 static volatile int g_eal_initialized = 0;
 
@@ -831,6 +838,7 @@ DPDK_API int hw_reqresp_once_mc(
     const uint8_t *local_mac,
     uint32_t local_ip)
 {
+  __try {
     static LARGE_INTEGER cached_freq_mc = {0};
     LARGE_INTEGER send_tick, now_tick;
     struct rte_mbuf *rx_pkts[32];
@@ -896,9 +904,9 @@ DPDK_API int hw_reqresp_once_mc(
     uint16_t arp_ethertype = rte_cpu_to_be_16(0x0806);
 
     while (1) {
-        rte_spinlock_lock(&g_rx_lock);
+        RX_LOCK_ACQUIRE();
         nb_rx = rte_eth_rx_burst(port_id, 0, rx_pkts, 32);
-        rte_spinlock_unlock(&g_rx_lock);
+        RX_LOCK_RELEASE();
 
         if (nb_rx == 0) {
             rte_pause();
@@ -995,6 +1003,16 @@ DPDK_API int hw_reqresp_once_mc(
     result->status = 1;
     result->rtt_ms = (double)timeout_ms;
     return 1;
+  } __except(hw_seh_filter(GetExceptionInformation())) {
+    RX_LOCK_RELEASE_IF_HELD();
+    hw_dbg("[HW] SEH: hw_reqresp_once_mc crashed! port=%u pid=%u\n", port_id, packet_id);
+    if (result) {
+        result->status = -99;
+        result->rtt_ms = 0;
+        result->resp_len = 0;
+    }
+    return -99;
+  }
 }
 
 /* ─── Batch (pipelined) Req/Resp ─── */
@@ -1247,9 +1265,10 @@ static volatile int g_lwip_ref_count = 0;
 static rte_spinlock_t g_lwip_poll_lock = RTE_SPINLOCK_INITIALIZER;
 
 static void lwip_poll_once_safe(void) {
-    rte_spinlock_lock(&g_lwip_poll_lock);
-    dpdk_lwip_poll_once();
-    rte_spinlock_unlock(&g_lwip_poll_lock);
+    if (rte_spinlock_trylock(&g_lwip_poll_lock)) {
+        dpdk_lwip_poll_once();
+        rte_spinlock_unlock(&g_lwip_poll_lock);
+    }
 }
 
 /* --- Helper: poll until op_done or timeout (per-session) --- */
@@ -1829,9 +1848,9 @@ DPDK_API uint16_t hw_dispatch_poll(
     }
 
     /* 2. Burst from NIC (lock protects single-consumer NIC queue) */
-    rte_spinlock_lock(&g_rx_lock);
+    RX_LOCK_ACQUIRE();
     uint16_t nb_rx = rte_eth_rx_burst(port_id, queue_id, rx_pkts, 64);
-    rte_spinlock_unlock(&g_rx_lock);
+    RX_LOCK_RELEASE();
 
     /* 3. Classify each packet by protocol (with prefetch) */
     for (uint16_t i = 0; i < nb_rx; i++) {
@@ -1902,6 +1921,7 @@ DPDK_API uint16_t hw_dispatch_poll(
 
     return udp_count;
   } __except(hw_seh_filter(GetExceptionInformation())) {
+    RX_LOCK_RELEASE_IF_HELD();
     hw_dbg("[HW] SEH: hw_dispatch_poll crashed! port=%u queue=%u\n", port_id, queue_id);
     if (out_lwip_count) *out_lwip_count = 0;
     return 0;
