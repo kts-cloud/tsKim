@@ -44,9 +44,13 @@
   </ItemGroup>
 
   <!-- Remove staticwebassets.runtime.json from publish output to prevent
-       DirectoryNotFoundException on machines without NuGet cache -->
+       DirectoryNotFoundException on machines without NuGet cache.
+       This file contains absolute paths (C:\Users\...\.nuget\...) used at dev time.
+       endpoints.json is also removed because BlazorWebView doesn't need the
+       runtime endpoint manifest — it serves directly from wwwroot/_content. -->
   <Target Name="RemoveStaticWebAssetsManifest" AfterTargets="Publish">
     <Delete Files="$(PublishDir)$(AssemblyName).staticwebassets.runtime.json" />
+    <Delete Files="$(PublishDir)$(AssemblyName).staticwebassets.endpoints.json" />
   </Target>
 
   <!-- HwNet.dll managed assembly reference (for HwManager in Program.cs) -->
