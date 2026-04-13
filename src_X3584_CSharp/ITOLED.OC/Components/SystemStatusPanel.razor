@@ -103,15 +103,34 @@
             <MudText Typo="Typo.caption" Class="status-value">@_csxModified</MudText>
         </div>
 
-        @* LGD DLL — Delphi: Param=1 *@
-        @foreach (var line in GetDllDisplayLines())
+        @* LGD DLL list — Delphi: Param=1 (compact grid, all entries in one table) *@
+        @{
+            var lgdList = GetLgdDllList();
+        }
+        @if (lgdList.Count > 0)
+        {
+            <div class="status-row" style="align-items:flex-start;">
+                <MudText Typo="Typo.caption" Class="status-label">LGD DLL</MudText>
+                <table class="lgd-dll-table">
+                    <tbody>
+                        @foreach (var item in lgdList)
+                        {
+                            <tr>
+                                <td class="lgd-dll-idx">@item.Index</td>
+                                <td class="lgd-dll-name">@item.Name</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        @* OC Converter version — Delphi: Param=2 *@
+        @if (!string.IsNullOrEmpty(_ocConverterVer) && _ocConverterVer != "---")
         {
             <div class="status-row">
-                <MudText Typo="Typo.caption" Class="status-label" Style="font-size:0.65rem;">@line.Label</MudText>
-                <MudText Typo="Typo.caption" Class="status-value"
-                         Style="word-break:break-all; white-space:normal; font-size:0.65rem;">
-                    @line.Value
-                </MudText>
+                <MudText Typo="Typo.caption" Class="status-label">OC_CON VER</MudText>
+                <MudText Typo="Typo.caption" Class="status-value">@_ocConverterVer</MudText>
             </div>
         }
 

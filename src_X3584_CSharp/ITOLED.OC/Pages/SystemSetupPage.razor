@@ -397,7 +397,7 @@ else
         <MudText Typo="Typo.subtitle1" Class="mb-2">OC Factory Configuration (JSON)</MudText>
 
         @* ── Config Grid ── *@
-        <MudSimpleTable Dense="true" Hover="true" Striped="true" Style="max-width: 900px;">
+        <MudSimpleTable Dense="true" Hover="true" Striped="true" Class="oc-factory-table" Style="max-width: 900px;">
             <thead>
                 <tr>
                     <th style="width:60px;">Id</th>
@@ -410,8 +410,8 @@ else
                 {
                     var idx = i;
                     var cfg = _ocFactoryConfigs[idx];
-                    <tr @onclick="() => OnOcConfigRowClick(idx)"
-                        style="@(_ocSelectedRow == idx ? "background:#e3f2fd;" : "cursor:pointer;")">
+                    var rowClass = _ocSelectedRow == idx ? "oc-row-selected" : "oc-row-clickable";
+                    <tr class="@rowClass" @onclick="() => OnOcConfigRowClick(idx)">
                         <td>@cfg.Id</td>
                         <td style="font-family:monospace; font-size:0.85em;">@cfg.DllPath</td>
                         <td>@cfg.SubscriberType</td>
@@ -422,16 +422,23 @@ else
 
         @* ── Edit Fields ── *@
         <MudGrid Spacing="2" Class="mt-3" Style="max-width: 900px;">
-            <MudItem xs="8">
+            <MudItem xs="7">
                 <MudTextField T="string" @bind-Value="_ocDllPath" Label="DllPath"
-                              Variant="Variant.Outlined" Placeholder="LGDDLL/..." />
+                              Variant="Variant.Outlined" Placeholder="LGDDLL\..." />
             </MudItem>
-            <MudItem xs="4">
+            <MudItem xs="2">
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.FolderOpen"
+                           OnClick="BrowseOcDllFile"
+                           Style="height: 56px;">Browse</MudButton>
+            </MudItem>
+            <MudItem xs="3">
                 <MudSelect T="int" @bind-Value="_ocSubscriberType" Label="SubscriberType"
                            Variant="Variant.Outlined">
                     <MudSelectItem T="int" Value="1">1</MudSelectItem>
                     <MudSelectItem T="int" Value="2">2</MudSelectItem>
                     <MudSelectItem T="int" Value="3">3</MudSelectItem>
+                    <MudSelectItem T="int" Value="4">4 (MLP)</MudSelectItem>
                 </MudSelect>
             </MudItem>
         </MudGrid>
@@ -986,6 +993,7 @@ else
         1 => "LGD_OC_X3584.OCFlow.CompensationFlow",
         2 => "LGD_OC_X3584_2.OCFlow.CompensationFlow",
         3 => "LGD_OC_X3584_5.OCFlow.CompensationFlow",
+        4 => "LGD_OC_X3584.OCFlow.CompensationFlow",
         _ => "LGD_OC_X3584.OCFlow.CompensationFlow"
     };
 
@@ -1036,5 +1044,56 @@ else
         _ocSelectedRow = -1;
         _ocDllPath = "";
         _ocSubscriberType = 1;
+    }
+
+    /// <summary>
+    /// Opens a Windows file dialog to pick an LGD Factory DLL.
+    /// If the chosen file lives under the LGDDLL directory, stores it as a
+    /// relative path (e.g., "LGDDLL\foo.dll"); otherwise stores the absolute path.
+    /// </summary>
+    private void BrowseOcDllFile()
+    {
+        // BlazorWebView runs on the WinForms UI thread (STA) — safe to invoke
+        // OpenFileDialog directly. Wrap in try/catch so a dialog failure never
+        // breaks the page.
+        try
+        {
+            var lgdDllDir = PathMgr.LgdDllDir;
+            using var ofd = new System.Windows.Forms.OpenFileDialog
+            {
+                Title = "Select LGD Factory DLL",
+                Filter = "DLL files (*.dll)|*.dll|All files (*.*)|*.*",
+                Multiselect = false,
+                CheckFileExists = true,
+                InitialDirectory = Directory.Exists(lgdDllDir)
+                    ? lgdDllDir
+                    : Environment.CurrentDirectory,
+            };
+
+            if (ofd.ShowDialog() != System.Windows.Forms.DialogResult.OK)
+                return;
+
+            var picked = Path.GetFullPath(ofd.FileName);
+
+            // Try to convert to a path relative to the LGDDLL parent directory
+            // so the JSON stays portable (e.g., "LGDDLL\LGD_OC_X3584_..._.dll").
+            // LgdDllDir = "<root>\LGDDLL", so the relative root is its parent.
+            string display = picked;
+            if (Directory.Exists(lgdDllDir))
+            {
+                var relRoot = Path.GetFullPath(Path.Combine(lgdDllDir, ".."));
+                if (picked.StartsWith(relRoot, StringComparison.OrdinalIgnoreCase))
+                {
+                    display = picked.Substring(relRoot.Length).TrimStart('\\', '/');
+                }
+            }
+
+            _ocDllPath = display.Replace('/', '\\');
+            Snackbar.Add($"Selected: {Path.GetFileName(picked)}", Severity.Info);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Browse failed: {ex.Message}", Severity.Error);
+        }
     }
 }

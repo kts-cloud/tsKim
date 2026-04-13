@@ -600,9 +600,17 @@ public sealed class DllManager : IDllManager
                 if (string.IsNullOrEmpty(version))
                     version = "N/A";
 
+                // Combine DLL filename with version for display
+                // Delphi: mmoLGDDLLName.Lines.Add(format('%d : %s', [idx, sVer]))
+                var dllFileName = Path.GetFileName(config.DllPath);
+                var displayText = !string.IsNullOrEmpty(version)
+                    && !string.Equals(version, "N/A", StringComparison.OrdinalIgnoreCase)
+                    ? $"{dllFileName} [{version}]"
+                    : dllFileName;
+
                 PublishMainFormMessage(0, MsgMode.AddLog,
-                    $"Processing DLL Index {config.Id}: {version}");
-                PublishMainFormMessage(0, MsgType.Dll, version, param: 1, param2: config.Id);
+                    $"Processing DLL Index {config.Id}: {displayText}");
+                PublishMainFormMessage(0, MsgType.Dll, displayText, param: 1, param2: config.Id);
             }
         }
         catch (Exception ex)

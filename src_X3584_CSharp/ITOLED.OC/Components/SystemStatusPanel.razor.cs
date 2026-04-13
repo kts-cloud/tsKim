@@ -65,7 +65,6 @@ public partial class SystemStatusPanel : IDisposable
     // ── Section 3: Script Information ───────────────────────────
     private string _modelName = "---";
     private string _lgdDllName = "---";       // Delphi: pnlLGDDLLName (Param=1, multi-line)
-    private string _ocConDllName = "---";     // Delphi: pnlOC_ConDLLName (Param=3)
     private string _ocConverterVer = "---";   // Delphi: pnlOC_conVer (Param=2)
     private string _csxModified = "---";
     private bool _aaModeOn;
@@ -143,7 +142,6 @@ public partial class SystemStatusPanel : IDisposable
         if (DllManager.IsLoaded)
         {
             _lgdDllName = !string.IsNullOrEmpty(DllManager.LgdDllName) ? DllManager.LgdDllName : "---";
-            _ocConDllName = !string.IsNullOrEmpty(DllManager.OcConDllName) ? DllManager.OcConDllName : "---";
             _ocConverterVer = !string.IsNullOrEmpty(DllManager.OcConverterVersion) ? DllManager.OcConverterVersion : "---";
         }
         else
@@ -232,24 +230,22 @@ public partial class SystemStatusPanel : IDisposable
             return;
 
         // Param=1: LGD DLL name (Param2=0 → base, Param2>0 → append with newline)
-        //   Delphi: Param2=N requires DisplayDLLCnt >= N
         //   dllClass.pas:1326 iterates OC_Factory_Config.json and sends all entries
         // Param=2: OC Converter version (pnlOC_conVer)
-        // Param=3: OC Converter DLL name (pnlOC_ConDLLName)
+        // Param=3: OC Converter DLL name — no longer displayed
         var sysInfo = Config.SystemInfo;
         switch (msg.Param)
         {
             case 1:
+                // Delphi: Param2=0 → clear + set base, ALL Param2 values → add to memo
+                // No OCType or DisplayDLLCnt gate in original (Main_OC.pas:6529-6536)
                 if (msg.Param2 == 0)
                 {
                     _lgdDllName = msg.Message;
                     sysInfo.LGDDLLVerName = msg.Message;
                 }
-                else if (sysInfo.OCType == ChannelConstants.OcType
-                    && !string.IsNullOrEmpty(msg.Message)
-                    && !string.Equals(msg.Message, "N/A", StringComparison.OrdinalIgnoreCase)
-                    && msg.Param2 > 0
-                    && sysInfo.DisplayDLLCnt >= msg.Param2)
+                else if (!string.IsNullOrEmpty(msg.Message)
+                    && !string.Equals(msg.Message, "N/A", StringComparison.OrdinalIgnoreCase))
                 {
                     _lgdDllName += "\n" + msg.Message;
                 }
@@ -258,38 +254,27 @@ public partial class SystemStatusPanel : IDisposable
                 sysInfo.OCConverterName = msg.Message;
                 _ocConverterVer = msg.Message;
                 break;
-            case 3:
-                _ocConDllName = msg.Message;
-                break;
         }
         InvokeAsync(StateHasChanged);
     }
 
     /// <summary>
-    /// Builds display lines for LGD DLL + OC Converter version + OC_CON DLL.
+    /// Builds the LGD DLL list for the compact grid display.
     /// Extracts [version] bracket part for compact display.
     /// </summary>
-    private IEnumerable<(string Label, string Value)> GetDllDisplayLines()
+    private List<(int Index, string Name)> GetLgdDllList()
     {
-        // LGD DLL lines (may be multi-line \n separated)
-        var lines = (_lgdDllName ?? "---").Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        var result = new List<(int, string)>();
+        var lines = (_lgdDllName ?? "").Split('\n', StringSplitOptions.RemoveEmptyEntries);
         for (int i = 0; i < lines.Length; i++)
         {
             var raw = lines[i].Trim();
-            if (string.IsNullOrEmpty(raw) || string.Equals(raw, "N/A", StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrEmpty(raw) || string.Equals(raw, "N/A", StringComparison.OrdinalIgnoreCase) || raw == "---")
                 continue;
 
-            var label = i == 0 ? "LGD DLL" : $"LGD DLL {i + 1}";
-            yield return (label, FormatDllName(raw));
+            result.Add((i + 1, FormatDllName(raw)));
         }
-
-        // OC Converter version (Delphi: pnlOC_conVer, Param=2)
-        if (!string.IsNullOrEmpty(_ocConverterVer) && _ocConverterVer != "---")
-            yield return ("OC_CON VER", _ocConverterVer);
-
-        // OC Converter DLL name (Delphi: pnlOC_ConDLLName, Param=3)
-        if (!string.IsNullOrEmpty(_ocConDllName) && _ocConDllName != "---")
-            yield return ("OC_CON DLL", _ocConDllName);
+        return result;
     }
 
     /// <summary>

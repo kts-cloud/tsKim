@@ -126,6 +126,51 @@ html, body {
     font-family: 'Consolas', monospace;
 }
 
+/* OC Factory Config grid — readable selection highlight (dark theme) */
+.oc-factory-table tbody tr.oc-row-clickable {
+    cursor: pointer;
+}
+
+.oc-factory-table tbody tr.oc-row-selected,
+.oc-factory-table tbody tr.oc-row-selected td {
+    background: rgba(66, 165, 245, 0.32) !important;
+    color: #ffffff !important;
+}
+
+.oc-factory-table tbody tr.oc-row-selected td {
+    border-left: 2px solid #42a5f5;
+}
+
+/* LGD DLL compact grid (Script Information section) */
+.lgd-dll-table {
+    flex: 1;
+    border-collapse: collapse;
+    font-family: 'Consolas', monospace;
+    font-size: 0.65rem;
+    table-layout: fixed;
+    width: 100%;
+}
+
+.lgd-dll-table td {
+    padding: 1px 4px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    vertical-align: middle;
+    line-height: 1.2;
+}
+
+.lgd-dll-table .lgd-dll-idx {
+    width: 18px;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.55);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.lgd-dll-table .lgd-dll-name {
+    word-break: break-all;
+    white-space: normal;
+    color: rgba(255, 255, 255, 0.92);
+}
+
 /* =============================================================================
    Dark theme: button/selection color fixes
    ============================================================================= */
