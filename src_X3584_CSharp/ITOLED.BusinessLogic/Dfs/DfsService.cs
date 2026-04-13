@@ -785,6 +785,14 @@ public sealed class DfsService : IDfsService
     {
         await DisconnectInternalAsync(client);
 
+        // Refresh credentials from current DfsConfInfo so that ConfigurationService.Reload()
+        // (e.g. SW Initialize) propagates new server IP / username / password to FTP
+        // connections. Without this, channels keep using values captured at construction time.
+        var dfsConf = _config.DfsConfInfo;
+        client.Host = dfsConf.DfsServerIP;
+        client.Username = dfsConf.DfsUserName;
+        client.Password = dfsConf.DfsPassword;
+
         client.TcpClient = new TcpClient();
         client.TcpClient.ReceiveTimeout = FtpReadTimeoutMs;
         client.TcpClient.SendTimeout = FtpReadTimeoutMs;
@@ -1092,13 +1100,20 @@ public sealed class DfsService : IDfsService
     /// <summary>
     /// Holds per-connection FTP state (TCP client, streams, credentials).
     /// <para>Replaces Delphi's TIdFTP instance per channel.</para>
+    /// <remarks>
+    /// Credentials are mutable so they can be refreshed from configuration before
+    /// each connect (see <see cref="ConnectInternalAsync"/>). This ensures that
+    /// after <c>ConfigurationService.Reload()</c> updates DfsConfInfo, the next
+    /// FTP connection picks up the new server IP / username / password instead
+    /// of using stale values captured at service construction time.
+    /// </remarks>
     /// </summary>
     private sealed class FtpClientState
     {
-        public string Host { get; }
-        public int Port { get; }
-        public string Username { get; }
-        public string Password { get; }
+        public string Host { get; set; }
+        public int Port { get; set; }
+        public string Username { get; set; }
+        public string Password { get; set; }
 
         public TcpClient? TcpClient { get; set; }
         public NetworkStream? Stream { get; set; }
