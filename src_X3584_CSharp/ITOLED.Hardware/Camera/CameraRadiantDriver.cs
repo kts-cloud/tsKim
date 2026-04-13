@@ -1018,11 +1018,32 @@ public sealed class CameraRadiantDriver : ICameraDriver
             CommandData[channel].PID = parts[1];
         }
 
-        var dataSize = int.Parse(parts[isGamma ? 1 : 2].Trim());
+        // Parse advertised data size — guard against malformed input.
+        if (!int.TryParse(parts[isGamma ? 1 : 2].Trim(), out var dataSize) || dataSize < 0)
+        {
+            PublishTestEvent(CameraConstants.MsgModeWorking, channel, 0, 0,
+                isGamma ? "CAM_PROCESS_POCBGAMMA: invalid dataSize"
+                        : "CAM_PROCESS_START: invalid dataSize");
+            return Array.Empty<byte>();
+        }
 
         // Build ASCII portion: command string + null terminator
         var cmdBytes = Encoding.ASCII.GetBytes(commandStr);
         var cmdLen = cmdBytes.Length + 1; // +1 for null
+
+        // Validate the source string actually contains enough hex chars for dataSize bytes.
+        // Each byte is encoded as 2 hex chars + 1 separator (3-byte stride). The last byte
+        // does not need a trailing separator, so the minimum required length is
+        // hexStart + (dataSize - 1) * 3 + 2 = hexStart + dataSize * 3 - 1 chars.
+        var hexStart = nullPos + 1;
+        var requiredLen = dataSize == 0 ? hexStart : hexStart + dataSize * 3 - 1;
+        if (data.Length < requiredLen)
+        {
+            PublishTestEvent(CameraConstants.MsgModeWorking, channel, 0, 0,
+                $"{(isGamma ? "CAM_PROCESS_POCBGAMMA" : "CAM_PROCESS_START")}: " +
+                $"data truncated (need {requiredLen}, got {data.Length})");
+            return Array.Empty<byte>();
+        }
 
         var totalSize = 8 + cmdLen + dataSize;
         var packet = new byte[totalSize];
@@ -1032,11 +1053,20 @@ public sealed class CameraRadiantDriver : ICameraDriver
         packet[8 + cmdBytes.Length] = 0x00;
 
         // Parse binary hex data: 2 hex chars per byte, 3-byte stride in the source string
-        var hexStart = nullPos + 1;
-        for (var i = 0; i < dataSize; i++)
+        try
         {
-            var hexStr = data.Substring(hexStart + (i * 3), 2);
-            packet[8 + cmdLen + i] = Convert.ToByte(hexStr, 16);
+            for (var i = 0; i < dataSize; i++)
+            {
+                var hexStr = data.Substring(hexStart + (i * 3), 2);
+                packet[8 + cmdLen + i] = Convert.ToByte(hexStr, 16);
+            }
+        }
+        catch (FormatException ex)
+        {
+            PublishTestEvent(CameraConstants.MsgModeWorking, channel, 0, 0,
+                $"{(isGamma ? "CAM_PROCESS_POCBGAMMA" : "CAM_PROCESS_START")}: " +
+                $"hex parse error - {ex.Message}");
+            return Array.Empty<byte>();
         }
 
         // Write size and checksum header
@@ -1798,16 +1828,26 @@ public sealed class CameraRadiantDriver : ICameraDriver
     /// <summary>
     /// Heartbeat timer callback. Sends PING to all channels if idle for > 10 seconds.
     /// Original Delphi: <c>TCommCamera.tmrHearBeatTimer</c>
+    /// <para>
+    /// SendCommand is synchronous and waits up to 3s per channel for a reply, so
+    /// running it inline on the timer thread can block for up to 12s, blocking
+    /// other timer callbacks. We dispatch to the thread pool so the timer thread
+    /// returns immediately.
+    /// </para>
     /// </summary>
     private void HeartbeatTimerCallback(object? state)
     {
         if (_disposed) return;
 
         var elapsed = (uint)Environment.TickCount - _tickLast;
-        if (elapsed > 10000)
+        if (elapsed <= 10000) return;
+
+        // Fire-and-forget on the thread pool — must not block the timer thread.
+        Task.Run(() =>
         {
             for (var i = 0; i < CameraConstants.ChannelCount; i++)
             {
+                if (_disposed) return;
                 try
                 {
                     SendCommand(i, "PING");
@@ -1817,7 +1857,7 @@ public sealed class CameraRadiantDriver : ICameraDriver
                     _logger.Error(i, $"[Camera] Heartbeat PING failed: {ex.Message}", ex);
                 }
             }
-        }
+        });
     }
 
     // =====================================================================
