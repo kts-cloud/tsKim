@@ -36,7 +36,9 @@ public sealed partial class PlcEcsDriver
                     }
                     else
                     {
-                        Thread.Sleep((int)PollingInterval);
+                        // Cancellation-aware wait — exits immediately on Stop()
+                        if (ct.WaitHandle.WaitOne((int)PollingInterval))
+                            break;
 
                         if (!IgnoreConnect)
                             OpenPlc();
@@ -61,8 +63,9 @@ public sealed partial class PlcEcsDriver
                 if ((DateTime.Now - _logSaveTime).TotalSeconds > _logAccumulateSecond)
                     AddLog(string.Empty, true);
 
-                // --- Wait for next cycle ---
-                Thread.Sleep((int)PollingInterval);
+                // --- Wait for next cycle (cancellation-aware) ---
+                if (ct.WaitHandle.WaitOne((int)PollingInterval))
+                    break;
             }
             catch (OperationCanceledException)
             {
@@ -71,7 +74,9 @@ public sealed partial class PlcEcsDriver
             catch (Exception ex)
             {
                 _logger.Error("ExecuteLoop exception", ex);
-                Thread.Sleep(1000);
+                // Cancellation-aware backoff after exception
+                if (ct.WaitHandle.WaitOne(1000))
+                    break;
             }
         }
 
@@ -328,10 +333,13 @@ public sealed partial class PlcEcsDriver
                 if (nValue == 0)
                 {
                     ProcessRobotNormalOff(nIndex / 0x20, nValue);
-                    _status.SetLoadUnloadFlowData(nIndex / 10, CommPlcConst.ModeUnload12, 0);
+                    // FIX: Delphi 'div 10' typo (CommPLC_ECS.pas:3479) → '$20' (matches Load branch).
+                    // Without this, ch index = 0x14/10=2, 0x34/10=5, 0x54/10=8, 0x74/10=11
+                    // → ArgumentOutOfRangeException (only ch 0..3 valid).
+                    _status.SetLoadUnloadFlowData(nIndex / 0x20, CommPlcConst.ModeUnload12, 0);
                 }
                 else
-                    _status.SetLoadUnloadFlowData(nIndex / 10, CommPlcConst.ModeUnload12, 1);
+                    _status.SetLoadUnloadFlowData(nIndex / 0x20, CommPlcConst.ModeUnload12, 1);
                 break;
         }
     }
@@ -420,10 +428,11 @@ public sealed partial class PlcEcsDriver
                 if (nValue == 0)
                 {
                     ProcessRobotNormalOff(nIndex / 0x20, nValue);
-                    _status.SetLoadUnloadFlowData(nIndex / 10, CommPlcConst.ModeUnload12, 0);
+                    // FIX: Delphi 'div 10' typo (CommPLC_ECS.pas:3667) → '$20' (matches Load branch).
+                    _status.SetLoadUnloadFlowData(nIndex / 0x20, CommPlcConst.ModeUnload12, 0);
                 }
                 else
-                    _status.SetLoadUnloadFlowData(nIndex / 10, CommPlcConst.ModeUnload12, 1);
+                    _status.SetLoadUnloadFlowData(nIndex / 0x20, CommPlcConst.ModeUnload12, 1);
                 break;
 
             // PreOC+GIB specific: Load Complete via vacuum check
