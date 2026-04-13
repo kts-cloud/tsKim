@@ -480,6 +480,32 @@ public sealed class ThermometerMultiDriver : IThermometerDriver
         if (_rxBuffer[1] == 0x04)
         {
             var byteCount = _rxBuffer[2];
+
+            // FIX: byteCount comes straight from the device — validate against the
+            // actually-received length before accessing _rxBuffer[byteCount + 3..+4].
+            // Without this guard a malformed device response (or noise on the line)
+            // could read stale bytes from the static buffer and either compute a
+            // false-positive CRC or throw IndexOutOfRangeException via the indexer.
+            // Required total length: addr(1) + func(1) + count(1) + data(byteCount) + crc(2)
+            int requiredLen = 5 + byteCount;
+            if (byteCount == 0 || requiredLen > _rxBufferCount || requiredLen > _rxBuffer.Length)
+            {
+                _logger.Warn(
+                    $"Thermometer protocol error: byteCount={byteCount} required={requiredLen} received={_rxBufferCount}");
+                _rxBufferCount = 0;
+                return;
+            }
+
+            // Sanity-check the data segment makes sense for a 2-register Read Input Register
+            // response (we always request 2 registers = 4 bytes).
+            if (byteCount != 4)
+            {
+                _logger.Warn(
+                    $"Thermometer unexpected data byteCount={byteCount} (expected 4)");
+                _rxBufferCount = 0;
+                return;
+            }
+
             var crc = ModbusCrc16.CalcCRC16(_rxBuffer, byteCount + 3);
 
             // Extract received CRC (little-endian at offset byteCount + 3)
