@@ -393,6 +393,8 @@ public sealed class CameraRadiantDriver : ICameraDriver
     private readonly ManualResetEventSlim[] _commandEvents = new ManualResetEventSlim[CameraConstants.ChannelCount];
     private readonly CameraDataBuffer[] _cameraData = new CameraDataBuffer[CameraConstants.ChannelCount];
     private readonly int[] _lightState = new int[CameraConstants.ChannelCount];
+    /// <summary>Background accept loop tasks per channel, tracked so Dispose can await them.</summary>
+    private readonly Task?[] _acceptTasks = new Task?[CameraConstants.ChannelCount];
 
     // =====================================================================
     // Public per-channel arrays (exposed via interface)
@@ -777,8 +779,9 @@ public sealed class CameraRadiantDriver : ICameraDriver
 
             _logger.Info($"[Camera] Listener started on port {port} for channel {channel}");
 
-            // Start accepting connections asynchronously
-            _ = AcceptClientsAsync(channel, _listenerCts[channel].Token);
+            // Start accepting connections asynchronously and remember the task so
+            // Dispose can await it (otherwise listener loops can outlive the driver).
+            _acceptTasks[channel] = AcceptClientsAsync(channel, _listenerCts[channel].Token);
         }
         catch (Exception ex)
         {
@@ -1899,14 +1902,13 @@ public sealed class CameraRadiantDriver : ICameraDriver
         _heartbeatTimer?.Dispose();
         _heartbeatTimer = null;
 
-        // Stop listeners and disconnect clients (reverse order matching Delphi)
+        // Phase 1: Signal cancellation to accept loops and tear down sockets.
+        // Stopping the TcpListener and disposing the client stream causes
+        // pending AcceptTcpClientAsync / ReadAsync calls to throw and the
+        // background tasks to exit their loops cleanly.
         for (var i = CameraConstants.MaxCountCamera; i >= 0; i--)
         {
-            try
-            {
-                _listenerCts[i].Cancel();
-                _listenerCts[i].Dispose();
-            }
+            try { _listenerCts[i].Cancel(); }
             catch { /* ignore */ }
 
             lock (_channelLocks[i])
@@ -1914,14 +1916,38 @@ public sealed class CameraRadiantDriver : ICameraDriver
                 DisconnectClient(i);
             }
 
-            try
-            {
-                _listeners[i]?.Stop();
-            }
+            try { _listeners[i]?.Stop(); }
             catch { /* ignore */ }
             _listeners[i] = null;
+        }
 
-            _commandEvents[i].Dispose();
+        // Phase 2: Await the accept loops (with a bounded timeout) so they
+        // observably finish before we dispose the resources they may touch.
+        // Without this, AcceptClientsAsync / ReadClientDataAsync could still
+        // be running when Dispose returns and reference disposed
+        // ManualResetEventSlim / CancellationTokenSource instances.
+        try
+        {
+            var pending = _acceptTasks
+                .Where(t => t is not null)
+                .Select(t => t!)
+                .ToArray();
+            if (pending.Length > 0)
+                Task.WaitAll(pending, TimeSpan.FromSeconds(3));
+        }
+        catch (AggregateException) { /* expected on cancel */ }
+        catch (Exception ex)
+        {
+            _logger.Warn($"[Camera] Dispose: accept-loop wait error: {ex.Message}");
+        }
+
+        // Phase 3: Final cleanup of synchronization primitives now that no
+        // background task is still using them.
+        for (var i = CameraConstants.MaxCountCamera; i >= 0; i--)
+        {
+            try { _listenerCts[i].Dispose(); } catch { /* ignore */ }
+            try { _commandEvents[i].Dispose(); } catch { /* ignore */ }
+            _acceptTasks[i] = null;
         }
     }
 }
