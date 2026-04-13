@@ -705,11 +705,13 @@ public sealed class PgDpdkServer : IPgTransport
 
     private void RxPollLoop()
     {
-        // Pin RX thread to core 1 for consistent low-latency polling
+        // Pin RX thread to core N-2 (EAL은 N-1) — 인접 코어로 L2 캐시 공유
+        // OS/앱은 코어 0~N-3 연속 블록 사용, DPDK는 상위 2코어 전용
+        int rxCore = Math.Max(1, Environment.ProcessorCount - 2);
         try
         {
-            SetThreadAffinityMask(GetCurrentThread(), new UIntPtr(1u << 1));
-            _logger.Info("[PgDpdkServer] RxPollLoop pinned to core 1");
+            SetThreadAffinityMask(GetCurrentThread(), new UIntPtr(1u << rxCore));
+            _logger.Info($"[PgDpdkServer] RxPollLoop pinned to core {rxCore}");
         }
         catch (Exception ex)
         {

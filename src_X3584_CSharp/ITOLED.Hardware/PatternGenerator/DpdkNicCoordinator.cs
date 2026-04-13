@@ -48,34 +48,34 @@ public sealed class DpdkNicCoordinator : IDpdkNicCoordinator
         _logger.Info("[NicCoordinator] lwIP external RX 비활성화 (앱 종료)");
     }
 
+    /// <summary>
+    /// StopLwip 호출 전 RX 일시정지, 완료 후 재개.
+    /// FTP 세션 중에는 RX 폴링 유지 (lwIP가 dispatch_poll 통해 TCP 패킷 수신 필요).
+    /// </summary>
+    public void PauseForLwipStop()
+    {
+        _pgServer.PauseRxPolling();
+        _logger.Info("[NicCoordinator] RX polling 일시정지 (StopLwip 보호)");
+    }
+
+    public void ResumeAfterLwipStop()
+    {
+        _pgServer.ResumeRxPolling();
+        _logger.Info("[NicCoordinator] RX polling 재개 (StopLwip 완료)");
+    }
+
     /// <inheritdoc/>
     public Task<IAsyncDisposable> AcquireFtpAccessAsync(CancellationToken ct = default)
     {
         int count = Interlocked.Increment(ref _ftpActiveCount);
-        if (count == 1)
-        {
-            _pgServer.PauseRxPolling();
-            _logger.Info($"[NicCoordinator] FTP lease 획득 — RX polling 일시정지 (activeCount={count})");
-        }
-        else
-        {
-            _logger.Info($"[NicCoordinator] FTP lease 획득 (activeCount={count})");
-        }
+        _logger.Info($"[NicCoordinator] FTP lease 획득 (activeCount={count})");
         return Task.FromResult<IAsyncDisposable>(new FtpLease(this));
     }
 
     private void ReleaseFtpAccess()
     {
         int count = Interlocked.Decrement(ref _ftpActiveCount);
-        if (count == 0)
-        {
-            _pgServer.ResumeRxPolling();
-            _logger.Info($"[NicCoordinator] FTP lease 해제 — RX polling 재개 (activeCount={count})");
-        }
-        else
-        {
-            _logger.Info($"[NicCoordinator] FTP lease 해제 (activeCount={count})");
-        }
+        _logger.Info($"[NicCoordinator] FTP lease 해제 (activeCount={count})");
     }
 
     private sealed class FtpLease : IAsyncDisposable
