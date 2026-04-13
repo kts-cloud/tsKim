@@ -231,14 +231,6 @@ public sealed class LightNaratechDriver : ILightDriver
     /// <inheritdoc />
     public void WriteBrightOne(byte channel, byte brightness)
     {
-        // Reject out-of-range channel — both BrightList[channel] (line below) and
-        // the protocol byte (0x30 + channel) would silently corrupt otherwise.
-        if (channel >= DefLight.MaxLightCount)
-        {
-            _logger.Warn($"[Light] WriteBrightOne: channel {channel} out of range (max {DefLight.MaxLightCount - 1})");
-            return;
-        }
-
         lock (_portLock)
         {
             if (!IsPortOpen()) return;
@@ -252,12 +244,6 @@ public sealed class LightNaratechDriver : ILightDriver
     /// <inheritdoc />
     public void WriteBrightTwin(byte ch1, byte ch2, byte bright1, byte bright2)
     {
-        if (ch1 >= DefLight.MaxLightCount || ch2 >= DefLight.MaxLightCount)
-        {
-            _logger.Warn($"[Light] WriteBrightTwin: channel out of range (ch1={ch1}, ch2={ch2}, max {DefLight.MaxLightCount - 1})");
-            return;
-        }
-
         lock (_portLock)
         {
             if (!IsPortOpen()) return;

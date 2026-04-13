@@ -330,13 +330,6 @@ public sealed class IonizerDriver : IIonizerDriver
         //   sSendData := '$' + sSendData + Format('*%0.2x',[btCheckSum]) + CR + LF;
         // ---------------------------------------------------------------
         var payloadBytes = Encoding.ASCII.GetBytes(payload);
-        if (payloadBytes.Length == 0)
-        {
-            // Should never happen because prefix is always 2 chars, but guard
-            // against accidental refactor that bypasses the prefix.
-            _logger.Warn(_channelIndex, "Ionizer SendMsg: empty payload, skipping");
-            return;
-        }
         byte checksum = payloadBytes[0];
         for (var i = 1; i < payloadBytes.Length; i++)
         {

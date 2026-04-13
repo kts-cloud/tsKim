@@ -21,16 +21,11 @@ public sealed class AppLogger : IAppLogger, IDisposable
 
     // ── File logging (CommLogger 패턴) ──────────────────────────
     private string? _logDir;
-    /// <summary>Guards the in-memory buffer only. Held briefly — never during disk I/O.</summary>
     private readonly object _fileLock = new();
-    /// <summary>Serializes actual file writes so disk I/O can't run concurrently.</summary>
-    private readonly object _writeLock = new();
     private readonly List<string> _buffer = new();
     private DateTime _lastFlush = DateTime.MinValue;
     private const int FlushIntervalSec = 5;
     private const int FlushCountThreshold = 20;
-    /// <summary>Cap on retained lines when disk writes are failing — prevents unbounded growth.</summary>
-    private const int BufferOverflowLimit = 1000;
     private readonly CancellationTokenSource _cts = new();
     private Task? _flushTask;
     private bool _disposed;
@@ -63,7 +58,7 @@ public sealed class AppLogger : IAppLogger, IDisposable
                 catch { /* swallow */ }
             }
             // Final flush
-            FlushToFile();
+            FlushToFile(force: true);
         });
     }
 
@@ -144,7 +139,10 @@ public sealed class AppLogger : IAppLogger, IDisposable
     /// </summary>
     public void Flush()
     {
-        FlushToFile();
+        lock (_fileLock)
+        {
+            FlushToFile(force: true);
+        }
     }
 
     // ── File logging internals ──────────────────────────────────
@@ -156,89 +154,58 @@ public sealed class AppLogger : IAppLogger, IDisposable
         var now = DateTime.Now;
         var line = $"{now:HH:mm:ss.fff} [{level}] {message}";
 
-        bool shouldFlush;
         lock (_fileLock)
         {
             _buffer.Add(line);
 
             // Immediate flush on error, DPDK-related logs, or when buffer is large
-            shouldFlush = level == "ERROR"
+            if (level == "ERROR"
                 || message.Contains("[DPDK]")
                 || message.Contains("[PgDpdkServer]")
                 || message.Contains("[Startup]")
                 || message.Contains("[FATAL]")
-                || _buffer.Count >= FlushCountThreshold;
+                || _buffer.Count >= FlushCountThreshold)
+                FlushToFile(force: true);
         }
-
-        // Run the actual disk I/O OUTSIDE _fileLock so other producers can keep
-        // appending to the buffer in parallel. _writeLock (taken inside FlushToFile)
-        // serializes the writers themselves.
-        if (shouldFlush)
-            FlushToFile();
     }
 
     private void FlushIfNeeded()
     {
-        bool needsFlush;
         lock (_fileLock)
         {
             if (_buffer.Count == 0) return;
-            needsFlush = (DateTime.Now - _lastFlush).TotalSeconds >= FlushIntervalSec;
+            if ((DateTime.Now - _lastFlush).TotalSeconds >= FlushIntervalSec)
+                FlushToFile(force: true);
         }
-        if (needsFlush)
-            FlushToFile();
     }
 
-    private void FlushToFile()
+    private void FlushToFile(bool force)
     {
-        if (_logDir == null) return;
+        // Must be called within _fileLock
+        if (_logDir == null || _buffer.Count == 0) return;
 
-        // Snapshot the buffer under the in-memory lock and release it before
-        // touching disk. Previously the whole disk write happened while
-        // holding _fileLock, so a slow filesystem (network drive, antivirus
-        // scan, Windows handle exhaustion) would block every log producer.
-        List<string> snapshot;
-        lock (_fileLock)
+        try
         {
-            if (_buffer.Count == 0) return;
-            snapshot = new List<string>(_buffer);
+            var now = DateTime.Now;
+            var dateDir = Path.Combine(_logDir, now.ToString("yyyyMMdd"));
+            if (!Directory.Exists(dateDir))
+                Directory.CreateDirectory(dateDir);
+
+            var ampm = now.Hour < 12 ? "AM" : "PM";
+            var fileName = Path.Combine(dateDir, $"AppLog_{now:yyyyMMdd}_{ampm}.txt");
+
+            using var writer = new StreamWriter(fileName, append: true, Encoding.UTF8);
+            foreach (var line in _buffer)
+                writer.WriteLine(line);
+
             _buffer.Clear();
+            _lastFlush = DateTime.Now;
         }
-
-        // Serialize disk writes — only one writer at a time, but producers
-        // are no longer blocked.
-        lock (_writeLock)
+        catch
         {
-            try
-            {
-                var now = DateTime.Now;
-                var dateDir = Path.Combine(_logDir, now.ToString("yyyyMMdd"));
-                if (!Directory.Exists(dateDir))
-                    Directory.CreateDirectory(dateDir);
-
-                var ampm = now.Hour < 12 ? "AM" : "PM";
-                var fileName = Path.Combine(dateDir, $"AppLog_{now:yyyyMMdd}_{ampm}.txt");
-
-                using var writer = new StreamWriter(fileName, append: true, Encoding.UTF8);
-                foreach (var line in snapshot)
-                    writer.WriteLine(line);
-
-                lock (_fileLock)
-                {
-                    _lastFlush = DateTime.Now;
-                }
-            }
-            catch
-            {
-                // Disk write failed — snapshot is dropped (matching prior best-effort
-                // behavior). If the live buffer has since grown past the overflow
-                // limit, trim it too so we don't leak memory while disks are down.
-                lock (_fileLock)
-                {
-                    if (_buffer.Count > BufferOverflowLimit)
-                        _buffer.Clear();
-                }
-            }
+            // 파일 쓰기 실패 시 버퍼만 비우고 진행
+            if (_buffer.Count > 1000)
+                _buffer.Clear();
         }
     }
 
@@ -251,7 +218,10 @@ public sealed class AppLogger : IAppLogger, IDisposable
         try { _flushTask?.Wait(TimeSpan.FromSeconds(3)); }
         catch { /* timeout */ }
 
-        FlushToFile();
+        lock (_fileLock)
+        {
+            FlushToFile(force: true);
+        }
 
         _cts.Dispose();
     }
