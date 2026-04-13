@@ -563,8 +563,12 @@ public class ConfigurationService : IConfigurationService
         OnlineInterlockInfo.ProcessCode = fSys.ReadString("OnLineInterlock", "Process_Code", "");
         OnlineInterlockInfo.ProcessIndex = fSys.ReadInteger("OnLineInterlock", "Process_Index", 0);
         OnlineInterlockInfo.VersionSW = fSys.ReadString("OnLineInterlock", "Version_SW", "-");
+        // FIX: Removed Delphi-era hardcoded override that unconditionally reset
+        // VersionModel to "LD130QD1" after reading from INI, causing operator
+        // configuration to be silently lost on every startup (and persisted by
+        // SaveSystemInfo). The ReadString default ("LD130QD1") still applies
+        // when the INI key is absent, so backward compatibility is preserved.
         OnlineInterlockInfo.VersionModel = fSys.ReadString("OnLineInterlock", "Version_MODEL", "LD130QD1");
-        OnlineInterlockInfo.VersionModel = "LD130QD1"; // Hardcoded override from Delphi
         OnlineInterlockInfo.VersionFW = fSys.ReadString("OnLineInterlock", "Version_FW", "-");
         OnlineInterlockInfo.VersionFPGA = fSys.ReadString("OnLineInterlock", "Version_FPGA", "-");
         OnlineInterlockInfo.VersionPower = fSys.ReadString("OnLineInterlock", "Version_Power", "-");
@@ -665,7 +669,10 @@ public class ConfigurationService : IConfigurationService
         sysF.WriteBool(S, "USE_ONLYRESTART", SystemInfo.OnlyRestartMode);
         sysF.WriteInteger(S, "COM_IR_TEMP_SENSOR", SystemInfo.ComIrTempSensor);
         sysF.WriteInteger(S, "Set_IR_TEMP", SystemInfo.SetTemperature);
-        sysF.WriteInteger(S, "EQPID_TYPE", SystemInfo.EQPIdType);
+        // FIX: Use same key casing as ReadSystemInfo ("EQPId_Type") to avoid
+        // duplicate keys in INI files when the driver is run on case-sensitive
+        // filesystems or when the file is later edited by external tooling.
+        sysF.WriteInteger(S, "EQPId_Type", SystemInfo.EQPIdType);
         sysF.WriteString(S, "EQPID", SystemInfo.EQPId);
         sysF.WriteString(S, "EQPID_INLINE", SystemInfo.EQPIdInline);
         sysF.WriteString(S, "EQPID_MGIB", SystemInfo.EQPIdMGIB);
