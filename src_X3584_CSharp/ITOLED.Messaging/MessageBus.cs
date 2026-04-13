@@ -8,17 +8,18 @@ namespace Dongaeltek.ITOLED.Messaging;
 /// Thread-safe publish/subscribe message bus.
 /// Replaces Delphi's WM_COPYDATA inter-form messaging.
 /// <para>
-/// Subscriptions are stored as <see cref="WeakReference{T}"/> to delegates
-/// so that forgotten unsubscriptions do not prevent garbage collection of
-/// the owning object. However, callers SHOULD still dispose the returned
-/// <see cref="IDisposable"/> for deterministic cleanup.
+/// Subscriptions hold a <strong>strong</strong> reference to the handler delegate
+/// for as long as the subscription is alive. Callers MUST dispose the
+/// <see cref="IDisposable"/> returned by <see cref="Subscribe{T}"/> to release
+/// the handler — forgotten unsubscriptions will keep the handler (and any
+/// captured target) alive until the bus itself is collected.
 /// </para>
 /// </summary>
 public sealed class MessageBus : IMessageBus
 {
     // ── Subscription storage ───────────────────────────────────────────
     // Key   = concrete AppMessage subtype (e.g. typeof(ScriptEventMessage))
-    // Value = list of Subscription records holding weak-referenced delegates
+    // Value = list of Subscription records holding strong references to delegates
     private readonly ConcurrentDictionary<Type, List<Subscription>> _subscriptions = new();
 
     // Lock per message type to serialise mutations on each subscription list
@@ -95,28 +96,25 @@ public sealed class MessageBus : IMessageBus
         if (!_subscriptions.TryGetValue(messageType, out var list))
             return;
 
-        // Snapshot the list under lock, then invoke outside the lock
-        // to avoid holding the lock during potentially slow handlers.
+        // Snapshot the list under the per-type lock, then invoke outside the
+        // lock so a slow handler can't block other publishers / subscribers.
         Subscription[] snapshot;
-        var @lock = _locks.GetOrAdd(messageType, _ => new object());
+        if (!_locks.TryGetValue(messageType, out var @lock))
+            return; // lost a race with subscription removal — no subscribers
 
         lock (@lock)
         {
             snapshot = list.ToArray();
         }
 
-        List<Subscription>? dead = null;
-
         foreach (var sub in snapshot)
         {
-            if (!sub.HandlerRef.TryGetTarget(out var target))
-            {
-                // Weak reference expired - mark for cleanup
-                (dead ??= new List<Subscription>()).Add(sub);
+            // Skip subscriptions that have been disposed concurrently.
+            var handler = sub.Handler;
+            if (handler is null)
                 continue;
-            }
 
-            var action = (Action<T>)target;
+            var action = (Action<T>)handler;
 
             // Determine which SynchronizationContext to use:
             // 1. Per-subscription context (from SubscribeOnContext) takes priority
@@ -145,16 +143,6 @@ public sealed class MessageBus : IMessageBus
                 }
             }
         }
-
-        // Lazy cleanup of dead weak references
-        if (dead is not null)
-        {
-            lock (@lock)
-            {
-                foreach (var d in dead)
-                    list.Remove(d);
-            }
-        }
     }
 
     /// <summary>
@@ -176,32 +164,30 @@ public sealed class MessageBus : IMessageBus
     // ── Inner types ────────────────────────────────────────────────────
 
     /// <summary>
-    /// Holds a weak reference to the delegate plus an optional
+    /// Holds a strong reference to the handler delegate plus an optional
     /// <see cref="SynchronizationContext"/> for marshaling.
+    /// <para>
+    /// The handler reference is volatile so that <see cref="Release"/> on the
+    /// disposing thread is observed by an in-flight publish on another thread
+    /// without taking a lock — the publisher checks for null and skips the
+    /// disposed subscription.
+    /// </para>
     /// </summary>
     private sealed class Subscription
     {
-        public WeakReference<Delegate> HandlerRef { get; }
-        public SynchronizationContext? SyncContext { get; }
+        private Delegate? _handler;
 
-        /// <summary>
-        /// Strong reference kept so the delegate is not GC'd while
-        /// the subscription is alive. Cleared on unsubscribe.
-        /// </summary>
-        internal Delegate? StrongRef;
+        public Delegate? Handler => Volatile.Read(ref _handler);
+        public SynchronizationContext? SyncContext { get; }
 
         public Subscription(Delegate handler, SynchronizationContext? syncContext)
         {
-            HandlerRef = new WeakReference<Delegate>(handler);
-            StrongRef = handler;
+            _handler = handler;
             SyncContext = syncContext;
         }
 
-        /// <summary>
-        /// Releases the strong reference so the weak reference
-        /// can be collected on next GC cycle.
-        /// </summary>
-        public void Release() => StrongRef = null;
+        /// <summary>Releases the strong reference so the handler is eligible for GC.</summary>
+        public void Release() => Volatile.Write(ref _handler, null);
     }
 
     /// <summary>

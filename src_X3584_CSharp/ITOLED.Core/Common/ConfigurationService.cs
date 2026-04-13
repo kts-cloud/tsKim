@@ -30,6 +30,15 @@ public class ConfigurationService : IConfigurationService
 
     private readonly IPathManager _pathManager;
 
+    /// <summary>
+    /// Serializes all SystemConfig.ini access (Get*/Set*/ReadSystemInfo/SaveSystemInfo).
+    /// Each Get*/Set* opens its own <see cref="IniFileHelper"/> which loads + writes the
+    /// whole file, so concurrent callers would otherwise overwrite each other's edits or
+    /// race against the bulk Save. The lock is single-instance scoped — DI registers
+    /// ConfigurationService as a singleton, so this serializes all callers in the process.
+    /// </summary>
+    private readonly object _iniLock = new();
+
     // =========================================================================
     // Configuration Data Properties
     // =========================================================================
@@ -106,50 +115,75 @@ public class ConfigurationService : IConfigurationService
     /// <inheritdoc />
     public string GetString(string section, string key, string defaultValue = "")
     {
-        using var ini = new IniFileHelper(_pathManager.SystemConfigPath);
-        return ini.ReadString(section, key, defaultValue);
+        lock (_iniLock)
+        {
+            using var ini = new IniFileHelper(_pathManager.SystemConfigPath);
+            return ini.ReadString(section, key, defaultValue);
+        }
     }
 
     /// <inheritdoc />
     public int GetInt(string section, string key, int defaultValue = 0)
     {
-        using var ini = new IniFileHelper(_pathManager.SystemConfigPath);
-        return ini.ReadInteger(section, key, defaultValue);
+        lock (_iniLock)
+        {
+            using var ini = new IniFileHelper(_pathManager.SystemConfigPath);
+            return ini.ReadInteger(section, key, defaultValue);
+        }
     }
 
     /// <inheritdoc />
     public bool GetBool(string section, string key, bool defaultValue = false)
     {
-        using var ini = new IniFileHelper(_pathManager.SystemConfigPath);
-        return ini.ReadBool(section, key, defaultValue);
+        lock (_iniLock)
+        {
+            using var ini = new IniFileHelper(_pathManager.SystemConfigPath);
+            return ini.ReadBool(section, key, defaultValue);
+        }
     }
 
     /// <inheritdoc />
     public double GetDouble(string section, string key, double defaultValue = 0.0)
     {
-        using var ini = new IniFileHelper(_pathManager.SystemConfigPath);
-        return ini.ReadFloat(section, key, defaultValue);
+        lock (_iniLock)
+        {
+            using var ini = new IniFileHelper(_pathManager.SystemConfigPath);
+            return ini.ReadFloat(section, key, defaultValue);
+        }
     }
 
     /// <inheritdoc />
     public void SetString(string section, string key, string value)
     {
-        using var ini = new IniFileHelper(_pathManager.SystemConfigPath);
-        ini.WriteString(section, key, value);
+        // Lock guards against the load+modify+save race that previously occurred
+        // when two Set* calls (or a Set* + SaveSystemInfo) ran concurrently —
+        // each would load its own copy and the second writer would silently
+        // discard the first writer's edits.
+        lock (_iniLock)
+        {
+            using var ini = new IniFileHelper(_pathManager.SystemConfigPath);
+            ini.WriteString(section, key, value);
+        }
     }
 
     /// <inheritdoc />
     public void SetInt(string section, string key, int value)
     {
-        using var ini = new IniFileHelper(_pathManager.SystemConfigPath);
-        ini.WriteInteger(section, key, value);
+        lock (_iniLock)
+        {
+            using var ini = new IniFileHelper(_pathManager.SystemConfigPath);
+            ini.WriteInteger(section, key, value);
+        }
     }
 
     /// <inheritdoc />
     public void SetBool(string section, string key, bool value)
     {
-        using var ini = new IniFileHelper(_pathManager.SystemConfigPath);
-        ini.WriteBool(section, key, value);
+        lock (_iniLock)
+        {
+            using var ini = new IniFileHelper(_pathManager.SystemConfigPath);
+            ini.WriteBool(section, key, value);
+        }
     }
 
     /// <inheritdoc />
@@ -267,10 +301,23 @@ public class ConfigurationService : IConfigurationService
     /// <inheritdoc />
     public void ReadSystemInfo()
     {
+        // Hold the INI lock for the entire read so concurrent Set*/SaveSystemInfo
+        // calls cannot rewrite the file partway through, leaving the in-memory
+        // SystemInfo in a half-loaded state.
+        lock (_iniLock)
+        {
+            ReadSystemInfoUnlocked();
+        }
+    }
+
+    private void ReadSystemInfoUnlocked()
+    {
         if (!File.Exists(_pathManager.SystemConfigPath))
         {
             InitSystemInfo();
-            SaveSystemInfo();
+            // SaveSystemInfo also acquires _iniLock. We're already inside it,
+            // so call the unlocked variant to avoid recursive lock contention.
+            SaveSystemInfoUnlocked();
             return;
         }
 
@@ -645,6 +692,16 @@ public class ConfigurationService : IConfigurationService
 
     /// <inheritdoc />
     public void SaveSystemInfo()
+    {
+        // Hold the INI lock for the entire save so concurrent Set*/ReadSystemInfo
+        // callers cannot interleave their own writes with the bulk save.
+        lock (_iniLock)
+        {
+            SaveSystemInfoUnlocked();
+        }
+    }
+
+    private void SaveSystemInfoUnlocked()
     {
         using var sysF = new IniFileHelper(_pathManager.SystemConfigPath);
         const string S = "SYSTEMDATA";
