@@ -24,6 +24,7 @@ public class FlowCompletionCoordinatorTests : IDisposable
         foreach (var s in _scripts) s.IsInUse = true;
         _coordinator = new FlowCompletionCoordinator(
             _bus, _dll, _scripts, _config,
+            new StubSystemStatus(),
             new NullLogger());
     }
 
@@ -172,5 +173,31 @@ public class FlowCompletionCoordinatorTests : IDisposable
         public void SaveSystemInfoCa410Memory(int channel, string data) { }
         public void Save() { }
         public void Reload() { }
+    }
+
+    private class StubSystemStatus : ISystemStatusService
+    {
+        public bool AutoMode { get; set; }
+        public bool IsLoggedIn { get; set; }
+        public bool IsClosing { get; set; }
+        public bool IsLoading { get; set; }
+        public bool AlarmOn { get; set; }
+        public bool RobotDoorOpened { get; set; }
+        public bool IsLastProduct { get; set; }
+        public bool IsStageTurning { get; set; }
+        public bool AabMode { get; set; }
+        public bool AutoRepeatTest { get; set; }
+        public bool GetChannelEnabled(int channel) => true;
+        public void SetChannelEnabled(int channel, bool enabled) { }
+        public int GetStageStep(int stageIndex) => 0;
+        public void SetStageStep(int stageIndex, int step) { }
+        public byte GetAlarmData(int index) => 0;
+        public void SetAlarmData(int index, byte value) { }
+        public string GetAlarmMessage(int index) => "";
+        public void SetAlarmMessage(int index, string message) { }
+        public int GetLoadUnloadFlowData(int channel, int stepIndex) => 0;
+        public void SetLoadUnloadFlowData(int channel, int stepIndex, int value) { }
+        public void ClearAlarms() { }
+        public void Reset() { }
     }
 }
