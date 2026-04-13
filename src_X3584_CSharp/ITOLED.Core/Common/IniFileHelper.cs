@@ -78,7 +78,10 @@ public class IniFileHelper : IDisposable
     public int ReadInteger(string section, string key, int defaultValue = 0)
     {
         var s = ReadString(section, key, null!);
-        if (s != null && int.TryParse(s.Trim(), out var result))
+        // Use InvariantCulture so the parser is independent of the operator
+        // machine's locale (e.g. negative-sign handling on non-en cultures).
+        if (s != null && int.TryParse(s.Trim(),
+                NumberStyles.Integer, CultureInfo.InvariantCulture, out var result))
             return result;
         return defaultValue;
     }
@@ -312,6 +315,12 @@ public class IniFileHelper : IDisposable
             }
             sb.AppendLine();
         }
-        File.WriteAllText(_filePath, sb.ToString(), Encoding.Default);
+
+        // Atomic write: serialize to a temp file, then rename over the target.
+        // Prevents corruption (empty / truncated INI) when the process or host
+        // crashes mid-write, which previously made the app unable to restart.
+        var tmpPath = _filePath + ".tmp";
+        File.WriteAllText(tmpPath, sb.ToString(), Encoding.Default);
+        File.Move(tmpPath, _filePath, overwrite: true);
     }
 }

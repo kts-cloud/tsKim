@@ -286,8 +286,20 @@ public sealed class ChannelLogger : IDisposable
             var processed = ProcessAllChannels();
             if (!processed)
             {
-                // No data processed - wait briefly to avoid busy spin
-                try { await Task.Delay(1, ct); }
+                // Wait until ANY channel has data, OR until the periodic flush
+                // interval elapses (so timer-based flushes still happen on idle
+                // channels). Previously this used Task.Delay(1, ct) which on
+                // Windows rounds up to ~15ms but still wakes the writer ~67×/sec
+                // even when there is no data — wasted CPU and timer pressure.
+                // WaitToReadAsync wakes immediately on the next produced item.
+                try
+                {
+                    var waitTasks = new Task[_channels.Length + 1];
+                    for (int i = 0; i < _channels.Length; i++)
+                        waitTasks[i] = _channels[i].Buffer.Reader.WaitToReadAsync(ct).AsTask();
+                    waitTasks[^1] = Task.Delay(TimeSpan.FromSeconds(FlushIntervalSec), ct);
+                    await Task.WhenAny(waitTasks).ConfigureAwait(false);
+                }
                 catch (OperationCanceledException) { break; }
             }
         }
