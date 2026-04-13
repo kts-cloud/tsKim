@@ -1069,27 +1069,51 @@ public sealed class DfsService : IDfsService
         if (_disposed) return;
         _disposed = true;
 
-        // Disconnect and dispose all channel clients
+        // Drop all FTP connections synchronously and without re-entering the
+        // SynchronizationContext. Earlier this method called
+        // DisconnectInternalAsync(...).GetAwaiter().GetResult() which can
+        // deadlock when called from a UI / single-threaded sync context: the
+        // async continuation needs the captured context to resume, but Dispose
+        // is blocking that very context. We avoid the deadlock by closing
+        // sockets synchronously rather than going through the async write
+        // path.
         for (int i = 0; i < _channelClients.Length; i++)
-        {
-            try
-            {
-                DisconnectInternalAsync(_channelClients[i]).GetAwaiter().GetResult();
-            }
-            catch
-            {
-                // Best effort during disposal
-            }
-        }
+            CloseClientSync(_channelClients[i]);
 
-        // Disconnect shared client
+        CloseClientSync(_commonClient);
+    }
+
+    /// <summary>
+    /// Synchronously closes an FTP client without awaiting any async I/O.
+    /// Used by <see cref="Dispose"/> to avoid sync-over-async deadlocks.
+    /// </summary>
+    private void CloseClientSync(FtpClientState client)
+    {
         try
         {
-            DisconnectInternalAsync(_commonClient).GetAwaiter().GetResult();
+            // Best-effort QUIT — synchronous, no async continuation needed.
+            if (client.TcpClient?.Connected == true && client.Stream != null)
+            {
+                try
+                {
+                    var quit = Encoding.ASCII.GetBytes("QUIT\r\n");
+                    client.Stream.Write(quit, 0, quit.Length);
+                    client.Stream.Flush();
+                }
+                catch { /* ignore — we're tearing down */ }
+            }
         }
-        catch
+        finally
         {
-            // Best effort during disposal
+            try { client.Reader?.Dispose(); } catch { /* ignore */ }
+            try { client.Writer?.Dispose(); } catch { /* ignore */ }
+            try { client.Stream?.Dispose(); } catch { /* ignore */ }
+            try { client.TcpClient?.Dispose(); } catch { /* ignore */ }
+            client.TcpClient = null;
+            client.Stream = null;
+            client.Reader = null;
+            client.Writer = null;
+            client.IsConnected = false;
         }
     }
 
