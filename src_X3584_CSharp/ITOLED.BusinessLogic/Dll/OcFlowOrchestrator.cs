@@ -622,7 +622,9 @@ public sealed class OcFlowOrchestrator : IDisposable
             }
             catch (Exception ex)
             {
+                var inner = ex is System.Reflection.TargetInvocationException tie ? tie.InnerException : ex;
                 _logger.Warn($"CreateFlowInstance: Constructor failed for {flowType.FullName}: {ex.Message}");
+                _logger.Error($"CreateFlowInstance: InnerException: {inner?.Message}\n{inner?.StackTrace}");
             }
         }
 

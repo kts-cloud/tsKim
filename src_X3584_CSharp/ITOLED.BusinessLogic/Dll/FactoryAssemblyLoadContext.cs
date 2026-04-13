@@ -39,6 +39,7 @@ public class FactoryAssemblyLoadContext : AssemblyLoadContext
         "MathNet.Filtering",
         "MTOOptimization",
         "Newtonsoft.Json",
+        "Microsoft.ML.OnnxRuntime",
     };
 
     public FactoryAssemblyLoadContext(string name, string dllDirectory)
