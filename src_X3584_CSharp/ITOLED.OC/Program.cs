@@ -705,11 +705,22 @@ public class Program
             var concretePgArray = pgDrivers.OfType<CommPgDriver>().ToArray();
             if (concretePgArray.Length > 0)
             {
-                // Update model type on all PG instances
+                // Update model type on all PG instances (initial load + auto-refresh on model change)
+                // Fix: Delphi TCommPG reads Common.TestModelInfoFLOW.ModelFileName from the
+                // singleton at send time, so it always sees the latest value. The C# port
+                // captured it once into _modelFileName, which meant Model Change at runtime
+                // kept sending the stale startup file name. Subscribe to ModelLoaded so each
+                // LoadModel call refreshes all PG drivers immediately.
                 if (modelSvc is ModelInfoService mis)
                 {
-                    foreach (var pg in concretePgArray)
-                        pg.UpdateModelType(mis.FlowData.ModelTypeName, mis.FlowData.ModelFileName);
+                    void RefreshPgModelFromFlow()
+                    {
+                        foreach (var pg in concretePgArray)
+                            pg.UpdateModelType(mis.FlowData.ModelTypeName, mis.FlowData.ModelFileName);
+                    }
+
+                    RefreshPgModelFromFlow();
+                    mis.ModelLoaded += (_, _) => RefreshPgModelFromFlow();
                 }
 
                 // Flush logs before PG transport setup (crash 방지)
